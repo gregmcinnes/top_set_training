@@ -1,0 +1,258 @@
+{
+  "name": "5/3/1 Boring But Big",
+  "displayName": "5/3/1 Boring But Big",
+  "description": "Classic 5/3/1 split with 4 days/week over 4 weeks. Week 1: 5s week (5/5/5+), Week 2: 3s week (3/3/3+), Week 3: 5/3/1 week (5/3/1+), Week 4: Deload. Main lift followed by 5x10 BBB supplemental at 50%. After completing the cycle, increase TMs manually (+5 lb upper, +10 lb lower) and start a new cycle.",
+  "rounding": 5,
+  "day_titles": {
+    "1": "OHP Day",
+    "2": "Deadlift Day",
+    "3": "Bench Day",
+    "4": "Squat Day"
+  },
+  "single_at_8_percent": {
+    "Squat": 0.9,
+    "Bench Press": 0.9,
+    "Deadlift": 0.9,
+    "Overhead Press": 0.9
+  },
+  "weeks": [1, 2, 3, 4],
+  "days": {
+    "1": [
+      {
+        "type": "structured",
+        "name": "Overhead Press",
+        "lift": "Overhead Press",
+        "sets_detail_by_week": {
+          "1": [
+            {"intensity": 0.65, "reps": 5, "isAMRAP": false},
+            {"intensity": 0.75, "reps": 5, "isAMRAP": false},
+            {"intensity": 0.85, "reps": 5, "isAMRAP": true}
+          ],
+          "2": [
+            {"intensity": 0.70, "reps": 3, "isAMRAP": false},
+            {"intensity": 0.80, "reps": 3, "isAMRAP": false},
+            {"intensity": 0.90, "reps": 3, "isAMRAP": true}
+          ],
+          "3": [
+            {"intensity": 0.75, "reps": 5, "isAMRAP": false},
+            {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+            {"intensity": 0.95, "reps": 1, "isAMRAP": true}
+          ],
+          "4": [
+            {"intensity": 0.40, "reps": 5, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 5, "isAMRAP": false},
+            {"intensity": 0.60, "reps": 5, "isAMRAP": false}
+          ]
+        }
+      },
+      {
+        "type": "structured",
+        "name": "Bench Press BBB",
+        "lift": "Bench Press",
+        "sets_detail_by_week": {
+          "1": [
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false}
+          ],
+          "2": [
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false}
+          ],
+          "3": [
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false}
+          ],
+          "4": []
+        }
+      },
+      {"type": "accessory", "name": "Chin-ups", "default_sets": 5, "default_reps": 10}
+    ],
+    "2": [
+      {
+        "type": "structured",
+        "name": "Deadlift",
+        "lift": "Deadlift",
+        "sets_detail_by_week": {
+          "1": [
+            {"intensity": 0.65, "reps": 5, "isAMRAP": false},
+            {"intensity": 0.75, "reps": 5, "isAMRAP": false},
+            {"intensity": 0.85, "reps": 5, "isAMRAP": true}
+          ],
+          "2": [
+            {"intensity": 0.70, "reps": 3, "isAMRAP": false},
+            {"intensity": 0.80, "reps": 3, "isAMRAP": false},
+            {"intensity": 0.90, "reps": 3, "isAMRAP": true}
+          ],
+          "3": [
+            {"intensity": 0.75, "reps": 5, "isAMRAP": false},
+            {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+            {"intensity": 0.95, "reps": 1, "isAMRAP": true}
+          ],
+          "4": [
+            {"intensity": 0.40, "reps": 5, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 5, "isAMRAP": false},
+            {"intensity": 0.60, "reps": 5, "isAMRAP": false}
+          ]
+        }
+      },
+      {
+        "type": "structured",
+        "name": "Squat BBB",
+        "lift": "Squat",
+        "sets_detail_by_week": {
+          "1": [
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false}
+          ],
+          "2": [
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false}
+          ],
+          "3": [
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false}
+          ],
+          "4": []
+        }
+      },
+      {"type": "accessory", "name": "Hanging Leg Raise", "default_sets": 5, "default_reps": 15}
+    ],
+    "3": [
+      {
+        "type": "structured",
+        "name": "Bench Press",
+        "lift": "Bench Press",
+        "sets_detail_by_week": {
+          "1": [
+            {"intensity": 0.65, "reps": 5, "isAMRAP": false},
+            {"intensity": 0.75, "reps": 5, "isAMRAP": false},
+            {"intensity": 0.85, "reps": 5, "isAMRAP": true}
+          ],
+          "2": [
+            {"intensity": 0.70, "reps": 3, "isAMRAP": false},
+            {"intensity": 0.80, "reps": 3, "isAMRAP": false},
+            {"intensity": 0.90, "reps": 3, "isAMRAP": true}
+          ],
+          "3": [
+            {"intensity": 0.75, "reps": 5, "isAMRAP": false},
+            {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+            {"intensity": 0.95, "reps": 1, "isAMRAP": true}
+          ],
+          "4": [
+            {"intensity": 0.40, "reps": 5, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 5, "isAMRAP": false},
+            {"intensity": 0.60, "reps": 5, "isAMRAP": false}
+          ]
+        }
+      },
+      {
+        "type": "structured",
+        "name": "OHP BBB",
+        "lift": "Overhead Press",
+        "sets_detail_by_week": {
+          "1": [
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false}
+          ],
+          "2": [
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false}
+          ],
+          "3": [
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false}
+          ],
+          "4": []
+        }
+      },
+      {"type": "accessory", "name": "Dumbbell Row", "default_sets": 5, "default_reps": 10}
+    ],
+    "4": [
+      {
+        "type": "structured",
+        "name": "Squat",
+        "lift": "Squat",
+        "sets_detail_by_week": {
+          "1": [
+            {"intensity": 0.65, "reps": 5, "isAMRAP": false},
+            {"intensity": 0.75, "reps": 5, "isAMRAP": false},
+            {"intensity": 0.85, "reps": 5, "isAMRAP": true}
+          ],
+          "2": [
+            {"intensity": 0.70, "reps": 3, "isAMRAP": false},
+            {"intensity": 0.80, "reps": 3, "isAMRAP": false},
+            {"intensity": 0.90, "reps": 3, "isAMRAP": true}
+          ],
+          "3": [
+            {"intensity": 0.75, "reps": 5, "isAMRAP": false},
+            {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+            {"intensity": 0.95, "reps": 1, "isAMRAP": true}
+          ],
+          "4": [
+            {"intensity": 0.40, "reps": 5, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 5, "isAMRAP": false},
+            {"intensity": 0.60, "reps": 5, "isAMRAP": false}
+          ]
+        }
+      },
+      {
+        "type": "structured",
+        "name": "Deadlift BBB",
+        "lift": "Deadlift",
+        "sets_detail_by_week": {
+          "1": [
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false}
+          ],
+          "2": [
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false}
+          ],
+          "3": [
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false},
+            {"intensity": 0.50, "reps": 10, "isAMRAP": false}
+          ],
+          "4": []
+        }
+      },
+      {"type": "accessory", "name": "Leg Curl", "default_sets": 5, "default_reps": 10}
+    ]
+  },
+  "lifts": {}
+}

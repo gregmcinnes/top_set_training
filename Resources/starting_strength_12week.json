@@ -1,0 +1,181 @@
+{
+  "name": "Starting Strength",
+  "displayName": "Starting Strength",
+  "days_per_week": 3,
+  "description": "3 days/week. Squat every session, Press/Bench alternate, Deadlift 1x5 every session. Add weight each successful workout (+5 lb upper, +10 lb lower). Phase 1 novice linear progression.",
+  "rounding": 5,
+  "day_titles": {
+    "1": "Day A (Press)",
+    "2": "Day B (Bench)",
+    "3": "Day A (Press)",
+    "4": "Day B (Bench)",
+    "5": "Day A (Press)",
+    "6": "Day B (Bench)"
+  },
+  "single_at_8_percent": {
+    "Squat": 0.9,
+    "Bench Press": 0.9,
+    "Deadlift": 0.9,
+    "Overhead Press": 0.9
+  },
+  "linear_progression": {
+    "default_increment": 5.0,
+    "lift_increments": {
+      "Squat": 10.0,
+      "Deadlift": 10.0
+    },
+    "failures_before_deload": 3,
+    "deload_percentage": 0.10
+  },
+  "weeks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+  "day_visibility": {
+    "1": [1, 3, 5, 7, 9, 11],
+    "2": [1, 3, 5, 7, 9, 11],
+    "3": [1, 3, 5, 7, 9, 11],
+    "4": [2, 4, 6, 8, 10, 12],
+    "5": [2, 4, 6, 8, 10, 12],
+    "6": [2, 4, 6, 8, 10, 12]
+  },
+  "days": {
+    "1": [
+      {
+        "type": "linear",
+        "name": "Squat",
+        "lift": "Squat",
+        "sets": 3,
+        "reps": 5
+      },
+      {
+        "type": "linear",
+        "name": "Overhead Press",
+        "lift": "Overhead Press",
+        "sets": 3,
+        "reps": 5
+      },
+      {
+        "type": "linear",
+        "name": "Deadlift",
+        "lift": "Deadlift",
+        "sets": 1,
+        "reps": 5
+      }
+    ],
+    "2": [
+      {
+        "type": "linear",
+        "name": "Squat",
+        "lift": "Squat",
+        "sets": 3,
+        "reps": 5
+      },
+      {
+        "type": "linear",
+        "name": "Bench Press",
+        "lift": "Bench Press",
+        "sets": 3,
+        "reps": 5
+      },
+      {
+        "type": "linear",
+        "name": "Deadlift",
+        "lift": "Deadlift",
+        "sets": 1,
+        "reps": 5
+      }
+    ],
+    "3": [
+      {
+        "type": "linear",
+        "name": "Squat",
+        "lift": "Squat",
+        "sets": 3,
+        "reps": 5
+      },
+      {
+        "type": "linear",
+        "name": "Overhead Press",
+        "lift": "Overhead Press",
+        "sets": 3,
+        "reps": 5
+      },
+      {
+        "type": "linear",
+        "name": "Deadlift",
+        "lift": "Deadlift",
+        "sets": 1,
+        "reps": 5
+      }
+    ],
+    "4": [
+      {
+        "type": "linear",
+        "name": "Squat",
+        "lift": "Squat",
+        "sets": 3,
+        "reps": 5
+      },
+      {
+        "type": "linear",
+        "name": "Bench Press",
+        "lift": "Bench Press",
+        "sets": 3,
+        "reps": 5
+      },
+      {
+        "type": "linear",
+        "name": "Deadlift",
+        "lift": "Deadlift",
+        "sets": 1,
+        "reps": 5
+      }
+    ],
+    "5": [
+      {
+        "type": "linear",
+        "name": "Squat",
+        "lift": "Squat",
+        "sets": 3,
+        "reps": 5
+      },
+      {
+        "type": "linear",
+        "name": "Overhead Press",
+        "lift": "Overhead Press",
+        "sets": 3,
+        "reps": 5
+      },
+      {
+        "type": "linear",
+        "name": "Deadlift",
+        "lift": "Deadlift",
+        "sets": 1,
+        "reps": 5
+      }
+    ],
+    "6": [
+      {
+        "type": "linear",
+        "name": "Squat",
+        "lift": "Squat",
+        "sets": 3,
+        "reps": 5
+      },
+      {
+        "type": "linear",
+        "name": "Bench Press",
+        "lift": "Bench Press",
+        "sets": 3,
+        "reps": 5
+      },
+      {
+        "type": "linear",
+        "name": "Deadlift",
+        "lift": "Deadlift",
+        "sets": 1,
+        "reps": 5
+      }
+    ]
+  },
+  "lifts": {},
+  "_note": "Mark Rippetoe's Starting Strength Phase 1 (Novice LP). True A/B alternation: Odd weeks A/B/A, Even weeks B/A/B. Squat 3x5 and Deadlift 1x5 every session. Press on Day A, Bench on Day B. Add +5 lb upper / +10 lb lower each successful session. Deload 10% after 3 consecutive failures. Phase 2 (Power Cleans) and Phase 3 (Chin-ups) not implemented."
+}

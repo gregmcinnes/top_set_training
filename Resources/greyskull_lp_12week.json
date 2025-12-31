@@ -1,0 +1,224 @@
+{
+  "name": "Greyskull LP (Phrak's)",
+  "displayName": "AMRAP Basics",
+  "days_per_week": 3,
+  "description": "3 days/week for 12 weeks with true A/B alternation. Week 1: A-B-A, Week 2: B-A-B, and so on. Squat every session, 2x5 + 1x5+ AMRAP on main lifts (Deadlift is 1x5+ only). Add weight when you hit 5+ reps on the AMRAP set.",
+  "rounding": 5,
+  "day_titles": {
+    "1": "Workout A",
+    "2": "Workout B",
+    "3": "Workout A",
+    "4": "Workout B",
+    "5": "Workout A",
+    "6": "Workout B"
+  },
+  "single_at_8_percent": {
+    "Squat": 0.9,
+    "Bench Press": 0.9,
+    "Deadlift": 0.9,
+    "Overhead Press": 0.9,
+    "Barbell Row": 0.9
+  },
+  "weeks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+  "day_visibility": {
+    "1": [1, 3, 5, 7, 9, 11],
+    "2": [1, 3, 5, 7, 9, 11],
+    "3": [1, 3, 5, 7, 9, 11],
+    "4": [2, 4, 6, 8, 10, 12],
+    "5": [2, 4, 6, 8, 10, 12],
+    "6": [2, 4, 6, 8, 10, 12]
+  },
+  "days": {
+    "1": [
+      {
+        "type": "structured",
+        "name": "Squat",
+        "lift": "Squat",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },      {
+        "type": "structured",
+        "name": "Bench Press",
+        "lift": "Bench Press",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },      {
+        "type": "structured",
+        "name": "Barbell Row",
+        "lift": "Barbell Row",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Curls", "default_sets": 2, "default_reps": 12}
+    ],
+    "2": [      {
+        "type": "structured",
+        "name": "Squat",
+        "lift": "Squat",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Overhead Press",
+        "lift": "Overhead Press",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Deadlift",
+        "lift": "Deadlift",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Chin-ups", "default_sets": 3, "default_reps": 8}
+    ],
+    "3": [
+      {
+        "type": "structured",
+        "name": "Squat",
+        "lift": "Squat",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Bench Press",
+        "lift": "Bench Press",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Barbell Row",
+        "lift": "Barbell Row",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Curls", "default_sets": 2, "default_reps": 12}
+    ],
+    "4": [
+      {
+        "type": "structured",
+        "name": "Squat",
+        "lift": "Squat",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Overhead Press",
+        "lift": "Overhead Press",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Deadlift",
+        "lift": "Deadlift",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Chin-ups", "default_sets": 3, "default_reps": 8}
+    ],
+    "5": [
+      {
+        "type": "structured",
+        "name": "Squat",
+        "lift": "Squat",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Bench Press",
+        "lift": "Bench Press",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Barbell Row",
+        "lift": "Barbell Row",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Curls", "default_sets": 2, "default_reps": 12}
+    ],
+    "6": [
+      {
+        "type": "structured",
+        "name": "Squat",
+        "lift": "Squat",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Overhead Press",
+        "lift": "Overhead Press",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Deadlift",
+        "lift": "Deadlift",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Chin-ups", "default_sets": 3, "default_reps": 8}
+    ]
+  },
+  "lifts": {},
+  "_note": "AMRAP Basics with A/B alternation using day_visibility. Odd weeks (1,3,5,7,9,11) show days 1-3 (A-B-A). Even weeks (2,4,6,8,10,12) show days 4-6 (B-A-B). Workout A = Squat/Bench/Row. Workout B = Squat/OHP/Deadlift."
+}

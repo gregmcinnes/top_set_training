@@ -1,0 +1,117 @@
+name: SBS
+options:
+  minimumXcodeGenVersion: 2.36.0
+  bundleIdPrefix: com.gregorymcinnes
+settings:
+  base:
+    SWIFT_VERSION: 5.9
+    IPHONEOS_DEPLOYMENT_TARGET: 17.0
+    ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+packages: {}
+targets:
+  SBSApp:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: SBSApp
+      - path: SBSCore
+      - path: Resources/sbs_program_config.json
+        buildPhase: resources
+      - path: Resources/nsuns_5day_12week.json
+        buildPhase: resources
+      - path: Resources/nsuns_4day_12week.json
+        buildPhase: resources
+      - path: Resources/531_bbb_12week.json
+        buildPhase: resources
+      - path: Resources/531_triumvirate_12week.json
+        buildPhase: resources
+      - path: Resources/gzclp_12week.json
+        buildPhase: resources
+      - path: Resources/gzclp_3day_12week.json
+        buildPhase: resources
+      - path: Resources/stronglifts_5x5_12week.json
+        buildPhase: resources
+      - path: Resources/greyskull_lp_12week.json
+        buildPhase: resources
+      - path: Resources/reddit_ppl_12week.json
+        buildPhase: resources
+      - path: Resources/starting_strength_12week.json
+        buildPhase: resources
+      - path: Resources/powerlifting_percentiles.json
+        buildPhase: resources
+    dependencies:
+      - target: RestTimerWidget
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.gregorymcinnes.topsettraining
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 1.0.0
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 2K7MV7G4ZJ
+        CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION: YES
+    scheme:
+      storeKitConfiguration: SBS.storekit
+    entitlements:
+      path: SBSApp/SBSApp.entitlements
+      properties:
+        com.apple.developer.in-app-payments: []
+    info:
+      path: SBSApp/Info.plist
+      properties:
+        CFBundleName: Top Set Training
+        CFBundleDisplayName: Top Set Training
+        CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        NSSupportsLiveActivities: true
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+
+  RestTimerWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: RestTimerWidget
+      - path: SBSCore/RestTimerActivity.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.gregorymcinnes.topsettraining.RestTimerWidget
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 1.0.0
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: RestTimerWidget/Info.plist
+        INFOPLIST_KEY_CFBundleDisplayName: Rest Timer
+        INFOPLIST_KEY_NSHumanReadableCopyright: ""
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 2K7MV7G4ZJ
+    info:
+      path: RestTimerWidget/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        NSSupportsLiveActivities: true
+
+  SBSTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: SBSTests
+      - path: SBSCore
+    dependencies:
+      - target: SBSApp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.gregorymcinnes.topsettraining.tests
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/SBSApp.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/SBSApp
+        BUNDLE_LOADER: $(TEST_HOST)
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 2K7MV7G4ZJ

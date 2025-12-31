@@ -1,0 +1,178 @@
+{
+  "name": "Reddit PPL",
+  "displayName": "Reddit PPL",
+  "description": "6 days/week. Push/Pull/Legs twice per week. Linear progression on main lifts (+5 lb upper, +10 lb deadlift) with AMRAP final sets. Alternates Bench/OHP focus on Push days and Deadlift/Row focus on Pull days.",
+  "rounding": 5,
+  "day_titles": {
+    "1": "Push A (Bench)",
+    "2": "Pull A (Deadlift)",
+    "3": "Legs",
+    "4": "Push B (OHP)",
+    "5": "Pull B (Row)",
+    "6": "Legs"
+  },
+  "single_at_8_percent": {
+    "Bench Press": 0.9,
+    "Overhead Press": 0.9,
+    "Squat": 0.9,
+    "Deadlift": 0.9,
+    "Barbell Row": 0.9,
+    "Romanian Deadlift": 0.9
+  },
+  "weeks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+  "days": {
+    "1": [
+      { "type": "tm", "name": "Bench Press TM", "lift": "Bench Press" },
+      {
+        "type": "structured",
+        "name": "Bench Press",
+        "lift": "Bench Press",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      { "type": "tm", "name": "OHP TM", "lift": "Overhead Press" },
+      {
+        "type": "structured",
+        "name": "OHP (Volume)",
+        "lift": "Overhead Press",
+        "sets_detail": [
+          {"intensity": 0.85, "reps": 10, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 10, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 10, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Incline Dumbbell Press", "default_sets": 3, "default_reps": 10},
+      {"type": "accessory", "name": "Tricep Pushdowns", "default_sets": 3, "default_reps": 12},
+      {"type": "accessory", "name": "Lateral Raises", "default_sets": 3, "default_reps": 12},
+      {"type": "accessory", "name": "Overhead Tricep Extension", "default_sets": 3, "default_reps": 12}
+    ],
+    "2": [
+      { "type": "tm", "name": "Deadlift TM", "lift": "Deadlift" },
+      {
+        "type": "structured",
+        "name": "Deadlift",
+        "lift": "Deadlift",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Lat Pulldowns", "default_sets": 3, "default_reps": 10},
+      {"type": "accessory", "name": "Seated Cable Rows", "default_sets": 3, "default_reps": 10},
+      {"type": "accessory", "name": "Face Pulls", "default_sets": 5, "default_reps": 18},
+      {"type": "accessory", "name": "Hammer Curls", "default_sets": 4, "default_reps": 10},
+      {"type": "accessory", "name": "Dumbbell Curls", "default_sets": 4, "default_reps": 10}
+    ],
+    "3": [
+      { "type": "tm", "name": "Squat TM", "lift": "Squat" },
+      {
+        "type": "structured",
+        "name": "Squat",
+        "lift": "Squat",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      { "type": "tm", "name": "Romanian Deadlift TM", "lift": "Romanian Deadlift" },
+      {
+        "type": "structured",
+        "name": "Romanian Deadlift",
+        "lift": "Romanian Deadlift",
+        "sets_detail": [
+          {"intensity": 0.70, "reps": 10, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 10, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 10, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Leg Press", "default_sets": 3, "default_reps": 10},
+      {"type": "accessory", "name": "Leg Curls", "default_sets": 3, "default_reps": 10},
+      {"type": "accessory", "name": "Calf Raises", "default_sets": 5, "default_reps": 10}
+    ],
+    "4": [
+      { "type": "tm", "name": "OHP TM", "lift": "Overhead Press" },
+      {
+        "type": "structured",
+        "name": "Overhead Press",
+        "lift": "Overhead Press",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      { "type": "tm", "name": "Bench Press TM", "lift": "Bench Press" },
+      {
+        "type": "structured",
+        "name": "Bench Press (Volume)",
+        "lift": "Bench Press",
+        "sets_detail": [
+          {"intensity": 0.85, "reps": 10, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 10, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 10, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Incline Dumbbell Press", "default_sets": 3, "default_reps": 10},
+      {"type": "accessory", "name": "Tricep Pushdowns", "default_sets": 3, "default_reps": 12},
+      {"type": "accessory", "name": "Lateral Raises", "default_sets": 3, "default_reps": 12},
+      {"type": "accessory", "name": "Lateral Raises", "default_sets": 3, "default_reps": 12},
+      {"type": "accessory", "name": "Overhead Tricep Extension", "default_sets": 3, "default_reps": 12}
+    ],
+    "5": [
+      { "type": "tm", "name": "Barbell Row TM", "lift": "Barbell Row" },
+      {
+        "type": "structured",
+        "name": "Barbell Row",
+        "lift": "Barbell Row",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Lat Pulldowns", "default_sets": 3, "default_reps": 10},
+      {"type": "accessory", "name": "Seated Cable Rows", "default_sets": 3, "default_reps": 10},
+      {"type": "accessory", "name": "Face Pulls", "default_sets": 5, "default_reps": 18},
+      {"type": "accessory", "name": "Hammer Curls", "default_sets": 4, "default_reps": 10},
+      {"type": "accessory", "name": "Dumbbell Curls", "default_sets": 4, "default_reps": 10}
+    ],
+    "6": [
+      { "type": "tm", "name": "Squat TM", "lift": "Squat" },
+      {
+        "type": "structured",
+        "name": "Squat",
+        "lift": "Squat",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      { "type": "tm", "name": "Romanian Deadlift TM", "lift": "Romanian Deadlift" },
+      {
+        "type": "structured",
+        "name": "Romanian Deadlift",
+        "lift": "Romanian Deadlift",
+        "sets_detail": [
+          {"intensity": 0.70, "reps": 10, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 10, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 10, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Leg Press", "default_sets": 3, "default_reps": 10},
+      {"type": "accessory", "name": "Leg Curls", "default_sets": 3, "default_reps": 10},
+      {"type": "accessory", "name": "Calf Raises", "default_sets": 5, "default_reps": 10}
+    ]
+  },
+  "lifts": {},
+  "_note": "Metallicadpa's Reddit PPL. 6-day Push/Pull/Legs split run twice weekly. Push A = Bench focus (4x5+1x5+), OHP volume (3x8-12). Push B = OHP focus (4x5+1x5+), Bench volume (3x8-12). Pull A = Deadlift 1x5+ only. Pull B = Row 4x5+1x5+ only. Legs = Squat 2x5+1x5+, RDL 3x8-12. Linear progression on main lifts via AMRAP performance."
+}

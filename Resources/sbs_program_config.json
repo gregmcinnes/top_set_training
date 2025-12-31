@@ -1,0 +1,1331 @@
+{
+  "name": "SBS Hypertrophy Template - 5 day",
+  "displayName": "Smart Hypertrophy",
+  "description": "5 days/week, 20 weeks. Rep-out sets auto-adjust your training max based on performance. Progressive intensity with deload weeks built in.",
+  "rounding": 5,
+  "day_titles": {
+    "1": "Squat Day",
+    "2": "Bench Day",
+    "3": "Deadlift Day",
+    "4": "OHP Day",
+    "5": "Accessory Day"
+  },
+  "single_at_8_percent": {
+    "Squat": 0.9,
+    "Bench Press": 0.9,
+    "Deadlift": 0.9,
+    "Overhead Press": 0.9,
+    "Front Squat": 0.9,
+    "Paused Squat": 0.9,
+    "Incline Press": 0.9,
+    "Spoto Press": 0.9,
+    "Rack Pull": 0.9,
+    "Push Press": 0.9
+  },
+  "weeks": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "days": {
+    "1": [
+      {
+        "type": "volume",
+        "name": "Squat",
+        "lift": "Squat"
+      },
+      {
+        "type": "volume",
+        "name": "Push Press",
+        "lift": "Push Press"
+      }
+    ],
+    "2": [
+      {
+        "type": "volume",
+        "name": "Bench Press",
+        "lift": "Bench Press"
+      },
+      {
+        "type": "volume",
+        "name": "Front Squat",
+        "lift": "Front Squat"
+      }
+    ],
+    "3": [
+      {
+        "type": "volume",
+        "name": "Deadlift",
+        "lift": "Deadlift"
+      },
+      {
+        "type": "volume",
+        "name": "Incline Press",
+        "lift": "Incline Press"
+      }
+    ],
+    "4": [
+      {
+        "type": "volume",
+        "name": "Overhead Press",
+        "lift": "Overhead Press"
+      },
+      {
+        "type": "volume",
+        "name": "Paused Squat",
+        "lift": "Paused Squat"
+      }
+    ],
+    "5": [
+      {
+        "type": "volume",
+        "name": "Spoto Press",
+        "lift": "Spoto Press"
+      },
+      {
+        "type": "volume",
+        "name": "Rack Pull",
+        "lift": "Rack Pull"
+      }
+    ]
+  },
+  "lifts": {
+    "Squat": {
+      "1": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "2": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "3": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "4": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "5": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "6": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      },
+      "7": {
+        "Intensity": 0.6,
+        "Reps per normal set": 14.0,
+        "Rep out target": 18.0,
+        "Sets": 4.0
+      },
+      "8": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "9": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "10": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      },
+      "11": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "12": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      },
+      "13": {
+        "Intensity": 0.8,
+        "Reps per normal set": 6.0,
+        "Rep out target": 8.0,
+        "Sets": 4.0
+      },
+      "14": {
+        "Intensity": 0.6,
+        "Reps per normal set": 14.0,
+        "Rep out target": 18.0,
+        "Sets": 4.0
+      },
+      "15": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "16": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      },
+      "17": {
+        "Intensity": 0.8,
+        "Reps per normal set": 6.0,
+        "Rep out target": 8.0,
+        "Sets": 4.0
+      },
+      "18": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      },
+      "19": {
+        "Intensity": 0.8,
+        "Reps per normal set": 6.0,
+        "Rep out target": 8.0,
+        "Sets": 4.0
+      },
+      "20": {
+        "Intensity": 0.825,
+        "Reps per normal set": 5.0,
+        "Rep out target": 6.0,
+        "Sets": 4.0
+      }
+    },
+    "Bench Press": {
+      "1": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "2": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "3": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "4": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "5": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "6": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      },
+      "7": {
+        "Intensity": 0.6,
+        "Reps per normal set": 14.0,
+        "Rep out target": 18.0,
+        "Sets": 4.0
+      },
+      "8": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "9": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "10": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      },
+      "11": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "12": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      },
+      "13": {
+        "Intensity": 0.8,
+        "Reps per normal set": 6.0,
+        "Rep out target": 8.0,
+        "Sets": 4.0
+      },
+      "14": {
+        "Intensity": 0.6,
+        "Reps per normal set": 14.0,
+        "Rep out target": 18.0,
+        "Sets": 4.0
+      },
+      "15": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "16": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      },
+      "17": {
+        "Intensity": 0.8,
+        "Reps per normal set": 6.0,
+        "Rep out target": 8.0,
+        "Sets": 4.0
+      },
+      "18": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      },
+      "19": {
+        "Intensity": 0.8,
+        "Reps per normal set": 6.0,
+        "Rep out target": 8.0,
+        "Sets": 4.0
+      },
+      "20": {
+        "Intensity": 0.825,
+        "Reps per normal set": 5.0,
+        "Rep out target": 6.0,
+        "Sets": 4.0
+      }
+    },
+    "Deadlift": {
+      "1": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "2": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "3": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "4": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "5": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "6": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      },
+      "7": {
+        "Intensity": 0.6,
+        "Reps per normal set": 14.0,
+        "Rep out target": 18.0,
+        "Sets": 4.0
+      },
+      "8": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "9": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "10": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      },
+      "11": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "12": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      },
+      "13": {
+        "Intensity": 0.8,
+        "Reps per normal set": 6.0,
+        "Rep out target": 8.0,
+        "Sets": 4.0
+      },
+      "14": {
+        "Intensity": 0.6,
+        "Reps per normal set": 14.0,
+        "Rep out target": 18.0,
+        "Sets": 4.0
+      },
+      "15": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "16": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      },
+      "17": {
+        "Intensity": 0.8,
+        "Reps per normal set": 6.0,
+        "Rep out target": 8.0,
+        "Sets": 4.0
+      },
+      "18": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      },
+      "19": {
+        "Intensity": 0.8,
+        "Reps per normal set": 6.0,
+        "Rep out target": 8.0,
+        "Sets": 4.0
+      },
+      "20": {
+        "Intensity": 0.825,
+        "Reps per normal set": 5.0,
+        "Rep out target": 6.0,
+        "Sets": 4.0
+      }
+    },
+    "Overhead Press": {
+      "1": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "2": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "3": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "4": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "5": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "6": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      },
+      "7": {
+        "Intensity": 0.6,
+        "Reps per normal set": 14.0,
+        "Rep out target": 18.0,
+        "Sets": 4.0
+      },
+      "8": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "9": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "10": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      },
+      "11": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "12": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      },
+      "13": {
+        "Intensity": 0.8,
+        "Reps per normal set": 6.0,
+        "Rep out target": 8.0,
+        "Sets": 4.0
+      },
+      "14": {
+        "Intensity": 0.6,
+        "Reps per normal set": 14.0,
+        "Rep out target": 18.0,
+        "Sets": 4.0
+      },
+      "15": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "16": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      },
+      "17": {
+        "Intensity": 0.8,
+        "Reps per normal set": 6.0,
+        "Rep out target": 8.0,
+        "Sets": 4.0
+      },
+      "18": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      },
+      "19": {
+        "Intensity": 0.8,
+        "Reps per normal set": 6.0,
+        "Rep out target": 8.0,
+        "Sets": 4.0
+      },
+      "20": {
+        "Intensity": 0.825,
+        "Reps per normal set": 5.0,
+        "Rep out target": 6.0,
+        "Sets": 4.0
+      }
+    },
+    "Front Squat": {
+      "1": {
+        "Intensity": 0.65,
+        "Reps per normal set": 12.0,
+        "Rep out target": 15.0,
+        "Sets": 4.0
+      },
+      "2": {
+        "Intensity": 0.675,
+        "Reps per normal set": 11.0,
+        "Rep out target": 13.0,
+        "Sets": 4.0
+      },
+      "3": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "4": {
+        "Intensity": 0.675,
+        "Reps per normal set": 11.0,
+        "Rep out target": 13.0,
+        "Sets": 4.0
+      },
+      "5": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "6": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "7": {
+        "Intensity": 0.55,
+        "Reps per normal set": 17.0,
+        "Rep out target": 21.0,
+        "Sets": 4.0
+      },
+      "8": {
+        "Intensity": 0.675,
+        "Reps per normal set": 11.0,
+        "Rep out target": 13.0,
+        "Sets": 4.0
+      },
+      "9": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "10": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "11": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "12": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "13": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "14": {
+        "Intensity": 0.55,
+        "Reps per normal set": 17.0,
+        "Rep out target": 21.0,
+        "Sets": 4.0
+      },
+      "15": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "16": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "17": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "18": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "19": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "20": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      }
+    },
+    "Paused Squat": {
+      "1": {
+        "Intensity": 0.65,
+        "Reps per normal set": 12.0,
+        "Rep out target": 15.0,
+        "Sets": 4.0
+      },
+      "2": {
+        "Intensity": 0.675,
+        "Reps per normal set": 11.0,
+        "Rep out target": 13.0,
+        "Sets": 4.0
+      },
+      "3": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "4": {
+        "Intensity": 0.675,
+        "Reps per normal set": 11.0,
+        "Rep out target": 13.0,
+        "Sets": 4.0
+      },
+      "5": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "6": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "7": {
+        "Intensity": 0.55,
+        "Reps per normal set": 17.0,
+        "Rep out target": 21.0,
+        "Sets": 4.0
+      },
+      "8": {
+        "Intensity": 0.675,
+        "Reps per normal set": 11.0,
+        "Rep out target": 13.0,
+        "Sets": 4.0
+      },
+      "9": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "10": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "11": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "12": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "13": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "14": {
+        "Intensity": 0.55,
+        "Reps per normal set": 17.0,
+        "Rep out target": 21.0,
+        "Sets": 4.0
+      },
+      "15": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "16": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "17": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "18": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "19": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "20": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      }
+    },
+    "Incline Press": {
+      "1": {
+        "Intensity": 0.65,
+        "Reps per normal set": 12.0,
+        "Rep out target": 15.0,
+        "Sets": 4.0
+      },
+      "2": {
+        "Intensity": 0.675,
+        "Reps per normal set": 11.0,
+        "Rep out target": 13.0,
+        "Sets": 4.0
+      },
+      "3": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "4": {
+        "Intensity": 0.675,
+        "Reps per normal set": 11.0,
+        "Rep out target": 13.0,
+        "Sets": 4.0
+      },
+      "5": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "6": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "7": {
+        "Intensity": 0.55,
+        "Reps per normal set": 17.0,
+        "Rep out target": 21.0,
+        "Sets": 4.0
+      },
+      "8": {
+        "Intensity": 0.675,
+        "Reps per normal set": 11.0,
+        "Rep out target": 13.0,
+        "Sets": 4.0
+      },
+      "9": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "10": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "11": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "12": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "13": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "14": {
+        "Intensity": 0.55,
+        "Reps per normal set": 17.0,
+        "Rep out target": 21.0,
+        "Sets": 4.0
+      },
+      "15": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "16": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "17": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "18": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "19": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "20": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      }
+    },
+    "Spoto Press": {
+      "1": {
+        "Intensity": 0.65,
+        "Reps per normal set": 12.0,
+        "Rep out target": 15.0,
+        "Sets": 4.0
+      },
+      "2": {
+        "Intensity": 0.675,
+        "Reps per normal set": 11.0,
+        "Rep out target": 13.0,
+        "Sets": 4.0
+      },
+      "3": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "4": {
+        "Intensity": 0.675,
+        "Reps per normal set": 11.0,
+        "Rep out target": 13.0,
+        "Sets": 4.0
+      },
+      "5": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "6": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "7": {
+        "Intensity": 0.55,
+        "Reps per normal set": 17.0,
+        "Rep out target": 21.0,
+        "Sets": 4.0
+      },
+      "8": {
+        "Intensity": 0.675,
+        "Reps per normal set": 11.0,
+        "Rep out target": 13.0,
+        "Sets": 4.0
+      },
+      "9": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "10": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "11": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "12": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "13": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "14": {
+        "Intensity": 0.55,
+        "Reps per normal set": 17.0,
+        "Rep out target": 21.0,
+        "Sets": 4.0
+      },
+      "15": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "16": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "17": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "18": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "19": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "20": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      }
+    },
+    "Rack Pull": {
+      "1": {
+        "Intensity": 0.65,
+        "Reps per normal set": 12.0,
+        "Rep out target": 15.0,
+        "Sets": 4.0
+      },
+      "2": {
+        "Intensity": 0.675,
+        "Reps per normal set": 11.0,
+        "Rep out target": 13.0,
+        "Sets": 4.0
+      },
+      "3": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "4": {
+        "Intensity": 0.675,
+        "Reps per normal set": 11.0,
+        "Rep out target": 13.0,
+        "Sets": 4.0
+      },
+      "5": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "6": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "7": {
+        "Intensity": 0.55,
+        "Reps per normal set": 17.0,
+        "Rep out target": 21.0,
+        "Sets": 4.0
+      },
+      "8": {
+        "Intensity": 0.675,
+        "Reps per normal set": 11.0,
+        "Rep out target": 13.0,
+        "Sets": 4.0
+      },
+      "9": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "10": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "11": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "12": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "13": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "14": {
+        "Intensity": 0.55,
+        "Reps per normal set": 17.0,
+        "Rep out target": 21.0,
+        "Sets": 4.0
+      },
+      "15": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "16": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "17": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "18": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "19": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "20": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      }
+    },
+    "Push Press": {
+      "1": {
+        "Intensity": 0.65,
+        "Reps per normal set": 12.0,
+        "Rep out target": 15.0,
+        "Sets": 4.0
+      },
+      "2": {
+        "Intensity": 0.675,
+        "Reps per normal set": 11.0,
+        "Rep out target": 13.0,
+        "Sets": 4.0
+      },
+      "3": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "4": {
+        "Intensity": 0.675,
+        "Reps per normal set": 11.0,
+        "Rep out target": 13.0,
+        "Sets": 4.0
+      },
+      "5": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "6": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "7": {
+        "Intensity": 0.55,
+        "Reps per normal set": 17.0,
+        "Rep out target": 21.0,
+        "Sets": 4.0
+      },
+      "8": {
+        "Intensity": 0.675,
+        "Reps per normal set": 11.0,
+        "Rep out target": 13.0,
+        "Sets": 4.0
+      },
+      "9": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "10": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "11": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "12": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "13": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "14": {
+        "Intensity": 0.55,
+        "Reps per normal set": 17.0,
+        "Rep out target": 21.0,
+        "Sets": 4.0
+      },
+      "15": {
+        "Intensity": 0.7,
+        "Reps per normal set": 10.0,
+        "Rep out target": 12.0,
+        "Sets": 4.0
+      },
+      "16": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "17": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "18": {
+        "Intensity": 0.725,
+        "Reps per normal set": 9.0,
+        "Rep out target": 11.0,
+        "Sets": 4.0
+      },
+      "19": {
+        "Intensity": 0.75,
+        "Reps per normal set": 8.0,
+        "Rep out target": 10.0,
+        "Sets": 4.0
+      },
+      "20": {
+        "Intensity": 0.775,
+        "Reps per normal set": 7.0,
+        "Rep out target": 9.0,
+        "Sets": 4.0
+      }
+    }
+  }
+}

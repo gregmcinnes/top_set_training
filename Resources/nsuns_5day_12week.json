@@ -1,0 +1,252 @@
+{
+  "name": "nSuns 5-Day LP - 12 Week",
+  "displayName": "nSuns 5-Day LP",
+  "description": "5 days/week. 9 sets per main lift with pyramid intensity (75-95%), each session building to a heavy AMRAP. Maximum volume for dedicated lifters. Inspired by the nSuns program.",
+  "rounding": 5,
+  "day_titles": {
+    "1": "Bench Day",
+    "2": "Squat Day",
+    "3": "OHP Day",
+    "4": "Deadlift Day",
+    "5": "Volume Day"
+  },
+  "single_at_8_percent": {
+    "Bench Press": 0.9,
+    "Squat": 0.9,
+    "Deadlift": 0.9,
+    "Overhead Press": 0.9,
+    "Sumo Deadlift": 0.9,
+    "Incline Bench": 0.9,
+    "Front Squat": 0.9,
+    "Close-Grip Bench": 0.9
+  },
+  "weeks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+  "days": {
+    "1": [
+      {
+        "type": "structured",
+        "name": "Bench Press",
+        "lift": "Bench Press",
+        "sets_detail": [
+          {"intensity": 0.75, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.95, "reps": 1, "isAMRAP": true},
+          {"intensity": 0.90, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.80, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.75, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.65, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "OHP (T2)",
+        "lift": "Overhead Press",
+        "sets_detail": [
+          {"intensity": 0.50, "reps": 6, "isAMRAP": false},
+          {"intensity": 0.60, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 7, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 4, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 6, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 8, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "accessory",
+        "name": "Cable Rows"
+      },
+      {
+        "type": "accessory",
+        "name": "Tricep Pushdowns"
+      },
+      {
+        "type": "accessory",
+        "name": "Face Pulls"
+      }
+    ],
+    "2": [
+      {
+        "type": "structured",
+        "name": "Squat",
+        "lift": "Squat",
+        "sets_detail": [
+          {"intensity": 0.75, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.95, "reps": 1, "isAMRAP": true},
+          {"intensity": 0.90, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.80, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.75, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.65, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Sumo Deadlift (T2)",
+        "lift": "Sumo Deadlift",
+        "sets_detail": [
+          {"intensity": 0.50, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.60, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 7, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 4, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 6, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 8, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "accessory",
+        "name": "Leg Press"
+      },
+      {
+        "type": "accessory",
+        "name": "Leg Curls"
+      },
+      {
+        "type": "accessory",
+        "name": "Calf Raises"
+      }
+    ],
+    "3": [
+      {
+        "type": "structured",
+        "name": "Overhead Press",
+        "lift": "Overhead Press",
+        "sets_detail": [
+          {"intensity": 0.75, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.95, "reps": 1, "isAMRAP": true},
+          {"intensity": 0.90, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.80, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.75, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.65, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Incline Bench (T2)",
+        "lift": "Incline Bench",
+        "sets_detail": [
+          {"intensity": 0.50, "reps": 6, "isAMRAP": false},
+          {"intensity": 0.60, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 7, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 4, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 6, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 8, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "accessory",
+        "name": "Lat Pulldowns"
+      },
+      {
+        "type": "accessory",
+        "name": "Lateral Raises"
+      },
+      {
+        "type": "accessory",
+        "name": "EZ Bar Curls"
+      }
+    ],
+    "4": [
+      {
+        "type": "structured",
+        "name": "Deadlift",
+        "lift": "Deadlift",
+        "sets_detail": [
+          {"intensity": 0.75, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.95, "reps": 1, "isAMRAP": true},
+          {"intensity": 0.90, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.80, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.75, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 3, "isAMRAP": false}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Front Squat (T2)",
+        "lift": "Front Squat",
+        "sets_detail": [
+          {"intensity": 0.35, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.45, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.55, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.55, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.55, "reps": 7, "isAMRAP": false},
+          {"intensity": 0.55, "reps": 4, "isAMRAP": false},
+          {"intensity": 0.55, "reps": 6, "isAMRAP": false},
+          {"intensity": 0.55, "reps": 8, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "accessory",
+        "name": "Barbell Rows"
+      },
+      {
+        "type": "accessory",
+        "name": "Ab Wheel"
+      },
+      {
+        "type": "accessory",
+        "name": "Hanging Leg Raises"
+      }
+    ],
+    "5": [
+      {
+        "type": "structured",
+        "name": "Bench Press",
+        "lift": "Bench Press",
+        "sets_detail": [
+          {"intensity": 0.75, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.95, "reps": 1, "isAMRAP": true},
+          {"intensity": 0.90, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.80, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.75, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.65, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Close-Grip Bench (T2)",
+        "lift": "Close-Grip Bench",
+        "sets_detail": [
+          {"intensity": 0.50, "reps": 6, "isAMRAP": false},
+          {"intensity": 0.60, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 5, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 7, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 4, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 6, "isAMRAP": false},
+          {"intensity": 0.70, "reps": 8, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "accessory",
+        "name": "Dumbbell Rows"
+      },
+      {
+        "type": "accessory",
+        "name": "Skull Crushers"
+      },
+      {
+        "type": "accessory",
+        "name": "Hammer Curls"
+      }
+    ]
+  },
+  "lifts": {}
+}
+

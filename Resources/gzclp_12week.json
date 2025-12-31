@@ -1,0 +1,124 @@
+{
+  "name": "GZCLP 4-Day",
+  "displayName": "GZCLP 4-Day",
+  "description": "4 days/week. T1 (5x3 heavy), T2 (3x10 moderate), T3 (3x15+ accessory). Progression based on AMRAP performance: 4+ reps = bigger jump, 2-3 = normal, 1 = stall, 0 = small deload. Note: Traditional GZCLP changes rep schemes on failure (5x3→6x2→10x1) which is not implemented here.",
+  "rounding": 5,
+  "day_titles": {
+    "1": "Squat Focus",
+    "2": "OHP Focus",
+    "3": "Bench Focus",
+    "4": "Deadlift Focus"
+  },
+  "single_at_8_percent": {
+    "Squat": 0.9,
+    "Bench Press": 0.9,
+    "Deadlift": 0.9,
+    "Overhead Press": 0.9
+  },
+  "weeks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+  "days": {
+    "1": [
+      {
+        "type": "structured",
+        "name": "Squat (T1)",
+        "lift": "Squat",
+        "sets_detail": [
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Bench Press (T2)",
+        "lift": "Bench Press",
+        "sets_detail": [
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false},
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false},
+          {"intensity": 0.65, "reps": 10, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Lat Pulldowns (T3)", "default_sets": 3, "default_reps": 15}
+    ],
+    "2": [
+      {
+        "type": "structured",
+        "name": "OHP (T1)",
+        "lift": "Overhead Press",
+        "sets_detail": [
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Deadlift (T2)",
+        "lift": "Deadlift",
+        "sets_detail": [
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false},
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false},
+          {"intensity": 0.65, "reps": 10, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Dumbbell Rows (T3)", "default_sets": 3, "default_reps": 15}
+    ],
+    "3": [
+      {
+        "type": "structured",
+        "name": "Bench Press (T1)",
+        "lift": "Bench Press",
+        "sets_detail": [
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Squat (T2)",
+        "lift": "Squat",
+        "sets_detail": [
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false},
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false},
+          {"intensity": 0.65, "reps": 10, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Lat Pulldowns (T3)", "default_sets": 3, "default_reps": 15}
+    ],
+    "4": [
+      {
+        "type": "structured",
+        "name": "Deadlift (T1)",
+        "lift": "Deadlift",
+        "sets_detail": [
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.85, "reps": 3, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "OHP (T2)",
+        "lift": "Overhead Press",
+        "sets_detail": [
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false},
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false},
+          {"intensity": 0.65, "reps": 10, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Dumbbell Rows (T3)", "default_sets": 3, "default_reps": 15}
+    ]
+  },
+  "lifts": {},
+  "_note": "GZCLP 4-day variant. All 4 workouts done each week. T1=5x3 heavy with AMRAP last set, T2=3x10 moderate with AMRAP last set, T3=3x15+ accessory. Fail protocol (5x3→6x2→10x1) not implemented - would require engine changes. See gzclp_3day_12week.json for 3-day rotating variant."
+}
+

@@ -1397,7 +1397,7 @@ class CompetitiveLiftingData {
     private func loadData() {
         guard let url = Bundle.main.url(forResource: "powerlifting_percentiles", withExtension: "json") else {
             loadError = "Could not find powerlifting_percentiles.json in bundle"
-            print("CompetitiveLiftingData: \(loadError!)")
+            Logger.error("CompetitiveLiftingData: \(loadError!)", category: .general)
             return
         }
         
@@ -1405,10 +1405,10 @@ class CompetitiveLiftingData {
             let jsonData = try Data(contentsOf: url)
             let decoder = JSONDecoder()
             data = try decoder.decode(PowerliftingPercentileData.self, from: jsonData)
-            print("CompetitiveLiftingData: Successfully loaded data for \(data?.metadata.lifterCount ?? 0) lifters")
+            Logger.info("CompetitiveLiftingData: Successfully loaded data for \(data?.metadata.lifterCount ?? 0) lifters", category: .general)
         } catch {
             loadError = "Failed to decode JSON: \(error.localizedDescription)"
-            print("CompetitiveLiftingData: \(loadError!)")
+            Logger.error("CompetitiveLiftingData: \(loadError!)", category: .general)
         }
     }
     

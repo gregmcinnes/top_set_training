@@ -254,14 +254,16 @@ public final class ProgramEngine {
     // MARK: - Structured Exercise Progression
     
     /// Gather info about all structured lifts and their primary (1+) AMRAP sets from program state
-    public func gatherStructuredLiftInfo(from state: ProgramState) -> [String: (setIndex: Int, intensity: Double)] {
-        var liftInfo: [String: (setIndex: Int, intensity: Double)] = [:]
+    /// For programs like GZCLP with multiple exercises for the same lift (T1, T2), we use the one with highest intensity
+    public func gatherStructuredLiftInfo(from state: ProgramState) -> [String: (setIndex: Int, intensity: Double, targetReps: Int)] {
+        var liftInfo: [String: (setIndex: Int, intensity: Double, targetReps: Int)] = [:]
+        // Track all candidates per lift to pick the best one (highest intensity)
+        var allCandidates: [String: [(setIndex: Int, intensity: Double, targetReps: Int)]] = [:]
         
         for (_, items) in state.days {
             for item in items {
                 guard item.type == .structured,
-                      let lift = item.lift,
-                      liftInfo[lift] == nil else { continue }
+                      let lift = item.lift else { continue }
                 
                 // Get sets_detail - prefer static, or use week 1 from week-based
                 // Note: Must use explicit ["1"] key, not .values.first, because dictionaries are unordered
@@ -275,21 +277,32 @@ public final class ProgramEngine {
                     continue
                 }
                 
-                // Find the 1+ set (AMRAP with target of 1 rep)
+                if allCandidates[lift] == nil {
+                    allCandidates[lift] = []
+                }
+                
+                // Find the 1+ set (AMRAP with target of 1 rep) - this is the ideal progression set
                 for (index, setDetail) in setsDetail.enumerated() {
                     if setDetail.isAMRAP && setDetail.reps == 1 {
-                        liftInfo[lift] = (index, setDetail.intensity)
+                        allCandidates[lift]?.append((index, setDetail.intensity, setDetail.reps))
                         break
                     }
                 }
                 
-                // Fallback: find any AMRAP set with highest intensity
-                if liftInfo[lift] == nil {
+                // Fallback: find any AMRAP set
+                if allCandidates[lift]?.isEmpty ?? true {
                     let amrapSets = setsDetail.enumerated().filter { $0.element.isAMRAP }
                     if let primary = amrapSets.max(by: { $0.element.intensity < $1.element.intensity }) {
-                        liftInfo[lift] = (primary.offset, primary.element.intensity)
+                        allCandidates[lift]?.append((primary.offset, primary.element.intensity, primary.element.reps))
                     }
                 }
+            }
+        }
+        
+        // For each lift, pick the AMRAP set with highest intensity (this ensures T1 is chosen over T2)
+        for (lift, candidates) in allCandidates {
+            if let best = candidates.max(by: { $0.intensity < $1.intensity }) {
+                liftInfo[lift] = best
             }
         }
         
@@ -303,35 +316,50 @@ public final class ProgramEngine {
         return !lowerBodyKeywords.contains { lowercased.contains($0) }
     }
     
-    /// Calculate TM adjustment for structured exercises based on the 1+ set performance
-    /// Uses fixed weight increases (in lbs):
-    /// Upper body: 0 reps = -5, 1 rep = 0, 2-3 reps = +5, 4+ reps = +10
-    /// Lower body: 0 reps = 0, 1 rep = +5, 2-3 reps = +10, 4+ reps = +15
-    public func structuredProgression(repsOnOnePlus: Int, isUpperBody: Bool, rounding: Double = 5.0) -> Double {
+    /// Calculate TM adjustment for structured exercises based on AMRAP set performance
+    /// 
+    /// nSuns-style 1+ sets (targetReps = 1): Same progression for all lifts
+    ///   0-1 reps = stall, 2-4 reps = +5, 5+ reps = +10
+    ///
+    /// Standard structured (Greyskull, GZCLP):
+    ///   Upper body: 0 reps = -5, 1 rep = 0, 2-3 reps = +5, 4+ reps = +10
+    ///   Lower body: 0 reps = 0, 1 rep = +5, 2-3 reps = +10, 4+ reps = +15
+    public func structuredProgression(repsOnOnePlus: Int, targetReps: Int = 1, isUpperBody: Bool, rounding: Double = 5.0) -> Double {
         let adjustment: Double
         
-        if isUpperBody {
-            switch repsOnOnePlus {
+        // nSuns-style 1+ sets use different progression rules
+        // Requires minimum 2 reps to progress, same for all lifts
+        if targetReps == 1 {
+            if repsOnOnePlus <= 1 {
+                adjustment = 0.0        // 0-1 reps = stall
+            } else if repsOnOnePlus <= 4 {
+                adjustment = 5.0        // 2-4 reps = +5 lbs
+            } else {
+                adjustment = 10.0       // 5+ reps = +10 lbs
+            }
+        } else if isUpperBody {
+            // Standard structured progression - Upper body
+            switch repsOnOnePlus - targetReps {
+            case ...(-1):
+                adjustment = -5.0       // Miss target = -5 lbs
             case 0:
-                adjustment = -5.0
-            case 1:
-                adjustment = 0.0
-            case 2, 3:
-                adjustment = 5.0
-            default: // 4+
-                adjustment = 10.0
+                adjustment = 0.0        // Hit exact = no change
+            case 1, 2:
+                adjustment = 5.0        // 1-2 over = +5 lbs
+            default:
+                adjustment = 10.0       // 3+ over = +10 lbs
             }
         } else {
-            // Lower body - more aggressive progression
-            switch repsOnOnePlus {
+            // Standard structured progression - Lower body (more aggressive)
+            switch repsOnOnePlus - targetReps {
+            case ...(-1):
+                adjustment = 0.0        // Miss = stall (no reduction for lower)
             case 0:
-                adjustment = 0.0  // Don't reduce for lower body, just stall
-            case 1:
-                adjustment = 5.0
-            case 2, 3:
-                adjustment = 10.0
-            default: // 4+
-                adjustment = 15.0
+                adjustment = 5.0        // Hit exact = +5 lbs
+            case 1, 2:
+                adjustment = 10.0       // 1-2 over = +10 lbs
+            default:
+                adjustment = 15.0       // 3+ over = +15 lbs
             }
         }
         
@@ -344,17 +372,44 @@ public final class ProgramEngine {
     public func computeStructuredTrainingMaxes(
         state: ProgramState,
         upToWeek: Int,
-        structuredLiftInfo: [String: (setIndex: Int, intensity: Double)]  // lift name -> 1+ set info
+        structuredLiftInfo: [String: (setIndex: Int, intensity: Double, targetReps: Int)]  // lift name -> 1+ set info
     ) -> [Int: [String: Double]] {
         var tms: [Int: [String: Double]] = [:]
         
-        // Helper to find any structured log entry for a lift/week (from any day)
-        func findStructuredLogEntry(lift: String, week: Int) -> StructuredLogEntry? {
+        // Helper to find the progression AMRAP reps for a lift/week
+        // For programs like Reddit PPL where the same lift appears on multiple days with different set structures,
+        // we need to find any logged AMRAP that matches our progression criteria
+        func findProgressionAMRAPReps(lift: String, week: Int, expectedSetIndex: Int, expectedTargetReps: Int) -> Int? {
             guard let dayLogs = state.structuredLogs[lift]?[week] else { return nil }
-            // Return the first entry found from any day
+            
+            // First, try to find the exact set index we're looking for
             for (_, entry) in dayLogs {
-                return entry
+                if let reps = entry.amrapReps[expectedSetIndex] {
+                    return reps
+                }
             }
+            
+            // Fallback: For programs where the same lift has different AMRAP positions on different days,
+            // look for any logged AMRAP that matches the target reps (e.g., 5+ set vs 10+ set)
+            // This handles Reddit PPL where Bench is 5x5+ on Day 1 but 3x10+ on Day 4
+            for (day, entry) in dayLogs {
+                // Find the exercise definition for this day to check target reps
+                if let dayItems = state.days[day] {
+                    for item in dayItems {
+                        guard item.type == .structured, item.lift == lift else { continue }
+                        
+                        let setsDetail = item.setsDetail ?? item.setsDetailByWeek?[String(week)] ?? []
+                        for (index, setDetail) in setsDetail.enumerated() {
+                            // Only match if it's an AMRAP set with the same target reps
+                            if setDetail.isAMRAP && setDetail.reps == expectedTargetReps,
+                               let reps = entry.amrapReps[index] {
+                                return reps
+                            }
+                        }
+                    }
+                }
+            }
+            
             return nil
         }
         
@@ -373,12 +428,11 @@ public final class ProgramEngine {
             var updated = prev
             
             for (liftName, setInfo) in structuredLiftInfo {
-                // Check if there's a logged 1+ set from the previous week (any day)
-                if let logEntry = findStructuredLogEntry(lift: liftName, week: wk - 1),
-                   let reps = logEntry.amrapReps[setInfo.setIndex] {
+                // Check if there's a logged AMRAP from the previous week (any day)
+                if let reps = findProgressionAMRAPReps(lift: liftName, week: wk - 1, expectedSetIndex: setInfo.setIndex, expectedTargetReps: setInfo.targetReps) {
                     // Apply structured progression
                     let isUpper = isUpperBodyLift(liftName)
-                    let adjustment = structuredProgression(repsOnOnePlus: reps, isUpperBody: isUpper, rounding: state.rounding)
+                    let adjustment = structuredProgression(repsOnOnePlus: reps, targetReps: setInfo.targetReps, isUpperBody: isUpper, rounding: state.rounding)
                     updated[liftName] = (prev[liftName] ?? 0) + adjustment
                 } else {
                     // No log: keep TM the same

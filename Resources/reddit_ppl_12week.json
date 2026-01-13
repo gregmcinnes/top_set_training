@@ -22,7 +22,6 @@
   "weeks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
   "days": {
     "1": [
-      { "type": "tm", "name": "Bench Press TM", "lift": "Bench Press" },
       {
         "type": "structured",
         "name": "Bench Press",
@@ -35,7 +34,6 @@
           {"intensity": 1.0, "reps": 5, "isAMRAP": true}
         ]
       },
-      { "type": "tm", "name": "OHP TM", "lift": "Overhead Press" },
       {
         "type": "structured",
         "name": "OHP (Volume)",
@@ -52,7 +50,6 @@
       {"type": "accessory", "name": "Overhead Tricep Extension", "default_sets": 3, "default_reps": 12}
     ],
     "2": [
-      { "type": "tm", "name": "Deadlift TM", "lift": "Deadlift" },
       {
         "type": "structured",
         "name": "Deadlift",
@@ -68,7 +65,6 @@
       {"type": "accessory", "name": "Dumbbell Curls", "default_sets": 4, "default_reps": 10}
     ],
     "3": [
-      { "type": "tm", "name": "Squat TM", "lift": "Squat" },
       {
         "type": "structured",
         "name": "Squat",
@@ -79,7 +75,6 @@
           {"intensity": 1.0, "reps": 5, "isAMRAP": true}
         ]
       },
-      { "type": "tm", "name": "Romanian Deadlift TM", "lift": "Romanian Deadlift" },
       {
         "type": "structured",
         "name": "Romanian Deadlift",
@@ -95,7 +90,6 @@
       {"type": "accessory", "name": "Calf Raises", "default_sets": 5, "default_reps": 10}
     ],
     "4": [
-      { "type": "tm", "name": "OHP TM", "lift": "Overhead Press" },
       {
         "type": "structured",
         "name": "Overhead Press",
@@ -108,7 +102,6 @@
           {"intensity": 1.0, "reps": 5, "isAMRAP": true}
         ]
       },
-      { "type": "tm", "name": "Bench Press TM", "lift": "Bench Press" },
       {
         "type": "structured",
         "name": "Bench Press (Volume)",
@@ -125,8 +118,7 @@
       {"type": "accessory", "name": "Lateral Raises", "default_sets": 3, "default_reps": 12},
       {"type": "accessory", "name": "Overhead Tricep Extension", "default_sets": 3, "default_reps": 12}
     ],
-    "5": [
-      { "type": "tm", "name": "Barbell Row TM", "lift": "Barbell Row" },
+    "5": [ 
       {
         "type": "structured",
         "name": "Barbell Row",
@@ -146,7 +138,6 @@
       {"type": "accessory", "name": "Dumbbell Curls", "default_sets": 4, "default_reps": 10}
     ],
     "6": [
-      { "type": "tm", "name": "Squat TM", "lift": "Squat" },
       {
         "type": "structured",
         "name": "Squat",
@@ -157,7 +148,6 @@
           {"intensity": 1.0, "reps": 5, "isAMRAP": true}
         ]
       },
-      { "type": "tm", "name": "Romanian Deadlift TM", "lift": "Romanian Deadlift" },
       {
         "type": "structured",
         "name": "Romanian Deadlift",

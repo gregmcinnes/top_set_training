@@ -3,6 +3,7 @@
   "displayName": "5/3/1 Boring But Big",
   "description": "Classic 5/3/1 split with 4 days/week over 4 weeks. Week 1: 5s week (5/5/5+), Week 2: 3s week (3/3/3+), Week 3: 5/3/1 week (5/3/1+), Week 4: Deload. Main lift followed by 5x10 BBB supplemental at 50%. After completing the cycle, increase TMs manually (+5 lb upper, +10 lb lower) and start a new cycle.",
   "rounding": 5,
+  "manual_progression": true,
   "day_titles": {
     "1": "OHP Day",
     "2": "Deadlift Day",

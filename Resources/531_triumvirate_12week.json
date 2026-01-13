@@ -3,6 +3,7 @@
   "displayName": "5/3/1 Triumvirate",
   "description": "Coined \"The Smart Man's Program\", this is a 4 days/week program over 4 weeks. Week 1: 5s week (5/5/5+), Week 2: 3s week (3/3/3+), Week 3: 5/3/1 week (5/3/1+), Week 4: Deload. One main lift with 3 ramping sets to an AMRAP, plus two assistance exercises. After completing the cycle, increase TMs manually (+5 lb upper, +10 lb lower) and start a new cycle.",
   "rounding": 5,
+  "manual_progression": true,
   "day_titles": {
     "1": "OHP Day",
     "2": "Deadlift Day",

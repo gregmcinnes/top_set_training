@@ -63,6 +63,11 @@ struct ContentView: View {
         do {
             try await appState.loadProgramConfig()
             
+            // Request notification permission if notifications are enabled in settings
+            NotificationManager.shared.requestAuthorizationIfNeeded(
+                notificationsEnabled: appState.settings.pushNotificationsEnabled
+            )
+            
             // Check if onboarding is needed
             await MainActor.run {
                 if appState.needsOnboarding {

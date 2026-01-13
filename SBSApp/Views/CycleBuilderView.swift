@@ -21,6 +21,16 @@ struct CycleBuilderView: View {
         self.initialProgram = initialProgram
         self.onComplete = onComplete
         self.onCancel = onCancel
+        
+        // If initialProgram is provided and not onboarding, start at exercises step
+        // We'll load the program in onAppear/task
+        if let program = initialProgram, !isOnboarding {
+            _currentStep = State(initialValue: .exercises)
+            _selectedProgram = State(initialValue: program)
+            _isLoadingProgram = State(initialValue: true)
+        } else if let program = initialProgram {
+            _selectedProgram = State(initialValue: program)
+        }
     }
     
     @State private var currentStep: BuilderStep = .welcome
@@ -33,6 +43,22 @@ struct CycleBuilderView: View {
     @State private var lastLoadedProgram: String? = nil
     @State private var showingProgramQuiz: Bool = false
     @State private var showingTemplateBuilder: Bool = false
+    
+    /// Get the actual configured lifts, taking into account any exercise customizations
+    /// This should be used instead of appState.allConfiguredLifts during cycle setup
+    private var actualConfiguredLifts: Set<String> {
+        var lifts = Set<String>()
+        for day in appState.allDays {
+            // Use customizations if available, otherwise fall back to appState
+            let items = exerciseCustomizations[day] ?? appState.dayItems(for: day)
+            for item in items {
+                if let lift = item.lift, item.type != .accessory {
+                    lifts.insert(lift)
+                }
+            }
+        }
+        return lifts
+    }
     
     enum BuilderStep: Int, CaseIterable {
         case welcome = 0
@@ -122,6 +148,7 @@ struct CycleBuilderView: View {
                         trainingMaxes: $trainingMaxes,
                         carryOverTMs: $carryOverTMs,
                         isOnboarding: isOnboarding,
+                        configuredLifts: actualConfiguredLifts,
                         onBack: { goToStep(.exercises) },
                         onContinue: { goToStep(.settings) }
                     )
@@ -193,12 +220,21 @@ struct CycleBuilderView: View {
             withAnimation(.easeOut(duration: 0.4)) {
                 animateIn = true
             }
-            // If an initial program was provided (e.g., from ProgramsView), use it and skip to program step
-            if let initial = initialProgram {
-                selectedProgram = initial
-                // Skip welcome step when coming from program browser
-                if !isOnboarding {
-                    currentStep = .program
+            // If an initial program was provided (e.g., from ProgramsView), load it
+            // The step was already set to .exercises in init
+            if let initial = initialProgram, !isOnboarding {
+                Task {
+                    do {
+                        try await appState.loadProgram(initial)
+                        await MainActor.run {
+                            lastLoadedProgram = initial
+                            isLoadingProgram = false
+                        }
+                    } catch {
+                        await MainActor.run {
+                            isLoadingProgram = false
+                        }
+                    }
                 }
             } else if let currentProgram = appState.userData.selectedProgram {
                 // Initialize with currently loaded program so we don't reload unnecessarily
@@ -278,8 +314,9 @@ struct CycleBuilderView: View {
     }
     
     private func initializeTrainingMaxes() {
-        // Start with existing values or defaults
-        for lift in appState.allConfiguredLifts {
+        // Use actualConfiguredLifts to get lifts from exerciseCustomizations (not appState)
+        // This ensures we show the swapped-in lifts, not the original program lifts
+        for lift in actualConfiguredLifts {
             if !isOnboarding && carryOverTMs {
                 // For new cycles, use current TMs with multiple fallbacks
                 let lastWeek = appState.highestLoggedWeek()
@@ -508,7 +545,7 @@ struct FeatureRow: View {
             Image(systemName: icon)
                 .font(.system(size: 20))
                 .foregroundStyle(SBSColors.accentFallback)
-                .frame(width: 40, height: 40)
+                .frame(width: 35, height: 40)
                 .background(
                     RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
                         .fill(SBSColors.accentFallback.opacity(0.1))
@@ -587,7 +624,7 @@ struct ProgramSelectionStepView: View {
                             await MainActor.run {
                                 isLoading = false
                             }
-                            print("Failed to load program: \(error)")
+                            Logger.error("Failed to load program: \(error)", category: .program)
                         }
                     }
                 }
@@ -1056,6 +1093,8 @@ struct TrainingMaxesStepView: View {
     @Binding var trainingMaxes: [String: Double]
     @Binding var carryOverTMs: Bool
     let isOnboarding: Bool
+    /// The actual configured lifts (including any swapped-in exercises from cycle builder)
+    let configuredLifts: Set<String>
     let onBack: () -> Void
     let onContinue: () -> Void
     
@@ -1174,7 +1213,7 @@ struct TrainingMaxesStepView: View {
                                 .font(.system(size: 16))
                                 .foregroundStyle(SBSColors.success)
                             
-                            Text("Not sure? Just enter your best guess — you can adjust these anytime in Settings.")
+                            Text("Not sure? Just enter your best guess. You can adjust these anytime in Settings.")
                                 .font(SBSFonts.caption())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                         }
@@ -1183,7 +1222,7 @@ struct TrainingMaxesStepView: View {
                     
                     // Training max inputs
                     VStack(spacing: SBSLayout.paddingSmall) {
-                        ForEach(Array(appState.allConfiguredLifts.sorted()), id: \.self) { lift in
+                        ForEach(Array(configuredLifts.sorted()), id: \.self) { lift in
                             TMInputRow(
                                 liftName: lift,
                                 value: Binding(
@@ -1523,6 +1562,58 @@ struct WorkoutSettingsStepView: View {
                                                 PremiumBadge(isCompact: true)
                                             }
                                             Text("Visual plate breakdown during workouts. Upgrade to enable.")
+                                                .font(SBSFonts.caption())
+                                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                        }
+                                        Spacer()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Apple Fitness Integration (Pro Feature)
+                    SettingsCard(title: "Apple Fitness", icon: "heart.fill") {
+                        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
+                            if storeManager.canAccess(.appleFitness) {
+                                Toggle(isOn: $appState.settings.healthKitEnabled) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Sync to Apple Fitness")
+                                            .font(SBSFonts.body())
+                                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                                        Text("Log workouts with duration, calories & heart rate")
+                                            .font(SBSFonts.caption())
+                                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                                    }
+                                }
+                                .onChange(of: appState.settings.healthKitEnabled) { _, enabled in
+                                    if enabled {
+                                        Task {
+                                            do {
+                                                try await HealthKitManager.shared.requestAuthorization()
+                                                if !HealthKitManager.shared.isAuthorized {
+                                                    appState.settings.healthKitEnabled = false
+                                                }
+                                            } catch {
+                                                appState.settings.healthKitEnabled = false
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                // Non-premium: show disabled state with premium badge
+                                Button {
+                                    showingPaywall = true
+                                } label: {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            HStack(spacing: SBSLayout.paddingSmall) {
+                                                Text("Sync to Apple Fitness")
+                                                    .font(SBSFonts.body())
+                                                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                                                PremiumBadge(isCompact: true)
+                                            }
+                                            Text("Log workouts with duration, calories & heart rate. Upgrade to enable.")
                                                 .font(SBSFonts.caption())
                                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                                         }
@@ -1997,7 +2088,7 @@ struct ProgramDetailView: View {
                 isLoading = false
             }
         } catch {
-            print("Failed to load program data: \(error)")
+            Logger.error("Failed to load program data: \(error)", category: .program)
             await MainActor.run {
                 isLoading = false
             }

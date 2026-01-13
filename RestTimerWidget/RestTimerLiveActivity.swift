@@ -15,96 +15,68 @@ struct RestTimerLiveActivity: Widget {
                 // Expanded Dynamic Island
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 4) {
-                        Image(systemName: "timer")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(themeColor)
-                        
-                        Text("REST")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(.secondary)
+                        Image(systemName: context.state.isPaused ? "pause.fill" : "dumbbell.fill")
+                            .font(.caption)
+                            .foregroundStyle(context.state.isPaused ? .yellow : themeColor)
+                        Text("Rest")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(context.state.isPaused ? .yellow : themeColor)
                     }
                 }
                 
                 DynamicIslandExpandedRegion(.trailing) {
-                    if context.state.isPaused {
-                        HStack(spacing: 4) {
-                            Image(systemName: "pause.fill")
-                                .font(.system(size: 12))
-                            Text("PAUSED")
-                                .font(.system(size: 12, weight: .bold))
+                    VStack(alignment: .trailing, spacing: 2) {
+                        if context.state.isPaused {
+                            Text("--:--")
+                                .font(.title3.bold())
+                                .monospacedDigit()
+                                .foregroundStyle(.yellow)
+                        } else {
+                            Text(timerInterval: Date()...context.state.endTime, countsDown: true)
+                                .font(.title3.bold())
+                                .monospacedDigit()
+                                .foregroundStyle(themeColor)
                         }
-                        .foregroundStyle(.yellow)
-                    } else {
-                        Text(timerInterval: Date()...context.state.endTime, countsDown: true)
-                            .font(.system(size: 24, weight: .bold, design: .monospaced))
-                            .foregroundStyle(themeColor)
-                            .monospacedDigit()
+                        Text(context.attributes.nextSetInfo)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 
                 DynamicIslandExpandedRegion(.bottom) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(context.attributes.exerciseName)
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .lineLimit(1)
-                            
-                            Text(context.attributes.nextSetInfo)
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
-                        }
+                    VStack(spacing: 4) {
+                        Text(context.attributes.exerciseName)
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
                         
-                        Spacer()
-                        
-                        // Progress indicator
-                        ProgressCircle(
-                            progress: progressValue(context: context),
-                            isPaused: context.state.isPaused
-                        )
-                        .frame(width: 36, height: 36)
+                        ProgressView(value: progressValue(context: context))
+                            .tint(context.state.isPaused ? .yellow : themeColor)
                     }
-                    .padding(.horizontal, 4)
-                }
-                
-                DynamicIslandExpandedRegion(.center) {
-                    EmptyView()
                 }
             } compactLeading: {
-                // Minimal icon only
-                Image(systemName: "timer")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(themeColor)
+                // Compact leading (left side of notch)
+                Image(systemName: context.state.isPaused ? "pause.fill" : "dumbbell.fill")
+                    .foregroundStyle(context.state.isPaused ? .yellow : themeColor)
             } compactTrailing: {
-                // Minimal timer only
+                // Compact trailing (right side of notch)
                 if context.state.isPaused {
-                    Image(systemName: "pause.fill")
-                        .font(.system(size: 10))
+                    Text("--:--")
+                        .font(.caption2.bold())
+                        .monospacedDigit()
                         .foregroundStyle(.yellow)
+                        .frame(width: 35, alignment: .trailing)
                 } else {
                     Text(timerInterval: Date()...context.state.endTime, countsDown: true)
-                        .font(.system(size: 12, weight: .bold, design: .monospaced))
-                        .foregroundStyle(themeColor)
+                        .font(.caption2.bold())
                         .monospacedDigit()
+                        .foregroundStyle(themeColor)
+                        .frame(width: 35, alignment: .trailing)
                 }
             } minimal: {
-                // Minimal view - icon + time together in small pill
-                HStack(spacing: 2) {
-                    Image(systemName: "timer")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(themeColor)
-                    
-                    if context.state.isPaused {
-                        Image(systemName: "pause.fill")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.yellow)
-                    } else {
-                        Text(timerInterval: Date()...context.state.endTime, countsDown: true)
-                            .font(.system(size: 10, weight: .bold, design: .monospaced))
-                            .foregroundStyle(themeColor)
-                            .monospacedDigit()
-                    }
-                }
+                // Minimal (when multiple activities)
+                Image(systemName: "dumbbell.fill")
+                    .foregroundStyle(themeColor)
             }
         }
     }
@@ -153,7 +125,7 @@ struct LockScreenView: View {
             
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Image(systemName: "timer")
+                    Image(systemName: "dumbbell.fill")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(themeColor)
                     
@@ -238,7 +210,7 @@ struct ProgressCircle: View {
     }
 }
 
-// MARK: - Preview
+// MARK: - Previews
 
 #Preview("Lock Screen", as: .content, using: RestTimerAttributes(
     exerciseName: "Bench Press",
@@ -256,5 +228,47 @@ struct ProgressCircle: View {
         secondsRemaining: 45,
         isPaused: true,
         endTime: Date().addingTimeInterval(45)
+    )
+}
+
+#Preview("Dynamic Island Compact", as: .dynamicIsland(.compact), using: RestTimerAttributes(
+    exerciseName: "Squat",
+    totalDuration: 90,
+    nextSetInfo: "Set 2 of 4"
+)) {
+    RestTimerLiveActivity()
+} contentStates: {
+    RestTimerAttributes.ContentState(
+        secondsRemaining: 60,
+        isPaused: false,
+        endTime: Date().addingTimeInterval(60)
+    )
+}
+
+#Preview("Dynamic Island Expanded", as: .dynamicIsland(.expanded), using: RestTimerAttributes(
+    exerciseName: "Deadlift",
+    totalDuration: 180,
+    nextSetInfo: "Set 4 of 5"
+)) {
+    RestTimerLiveActivity()
+} contentStates: {
+    RestTimerAttributes.ContentState(
+        secondsRemaining: 120,
+        isPaused: false,
+        endTime: Date().addingTimeInterval(120)
+    )
+}
+
+#Preview("Dynamic Island Minimal", as: .dynamicIsland(.minimal), using: RestTimerAttributes(
+    exerciseName: "OHP",
+    totalDuration: 60,
+    nextSetInfo: "Set 1 of 3"
+)) {
+    RestTimerLiveActivity()
+} contentStates: {
+    RestTimerAttributes.ContentState(
+        secondsRemaining: 30,
+        isPaused: false,
+        endTime: Date().addingTimeInterval(30)
     )
 }

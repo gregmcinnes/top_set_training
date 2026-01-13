@@ -11,6 +11,7 @@ struct SettingsView: View {
     @State private var showingNewCycleAlert = false
     @State private var showingNewCycleBuilder = false
     @State private var showingNewCycleOptions = false
+    @State private var showingNewCycleWarning = false
     @State private var showingWeightAdjustments = false
     @State private var showingTemplateList = false
     @State private var carryOverTMs = true
@@ -19,6 +20,10 @@ struct SettingsView: View {
     @State private var isRestoringPurchases = false
     @State private var showingProgramInfo = false
     @State private var showingPlateCalculatorInfo = false
+    @State private var versionTapCount = 0
+    @State private var lastVersionTapTime: Date?
+    @State private var showingReviewerLogin = false
+    @State private var showingReviewerUnlockAlert = false
     
     private let storeManager = StoreManager.shared
     
@@ -172,8 +177,6 @@ struct SettingsView: View {
                     Text("Weights will be rounded to the nearest increment. Barbell weight is used for plate calculations.")
                 }
                 
-                #if DEBUG
-                // TODO: Re-enable after reviewing strength standards data sources
                 // Bodyweight & Standards
                 Section {
                     HStack {
@@ -207,16 +210,26 @@ struct SettingsView: View {
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                     }
                     
-                    Picker("Sex", selection: $appState.settings.isMale) {
-                        Text("Male").tag(true)
-                        Text("Female").tag(false)
+                    // Fetch from HealthKit button
+                    if HealthKitManager.shared.isHealthKitAvailable {
+                        Button {
+                            Task {
+                                await fetchBodyWeightFromHealthKit()
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "heart.fill")
+                                    .foregroundStyle(.red)
+                                Text("Use Weight from Health")
+                            }
+                        }
                     }
+                    
                 } header: {
-                    Text("Strength Standards (DEBUG)")
+                    Text("Strength Scores")
                 } footer: {
-                    Text("Used for strength level comparisons in History and Calculators.")
+                    Text("Used for strength scores in History and Calculators.")
                 }
-                #endif
                 
                 // Display
                 Section {
@@ -350,6 +363,23 @@ struct SettingsView: View {
                     
                     Toggle("Sound Notification", isOn: $appState.settings.playSoundNotifications)
                     
+                    Toggle("Push Notifications", isOn: Binding(
+                        get: { appState.settings.pushNotificationsEnabled },
+                        set: { newValue in
+                            if newValue {
+                                // Request permission when enabling
+                                Task {
+                                    let granted = await NotificationManager.shared.requestAuthorization()
+                                    await MainActor.run {
+                                        appState.settings.pushNotificationsEnabled = granted
+                                    }
+                                }
+                            } else {
+                                appState.settings.pushNotificationsEnabled = false
+                            }
+                        }
+                    ))
+                    
                     Toggle("PR Celebrations", isOn: $appState.settings.showPRCelebrations)
                     
                     // Superset Accessories - Premium feature
@@ -370,7 +400,117 @@ struct SettingsView: View {
                 } header: {
                     Text("Workout Timer")
                 } footer: {
-                    Text("Sound notification plays a chime when the timer ends (respects silent mode). PR celebrations show a full-screen animation when you achieve a new personal record. When superset is enabled, accessories will be shown during rest periods.")
+                    Text("Sound notification plays a chime when the timer ends (respects silent mode). Push notifications alert you when the rest timer ends while the app is in the background. PR celebrations show a full-screen animation when you achieve a new personal record. When superset is enabled, accessories will be shown during rest periods.")
+                }
+                
+                // Apple Fitness Integration (Premium)
+                Section {
+                    if StoreManager.shared.canAccess(.appleFitness) {
+                        Toggle(isOn: $appState.settings.healthKitEnabled) {
+                            HStack(spacing: SBSLayout.paddingMedium) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.red.opacity(0.15))
+                                        .frame(width: 32, height: 32)
+                                    
+                                    Image(systemName: "heart.fill")
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(.red)
+                                }
+                                
+                                Text("Sync to Apple Fitness")
+                            }
+                        }
+                        .onChange(of: appState.settings.healthKitEnabled) { _, enabled in
+                            if enabled {
+                                Task {
+                                    do {
+                                        try await HealthKitManager.shared.requestAuthorization()
+                                        if !HealthKitManager.shared.isAuthorized {
+                                            appState.settings.healthKitEnabled = false
+                                        }
+                                    } catch {
+                                        appState.settings.healthKitEnabled = false
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if HealthKitManager.shared.isHealthKitAvailable {
+                            HStack {
+                                Text("Status")
+                                Spacer()
+                                if appState.settings.healthKitEnabled && HealthKitManager.shared.isAuthorized {
+                                    Label("Connected", systemImage: "checkmark.circle.fill")
+                                        .font(SBSFonts.caption())
+                                        .foregroundStyle(.green)
+                                } else if appState.settings.healthKitEnabled {
+                                    Label("Pending", systemImage: "exclamationmark.circle.fill")
+                                        .font(SBSFonts.caption())
+                                        .foregroundStyle(.orange)
+                                } else {
+                                    Text("Disabled")
+                                        .font(SBSFonts.caption())
+                                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                                }
+                            }
+                        }
+                    } else {
+                        // Show premium prompt for free users
+                        Button {
+                            showingPaywall = true
+                        } label: {
+                            HStack(spacing: SBSLayout.paddingMedium) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.red.opacity(0.15))
+                                        .frame(width: 32, height: 32)
+                                    
+                                    Image(systemName: "heart.fill")
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(.red)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Sync to Apple Fitness")
+                                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                                    
+                                    Text("Premium Feature")
+                                        .font(SBSFonts.caption())
+                                        .foregroundStyle(SBSColors.accentFallback)
+                                }
+                                
+                                Spacer()
+                                
+                                Image(systemName: "lock.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(SBSColors.accentFallback)
+                            }
+                        }
+                    }
+                } header: {
+                    HStack {
+                        Text("Apple Fitness")
+                        if !StoreManager.shared.canAccess(.appleFitness) {
+                            Text("PRO")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(SBSColors.accentFallback)
+                                .cornerRadius(4)
+                        }
+                    }
+                } footer: {
+                    if StoreManager.shared.canAccess(.appleFitness) {
+                        if HealthKitManager.shared.isHealthKitAvailable {
+                            Text("When enabled, starting a workout will automatically begin a Strength Training workout in Apple Fitness. Your workout duration and calories will be tracked and saved when you finish.")
+                        } else {
+                            Text("HealthKit is not available on this device.")
+                        }
+                    } else {
+                        Text("Upgrade to Premium to automatically log your workouts to Apple Fitness with duration, calories, and volume tracking.")
+                    }
                 }
                 
                 // Training Maxes
@@ -528,7 +668,11 @@ struct SettingsView: View {
                     
                     // Start new cycle
                     Button {
-                        showingNewCycleOptions = true
+                        if appState.hasLoggedData {
+                            showingNewCycleWarning = true
+                        } else {
+                            showingNewCycleOptions = true
+                        }
                     } label: {
                         HStack {
                             Image(systemName: "arrow.clockwise.circle.fill")
@@ -546,8 +690,10 @@ struct SettingsView: View {
                 // Data
                 Section {
                     Button {
-                        exportData = try? appState.exportData()
-                        showingExport = true
+                        if let data = try? appState.exportData() {
+                            exportData = data
+                            showingExport = true
+                        }
                     } label: {
                         Label("Export Data", systemImage: "square.and.arrow.up")
                     }
@@ -576,6 +722,10 @@ struct SettingsView: View {
                         Spacer()
                         Text("1.0.0")
                             .foregroundStyle(SBSColors.textSecondaryFallback)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        handleVersionTap()
                     }
                     
                     // Premium status
@@ -644,10 +794,37 @@ struct SettingsView: View {
                         }
                         .padding(.vertical, 4)
                     }
+                    
+                    Link(destination: URL(string: "https://apps.apple.com/us/app/top-set-calculator/id6757142146")!) {
+                        HStack(spacing: SBSLayout.paddingMedium) {
+                            Image("TopSetCalculatorIcon")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 44, height: 44)
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Top Set Calculator")
+                                    .font(SBSFonts.bodyBold())
+                                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                                
+                                Text("Strength calculators & tools")
+                                    .font(SBSFonts.caption())
+                                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                            }
+                            
+                            Spacer()
+                            
+                            Image(systemName: "arrow.up.forward.app")
+                                .font(.system(size: 14))
+                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                        }
+                        .padding(.vertical, 4)
+                    }
                 } header: {
-                    Text("More Apps")
+                    Text("More From Top Set")
                 } footer: {
-                    Text("A no-frills workout timer for Rest, HIIT, and EMOM modes.")
+                    Text("More strength training tools from Top Set Training.")
                 }
             }
             .scrollDismissesKeyboard(.interactively)
@@ -683,6 +860,9 @@ struct SettingsView: View {
             .sheet(isPresented: $showingExport) {
                 if let data = exportData {
                     ShareSheet(items: [ExportFile(data: data)])
+                } else {
+                    Text("Unable to export data")
+                        .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
             }
             .alert("Reset All Logs?", isPresented: $showingResetAlert) {
@@ -711,6 +891,14 @@ struct SettingsView: View {
             } message: {
                 Text("Quick Repeat will start a new cycle with your current program and carry over your training maxes. Choose Customize to change program, exercises, or adjust maxes.")
             }
+            .alert("Start New Cycle?", isPresented: $showingNewCycleWarning) {
+                Button("Cancel", role: .cancel) {}
+                Button("Continue") {
+                    showingNewCycleOptions = true
+                }
+            } message: {
+                Text("You have a cycle in progress. Starting a new cycle will clear your current cycle's workout data. Your workout history will still be available in Past Cycles.")
+            }
             .sheet(isPresented: $showingPaywall) {
                 PaywallView()
             }
@@ -731,6 +919,64 @@ struct SettingsView: View {
                     showingPaywall: $showingPaywall
                 )
             }
+            .sheet(isPresented: $showingReviewerLogin) {
+                ReviewerLoginView(
+                    onSuccess: {
+                        showingReviewerLogin = false
+                        storeManager.toggleReviewerUnlock()
+                        showingReviewerUnlockAlert = true
+                    },
+                    onCancel: {
+                        showingReviewerLogin = false
+                    }
+                )
+            }
+            .alert(
+                storeManager.isReviewerUnlocked ? "Reviewer Mode Enabled" : "Reviewer Mode Disabled",
+                isPresented: $showingReviewerUnlockAlert
+            ) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(storeManager.isReviewerUnlocked 
+                     ? "Premium features are now unlocked for review."
+                     : "Premium features have been locked.")
+            }
+        }
+    }
+    
+    // MARK: - Secret Reviewer Unlock
+    
+    private func handleVersionTap() {
+        let now = Date()
+        
+        // Reset counter if more than 1.5 seconds since last tap
+        if let lastTap = lastVersionTapTime, now.timeIntervalSince(lastTap) > 1.5 {
+            versionTapCount = 0
+        }
+        
+        lastVersionTapTime = now
+        versionTapCount += 1
+        
+        // Show login after 7 consecutive taps
+        if versionTapCount >= 7 {
+            versionTapCount = 0
+            showingReviewerLogin = true
+        }
+    }
+    
+    // MARK: - HealthKit Body Weight
+    
+    private func fetchBodyWeightFromHealthKit() async {
+        // Request authorization if needed
+        if !HealthKitManager.shared.isAuthorized {
+            try? await HealthKitManager.shared.requestAuthorization()
+        }
+        
+        // Fetch body weight (returns kg)
+        if let weightKg = await HealthKitManager.shared.getUserBodyWeight() {
+            // Convert kg to lbs for internal storage
+            let weightLbs = weightKg / 0.453592
+            appState.settings.bodyweight = weightLbs
         }
     }
     
@@ -1326,6 +1572,113 @@ class ExportFile: NSObject, UIActivityItemSource {
     
     func activityViewController(_ activityViewController: UIActivityViewController, dataTypeIdentifierForActivityType activityType: UIActivity.ActivityType?) -> String {
         UTType.json.identifier
+    }
+}
+
+// MARK: - Reviewer Login View
+
+struct ReviewerLoginView: View {
+    let onSuccess: () -> Void
+    let onCancel: () -> Void
+    
+    @State private var username = ""
+    @State private var password = ""
+    @State private var showError = false
+    @FocusState private var focusedField: Field?
+    
+    private enum Field {
+        case username, password
+    }
+    
+    // Credentials for Apple reviewers (provide these in App Store Connect review notes)
+    private let validUsername = "app_review"
+    private let validPassword = "TopSet2026!"
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 24) {
+                Spacer()
+                
+                Image(systemName: "person.badge.shield.checkmark.fill")
+                    .font(.system(size: 60))
+                    .foregroundStyle(SBSColors.accentFallback)
+                
+                Text("Reviewer Access")
+                    .font(SBSFonts.title())
+                
+                Text("Enter your credentials to unlock premium features for review.")
+                    .font(SBSFonts.body())
+                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+                
+                VStack(spacing: 16) {
+                    TextField("Username", text: $username)
+                        .textFieldStyle(.roundedBorder)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .focused($focusedField, equals: .username)
+                        .submitLabel(.next)
+                        .onSubmit {
+                            focusedField = .password
+                        }
+                    
+                    SecureField("Password", text: $password)
+                        .textFieldStyle(.roundedBorder)
+                        .focused($focusedField, equals: .password)
+                        .submitLabel(.done)
+                        .onSubmit {
+                            attemptLogin()
+                        }
+                }
+                .padding(.horizontal, 32)
+                
+                if showError {
+                    Text("Invalid credentials")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(SBSColors.error)
+                }
+                
+                Button {
+                    attemptLogin()
+                } label: {
+                    Text("Sign In")
+                        .font(SBSFonts.bodyBold())
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(SBSColors.accentFallback)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
+                }
+                .padding(.horizontal, 32)
+                .disabled(username.isEmpty || password.isEmpty)
+                .opacity(username.isEmpty || password.isEmpty ? 0.6 : 1)
+                
+                Spacer()
+                Spacer()
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") {
+                        onCancel()
+                    }
+                }
+            }
+        }
+        .onAppear {
+            focusedField = .username
+        }
+    }
+    
+    private func attemptLogin() {
+        if username.lowercased() == validUsername.lowercased() && password == validPassword {
+            showError = false
+            onSuccess()
+        } else {
+            showError = true
+            password = ""
+        }
     }
 }
 

@@ -186,15 +186,39 @@ struct AccessoryWorkoutView: View {
                             workoutState.startTimer(duration: appState.settings.restTimerDuration)
                             startTimerLoop()
                         },
-                        onTimerEnd: handleTimerEnd
+                        onTimerEnd: handleTimerEnd,
+                        onPause: {
+                            NotificationManager.shared.cancelRestTimerNotification()
+                        },
+                        onResume: {
+                            if appState.settings.pushNotificationsEnabled {
+                                NotificationManager.shared.scheduleRestTimerNotification(
+                                    duration: workoutState.timerRemaining,
+                                    exerciseName: "Rest",
+                                    nextSetInfo: "Rest Timer"
+                                )
+                            }
+                        }
                     )
                 } else if workoutState.isWorkoutComplete {
-                    AccessoryCompleteView(onDone: { dismiss() })
+                    AccessoryCompleteView(onDone: { finishAndDismiss() })
                 } else if workoutState.showingTimer {
                     AccessoryTimerView(
                         workoutState: workoutState,
                         useMetric: appState.settings.useMetric,
-                        onTimerEnd: handleTimerEnd
+                        onTimerEnd: handleTimerEnd,
+                        onPause: {
+                            NotificationManager.shared.cancelRestTimerNotification()
+                        },
+                        onResume: {
+                            if appState.settings.pushNotificationsEnabled, let accessory = workoutState.currentAccessory {
+                                NotificationManager.shared.scheduleRestTimerNotification(
+                                    duration: workoutState.timerRemaining,
+                                    exerciseName: accessory.name,
+                                    nextSetInfo: "Set \(workoutState.currentSetNumber) of \(accessory.sets)"
+                                )
+                            }
+                        }
                     )
                 } else {
                     AccessorySetView(
@@ -305,6 +329,7 @@ struct AccessoryWorkoutView: View {
         .onAppear {
             setupAccessories()
             resumeTimerLoopIfNeeded()
+            startHealthKitWorkout()
         }
         .onDisappear {
             // Only invalidate the Timer object, don't reset timer state
@@ -316,6 +341,73 @@ struct AccessoryWorkoutView: View {
     private var setInfoText: String {
         guard let accessory = workoutState.currentAccessory else { return "" }
         return "Set \(workoutState.currentSetNumber) of \(accessory.sets)"
+    }
+    
+    // MARK: - HealthKit Integration
+    
+    private func startHealthKitWorkout() {
+        // Apple Fitness is a premium feature
+        guard StoreManager.shared.canAccess(.appleFitness) else { return }
+        guard appState.settings.healthKitEnabled else { return }
+        
+        // Only start if there are accessories to do
+        guard !workoutState.accessories.isEmpty else { return }
+        
+        let workoutName = "Accessory Workout - Day \(day)"
+        Task {
+            do {
+                try await HealthKitManager.shared.startWorkout(name: workoutName)
+            } catch {
+                Logger.error("Failed to start HealthKit workout: \(error)", category: .healthKit)
+            }
+        }
+    }
+    
+    private func finishAndDismiss() {
+        // End HealthKit workout if active (premium feature)
+        if StoreManager.shared.canAccess(.appleFitness) && appState.settings.healthKitEnabled && HealthKitManager.shared.isWorkoutActive {
+            // Calculate workout stats for HealthKit
+            let stats = calculateAccessoryStats()
+            Task {
+                do {
+                    try await HealthKitManager.shared.endWorkout(
+                        totalVolume: stats.volume,
+                        setCount: stats.sets,
+                        repCount: stats.reps
+                    )
+                } catch {
+                    Logger.error("Failed to end HealthKit workout: \(error)", category: .healthKit)
+                }
+            }
+        }
+        
+        // Record workout completion for review request tracking
+        ReviewRequestManager.shared.recordWorkoutCompleted()
+        
+        dismiss()
+    }
+    
+    /// Calculate total volume, sets, and reps from accessories
+    private func calculateAccessoryStats() -> (volume: Double, sets: Int, reps: Int) {
+        var totalVolume: Double = 0
+        var totalSets = 0
+        var totalReps = 0
+        
+        for accessory in workoutState.accessories {
+            guard let completedSetNumbers = workoutState.completedSets[accessory.id] else { continue }
+            let setsCompleted = completedSetNumbers.count
+            totalSets += setsCompleted
+            
+            let repsCompleted = setsCompleted * accessory.reps
+            totalReps += repsCompleted
+            
+            // Use last logged weight if available for volume calculation
+            if let weight = accessory.lastLogWeight, weight > 0 {
+                totalVolume += weight * Double(repsCompleted)
+            }
+        }
+        
+        return (totalVolume, totalSets, totalReps)
     }
     
     private func setupAccessories() {
@@ -365,6 +457,23 @@ struct AccessoryWorkoutView: View {
                 LiveActivityManager.shared.startTimer(
                     exerciseName: "Rest",
                     duration: workoutState.timerDuration,
+                    nextSetInfo: "Rest Timer"
+                )
+            }
+        }
+        
+        // Schedule push notification for background alert
+        if appState.settings.pushNotificationsEnabled {
+            if let accessory = workoutState.currentAccessory {
+                NotificationManager.shared.scheduleRestTimerNotification(
+                    duration: appState.settings.restTimerDuration,
+                    exerciseName: accessory.name,
+                    nextSetInfo: "Set \(workoutState.currentSetNumber) of \(accessory.sets)"
+                )
+            } else {
+                NotificationManager.shared.scheduleRestTimerNotification(
+                    duration: workoutState.timerDuration,
+                    exerciseName: "Rest",
                     nextSetInfo: "Rest Timer"
                 )
             }
@@ -424,6 +533,9 @@ struct AccessoryWorkoutView: View {
         
         // End Live Activity
         LiveActivityManager.shared.endTimerSync()
+        
+        // Cancel push notification (app is in foreground, no need for notification)
+        NotificationManager.shared.cancelRestTimerNotification()
         
         // Play haptics and chime
         playTimerEndFeedback()
@@ -671,6 +783,8 @@ struct AccessoryTimerView: View {
     @Bindable var workoutState: AccessoryWorkoutState
     let useMetric: Bool
     let onTimerEnd: () -> Void
+    var onPause: (() -> Void)?
+    var onResume: (() -> Void)?
     
     var body: some View {
         VStack(spacing: SBSLayout.paddingLarge) {
@@ -712,8 +826,10 @@ struct AccessoryTimerView: View {
                 Button {
                     if workoutState.timerIsPaused {
                         workoutState.resumeTimer()
+                        onResume?()
                     } else {
                         workoutState.pauseTimer()
+                        onPause?()
                     }
                     // Update Live Activity with pause state (Pro only)
                     if StoreManager.shared.canAccess(.liveActivity) {
@@ -760,6 +876,12 @@ struct AccessoryTimerView: View {
                     totalSets: accessory.sets,
                     useMetric: useMetric
                 )
+            }
+        }
+        .onChange(of: workoutState.timerRemaining) { oldValue, newValue in
+            // Automatically end timer when it reaches 0
+            if oldValue > 0 && newValue <= 0 && workoutState.timerIsRunning {
+                onTimerEnd()
             }
         }
     }
@@ -1074,6 +1196,8 @@ struct StandaloneTimerView: View {
     let timerDuration: Int
     let onStartTimer: () -> Void
     let onTimerEnd: () -> Void
+    var onPause: (() -> Void)?
+    var onResume: (() -> Void)?
     
     var body: some View {
         VStack(spacing: SBSLayout.paddingLarge) {
@@ -1116,8 +1240,10 @@ struct StandaloneTimerView: View {
                     Button {
                         if workoutState.timerIsPaused {
                             workoutState.resumeTimer()
+                            onResume?()
                         } else {
                             workoutState.pauseTimer()
+                            onPause?()
                         }
                         // Update Live Activity with pause state (Pro only)
                         if StoreManager.shared.canAccess(.liveActivity) {
@@ -1225,6 +1351,12 @@ struct StandaloneTimerView: View {
                 }
                 .padding(.horizontal, SBSLayout.paddingLarge)
                 .padding(.bottom, SBSLayout.paddingXLarge)
+            }
+        }
+        .onChange(of: workoutState.timerRemaining) { oldValue, newValue in
+            // Automatically end timer when it reaches 0
+            if oldValue > 0 && newValue <= 0 && workoutState.timerIsRunning {
+                onTimerEnd()
             }
         }
     }

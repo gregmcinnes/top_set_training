@@ -196,7 +196,7 @@ public final class AppState {
                     ))
                 } catch {
                     // Skip files that fail to parse
-                    print("Failed to parse program \(filename): \(error)")
+                    Logger.warning("Failed to parse program \(filename): \(error)", category: .program)
                 }
             }
         }
@@ -241,6 +241,38 @@ public final class AppState {
         // Check if we're switching to a different program
         let isSwitchingPrograms = userData.selectedProgram != nil && userData.selectedProgram != programId
         
+        // Archive current cycle BEFORE switching programs (while we still have the old programData)
+        if isSwitchingPrograms && hasLoggedData {
+            let lastWeek = highestLoggedWeek()
+            let endingMaxes = finalTrainingMaxes(atWeek: lastWeek)
+            let startingMaxes = currentCycleStartingMaxes()
+            let completedCycle = buildCompletedCycle(
+                lastWeek: lastWeek,
+                startingMaxes: startingMaxes,
+                endingMaxes: endingMaxes
+            )
+            userData.cycleHistory.append(completedCycle)
+            
+            // Save ending TMs to universal trainingMaxes so they carry forward to new programs
+            // This is critical - SBS/structured programs don't update trainingMaxes during the cycle,
+            // only linear programs do. So we need to save the final calculated TMs here.
+            for (lift, tm) in endingMaxes {
+                userData.trainingMaxes[lift] = tm
+            }
+            
+            // Clear logs since they've been archived
+            userData.logs = [:]
+            userData.structuredLogs = [:]
+            userData.linearLogs = [:]
+            userData.accessoryLogs = [:]
+            // Capture date before removeAll to avoid exclusivity violation
+            let cycleStartDate = userData.currentCycleStartDate
+            userData.workoutRecords.removeAll { $0.date >= cycleStartDate }
+            userData.currentCycleStartDate = Date()
+            settings.currentWeek = 1
+            settings.currentDay = 1
+        }
+        
         // Check if this is a custom template
         if UserData.isCustomTemplate(programId: programId) {
             guard let templateId = UserData.templateId(from: programId),
@@ -275,8 +307,11 @@ public final class AppState {
                             state.initialMaxes[lift] = max
                         }
                         
-                        // Apply custom day configurations
+                        // Apply custom day configurations and copy WeekData for swapped lifts
                         for (day, items) in self.userData.customDays {
+                            // Copy WeekData for any swapped lifts before applying
+                            let originalItems = pdata.days[String(day)] ?? []
+                            self.copyWeekDataForSwappedLifts(newItems: items, originalItems: originalItems)
                             state.days[day] = items
                         }
                     }
@@ -325,8 +360,11 @@ public final class AppState {
                     state.initialMaxes[lift] = max
                 }
                 
-                // Apply custom day configurations
+                // Apply custom day configurations and copy WeekData for swapped lifts
                 for (day, items) in self.userData.customDays {
+                    // Copy WeekData for any swapped lifts before applying
+                    let originalItems = pdata.days[String(day)] ?? []
+                    self.copyWeekDataForSwappedLifts(newItems: items, originalItems: originalItems)
                     state.days[day] = items
                 }
                 
@@ -529,15 +567,17 @@ public final class AppState {
     }
     
     /// Get info about all structured lifts and their primary (1+) AMRAP sets
-    private func getAllStructuredLiftInfo() -> [String: (setIndex: Int, intensity: Double)] {
+    /// For programs like GZCLP with multiple exercises for the same lift (T1, T2), we use the one with highest intensity
+    private func getAllStructuredLiftInfo() -> [String: (setIndex: Int, intensity: Double, targetReps: Int)] {
         guard let state = programState else { return [:] }
-        var liftInfo: [String: (setIndex: Int, intensity: Double)] = [:]
+        var liftInfo: [String: (setIndex: Int, intensity: Double, targetReps: Int)] = [:]
+        // Track all candidates per lift to pick the best one (highest intensity)
+        var allCandidates: [String: [(setIndex: Int, intensity: Double, targetReps: Int)]] = [:]
         
         for (_, items) in state.days {
             for item in items {
                 guard item.type == .structured,
-                      let lift = item.lift,
-                      liftInfo[lift] == nil else { continue }
+                      let lift = item.lift else { continue }
                 
                 // Get sets_detail - prefer static, or use week 1 from week-based
                 // Note: Must use explicit ["1"] key, not .values.first, because dictionaries are unordered
@@ -551,21 +591,32 @@ public final class AppState {
                     continue
                 }
                 
-                // Find the 1+ set (AMRAP with target of 1 rep)
+                if allCandidates[lift] == nil {
+                    allCandidates[lift] = []
+                }
+                
+                // Find the 1+ set (AMRAP with target of 1 rep) - this is the ideal progression set
                 for (index, setDetail) in setsDetail.enumerated() {
                     if setDetail.isAMRAP && setDetail.reps == 1 {
-                        liftInfo[lift] = (index, setDetail.intensity)
+                        allCandidates[lift]?.append((index, setDetail.intensity, setDetail.reps))
                         break
                     }
                 }
                 
-                // Fallback: find any AMRAP set with highest intensity
-                if liftInfo[lift] == nil {
+                // Fallback: find any AMRAP set
+                if allCandidates[lift]?.isEmpty ?? true {
                     let amrapSets = setsDetail.enumerated().filter { $0.element.isAMRAP }
                     if let primary = amrapSets.max(by: { $0.element.intensity < $1.element.intensity }) {
-                        liftInfo[lift] = (primary.offset, primary.element.intensity)
+                        allCandidates[lift]?.append((primary.offset, primary.element.intensity, primary.element.reps))
                     }
                 }
+            }
+        }
+        
+        // For each lift, pick the AMRAP set with highest intensity (this ensures T1 is chosen over T2)
+        for (lift, candidates) in allCandidates {
+            if let best = candidates.max(by: { $0.intensity < $1.intensity }) {
+                liftInfo[lift] = best
             }
         }
         
@@ -629,17 +680,39 @@ public final class AppState {
                 }
             }
             
-            // Try structured-style logs - look for the 1+ set (primary progression set)
+            // Try structured-style logs - look for the primary progression set (highest intensity AMRAP)
             if let dayLogs = userData.structuredLogs[lift]?[week],
                let setInfo = structuredLiftInfo[lift] {
-                // Find the first day with logged AMRAP reps
+                // For programs like Reddit PPL where the same lift appears on multiple days,
+                // search for any logged AMRAP that matches our progression criteria
+                
+                // First, try the exact set index
                 for (_, structuredLog) in dayLogs {
                     if let reps = structuredLog.amrapReps[setInfo.setIndex] {
-                        // Use weekly-adjusted structured TM
                         let tm = structuredTMs[week]?[lift] ?? state.initialMaxes[lift] ?? 0
                         let weight = roundWeight(tm * setInfo.intensity)
                         let e1rm = weight * (1.0 + Double(reps) / 30.0)
                         return (week, e1rm, weight, reps)
+                    }
+                }
+                
+                // Fallback: look for any AMRAP that matches the target reps
+                for (day, structuredLog) in dayLogs {
+                    if let dayItems = state.days[day] {
+                        for item in dayItems {
+                            guard item.type == .structured, item.lift == lift else { continue }
+                            
+                            let setsDetail = item.setsDetail ?? item.setsDetailByWeek?[String(week)] ?? []
+                            for (index, setDetail) in setsDetail.enumerated() {
+                                if setDetail.isAMRAP && setDetail.reps == setInfo.targetReps,
+                                   let reps = structuredLog.amrapReps[index] {
+                                    let tm = structuredTMs[week]?[lift] ?? state.initialMaxes[lift] ?? 0
+                                    let weight = roundWeight(tm * setInfo.intensity)
+                                    let e1rm = weight * (1.0 + Double(reps) / 30.0)
+                                    return (week, e1rm, weight, reps)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -654,6 +727,117 @@ public final class AppState {
         let increment = settings.roundingIncrement
         guard increment > 0 else { return weight }
         return (weight / increment).rounded() * increment
+    }
+    
+    // MARK: - Workout Record Management
+    
+    /// Find or create a WorkoutRecord for the current workout session
+    private func findOrCreateWorkoutRecord(week: Int, day: Int) -> Int {
+        let today = Calendar.current.startOfDay(for: Date())
+        
+        // Find existing record for today's workout
+        if let index = userData.workoutRecords.firstIndex(where: { record in
+            Calendar.current.isDate(record.date, inSameDayAs: today) &&
+            record.week == week &&
+            record.day == day &&
+            record.programId == userData.selectedProgram
+        }) {
+            return index
+        }
+        
+        // Create new workout record
+        let newRecord = WorkoutRecord(
+            date: Date(),
+            programId: userData.selectedProgram ?? "",
+            programName: programData?.displayName ?? programData?.name ?? "Unknown",
+            week: week,
+            day: day,
+            dayTitle: dayTitle(day: day)
+        )
+        userData.workoutRecords.append(newRecord)
+        return userData.workoutRecords.count - 1
+    }
+    
+    /// Record a completed set to the workout record
+    private func recordSetToWorkout(
+        lift: String,
+        exerciseName: String,
+        week: Int,
+        day: Int,
+        setNumber: Int,
+        weight: Double,
+        targetReps: Int,
+        actualReps: Int?,
+        isAMRAP: Bool,
+        trainingMax: Double,
+        exerciseType: WorkoutExerciseType,
+        intensity: Double? = nil,
+        completed: Bool = true,
+        note: String? = nil
+    ) {
+        let workoutIndex = findOrCreateWorkoutRecord(week: week, day: day)
+        
+        // Find or create exercise record
+        if let exerciseIndex = userData.workoutRecords[workoutIndex].exercises.firstIndex(where: { $0.lift == lift }) {
+            // Update existing exercise
+            let setRecord = WorkoutSetRecord(
+                setNumber: setNumber,
+                weight: weight,
+                targetReps: targetReps,
+                actualReps: actualReps,
+                isAMRAP: isAMRAP,
+                intensity: intensity,
+                completed: completed
+            )
+            
+            // Check if this set already exists (update) or is new (append)
+            if let setIndex = userData.workoutRecords[workoutIndex].exercises[exerciseIndex].sets.firstIndex(where: { $0.setNumber == setNumber }) {
+                userData.workoutRecords[workoutIndex].exercises[exerciseIndex].sets[setIndex] = setRecord
+            } else {
+                userData.workoutRecords[workoutIndex].exercises[exerciseIndex].sets.append(setRecord)
+            }
+            
+            // Update note if provided
+            if let note = note {
+                userData.workoutRecords[workoutIndex].exercises[exerciseIndex].note = note
+            }
+        } else {
+            // Create new exercise record
+            let setRecord = WorkoutSetRecord(
+                setNumber: setNumber,
+                weight: weight,
+                targetReps: targetReps,
+                actualReps: actualReps,
+                isAMRAP: isAMRAP,
+                intensity: intensity,
+                completed: completed
+            )
+            
+            let exerciseRecord = WorkoutExerciseRecord(
+                lift: lift,
+                exerciseName: exerciseName,
+                trainingMax: trainingMax,
+                exerciseType: exerciseType,
+                sets: [setRecord],
+                note: note
+            )
+            
+            userData.workoutRecords[workoutIndex].exercises.append(exerciseRecord)
+        }
+        
+        persistUserData()
+    }
+    
+    /// Get workout records for the current cycle (since cycle start date)
+    func currentCycleWorkoutRecords() -> [WorkoutRecord] {
+        userData.workoutRecords.filter { $0.date >= userData.currentCycleStartDate }
+    }
+    
+    /// Get workout records for a specific lift in the current cycle
+    func workoutRecords(for lift: String) -> [WorkoutExerciseRecord] {
+        currentCycleWorkoutRecords().flatMap { workout in
+            workout.exercises.filter { $0.lift == lift }
+        }
     }
     
     // MARK: - Logging
@@ -712,6 +896,25 @@ public final class AppState {
         
         // Record to history (this also updates PR if applicable)
         userData.recordLift(record)
+        
+        // Record to WorkoutRecords (new self-contained history system)
+        let sets = weekData.sets
+        recordSetToWorkout(
+            lift: lift,
+            exerciseName: lift,
+            week: week,
+            day: day,
+            setNumber: sets, // Last set is the rep-out set
+            weight: weight,
+            targetReps: weekData.repOutTarget,
+            actualReps: reps,
+            isAMRAP: true,
+            trainingMax: tm,
+            exerciseType: .volume,
+            intensity: weekData.intensity,
+            completed: true,
+            note: note.isEmpty ? nil : note
+        )
         
         let isNewPR = previousE1RM == nil || newE1RM > (previousE1RM ?? 0)
         
@@ -845,7 +1048,7 @@ public final class AppState {
         // Get the weight for this set from the current plan
         if let dayPlan = currentDayPlan() {
             for item in dayPlan {
-                if case let .structured(_, itemLift, _, sets, _) = item, itemLift == lift {
+                if case let .structured(name, itemLift, _, sets, _) = item, itemLift == lift {
                     if let setInfo = sets.first(where: { $0.setIndex == setIndex }) {
                         let weight = setInfo.weight
                         let e1rm = calculateE1RM(weight: weight, reps: reps)
@@ -863,6 +1066,24 @@ public final class AppState {
                             setType: setType
                         )
                         userData.recordLift(record)
+                        
+                        // Record to WorkoutRecords (new self-contained history system)
+                        let currentTM = trainingMax(for: lift, week: week) ?? (userData.customInitialMaxes[lift] ?? 0)
+                        recordSetToWorkout(
+                            lift: lift,
+                            exerciseName: name,
+                            week: week,
+                            day: day,
+                            setNumber: setIndex,
+                            weight: weight,
+                            targetReps: setInfo.targetReps,
+                            actualReps: reps,
+                            isAMRAP: setInfo.isAMRAP,
+                            trainingMax: currentTM,
+                            exerciseType: .structured,
+                            intensity: setInfo.intensity,
+                            completed: true
+                        )
                     }
                     break
                 }
@@ -962,6 +1183,26 @@ public final class AppState {
         )
         userData.recordLift(record)
         
+        // Record to WorkoutRecords (new self-contained history system)
+        // For linear programs, record all sets as completed
+        for setNum in 1...sets {
+            recordSetToWorkout(
+                lift: lift,
+                exerciseName: lift,
+                week: week,
+                day: day,
+                setNumber: setNum,
+                weight: weight,
+                targetReps: reps,
+                actualReps: reps,
+                isAMRAP: false,
+                trainingMax: weight, // For linear progression, working weight IS the TM
+                exerciseType: .linear,
+                completed: true,
+                note: setNum == sets ? (note.isEmpty ? nil : note) : nil
+            )
+        }
+        
         // Update training max for linear programs
         // For linear progression, the working weight IS the effective "training max"
         // On success, next session will be higher, so we store current weight as TM
@@ -1028,6 +1269,26 @@ public final class AppState {
             setType: "\(sets)×\(reps) (failed)"
         )
         userData.recordLift(record)
+        
+        // Record to WorkoutRecords (new self-contained history system)
+        // For failed attempts, mark as not fully completed
+        for setNum in 1...sets {
+            recordSetToWorkout(
+                lift: lift,
+                exerciseName: lift,
+                week: week,
+                day: day,
+                setNumber: setNum,
+                weight: weight,
+                targetReps: reps,
+                actualReps: attemptedReps,
+                isAMRAP: false,
+                trainingMax: weight,
+                exerciseType: .linear,
+                completed: false,
+                note: setNum == sets ? (note.isEmpty ? nil : note) : nil
+            )
+        }
         
         // Update training max for linear programs
         // On failure, weight stays the same (or deloads), so update TM accordingly
@@ -1310,7 +1571,11 @@ public final class AppState {
         
         // Separate accessories from main lifts
         let accessories = items.filter { $0.type == .accessory }
-        let mainItems = items.filter { $0.type != .accessory }
+        
+        // Detect swapped lifts and copy WeekData for them
+        // Compare new items to original program items to find what was swapped
+        let originalItems = programData?.days[String(day)] ?? []
+        copyWeekDataForSwappedLifts(newItems: items, originalItems: originalItems)
         
         // Set the full items for the primary day (including any main lift changes)
         userData.customDays[day] = items
@@ -1333,6 +1598,48 @@ public final class AppState {
             
             userData.customDays[variantDay] = dayItems
             programState?.days[variantDay] = dayItems
+        }
+    }
+    
+    /// Copy WeekData, singleAt8Percent, and initialMaxes for swapped lifts
+    /// Compares new day items to original program items and copies data for any lifts that were swapped
+    private func copyWeekDataForSwappedLifts(newItems: [DayItem], originalItems: [DayItem]) {
+        // Build a mapping of position -> original lift for main lifts
+        var originalLiftsByPosition: [Int: String] = [:]
+        for (index, item) in originalItems.enumerated() {
+            if let lift = item.lift, item.type != .accessory {
+                originalLiftsByPosition[index] = lift
+            }
+        }
+        
+        // Check each new main lift - if it's different from the original at that position, copy data
+        for (index, item) in newItems.enumerated() {
+            guard let newLift = item.lift, item.type != .accessory else { continue }
+            
+            // Get the original lift at this position (if any)
+            let originalLift = originalLiftsByPosition[index]
+            
+            // If the new lift is different and doesn't have WeekData, copy from the original
+            if let originalLift = originalLift, originalLift != newLift {
+                // Copy WeekData if the new lift doesn't have it
+                if programState?.lifts[newLift] == nil, let oldLiftData = programState?.lifts[originalLift] {
+                    programState?.lifts[newLift] = oldLiftData
+                }
+                
+                // Copy singleAt8Percent
+                if programState?.singleAt8Percent[newLift] == nil,
+                   let oldPercent = programState?.singleAt8Percent[originalLift] {
+                    programState?.singleAt8Percent[newLift] = oldPercent
+                }
+                
+                // Copy initialMax if new lift doesn't have one set
+                if userData.customInitialMaxes[newLift] == nil && programState?.initialMaxes[newLift] == nil {
+                    if let oldMax = userData.customInitialMaxes[originalLift] ?? programState?.initialMaxes[originalLift] {
+                        programState?.initialMaxes[newLift] = oldMax
+                        userData.customInitialMaxes[newLift] = oldMax
+                    }
+                }
+            }
         }
     }
     
@@ -1430,10 +1737,28 @@ public final class AppState {
         
         setDayItems(for: day, items: items)
         
-        // Also ensure the new lift has an initial max if not set
-        if userData.customInitialMaxes[newLift] == nil,
-           let defaultMax = programData?.initialMaxes[newLift] {
-            programState?.initialMaxes[newLift] = defaultMax
+        // Copy the WeekData from the old lift to the new lift so ProgramEngine can calculate weights
+        // This is critical: without WeekData, the lift won't appear in the workout view
+        if programState?.lifts[newLift] == nil, let oldLiftData = programState?.lifts[oldLift] {
+            programState?.lifts[newLift] = oldLiftData
+        }
+        
+        // Copy the singleAt8Percent data for TM calculations
+        if programState?.singleAt8Percent[newLift] == nil,
+           let oldPercent = programState?.singleAt8Percent[oldLift] {
+            programState?.singleAt8Percent[newLift] = oldPercent
+        }
+        
+        // Ensure the new lift has an initial max
+        // First check if the program has a default, otherwise copy from the old lift
+        if userData.customInitialMaxes[newLift] == nil {
+            if let defaultMax = programData?.initialMaxes[newLift] {
+                programState?.initialMaxes[newLift] = defaultMax
+            } else if let oldMax = userData.customInitialMaxes[oldLift] ?? programState?.initialMaxes[oldLift] {
+                // Copy TM from the old lift since this is a substitution
+                programState?.initialMaxes[newLift] = oldMax
+                userData.customInitialMaxes[newLift] = oldMax
+            }
         }
     }
     
@@ -1489,8 +1814,9 @@ public final class AppState {
         userData.cycleHistory.sorted { $0.endDate > $1.endDate }
     }
     
-    /// Calculate the final training maxes for the current week
+    /// Calculate the final training maxes after the specified week
     /// This uses the TM calculation engine to get the TMs after all logged adjustments
+    /// IMPORTANT: Returns the TM for week+1 which includes progression from the AMRAP performance at `week`
     /// Handles SBS, structured (531/nSuns/Greyskull), and linear (Starting Strength/StrongLifts) programs
     func finalTrainingMaxes(atWeek week: Int) -> [String: Double] {
         guard let state = programState else { return [:] }
@@ -1507,13 +1833,56 @@ public final class AppState {
         
         var result: [String: Double] = [:]
         
+        // The "final" TM after completing week N is actually the TM for week N+1
+        // because progression from AMRAP performance is applied to the next week
+        let targetWeek = week + 1
+        
         for lift in liftNames {
-            // Use allTrainingMaxes which already handles all program types correctly
-            let tmData = allTrainingMaxes(for: lift)
-            if let lastTM = tmData.filter({ $0.week <= week }).max(by: { $0.week < $1.week }) {
-                result[lift] = lastTM.tm
-            } else if let initial = userData.customInitialMaxes[lift] ?? state.initialMaxes[lift] {
-                // Fallback to initial max if no logged data yet
+            // Check if this is a structured lift
+            let structuredLiftInfo = getAllStructuredLiftInfo()
+            if structuredLiftInfo[lift] != nil {
+                // For structured lifts, compute TMs up to targetWeek to get the progressed TM
+                let structuredTMs = engine.computeStructuredTrainingMaxes(state: state, upToWeek: targetWeek, structuredLiftInfo: structuredLiftInfo)
+                if let tm = structuredTMs[targetWeek]?[lift] {
+                    result[lift] = tm
+                    continue
+                } else if let tm = structuredTMs[week]?[lift] {
+                    // Fallback to current week if next week not computed
+                    result[lift] = tm
+                    continue
+                }
+            }
+            
+            // Check if this is a linear lift
+            let isLinearLift = state.days.values.flatMap { $0 }.contains { item in
+                item.type == .linear && item.lift == lift
+            }
+            if isLinearLift {
+                // For linear lifts, get the most recent logged weight
+                if let liftLogs = userData.linearLogs[lift] {
+                    let sortedLogs = liftLogs.sorted(by: { $0.key < $1.key })
+                    if let lastLog = sortedLogs.filter({ $0.key <= week }).last {
+                        for (_, entry) in lastLog.value {
+                            result[lift] = entry.weight
+                            break
+                        }
+                        continue
+                    }
+                }
+            }
+            
+            // Try SBS-style TM calculation
+            let sbsTMs = engine.computeTrainingMaxes(state: state, upToWeek: targetWeek)
+            if let tm = sbsTMs[targetWeek]?[lift] {
+                result[lift] = tm
+                continue
+            } else if let tm = sbsTMs[week]?[lift] {
+                result[lift] = tm
+                continue
+            }
+            
+            // Fallback to initial max if no logged data yet
+            if let initial = userData.customInitialMaxes[lift] ?? state.initialMaxes[lift] {
                 result[lift] = initial
             }
         }
@@ -1655,6 +2024,11 @@ public final class AppState {
             }
         }
         
+        // Filter workout records to only include those from this cycle
+        let cycleWorkoutRecords = userData.workoutRecords.filter { record in
+            record.date >= userData.currentCycleStartDate
+        }
+        
         return CompletedCycle(
             cycleNumber: currentCycleNumber,
             startDate: userData.currentCycleStartDate,
@@ -1669,7 +2043,8 @@ public final class AppState {
             structuredLogs: userData.structuredLogs,
             linearLogs: userData.linearLogs,
             tmHistory: tmHistory,
-            liftData: liftData
+            liftData: liftData,
+            workoutRecords: cycleWorkoutRecords
         )
     }
     
@@ -1697,6 +2072,8 @@ public final class AppState {
             for (lift, tm) in endingMaxes {
                 userData.customInitialMaxes[lift] = tm
                 programState?.initialMaxes[lift] = tm
+                // Also update universal trainingMaxes for cross-program consistency
+                userData.trainingMaxes[lift] = tm
             }
         }
         
@@ -1705,6 +2082,10 @@ public final class AppState {
         userData.structuredLogs = [:]
         userData.linearLogs = [:]
         userData.accessoryLogs = [:]
+        // Clear workout records from this cycle (they're archived in cycleHistory now)
+        // Capture date before removeAll to avoid exclusivity violation
+        let cycleStartDate = userData.currentCycleStartDate
+        userData.workoutRecords.removeAll { $0.date >= cycleStartDate }
         
         // Reset to week 1, day 1
         settings.currentWeek = 1
@@ -1762,6 +2143,8 @@ public final class AppState {
         for (lift, value) in maxes {
             userData.customInitialMaxes[lift] = value
             programState?.initialMaxes[lift] = value
+            // Also update universal trainingMaxes for cross-program consistency
+            userData.trainingMaxes[lift] = value
         }
     }
     
@@ -1834,6 +2217,8 @@ public final class AppState {
             for (lift, tm) in endingMaxes {
                 userData.customInitialMaxes[lift] = tm
                 programState?.initialMaxes[lift] = tm
+                // Also update universal trainingMaxes for cross-program consistency
+                userData.trainingMaxes[lift] = tm
             }
         }
         

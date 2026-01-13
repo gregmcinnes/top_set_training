@@ -216,7 +216,7 @@ struct ProgramSelector: View {
                     HStack(spacing: SBSLayout.paddingSmall) {
                         Image(systemName: "info.circle")
                             .font(.system(size: 12))
-                        Text("All programs are based on popular training programs. Some names are changed due to trademark.")
+                        Text("All programs are based on popular training programs. Some names are changed.")
                             .font(SBSFonts.caption())
                     }
                     .foregroundStyle(SBSColors.textTertiaryFallback)

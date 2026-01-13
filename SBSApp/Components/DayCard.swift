@@ -177,3 +177,4 @@ struct LogStatusBadge: View {
     .sbsBackground()
 }
 
+

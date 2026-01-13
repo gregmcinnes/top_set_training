@@ -13,6 +13,18 @@ public final class StoreManager {
     /// The product ID for the premium unlock (one-time purchase)
     public static let premiumProductID = "com.gregorymcinnes.topsettraining.premium"
     
+    // MARK: - Reviewer Unlock
+    
+    /// UserDefaults key for reviewer unlock
+    private static let reviewerUnlockKey = "com.gregorymcinnes.topsettraining.reviewerUnlock"
+    
+    /// Whether the app is unlocked for Apple reviewers
+    private(set) public var isReviewerUnlocked: Bool = false {
+        didSet {
+            UserDefaults.standard.set(isReviewerUnlocked, forKey: Self.reviewerUnlockKey)
+        }
+    }
+    
     // MARK: - State
     
     /// Available products from the App Store
@@ -32,9 +44,9 @@ public final class StoreManager {
     
     // MARK: - Computed Properties
     
-    /// Whether the user has purchased premium
+    /// Whether the user has purchased premium (or is a reviewer)
     public var isPremium: Bool {
-        purchasedProductIDs.contains(Self.premiumProductID)
+        purchasedProductIDs.contains(Self.premiumProductID) || isReviewerUnlocked
     }
     
     /// The premium product (if loaded)
@@ -50,6 +62,9 @@ public final class StoreManager {
     // MARK: - Initialization
     
     private init() {
+        // Load reviewer unlock state
+        isReviewerUnlocked = UserDefaults.standard.bool(forKey: Self.reviewerUnlockKey)
+        
         // Start listening for transactions immediately
         updateListenerTask = listenForTransactions()
         
@@ -79,7 +94,7 @@ public final class StoreManager {
         } catch {
             lastError = error
             isLoading = false
-            print("Failed to load products: \(error)")
+            Logger.error("Failed to load products: \(error)", category: .store)
         }
     }
     
@@ -139,8 +154,15 @@ public final class StoreManager {
             await updatePurchasedProducts()
         } catch {
             lastError = error
-            print("Failed to restore purchases: \(error)")
+            Logger.error("Failed to restore purchases: \(error)", category: .store)
         }
+    }
+    
+    /// Toggle reviewer unlock (for Apple reviewers to test premium features)
+    @MainActor
+    public func toggleReviewerUnlock() {
+        isReviewerUnlocked.toggle()
+        Logger.info("Reviewer unlock toggled: \(isReviewerUnlocked)", category: .store)
     }
     
     // MARK: - Private Methods
@@ -161,7 +183,7 @@ public final class StoreManager {
                     // Always finish transactions
                     await transaction.finish()
                 } catch {
-                    print("Transaction verification failed: \(error)")
+                    Logger.error("Transaction verification failed: \(error)", category: .store)
                 }
             }
         }
@@ -182,7 +204,7 @@ public final class StoreManager {
                     purchased.insert(transaction.productID)
                 }
             } catch {
-                print("Failed to verify transaction: \(error)")
+                Logger.error("Failed to verify transaction: \(error)", category: .store)
             }
         }
         

@@ -1,0 +1,79 @@
+{
+  "" : {
+    "diagnostics" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/SBSWatch-primary.dia",
+    "emit-module-dependencies" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/SBSWatch-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/SBSWatch-primary-emit-module.dia",
+    "pch" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/SBSWatch-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/SBSWatch-primary.swiftdeps"
+  },
+  "/Users/gmcinnes/src/SBS/ios_app/SBSCore/HealthKitManager.swift" : {
+    "const-values" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/HealthKitManager.swiftconstvalues",
+    "dependencies" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/HealthKitManager.d",
+    "diagnostics" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/HealthKitManager.dia",
+    "index-unit-output-path" : "/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/HealthKitManager.o",
+    "llvm-bc" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/HealthKitManager.bc",
+    "object" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/HealthKitManager.o",
+    "swift-dependencies" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/HealthKitManager.swiftdeps",
+    "swiftmodule" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/HealthKitManager~partial.swiftmodule"
+  },
+  "/Users/gmcinnes/src/SBS/ios_app/SBSCore/Logger.swift" : {
+    "const-values" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/Logger.swiftconstvalues",
+    "dependencies" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/Logger.d",
+    "diagnostics" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/Logger.dia",
+    "index-unit-output-path" : "/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/Logger.o",
+    "llvm-bc" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/Logger.bc",
+    "object" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/Logger.o",
+    "swift-dependencies" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/Logger.swiftdeps",
+    "swiftmodule" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/Logger~partial.swiftmodule"
+  },
+  "/Users/gmcinnes/src/SBS/ios_app/SBSWatch/ContentView.swift" : {
+    "const-values" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/ContentView.swiftconstvalues",
+    "dependencies" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/ContentView.d",
+    "diagnostics" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/ContentView.dia",
+    "index-unit-output-path" : "/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/ContentView.o",
+    "llvm-bc" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/ContentView.bc",
+    "object" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/ContentView.o",
+    "swift-dependencies" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/ContentView.swiftdeps",
+    "swiftmodule" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/ContentView~partial.swiftmodule"
+  },
+  "/Users/gmcinnes/src/SBS/ios_app/SBSWatch/SBSWatchApp.swift" : {
+    "const-values" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/SBSWatchApp.swiftconstvalues",
+    "dependencies" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/SBSWatchApp.d",
+    "diagnostics" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/SBSWatchApp.dia",
+    "index-unit-output-path" : "/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/SBSWatchApp.o",
+    "llvm-bc" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/SBSWatchApp.bc",
+    "object" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/SBSWatchApp.o",
+    "swift-dependencies" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/SBSWatchApp.swiftdeps",
+    "swiftmodule" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/SBSWatchApp~partial.swiftmodule"
+  },
+  "/Users/gmcinnes/src/SBS/ios_app/SBSWatch/WatchSessionManager.swift" : {
+    "const-values" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/WatchSessionManager.swiftconstvalues",
+    "dependencies" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/WatchSessionManager.d",
+    "diagnostics" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/WatchSessionManager.dia",
+    "index-unit-output-path" : "/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/WatchSessionManager.o",
+    "llvm-bc" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/WatchSessionManager.bc",
+    "object" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/WatchSessionManager.o",
+    "swift-dependencies" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/WatchSessionManager.swiftdeps",
+    "swiftmodule" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/WatchSessionManager~partial.swiftmodule"
+  },
+  "/Users/gmcinnes/src/SBS/ios_app/SBSWatch/WatchWorkoutManager.swift" : {
+    "const-values" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/WatchWorkoutManager.swiftconstvalues",
+    "dependencies" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/WatchWorkoutManager.d",
+    "diagnostics" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/WatchWorkoutManager.dia",
+    "index-unit-output-path" : "/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/WatchWorkoutManager.o",
+    "llvm-bc" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/WatchWorkoutManager.bc",
+    "object" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/WatchWorkoutManager.o",
+    "swift-dependencies" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/WatchWorkoutManager.swiftdeps",
+    "swiftmodule" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/WatchWorkoutManager~partial.swiftmodule"
+  },
+  "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/GeneratedAssetSymbols.bc",
+    "object" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/gmcinnes/src/SBS/ios_app/build/SBS.build/Debug-watchos/SBSWatch.build/Objects-normal/arm64_32/GeneratedAssetSymbols~partial.swiftmodule"
+  }
+}

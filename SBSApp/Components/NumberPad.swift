@@ -1,8 +1,63 @@
 import SwiftUI
 
+/// Context for structured progression (Greyskull, GZCLP, etc.)
+/// When provided, shows weight changes instead of percentage changes
+struct StructuredProgressionContext {
+    let liftName: String
+    let useMetric: Bool
+    /// If true, AMRAP doesn't auto-adjust TMs (e.g., 5/3/1) - just show hit/miss
+    let manualProgression: Bool
+    
+    init(liftName: String, useMetric: Bool, manualProgression: Bool = false) {
+        self.liftName = liftName
+        self.useMetric = useMetric
+        self.manualProgression = manualProgression
+    }
+    
+    /// Determine if the lift is upper body based on name
+    var isUpperBody: Bool {
+        let lowerBodyKeywords = ["squat", "deadlift", "leg", "lunge", "hip"]
+        let lowercased = liftName.lowercased()
+        return !lowerBodyKeywords.contains { lowercased.contains($0) }
+    }
+    
+    /// Calculate weight adjustment based on reps performed vs target
+    /// Matches the structuredProgression function in ProgramEngine
+    func weightAdjustment(reps: Int, target: Int) -> Double {
+        // nSuns-style 1+ sets use different progression rules
+        // Requires minimum 2 reps to progress, same for all lifts
+        if target == 1 {
+            if reps <= 1 { return 0.0 }    // 0-1 reps = stall
+            if reps <= 4 { return 5.0 }    // 2-4 reps = +5 lbs
+            return 10.0                     // 5+ reps = +10 lbs
+        }
+        
+        // Standard structured progression (Greyskull, GZCLP)
+        let diff = reps - target
+        
+        if isUpperBody {
+            switch diff {
+            case ...(-1): return -5.0  // Miss target = -5 lbs
+            case 0: return 0.0         // Hit exact = no change
+            case 1, 2: return 5.0      // 1-2 over = +5 lbs
+            default: return 10.0       // 3+ over = +10 lbs
+            }
+        } else {
+            // Lower body - more aggressive progression
+            switch diff {
+            case ...(-1): return 0.0   // Miss = stall (no reduction for lower)
+            case 0: return 5.0         // Hit exact = +5 lbs
+            case 1, 2: return 10.0     // 1-2 over = +10 lbs
+            default: return 15.0       // 3+ over = +15 lbs
+            }
+        }
+    }
+}
+
 struct NumberPad: View {
     @Binding var value: Int?
     let target: Int
+    let structuredContext: StructuredProgressionContext?  // nil = use percentage display
     let onConfirm: () -> Void
     let onCancel: () -> Void
     
@@ -45,7 +100,7 @@ struct NumberPad: View {
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                     
                     if let v = value {
-                        TMImpactPreviewCompact(reps: v, target: target)
+                        TMImpactPreviewCompact(reps: v, target: target, structuredContext: structuredContext)
                     }
                 }
                 .frame(minWidth: 100)
@@ -167,9 +222,11 @@ struct NumberPadKeyStyle: ButtonStyle {
 struct TMImpactPreviewCompact: View {
     let reps: Int
     let target: Int
+    let structuredContext: StructuredProgressionContext?  // nil = use percentage display
     
     private var diff: Int { reps - target }
     
+    /// Percentage change for volume-based programs (SBS style)
     private var deltaPercent: Double {
         if diff <= -2 { return -5.0 }
         if diff == -1 { return -2.0 }
@@ -179,6 +236,21 @@ struct TMImpactPreviewCompact: View {
         if diff == 3 { return 1.5 }
         if diff == 4 { return 2.0 }
         return 3.0 // 5+
+    }
+    
+    /// Weight change for structured programs (Greyskull, GZCLP style)
+    private var deltaWeight: Double {
+        guard let context = structuredContext else { return 0 }
+        return context.weightAdjustment(reps: reps, target: target)
+    }
+    
+    /// The effective delta value for determining direction (positive/negative/zero)
+    private var effectiveDelta: Double {
+        if structuredContext != nil {
+            return deltaWeight
+        } else {
+            return deltaPercent
+        }
     }
     
     var body: some View {
@@ -192,10 +264,20 @@ struct TMImpactPreviewCompact: View {
         .foregroundStyle(impactColor)
     }
     
+    /// For manual progression programs (like 5/3/1), just check if target was hit
+    private var hitTarget: Bool {
+        return reps >= target
+    }
+    
     private var iconName: String {
-        if deltaPercent > 0 {
+        // Manual progression - just show hit/miss
+        if let context = structuredContext, context.manualProgression {
+            return hitTarget ? "checkmark" : "xmark"
+        }
+        
+        if effectiveDelta > 0 {
             return "arrow.up"
-        } else if deltaPercent < 0 {
+        } else if effectiveDelta < 0 {
             return "arrow.down"
         } else {
             return "equal"
@@ -203,19 +285,42 @@ struct TMImpactPreviewCompact: View {
     }
     
     private var impactText: String {
-        if deltaPercent > 0 {
-            return "+\(String(format: "%.1f", deltaPercent))%"
-        } else if deltaPercent < 0 {
-            return "\(String(format: "%.1f", deltaPercent))%"
+        // Manual progression (5/3/1) - just show hit/miss status
+        if let context = structuredContext, context.manualProgression {
+            return hitTarget ? "Target hit" : "Missed"
+        }
+        
+        if let context = structuredContext {
+            // Structured progression - show weight change
+            let unit = context.useMetric ? "kg" : "lb"
+            if deltaWeight > 0 {
+                return "+\(Int(deltaWeight)) \(unit)"
+            } else if deltaWeight < 0 {
+                return "\(Int(deltaWeight)) \(unit)"
+            } else {
+                return "No Δ"
+            }
         } else {
-            return "No Δ"
+            // Volume-based progression - show percentage
+            if deltaPercent > 0 {
+                return "+\(String(format: "%.1f", deltaPercent))%"
+            } else if deltaPercent < 0 {
+                return "\(String(format: "%.1f", deltaPercent))%"
+            } else {
+                return "No Δ"
+            }
         }
     }
     
     private var impactColor: Color {
-        if deltaPercent > 0 {
+        // Manual progression - just show hit/miss colors
+        if let context = structuredContext, context.manualProgression {
+            return hitTarget ? SBSColors.success : SBSColors.error
+        }
+        
+        if effectiveDelta > 0 {
             return SBSColors.success
-        } else if deltaPercent < 0 {
+        } else if effectiveDelta < 0 {
             return SBSColors.error
         } else {
             return SBSColors.textSecondaryFallback
@@ -228,9 +333,11 @@ struct TMImpactPreviewCompact: View {
 struct TMImpactPreview: View {
     let reps: Int
     let target: Int
+    let structuredContext: StructuredProgressionContext?  // nil = use percentage display
     
     private var diff: Int { reps - target }
     
+    /// Percentage change for volume-based programs (SBS style)
     private var deltaPercent: Double {
         if diff <= -2 { return -5.0 }
         if diff == -1 { return -2.0 }
@@ -240,6 +347,21 @@ struct TMImpactPreview: View {
         if diff == 3 { return 1.5 }
         if diff == 4 { return 2.0 }
         return 3.0 // 5+
+    }
+    
+    /// Weight change for structured programs (Greyskull, GZCLP style)
+    private var deltaWeight: Double {
+        guard let context = structuredContext else { return 0 }
+        return context.weightAdjustment(reps: reps, target: target)
+    }
+    
+    /// The effective delta value for determining direction (positive/negative/zero)
+    private var effectiveDelta: Double {
+        if structuredContext != nil {
+            return deltaWeight
+        } else {
+            return deltaPercent
+        }
     }
     
     var body: some View {
@@ -259,10 +381,20 @@ struct TMImpactPreview: View {
         )
     }
     
+    /// For manual progression programs (like 5/3/1), just check if target was hit
+    private var hitTarget: Bool {
+        return reps >= target
+    }
+    
     private var iconName: String {
-        if deltaPercent > 0 {
+        // Manual progression - just show hit/miss
+        if let context = structuredContext, context.manualProgression {
+            return hitTarget ? "checkmark.circle.fill" : "xmark.circle.fill"
+        }
+        
+        if effectiveDelta > 0 {
             return "arrow.up.circle.fill"
-        } else if deltaPercent < 0 {
+        } else if effectiveDelta < 0 {
             return "arrow.down.circle.fill"
         } else {
             return "equal.circle.fill"
@@ -270,19 +402,42 @@ struct TMImpactPreview: View {
     }
     
     private var impactText: String {
-        if deltaPercent > 0 {
-            return "Next TM: +\(String(format: "%.1f", deltaPercent))%"
-        } else if deltaPercent < 0 {
-            return "Next TM: \(String(format: "%.1f", deltaPercent))%"
+        // Manual progression (5/3/1) - just show hit/miss status
+        if let context = structuredContext, context.manualProgression {
+            return hitTarget ? "Target hit!" : "Missed target"
+        }
+        
+        if let context = structuredContext {
+            // Structured progression - show weight change
+            let unit = context.useMetric ? "kg" : "lb"
+            if deltaWeight > 0 {
+                return "Next: +\(Int(deltaWeight)) \(unit)"
+            } else if deltaWeight < 0 {
+                return "Next: \(Int(deltaWeight)) \(unit)"
+            } else {
+                return "Next: No change"
+            }
         } else {
-            return "Next TM: No change"
+            // Volume-based progression - show percentage
+            if deltaPercent > 0 {
+                return "Next TM: +\(String(format: "%.1f", deltaPercent))%"
+            } else if deltaPercent < 0 {
+                return "Next TM: \(String(format: "%.1f", deltaPercent))%"
+            } else {
+                return "Next TM: No change"
+            }
         }
     }
     
     private var impactColor: Color {
-        if deltaPercent > 0 {
+        // Manual progression - just show hit/miss colors
+        if let context = structuredContext, context.manualProgression {
+            return hitTarget ? SBSColors.success : SBSColors.error
+        }
+        
+        if effectiveDelta > 0 {
             return SBSColors.success
-        } else if deltaPercent < 0 {
+        } else if effectiveDelta < 0 {
             return SBSColors.error
         } else {
             return SBSColors.textSecondaryFallback
@@ -294,6 +449,7 @@ struct TMImpactPreview: View {
     NumberPad(
         value: .constant(12),
         target: 10,
+        structuredContext: nil,  // nil = percentage display (SBS style)
         onConfirm: {},
         onCancel: {}
     )

@@ -16,6 +16,7 @@ struct ProgramsView: View {
     // Cycle builder state
     @State private var showingCycleBuilder = false
     @State private var selectedProgramForCycle: String? = nil
+    @State private var showingNewCycleWarning = false
     
     // Template builder state
     @State private var showingTemplateBuilder = false
@@ -252,6 +253,16 @@ struct ProgramsView: View {
                     Text("Are you sure you want to delete \"\(template.name)\"? This cannot be undone.")
                 }
             }
+            .alert("Start New Cycle?", isPresented: $showingNewCycleWarning) {
+                Button("Cancel", role: .cancel) {
+                    selectedProgramForCycle = nil
+                }
+                Button("Continue") {
+                    showingCycleBuilder = true
+                }
+            } message: {
+                Text("You have a cycle in progress. Starting a new cycle will clear your current cycle's workout data. Your workout history will still be available in Past Cycles.")
+            }
             .fullScreenCover(isPresented: $showingProgramQuiz) {
                 ProgramRecommendationQuiz(
                     appState: appState,
@@ -262,7 +273,11 @@ struct ProgramsView: View {
                     onProgramSelected: { programId in
                         showingProgramQuiz = false
                         selectedProgramForCycle = programId
-                        showingCycleBuilder = true
+                        if appState.hasLoggedData {
+                            showingNewCycleWarning = true
+                        } else {
+                            showingCycleBuilder = true
+                        }
                     }
                 )
             }
@@ -331,7 +346,7 @@ struct ProgramsView: View {
                     HStack(spacing: SBSLayout.paddingSmall) {
                         Image(systemName: "info.circle")
                             .font(.system(size: 12))
-                        Text("All programs are based on popular training programs. Some names have been changed to avoid trademark issues.")
+                        Text("All programs are based on popular training programs. Some names are changed.")
                             .font(SBSFonts.caption())
                     }
                     .foregroundStyle(SBSColors.textTertiaryFallback)
@@ -350,7 +365,11 @@ struct ProgramsView: View {
                             onLockedTap: { showingPaywall = true },
                             onStartCycle: { programId in
                                 selectedProgramForCycle = programId
-                                showingCycleBuilder = true
+                                if appState.hasLoggedData {
+                                    showingNewCycleWarning = true
+                                } else {
+                                    showingCycleBuilder = true
+                                }
                             }
                         )
                     }
@@ -465,7 +484,11 @@ struct ProgramsView: View {
                         onStartCycle: {
                             let programId = UserData.programId(for: template.id)
                             selectedProgramForCycle = programId
-                            showingCycleBuilder = true
+                            if appState.hasLoggedData {
+                                showingNewCycleWarning = true
+                            } else {
+                                showingCycleBuilder = true
+                            }
                         }
                     )
                 }

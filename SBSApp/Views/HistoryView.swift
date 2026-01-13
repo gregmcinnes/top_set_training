@@ -499,32 +499,43 @@ struct HistoryView: View {
     }
     
     /// Get all e1RM data from unified lift history (program-agnostic)
+    /// Prioritizes WorkoutRecords (new system), falls back to unified history and legacy reconstruction
     private func allE1RMData(for lift: String) -> [(date: Date, e1rm: Double, weight: Double, reps: Int)] {
-        // Primary source: unified lift history (program-agnostic)
-        let unifiedHistory = appState.liftHistory(for: lift)
-        
-        if !unifiedHistory.isEmpty {
-            // Use unified history if available
-            return unifiedHistory.map { record in
-                (record.date, record.estimatedOneRM, record.weight, record.reps)
-            }
-        }
-        
-        // Fallback: legacy approach for older data not yet in unified history
         var allData: [(date: Date, e1rm: Double, weight: Double, reps: Int)] = []
         
         // Add data from past cycles (in chronological order)
         let sortedCycles = appState.userData.cycleHistory.sorted { $0.startDate < $1.startDate }
         
         for cycle in sortedCycles {
-            // First, try to use stored liftData (preferred, program-agnostic)
-            if let liftDataForLift = cycle.liftData[lift], !liftDataForLift.isEmpty {
+            var foundData = false
+            
+            // PRIORITY 1: Use WorkoutRecords (new self-contained system)
+            if !cycle.workoutRecords.isEmpty {
+                for workout in cycle.workoutRecords {
+                    for exercise in workout.exercises where exercise.lift == lift {
+                        // Use the computed E1RM from the exercise record
+                        if let e1rm = exercise.estimatedOneRM {
+                            // Get the best set for weight/reps data
+                            if let bestSet = exercise.sets.filter({ $0.actualReps != nil }).max(by: { ($0.actualReps ?? 0) < ($1.actualReps ?? 0) }) {
+                                allData.append((workout.date, e1rm, bestSet.weight, bestSet.actualReps ?? 0))
+                                foundData = true
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // PRIORITY 2: Use liftData (pre-calculated, legacy)
+            if !foundData, let liftDataForLift = cycle.liftData[lift], !liftDataForLift.isEmpty {
                 for (week, weekData) in liftDataForLift.sorted(by: { $0.key < $1.key }) {
                     let date = Calendar.current.date(byAdding: .weekOfYear, value: week - 1, to: cycle.startDate) ?? cycle.startDate
                     allData.append((date, weekData.e1rm, weekData.weight, weekData.reps))
+                    foundData = true
                 }
-            } else if let liftLogs = cycle.logs[lift] {
-                // Fallback: calculate from logs + current program state (may not work if program changed)
+            }
+            
+            // FALLBACK: calculate from logs + current program state (may not work if program changed)
+            if !foundData, let liftLogs = cycle.logs[lift] {
                 for week in 1...cycle.lastCompletedWeek {
                     guard let dayLogs = liftLogs[week] else { continue }
                     // Find any entry with logged reps from any day
@@ -544,18 +555,37 @@ struct HistoryView: View {
         }
         
         // Add current cycle data
-        let currentE1RMData = appState.estimatedOneRepMaxes(for: lift)
-        let currentStartDate = appState.userData.currentCycleStartDate
-        for item in currentE1RMData {
-            let date = Calendar.current.date(byAdding: .weekOfYear, value: item.week - 1, to: currentStartDate) ?? currentStartDate
-            allData.append((date, item.e1rm, item.weight, item.reps))
+        let currentCycleStart = appState.userData.currentCycleStartDate
+        let currentCycleWorkouts = appState.userData.workoutRecords.filter { $0.date >= currentCycleStart }
+        
+        // PRIORITY 1: Use current cycle WorkoutRecords
+        var currentE1RMFound = false
+        for workout in currentCycleWorkouts {
+            for exercise in workout.exercises where exercise.lift == lift {
+                if let e1rm = exercise.estimatedOneRM {
+                    if let bestSet = exercise.sets.filter({ $0.actualReps != nil }).max(by: { ($0.actualReps ?? 0) < ($1.actualReps ?? 0) }) {
+                        allData.append((workout.date, e1rm, bestSet.weight, bestSet.actualReps ?? 0))
+                        currentE1RMFound = true
+                    }
+                }
+            }
+        }
+        
+        // FALLBACK: Use unified lift history if no WorkoutRecords
+        if !currentE1RMFound {
+            let unifiedHistory = appState.liftHistory(for: lift)
+            let currentCycleRecords = unifiedHistory.filter { $0.date >= currentCycleStart }
+            
+            for record in currentCycleRecords {
+                allData.append((record.date, record.estimatedOneRM, record.weight, record.reps))
+            }
         }
         
         return allData
     }
     
     /// Get all training max data across all cycles for the chart
-    /// Uses stored tmHistory from CompletedCycle for program-agnostic display
+    /// Prioritizes WorkoutRecords (new system), falls back to tmHistory/reconstruction (legacy)
     private func allTMData(for lift: String) -> [(date: Date, tm: Double)] {
         var allData: [(date: Date, tm: Double)] = []
         
@@ -565,8 +595,31 @@ struct HistoryView: View {
         for cycle in sortedCycles {
             var foundData = false
             
-            // First, try to use the stored tmHistory (preferred, program-agnostic)
-            if let tmHistoryForLift = cycle.tmHistory[lift], !tmHistoryForLift.isEmpty {
+            // PRIORITY 1: Use WorkoutRecords (new self-contained system)
+            if !cycle.workoutRecords.isEmpty {
+                // Get TM from workout records for this lift, grouped by week
+                var weeklyTM: [Int: (date: Date, tm: Double)] = [:]
+                
+                for workout in cycle.workoutRecords {
+                    for exercise in workout.exercises where exercise.lift == lift {
+                        guard exercise.trainingMax > 0 else { continue }
+                        // Keep latest TM for each week
+                        if weeklyTM[workout.week] == nil || workout.date > weeklyTM[workout.week]!.date {
+                            weeklyTM[workout.week] = (workout.date, exercise.trainingMax)
+                        }
+                    }
+                }
+                
+                if !weeklyTM.isEmpty {
+                    foundData = true
+                    for (_, data) in weeklyTM.sorted(by: { $0.key < $1.key }) {
+                        allData.append((data.date, data.tm))
+                    }
+                }
+            }
+            
+            // PRIORITY 2: Use tmHistory (pre-calculated, legacy)
+            if !foundData, let tmHistoryForLift = cycle.tmHistory[lift], !tmHistoryForLift.isEmpty {
                 foundData = true
                 for (week, tm) in tmHistoryForLift.sorted(by: { $0.key < $1.key }) {
                     guard tm > 0 else { continue }  // Skip zero TMs
@@ -575,7 +628,7 @@ struct HistoryView: View {
                 }
             }
             
-            // Fallback: check SBS-style logs (for legacy cycles without tmHistory)
+            // FALLBACK 1: check SBS-style logs (for legacy cycles without tmHistory)
             if !foundData, let liftLogs = cycle.logs[lift] {
                 let startTM = cycle.startingMaxes[lift] ?? 0
                 let endTM = cycle.endingMaxes[lift] ?? startTM
@@ -594,7 +647,7 @@ struct HistoryView: View {
                 }
             }
             
-            // Fallback: check structuredLogs (for structured programs)
+            // FALLBACK 2: check structuredLogs (for structured programs)
             if !foundData, let structuredLiftLogs = cycle.structuredLogs[lift] {
                 let startTM = cycle.startingMaxes[lift] ?? 0
                 let endTM = cycle.endingMaxes[lift] ?? startTM
@@ -613,7 +666,7 @@ struct HistoryView: View {
                 }
             }
             
-            // Fallback: check linearLogs (for linear programs)
+            // FALLBACK 3: check linearLogs (for linear programs)
             if !foundData, let linearLiftLogs = cycle.linearLogs[lift] {
                 for (week, dayLogs) in linearLiftLogs.sorted(by: { $0.key < $1.key }) {
                     for (_, entry) in dayLogs {
@@ -628,35 +681,55 @@ struct HistoryView: View {
         }
         
         // Add current cycle data
-        let currentTMData = appState.allTrainingMaxes(for: lift)
-        let currentStartDate = appState.userData.currentCycleStartDate
+        let currentCycleStart = appState.userData.currentCycleStartDate
+        let currentCycleWorkouts = appState.userData.workoutRecords.filter { $0.date >= currentCycleStart }
         
-        // Get the starting max for this cycle (for the chart's starting point)
-        let startingMax = appState.currentCycleStartingMaxes()[lift] ?? 0
-        
-        // If we have no TM data yet but have a valid starting max, add it as the first point
-        if currentTMData.isEmpty && startingMax > 0 && allData.isEmpty {
-            allData.append((currentStartDate, startingMax))
+        // PRIORITY 1: Use current cycle WorkoutRecords
+        var currentWeeklyTM: [Int: (date: Date, tm: Double)] = [:]
+        for workout in currentCycleWorkouts {
+            for exercise in workout.exercises where exercise.lift == lift {
+                guard exercise.trainingMax > 0 else { continue }
+                if currentWeeklyTM[workout.week] == nil || workout.date > currentWeeklyTM[workout.week]!.date {
+                    currentWeeklyTM[workout.week] = (workout.date, exercise.trainingMax)
+                }
+            }
         }
         
-        // Filter to only include weeks with actual logs (check SBS, structured, AND linear logs)
-        for item in currentTMData {
-            guard item.tm > 0 else { continue }  // Skip zero TMs
+        if !currentWeeklyTM.isEmpty {
+            for (_, data) in currentWeeklyTM.sorted(by: { $0.key < $1.key }) {
+                allData.append((data.date, data.tm))
+            }
+        } else {
+            // FALLBACK: Use legacy TM calculation
+            let currentTMData = appState.allTrainingMaxes(for: lift)
             
-            let hasSBSLog = appState.userData.logs[lift]?[item.week]?.values.contains { $0.repsLastSet != nil } == true
-            let hasStructuredLog = appState.userData.structuredLogs[lift]?[item.week]?.values.contains { !$0.amrapReps.isEmpty } == true
-            let hasLinearLog = appState.userData.linearLogs[lift]?[item.week] != nil
+            // Get the starting max for this cycle (for the chart's starting point)
+            let startingMax = appState.currentCycleStartingMaxes()[lift] ?? 0
             
-            if hasSBSLog || hasStructuredLog || hasLinearLog {
-                var date = Calendar.current.date(byAdding: .weekOfYear, value: item.week - 1, to: currentStartDate) ?? currentStartDate
+            // If we have no TM data yet but have a valid starting max, add it as the first point
+            if currentTMData.isEmpty && startingMax > 0 && allData.isEmpty {
+                allData.append((currentCycleStart, startingMax))
+            }
+            
+            // Filter to only include weeks with actual logs (check SBS, structured, AND linear logs)
+            for item in currentTMData {
+                guard item.tm > 0 else { continue }  // Skip zero TMs
                 
-                // Check if we have actual date from lift history
-                let liftHistory = appState.liftHistory(for: lift)
-                if let actualRecord = liftHistory.first(where: { $0.week == item.week }) {
-                    date = actualRecord.date
+                let hasSBSLog = appState.userData.logs[lift]?[item.week]?.values.contains { $0.repsLastSet != nil } == true
+                let hasStructuredLog = appState.userData.structuredLogs[lift]?[item.week]?.values.contains { !$0.amrapReps.isEmpty } == true
+                let hasLinearLog = appState.userData.linearLogs[lift]?[item.week] != nil
+                
+                if hasSBSLog || hasStructuredLog || hasLinearLog {
+                    var date = Calendar.current.date(byAdding: .weekOfYear, value: item.week - 1, to: currentCycleStart) ?? currentCycleStart
+                    
+                    // Check if we have actual date from lift history
+                    let liftHistory = appState.liftHistory(for: lift)
+                    if let actualRecord = liftHistory.first(where: { $0.week == item.week }) {
+                        date = actualRecord.date
+                    }
+                    
+                    allData.append((date, item.tm))
                 }
-                
-                allData.append((date, item.tm))
             }
         }
         
@@ -686,7 +759,7 @@ struct HistoryView: View {
     }
     
     /// Get all logs including past cycles
-    /// Uses stored liftData from CompletedCycle for program-agnostic history display
+    /// Prioritizes WorkoutRecords (new system), falls back to liftData/reconstruction (legacy)
     private func allLogsForLift(_ lift: String) -> [HistoryLogEntry] {
         var allLogs: [HistoryLogEntry] = []
         
@@ -703,8 +776,63 @@ struct HistoryView: View {
             
             var foundData = false
             
-            // First, try to use the stored liftData (preferred, program-agnostic)
-            if let liftDataForLift = cycle.liftData[lift], !liftDataForLift.isEmpty {
+            // PRIORITY 1: Use WorkoutRecords (new self-contained system)
+            if !cycle.workoutRecords.isEmpty {
+                // Group by week and get best AMRAP set per week for this lift
+                var weeklyBest: [Int: (reps: Int, target: Int, weight: Double, e1rm: Double, note: String?, date: Date)] = [:]
+                
+                for workout in cycle.workoutRecords {
+                    for exercise in workout.exercises where exercise.lift == lift {
+                        for set in exercise.sets where set.actualReps != nil {
+                            let reps = set.actualReps!
+                            let e1rm = set.weight * (1.0 + Double(reps) / 30.0)
+                            
+                            // Keep the entry with the highest E1RM for each week
+                            if let existing = weeklyBest[workout.week] {
+                                if e1rm > existing.e1rm {
+                                    weeklyBest[workout.week] = (
+                                        reps: reps,
+                                        target: set.targetReps,
+                                        weight: set.weight,
+                                        e1rm: e1rm,
+                                        note: exercise.note,
+                                        date: workout.date
+                                    )
+                                }
+                            } else {
+                                weeklyBest[workout.week] = (
+                                    reps: reps,
+                                    target: set.targetReps,
+                                    weight: set.weight,
+                                    e1rm: e1rm,
+                                    note: exercise.note,
+                                    date: workout.date
+                                )
+                            }
+                        }
+                    }
+                }
+                
+                if !weeklyBest.isEmpty {
+                    foundData = true
+                    for (week, data) in weeklyBest.sorted(by: { $0.key < $1.key }) {
+                        allLogs.append(HistoryLogEntry(
+                            cycleNumber: cycle.cycleNumber,
+                            week: week,
+                            reps: data.reps,
+                            target: data.target,
+                            weight: data.weight,
+                            e1rm: data.e1rm,
+                            date: data.date,
+                            note: data.note,
+                            programName: programName
+                        ))
+                    }
+                }
+            }
+            
+            // PRIORITY 2: Use liftData (pre-calculated, legacy)
+            if !foundData, let liftDataForLift = cycle.liftData[lift], !liftDataForLift.isEmpty {
                 foundData = true
                 for (week, weekData) in liftDataForLift.sorted(by: { $0.key < $1.key }) {
                     // Get note from any day in this week (check all log types)
@@ -723,7 +851,7 @@ struct HistoryView: View {
                 }
             }
             
-            // Fallback: check SBS-style logs (for legacy cycles without liftData)
+            // FALLBACK 1: check SBS-style logs (for legacy cycles without liftData)
             if !foundData, let liftLogs = cycle.logs[lift] {
                 for week in 1...cycle.lastCompletedWeek {
                     guard let dayLogs = liftLogs[week] else { continue }
@@ -751,7 +879,7 @@ struct HistoryView: View {
                 }
             }
             
-            // Fallback: check structuredLogs (for structured programs like 531, nSuns, Greyskull)
+            // FALLBACK 2: check structuredLogs (for structured programs like 531, nSuns, Greyskull)
             if !foundData, let structuredLiftLogs = cycle.structuredLogs[lift] {
                 for (week, dayLogs) in structuredLiftLogs.sorted(by: { $0.key < $1.key }) {
                     for (_, entry) in dayLogs {
@@ -783,7 +911,7 @@ struct HistoryView: View {
                 }
             }
             
-            // Fallback: check linearLogs (for linear programs like Starting Strength, StrongLifts)
+            // FALLBACK 3: check linearLogs (for linear programs like Starting Strength, StrongLifts)
             if !foundData, let linearLiftLogs = cycle.linearLogs[lift] {
                 for (week, dayLogs) in linearLiftLogs.sorted(by: { $0.key < $1.key }) {
                     for (_, entry) in dayLogs {
@@ -809,7 +937,7 @@ struct HistoryView: View {
             }
         }
         
-        // Add current cycle data
+        // Add current cycle data from WorkoutRecords first, then fallback
         let currentLogs = logsForCurrentCycle(lift)
         let currentProgramName = appState.programData?.displayName ?? appState.programData?.name
         for log in currentLogs {
@@ -820,7 +948,7 @@ struct HistoryView: View {
                 target: log.target,
                 weight: log.weight,
                 e1rm: log.e1rm,
-                date: appState.userData.currentCycleStartDate,
+                date: log.date,
                 note: log.note,
                 programName: currentProgramName
             ))
@@ -829,39 +957,59 @@ struct HistoryView: View {
         return allLogs
     }
     
-    private func logsForCurrentCycle(_ lift: String) -> [(week: Int, reps: Int, target: Int, weight: Double, e1rm: Double, note: String?)] {
-        // Use unified lift history to get logs for this lift in the current cycle
-        let liftHistory = appState.liftHistory(for: lift)
+    private func logsForCurrentCycle(_ lift: String) -> [(week: Int, reps: Int, target: Int, weight: Double, e1rm: Double, note: String?, date: Date)] {
         let currentCycleStart = appState.userData.currentCycleStartDate
+        var weeklyLogs: [Int: (week: Int, reps: Int, target: Int, weight: Double, e1rm: Double, note: String?, date: Date)] = [:]
         
-        // Filter to current cycle only (after cycle start date)
-        let currentCycleRecords = liftHistory.filter { $0.date >= currentCycleStart }
+        // PRIORITY 1: Use WorkoutRecords (new self-contained system)
+        let currentCycleWorkouts = appState.userData.workoutRecords.filter { $0.date >= currentCycleStart }
         
-        // Group by week and return the best record per week
-        var weeklyLogs: [Int: (week: Int, reps: Int, target: Int, weight: Double, e1rm: Double, note: String?)] = [:]
-        
-        for record in currentCycleRecords {
-            let week = record.week ?? 1
-            // Parse target from setType (e.g., "5+" -> 5, "3×5" -> 5, "volume" -> 5)
-            var target = 5
-            if let setType = record.setType {
-                if setType.hasSuffix("+") {
-                    target = Int(setType.dropLast()) ?? 5
-                } else if setType.contains("×") {
-                    let parts = setType.components(separatedBy: "×")
-                    if parts.count == 2, let reps = Int(parts[1]) {
-                        target = reps
+        for workout in currentCycleWorkouts {
+            for exercise in workout.exercises where exercise.lift == lift {
+                for set in exercise.sets where set.actualReps != nil {
+                    let reps = set.actualReps!
+                    let e1rm = set.weight * (1.0 + Double(reps) / 30.0)
+                    
+                    // Keep the entry with the highest E1RM for each week
+                    if let existing = weeklyLogs[workout.week] {
+                        if e1rm > existing.e1rm {
+                            weeklyLogs[workout.week] = (workout.week, reps, set.targetReps, set.weight, e1rm, exercise.note, workout.date)
+                        }
+                    } else {
+                        weeklyLogs[workout.week] = (workout.week, reps, set.targetReps, set.weight, e1rm, exercise.note, workout.date)
                     }
                 }
             }
+        }
+        
+        // FALLBACK: Use unified lift history (legacy)
+        if weeklyLogs.isEmpty {
+            let liftHistory = appState.liftHistory(for: lift)
+            let currentCycleRecords = liftHistory.filter { $0.date >= currentCycleStart }
             
-            // Keep the entry with the highest E1RM for each week
-            if let existing = weeklyLogs[week] {
-                if record.estimatedOneRM > existing.e1rm {
-                    weeklyLogs[week] = (week, record.reps, target, record.weight, record.estimatedOneRM, nil)
+            for record in currentCycleRecords {
+                let week = record.week ?? 1
+                // Parse target from setType (e.g., "5+" -> 5, "3×5" -> 5, "volume" -> 5)
+                var target = 5
+                if let setType = record.setType {
+                    if setType.hasSuffix("+") {
+                        target = Int(setType.dropLast()) ?? 5
+                    } else if setType.contains("×") {
+                        let parts = setType.components(separatedBy: "×")
+                        if parts.count == 2, let reps = Int(parts[1]) {
+                            target = reps
+                        }
+                    }
                 }
-            } else {
-                weeklyLogs[week] = (week, record.reps, target, record.weight, record.estimatedOneRM, nil)
+                
+                // Keep the entry with the highest E1RM for each week
+                if let existing = weeklyLogs[week] {
+                    if record.estimatedOneRM > existing.e1rm {
+                        weeklyLogs[week] = (week, record.reps, target, record.weight, record.estimatedOneRM, nil, record.date)
+                    }
+                } else {
+                    weeklyLogs[week] = (week, record.reps, target, record.weight, record.estimatedOneRM, nil, record.date)
+                }
             }
         }
         
@@ -1532,6 +1680,24 @@ struct CurrentCycleTMProgressCard: View {
         return total
     }
     
+    /// Returns the top 4 lifts sorted by biggest improvement (percentage gain)
+    private var topImprovingLifts: [String] {
+        var liftGains: [(lift: String, gain: Double)] = []
+        
+        for lift in appState.liftNames {
+            guard let start = startingMaxes[lift], start > 0,
+                  let current = currentMaxes[lift] else { continue }
+            let percentGain = ((current - start) / start) * 100
+            liftGains.append((lift: lift, gain: percentGain))
+        }
+        
+        // Sort by percentage gain descending and take top 4
+        return liftGains
+            .sorted { $0.gain > $1.gain }
+            .prefix(4)
+            .map { $0.lift }
+    }
+    
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: SBSLayout.paddingMedium) {
@@ -1576,9 +1742,9 @@ struct CurrentCycleTMProgressCard: View {
                 if appState.hasLoggedData {
                     Divider()
                     
-                    // Quick summary of top lifts
+                    // Quick summary of top improving lifts
                     HStack(spacing: 0) {
-                        ForEach(Array(appState.liftNames.prefix(4)), id: \.self) { lift in
+                        ForEach(topImprovingLifts, id: \.self) { lift in
                             if let start = startingMaxes[lift], let current = currentMaxes[lift] {
                                 let gain = current - start
                                 

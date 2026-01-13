@@ -184,6 +184,132 @@ public struct LinearLogEntry: Codable, Equatable {
     }
 }
 
+// MARK: - Workout Records (Complete Workout History)
+
+/// Type of exercise for workout records
+public enum WorkoutExerciseType: String, Codable {
+    case volume      // SBS-style with rep-out last set
+    case structured  // 531, nSuns, GZCLP - percentage-based with AMRAPs
+    case linear      // Starting Strength, StrongLifts - fixed weight progression
+    case accessory   // Accessory exercises
+}
+
+/// A complete record of a single workout session - stores all data needed for history display
+public struct WorkoutRecord: Codable, Identifiable, Equatable {
+    public var id: UUID
+    public var date: Date
+    public var programId: String
+    public var programName: String
+    public var week: Int
+    public var day: Int
+    public var dayTitle: String?
+    public var exercises: [WorkoutExerciseRecord]
+    
+    public init(
+        id: UUID = UUID(),
+        date: Date = Date(),
+        programId: String,
+        programName: String,
+        week: Int,
+        day: Int,
+        dayTitle: String? = nil,
+        exercises: [WorkoutExerciseRecord] = []
+    ) {
+        self.id = id
+        self.date = date
+        self.programId = programId
+        self.programName = programName
+        self.week = week
+        self.day = day
+        self.dayTitle = dayTitle
+        self.exercises = exercises
+    }
+}
+
+/// Record of a single exercise within a workout
+public struct WorkoutExerciseRecord: Codable, Equatable, Identifiable {
+    public var id: UUID
+    public var lift: String
+    public var exerciseName: String
+    public var trainingMax: Double
+    public var exerciseType: WorkoutExerciseType
+    public var sets: [WorkoutSetRecord]
+    public var note: String?
+    
+    public init(
+        id: UUID = UUID(),
+        lift: String,
+        exerciseName: String,
+        trainingMax: Double,
+        exerciseType: WorkoutExerciseType,
+        sets: [WorkoutSetRecord] = [],
+        note: String? = nil
+    ) {
+        self.id = id
+        self.lift = lift
+        self.exerciseName = exerciseName
+        self.trainingMax = trainingMax
+        self.exerciseType = exerciseType
+        self.sets = sets
+        self.note = note
+    }
+    
+    /// Calculate E1RM from the primary AMRAP set in this exercise
+    /// For nSuns-style programs, uses the 1+ set (highest intensity AMRAP)
+    /// This ensures we use the heavy progression set, not the lighter back-off AMRAP
+    public var estimatedOneRM: Double? {
+        let amrapSets = sets.filter { $0.isAMRAP && $0.actualReps != nil && ($0.actualReps ?? 0) > 0 }
+        guard !amrapSets.isEmpty else { return nil }
+        
+        // Prefer the 1+ set (targetReps == 1) if available - this is the nSuns progression set
+        if let onePlusSet = amrapSets.first(where: { $0.targetReps == 1 }),
+           let reps = onePlusSet.actualReps {
+            return onePlusSet.weight * (1.0 + Double(reps) / 30.0)
+        }
+        
+        // Fallback: use the AMRAP with highest intensity (heaviest weight)
+        guard let bestAMRAP = amrapSets.max(by: { $0.weight < $1.weight }),
+              let reps = bestAMRAP.actualReps else {
+            return nil
+        }
+        
+        // Epley formula: E1RM = weight × (1 + reps/30)
+        return bestAMRAP.weight * (1.0 + Double(reps) / 30.0)
+    }
+}
+
+/// Record of a single set within an exercise
+public struct WorkoutSetRecord: Codable, Equatable, Identifiable {
+    public var id: UUID
+    public var setNumber: Int
+    public var weight: Double
+    public var targetReps: Int
+    public var actualReps: Int?
+    public var isAMRAP: Bool
+    public var intensity: Double?
+    public var completed: Bool
+    
+    public init(
+        id: UUID = UUID(),
+        setNumber: Int,
+        weight: Double,
+        targetReps: Int,
+        actualReps: Int? = nil,
+        isAMRAP: Bool = false,
+        intensity: Double? = nil,
+        completed: Bool = false
+    ) {
+        self.id = id
+        self.setNumber = setNumber
+        self.weight = weight
+        self.targetReps = targetReps
+        self.actualReps = actualReps
+        self.isAMRAP = isAMRAP
+        self.intensity = intensity
+        self.completed = completed
+    }
+}
+
 /// Configuration for linear progression programs (StrongLifts, Starting Strength, etc.)
 public struct LinearProgressionConfig: Codable, Equatable {
     /// Default weight increment per session (e.g., 5.0 lbs)
@@ -312,6 +438,9 @@ public struct ProgramData: Codable, Equatable {
     /// Optional explicit days per week - overrides auto-detection from days.count
     /// Useful when day_visibility creates more day entries than actual training days per week
     public var daysPerWeek: Int?
+    /// If true, AMRAP performance doesn't auto-adjust TMs week-to-week (e.g., 5/3/1)
+    /// User manually increases TMs at the end of each cycle
+    public var manualProgression: Bool
 
     private enum CodingKeys: String, CodingKey {
         case name
@@ -327,6 +456,7 @@ public struct ProgramData: Codable, Equatable {
         case dayTitles = "day_titles"
         case dayVisibility = "day_visibility"
         case daysPerWeek = "days_per_week"
+        case manualProgression = "manual_progression"
     }
     
     public init(
@@ -342,7 +472,8 @@ public struct ProgramData: Codable, Equatable {
         linearProgressionConfig: LinearProgressionConfig? = nil,
         dayTitles: [String: String]? = nil,
         dayVisibility: [String: [Int]]? = nil,
-        daysPerWeek: Int? = nil
+        daysPerWeek: Int? = nil,
+        manualProgression: Bool = false
     ) {
         self.name = name
         self.displayName = displayName
@@ -357,6 +488,7 @@ public struct ProgramData: Codable, Equatable {
         self.dayTitles = dayTitles
         self.dayVisibility = dayVisibility
         self.daysPerWeek = daysPerWeek
+        self.manualProgression = manualProgression
     }
     
     public init(from decoder: Decoder) throws {
@@ -375,6 +507,7 @@ public struct ProgramData: Codable, Equatable {
         dayTitles = try container.decodeIfPresent([String: String].self, forKey: .dayTitles)
         dayVisibility = try container.decodeIfPresent([String: [Int]].self, forKey: .dayVisibility)
         daysPerWeek = try container.decodeIfPresent(Int.self, forKey: .daysPerWeek)
+        manualProgression = try container.decodeIfPresent(Bool.self, forKey: .manualProgression) ?? false
     }
 }
 
@@ -399,6 +532,9 @@ public final class ProgramState: Codable {
     /// Keys are day numbers, values are arrays of week numbers
     /// If nil, all days are visible every week
     public var dayVisibility: [Int: [Int]]?
+    /// If true, AMRAP performance doesn't auto-adjust TMs week-to-week (e.g., 5/3/1)
+    /// User manually increases TMs at the end of each cycle
+    public var manualProgression: Bool
 
     public init(rounding: Double,
                 initialMaxes: [String: Double],
@@ -410,7 +546,8 @@ public final class ProgramState: Codable {
                 structuredLogs: [String: [Int: [Int: StructuredLogEntry]]] = [:],
                 linearLogs: [String: [Int: [Int: LinearLogEntry]]] = [:],
                 linearProgressionConfig: LinearProgressionConfig? = nil,
-                dayVisibility: [Int: [Int]]? = nil) {
+                dayVisibility: [Int: [Int]]? = nil,
+                manualProgression: Bool = false) {
         self.rounding = rounding
         self.initialMaxes = initialMaxes
         self.singleAt8Percent = singleAt8Percent
@@ -422,6 +559,7 @@ public final class ProgramState: Codable {
         self.linearLogs = linearLogs
         self.linearProgressionConfig = linearProgressionConfig
         self.dayVisibility = dayVisibility
+        self.manualProgression = manualProgression
     }
 
     public static func fromProgramData(_ data: ProgramData) -> ProgramState {
@@ -458,7 +596,8 @@ public final class ProgramState: Codable {
             structuredLogs: [:],
             linearLogs: [:],
             linearProgressionConfig: data.linearProgressionConfig,
-            dayVisibility: dayVisibilityInt
+            dayVisibility: dayVisibilityInt,
+            manualProgression: data.manualProgression
         )
     }
 }
@@ -765,6 +904,8 @@ public struct CompletedCycle: Codable, Equatable, Identifiable {
     public var tmHistory: [String: [Int: Double]]
     /// Pre-calculated weight/reps data for history display: liftData[liftName][week] = (weight, reps, e1rm)
     public var liftData: [String: [Int: LiftWeekData]]
+    /// Complete workout records for this cycle (new system - self-contained history)
+    public var workoutRecords: [WorkoutRecord]
     
     /// Data for a single week's lift performance
     public struct LiftWeekData: Codable, Equatable {
@@ -796,7 +937,8 @@ public struct CompletedCycle: Codable, Equatable, Identifiable {
         structuredLogs: [String: [Int: [Int: StructuredLogEntry]]] = [:],
         linearLogs: [String: [Int: [Int: LinearLogEntry]]] = [:],
         tmHistory: [String: [Int: Double]] = [:],
-        liftData: [String: [Int: LiftWeekData]] = [:]
+        liftData: [String: [Int: LiftWeekData]] = [:],
+        workoutRecords: [WorkoutRecord] = []
     ) {
         self.id = id
         self.cycleNumber = cycleNumber
@@ -813,6 +955,7 @@ public struct CompletedCycle: Codable, Equatable, Identifiable {
         self.linearLogs = linearLogs
         self.tmHistory = tmHistory
         self.liftData = liftData
+        self.workoutRecords = workoutRecords
     }
     
     /// Calculate the TM progression for a specific lift

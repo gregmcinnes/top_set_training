@@ -224,6 +224,11 @@ struct SessionView: View {
                 setIndex: data.setIndex,
                 target: data.target,
                 currentReps: data.currentReps,
+                structuredContext: StructuredProgressionContext(
+                    liftName: data.lift,
+                    useMetric: appState.settings.useMetric,
+                    manualProgression: appState.programState?.manualProgression ?? false
+                ),
                 onSave: { reps in
                     appState.logStructuredReps(lift: data.lift, week: week, day: day, setIndex: data.setIndex, reps: reps)
                     structuredLogData = nil
@@ -650,10 +655,11 @@ struct RepLogSheet: View {
                     }
                 }
                 
-                // Number pad
+                // Number pad (nil = percentage display for volume-based programs)
                 NumberPad(
                     value: $reps,
                     target: target,
+                    structuredContext: nil,
                     onConfirm: {
                         if let r = reps {
                             onSave(r, note)
@@ -1217,6 +1223,7 @@ struct StructuredRepLogSheet: View {
     let setIndex: Int
     let target: Int
     let currentReps: Int?
+    let structuredContext: StructuredProgressionContext?  // Pass context for weight-based display
     let onSave: (Int) -> Void
     let onClear: () -> Void
     let onCancel: () -> Void
@@ -1259,10 +1266,11 @@ struct StructuredRepLogSheet: View {
                 }
                 .padding(.top)
                 
-                // Number pad
+                // Number pad (structured context for weight-based display)
                 NumberPad(
                     value: $reps,
                     target: target,
+                    structuredContext: structuredContext,
                     onConfirm: {
                         if let r = reps {
                             onSave(r)

@@ -6,6 +6,7 @@ struct HomeView: View {
     @State private var selectedSessionDay: Int = 1
     @State private var showingNewCycleOptions = false
     @State private var showingNewCycleBuilder = false
+    @State private var showingNewCycleWarning = false
     @State private var showingPastCycles = false
     @State private var showingProgramInfo = false
     
@@ -43,9 +44,13 @@ struct HomeView: View {
                         CycleCompletionCard(
                             cycleNumber: appState.currentCycleNumber,
                             onQuickRepeat: {
+                                // Record cycle completion for review request
+                                ReviewRequestManager.shared.recordCycleCompleted()
                                 appState.startNewCycle(carryOverTMs: true)
                             },
                             onCustomize: {
+                                // Record cycle completion for review request
+                                ReviewRequestManager.shared.recordCycleCompleted()
                                 showingNewCycleBuilder = true
                             }
                         )
@@ -94,7 +99,11 @@ struct HomeView: View {
                         Divider()
                         
                         Button {
-                            showingNewCycleOptions = true
+                            if appState.hasLoggedData {
+                                showingNewCycleWarning = true
+                            } else {
+                                showingNewCycleOptions = true
+                            }
                         } label: {
                             Label("Start New Cycle", systemImage: "arrow.clockwise.circle")
                         }
@@ -135,6 +144,14 @@ struct HomeView: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("Quick Repeat will start a new cycle with your current program and carry over your training maxes. Choose Customize to change program, exercises, or adjust maxes.")
+            }
+            .alert("Start New Cycle?", isPresented: $showingNewCycleWarning) {
+                Button("Cancel", role: .cancel) {}
+                Button("Continue") {
+                    showingNewCycleOptions = true
+                }
+            } message: {
+                Text("You have a cycle in progress. Starting a new cycle will clear your current cycle's workout data. Your workout history will still be available in Past Cycles.")
             }
             .fullScreenCover(isPresented: $showingNewCycleBuilder) {
                 CycleBuilderView(

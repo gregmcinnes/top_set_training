@@ -137,6 +137,8 @@ public struct UserSettings: Codable, Equatable {
     public var bodyweight: Double?  // user's bodyweight in lbs (nil if not set)
     public var isMale: Bool  // for strength standards calculations
     public var showPRCelebrations: Bool  // show PR celebration animation when new PR is achieved
+    public var healthKitEnabled: Bool  // sync workouts to Apple Fitness
+    public var pushNotificationsEnabled: Bool  // send push notification when rest timer ends (background only)
     
     public init(
         useMetric: Bool = false,
@@ -152,7 +154,9 @@ public struct UserSettings: Codable, Equatable {
         appearanceMode: AppearanceMode = .system,
         bodyweight: Double? = nil,
         isMale: Bool = true,
-        showPRCelebrations: Bool = true
+        showPRCelebrations: Bool = true,
+        healthKitEnabled: Bool = false,  // default off, user must opt-in
+        pushNotificationsEnabled: Bool = true  // default on for better UX
     ) {
         self.useMetric = useMetric
         self.roundingIncrement = roundingIncrement
@@ -168,6 +172,8 @@ public struct UserSettings: Codable, Equatable {
         self.bodyweight = bodyweight
         self.isMale = isMale
         self.showPRCelebrations = showPRCelebrations
+        self.healthKitEnabled = healthKitEnabled
+        self.pushNotificationsEnabled = pushNotificationsEnabled
     }
     
     public static let `default` = UserSettings()
@@ -225,6 +231,8 @@ public struct UserData: Codable, Equatable {
     public var liftHistory: [LiftRecord]
     // Personal records per lift (best E1RM) - derived from liftHistory
     public var personalRecords: [String: PersonalRecord]
+    // Complete workout records - stores all data for history display (new system)
+    public var workoutRecords: [WorkoutRecord]
     
     // MARK: - Cycle management
     
@@ -254,6 +262,7 @@ public struct UserData: Codable, Equatable {
         trainingMaxes: [String: Double] = [:],
         liftHistory: [LiftRecord] = [],
         personalRecords: [String: PersonalRecord] = [:],
+        workoutRecords: [WorkoutRecord] = [],
         currentCycleStartDate: Date = Date(),
         cycleHistory: [CompletedCycle] = [],
         customTemplates: [CustomTemplate] = [],
@@ -269,6 +278,7 @@ public struct UserData: Codable, Equatable {
         self.trainingMaxes = trainingMaxes
         self.liftHistory = liftHistory
         self.personalRecords = personalRecords
+        self.workoutRecords = workoutRecords
         self.currentCycleStartDate = currentCycleStartDate
         self.cycleHistory = cycleHistory
         self.customTemplates = customTemplates

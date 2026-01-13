@@ -111,68 +111,87 @@ final class StructuredProgressionTests: XCTestCase {
         XCTAssertEqual(liftInfo["OHP"]?.intensity, 0.90)
     }
     
-    // MARK: - Structured Progression Calculation Tests
+    // MARK: - nSuns-style 1+ Set Progression Tests (targetReps = 1)
+    // nSuns progression: 0-1 reps = stall, 2-4 reps = +5, 5+ reps = +10 (same for all lifts)
     
-    func testStructuredProgressionUpperBody0Reps() {
-        // 0 reps on 1+ = -5 lbs
-        let adjustment = engine.structuredProgression(repsOnOnePlus: 0, isUpperBody: true)
-        XCTAssertEqual(adjustment, -5.0)
+    func testNSunsProgression0Reps() {
+        // 0 reps on 1+ = stall (0 lbs)
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 0, targetReps: 1, isUpperBody: true), 0.0)
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 0, targetReps: 1, isUpperBody: false), 0.0)
     }
     
-    func testStructuredProgressionUpperBody1Rep() {
-        // 1 rep on 1+ = 0 lbs (just met target)
-        let adjustment = engine.structuredProgression(repsOnOnePlus: 1, isUpperBody: true)
-        XCTAssertEqual(adjustment, 0.0)
+    func testNSunsProgression1Rep() {
+        // 1 rep on 1+ = stall (0 lbs) - minimum 2 reps to progress
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 1, targetReps: 1, isUpperBody: true), 0.0)
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 1, targetReps: 1, isUpperBody: false), 0.0)
     }
     
-    func testStructuredProgressionUpperBody2Reps() {
-        // 2 reps on 1+ = +5 lbs
-        let adjustment = engine.structuredProgression(repsOnOnePlus: 2, isUpperBody: true)
-        XCTAssertEqual(adjustment, 5.0)
+    func testNSunsProgression2to4Reps() {
+        // 2-4 reps on 1+ = +5 lbs
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 2, targetReps: 1, isUpperBody: true), 5.0)
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 3, targetReps: 1, isUpperBody: true), 5.0)
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 4, targetReps: 1, isUpperBody: true), 5.0)
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 2, targetReps: 1, isUpperBody: false), 5.0)
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 3, targetReps: 1, isUpperBody: false), 5.0)
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 4, targetReps: 1, isUpperBody: false), 5.0)
     }
     
-    func testStructuredProgressionUpperBody3Reps() {
-        // 3 reps on 1+ = +5 lbs
-        let adjustment = engine.structuredProgression(repsOnOnePlus: 3, isUpperBody: true)
-        XCTAssertEqual(adjustment, 5.0)
+    func testNSunsProgression5PlusReps() {
+        // 5+ reps on 1+ = +10 lbs
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 5, targetReps: 1, isUpperBody: true), 10.0)
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 8, targetReps: 1, isUpperBody: true), 10.0)
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 5, targetReps: 1, isUpperBody: false), 10.0)
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 8, targetReps: 1, isUpperBody: false), 10.0)
     }
     
-    func testStructuredProgressionUpperBody4PlusReps() {
-        // 4+ reps on 1+ = +10 lbs
-        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 4, isUpperBody: true), 10.0)
-        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 5, isUpperBody: true), 10.0)
-        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 10, isUpperBody: true), 10.0)
+    // MARK: - Standard Structured Progression Tests (Greyskull, GZCLP with higher target reps)
+    // Upper body: miss = -5, hit = 0, 1-2 over = +5, 3+ over = +10
+    // Lower body: miss = 0, hit = +5, 1-2 over = +10, 3+ over = +15
+    
+    func testStructuredProgressionUpperBodyMissTarget() {
+        // Miss target (3+ set, got 2 reps) = -5 lbs
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 2, targetReps: 3, isUpperBody: true), -5.0)
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 0, targetReps: 3, isUpperBody: true), -5.0)
     }
     
-    func testStructuredProgressionLowerBody0Reps() {
-        // 0 reps on 1+ = 0 lbs (stall, don't reduce)
-        let adjustment = engine.structuredProgression(repsOnOnePlus: 0, isUpperBody: false)
-        XCTAssertEqual(adjustment, 0.0)
+    func testStructuredProgressionUpperBodyHitTarget() {
+        // Hit exact target (3+ set, got 3 reps) = 0 lbs
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 3, targetReps: 3, isUpperBody: true), 0.0)
     }
     
-    func testStructuredProgressionLowerBody1Rep() {
-        // 1 rep on 1+ = +5 lbs
-        let adjustment = engine.structuredProgression(repsOnOnePlus: 1, isUpperBody: false)
-        XCTAssertEqual(adjustment, 5.0)
+    func testStructuredProgressionUpperBody1to2Over() {
+        // 1-2 over target (3+ set, got 4-5 reps) = +5 lbs
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 4, targetReps: 3, isUpperBody: true), 5.0)
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 5, targetReps: 3, isUpperBody: true), 5.0)
     }
     
-    func testStructuredProgressionLowerBody2Reps() {
-        // 2 reps on 1+ = +10 lbs
-        let adjustment = engine.structuredProgression(repsOnOnePlus: 2, isUpperBody: false)
-        XCTAssertEqual(adjustment, 10.0)
+    func testStructuredProgressionUpperBody3PlusOver() {
+        // 3+ over target (3+ set, got 6+ reps) = +10 lbs
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 6, targetReps: 3, isUpperBody: true), 10.0)
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 10, targetReps: 3, isUpperBody: true), 10.0)
     }
     
-    func testStructuredProgressionLowerBody3Reps() {
-        // 3 reps on 1+ = +10 lbs
-        let adjustment = engine.structuredProgression(repsOnOnePlus: 3, isUpperBody: false)
-        XCTAssertEqual(adjustment, 10.0)
+    func testStructuredProgressionLowerBodyMissTarget() {
+        // Miss target (3+ set, got 2 reps) = 0 lbs (stall, don't reduce)
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 2, targetReps: 3, isUpperBody: false), 0.0)
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 0, targetReps: 3, isUpperBody: false), 0.0)
     }
     
-    func testStructuredProgressionLowerBody4PlusReps() {
-        // 4+ reps on 1+ = +15 lbs
-        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 4, isUpperBody: false), 15.0)
-        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 5, isUpperBody: false), 15.0)
-        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 8, isUpperBody: false), 15.0)
+    func testStructuredProgressionLowerBodyHitTarget() {
+        // Hit exact target (3+ set, got 3 reps) = +5 lbs
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 3, targetReps: 3, isUpperBody: false), 5.0)
+    }
+    
+    func testStructuredProgressionLowerBody1to2Over() {
+        // 1-2 over target (3+ set, got 4-5 reps) = +10 lbs
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 4, targetReps: 3, isUpperBody: false), 10.0)
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 5, targetReps: 3, isUpperBody: false), 10.0)
+    }
+    
+    func testStructuredProgressionLowerBody3PlusOver() {
+        // 3+ over target (3+ set, got 6+ reps) = +15 lbs
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 6, targetReps: 3, isUpperBody: false), 15.0)
+        XCTAssertEqual(engine.structuredProgression(repsOnOnePlus: 10, targetReps: 3, isUpperBody: false), 15.0)
     }
     
     // MARK: - Compute Structured Training Maxes Tests

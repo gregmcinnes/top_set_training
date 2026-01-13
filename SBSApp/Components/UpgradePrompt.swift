@@ -309,13 +309,13 @@ extension View {
         UpgradePrompt(
             feature: .plateCalculator,
             style: .card,
-            onUpgrade: { print("Upgrade tapped") }
+            onUpgrade: { Logger.debug("Upgrade tapped", category: .ui) }
         )
         
         UpgradePrompt(
             feature: .e1rmChart,
             style: .card,
-            onUpgrade: { print("Upgrade tapped") },
+            onUpgrade: { Logger.debug("Upgrade tapped", category: .ui) },
             isDismissible: true
         )
     }
@@ -330,7 +330,7 @@ extension View {
         UpgradePrompt(
             feature: .plateCalculator,
             style: .compact,
-            onUpgrade: { print("Upgrade tapped") }
+            onUpgrade: { Logger.debug("Upgrade tapped", category: .ui) }
         )
     }
     .padding()
@@ -356,7 +356,7 @@ extension View {
         
         PremiumLockOverlay(
             feature: .plateCalculator,
-            onTap: { print("Unlock tapped") }
+            onTap: { Logger.debug("Unlock tapped", category: .ui) }
         )
     }
 }
@@ -369,4 +369,5 @@ extension View {
     .padding()
     .background(Color.black)
 }
+
 

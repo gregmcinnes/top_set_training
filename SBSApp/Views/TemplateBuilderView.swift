@@ -337,6 +337,14 @@ struct BasicsStepView: View {
             .padding(.horizontal)
         }
         .scrollDismissesKeyboard(.interactively)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    focusedField = nil
+                }
+            }
+        }
         .safeAreaInset(edge: .bottom) {
             VStack {
                 Button {

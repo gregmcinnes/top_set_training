@@ -704,3 +704,4 @@ Store these in `@AppStorage` (UserDefaults).
 - Number inputs should use appropriate keyboard types (.decimalPad, .numberPad)
 - Consider haptic feedback on button presses
 
+

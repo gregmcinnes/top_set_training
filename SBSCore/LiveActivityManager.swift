@@ -12,10 +12,11 @@ public final class LiveActivityManager: ObservableObject {
     private var timerEndTime: Date?
     
     private init() {
+        // TEMPORARILY DISABLED FOR DEBUGGING
         // Clean up any stale activities on init
-        Task {
-            await endAllActivities()
-        }
+        // Task {
+        //     await endAllActivities()
+        // }
     }
     
     /// Check if Live Activities are supported and enabled
@@ -25,10 +26,10 @@ public final class LiveActivityManager: ObservableObject {
     
     /// End all running Live Activities (cleanup on app launch)
     public func endAllActivities() async {
-        print("🧹 Cleaning up any stale Live Activities...")
+        Logger.debug("🧹 Cleaning up any stale Live Activities...", category: .liveActivity)
         
         for activity in Activity<RestTimerAttributes>.activities {
-            print("   - Ending stale activity: \(activity.id)")
+            Logger.debug("   - Ending stale activity: \(activity.id)", category: .liveActivity)
             await activity.end(nil, dismissalPolicy: .immediate)
         }
         
@@ -36,7 +37,7 @@ public final class LiveActivityManager: ObservableObject {
         timerEndTime = nil
         
         let remaining = Activity<RestTimerAttributes>.activities.count
-        print("   - Remaining activities: \(remaining)")
+        Logger.debug("   - Remaining activities: \(remaining)", category: .liveActivity)
     }
     
     /// Start a Live Activity for the rest timer
@@ -49,13 +50,13 @@ public final class LiveActivityManager: ObservableObject {
         duration: Int,
         nextSetInfo: String
     ) {
-        print("🔵 LiveActivityManager.startTimer called")
-        print("   - Exercise: \(exerciseName)")
-        print("   - Duration: \(duration)s")
-        print("   - isLiveActivitySupported: \(isLiveActivitySupported)")
+        Logger.debug("🔵 LiveActivityManager.startTimer called", category: .liveActivity)
+        Logger.debug("   - Exercise: \(exerciseName)", category: .liveActivity)
+        Logger.debug("   - Duration: \(duration)s", category: .liveActivity)
+        Logger.debug("   - isLiveActivitySupported: \(isLiveActivitySupported)", category: .liveActivity)
         
         guard isLiveActivitySupported else {
-            print("❌ Live Activities are not supported or enabled on this device")
+            Logger.warning("Live Activities are not supported or enabled on this device", category: .liveActivity)
             return
         }
         
@@ -97,9 +98,9 @@ public final class LiveActivityManager: ObservableObject {
                 content: content,
                 pushType: nil
             )
-            print("✅ Started Live Activity for rest timer - ID: \(currentActivity?.id ?? "unknown")")
+            Logger.info("✅ Started Live Activity for rest timer - ID: \(currentActivity?.id ?? "unknown")", category: .liveActivity)
         } catch {
-            print("❌ Failed to start Live Activity: \(error)")
+            Logger.error("Failed to start Live Activity: \(error)", category: .liveActivity)
         }
     }
     
@@ -139,19 +140,19 @@ public final class LiveActivityManager: ObservableObject {
     public func endTimer() async {
         // End the tracked activity
         if let activity = currentActivity {
-            print("🛑 Ending tracked Live Activity: \(activity.id)")
+            Logger.debug("🛑 Ending tracked Live Activity: \(activity.id)", category: .liveActivity)
             await activity.end(nil, dismissalPolicy: .immediate)
         }
         
         // Also end any other activities that might be lingering
         for activity in Activity<RestTimerAttributes>.activities {
-            print("🛑 Ending lingering activity: \(activity.id)")
+            Logger.debug("🛑 Ending lingering activity: \(activity.id)", category: .liveActivity)
             await activity.end(nil, dismissalPolicy: .immediate)
         }
         
         currentActivity = nil
         timerEndTime = nil
-        print("✅ All Live Activities ended")
+        Logger.info("✅ All Live Activities ended", category: .liveActivity)
     }
     
     /// End the timer synchronously (for use in non-async contexts)

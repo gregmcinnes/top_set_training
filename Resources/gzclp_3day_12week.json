@@ -53,7 +53,6 @@
           {"intensity": 0.85, "reps": 3, "isAMRAP": true}
         ]
       },
-      { "type": "tm", "name": "Bench Press TM", "lift": "Bench Press" },
       {
         "type": "structured",
         "name": "Bench Press (T2)",
@@ -79,7 +78,6 @@
           {"intensity": 0.85, "reps": 3, "isAMRAP": true}
         ]
       },
-      { "type": "tm", "name": "Deadlift TM", "lift": "Deadlift" },
       {
         "type": "structured",
         "name": "Deadlift (T2)",
@@ -105,7 +103,6 @@
           {"intensity": 0.85, "reps": 3, "isAMRAP": true}
         ]
       },
-      { "type": "tm", "name": "Squat TM", "lift": "Squat" },
       {
         "type": "structured",
         "name": "Squat (T2)",
@@ -131,7 +128,6 @@
           {"intensity": 0.85, "reps": 3, "isAMRAP": true}
         ]
       },
-      { "type": "tm", "name": "OHP TM", "lift": "Overhead Press" },
       {
         "type": "structured",
         "name": "OHP (T2)",
@@ -157,7 +153,6 @@
           {"intensity": 0.85, "reps": 3, "isAMRAP": true}
         ]
       },
-      { "type": "tm", "name": "Bench Press TM", "lift": "Bench Press" },
       {
         "type": "structured",
         "name": "Bench Press (T2)",
@@ -183,7 +178,6 @@
           {"intensity": 0.85, "reps": 3, "isAMRAP": true}
         ]
       },
-      { "type": "tm", "name": "Deadlift TM", "lift": "Deadlift" },
       {
         "type": "structured",
         "name": "Deadlift (T2)",
@@ -209,7 +203,6 @@
           {"intensity": 0.85, "reps": 3, "isAMRAP": true}
         ]
       },
-      { "type": "tm", "name": "Squat TM", "lift": "Squat" },
       {
         "type": "structured",
         "name": "Squat (T2)",
@@ -235,7 +228,6 @@
           {"intensity": 0.85, "reps": 3, "isAMRAP": true}
         ]
       },
-      { "type": "tm", "name": "OHP TM", "lift": "Overhead Press" },
       {
         "type": "structured",
         "name": "OHP (T2)",
@@ -261,7 +253,6 @@
           {"intensity": 0.85, "reps": 3, "isAMRAP": true}
         ]
       },
-      { "type": "tm", "name": "Bench Press TM", "lift": "Bench Press" },
       {
         "type": "structured",
         "name": "Bench Press (T2)",
@@ -287,7 +278,6 @@
           {"intensity": 0.85, "reps": 3, "isAMRAP": true}
         ]
       },
-      { "type": "tm", "name": "Deadlift TM", "lift": "Deadlift" },
       {
         "type": "structured",
         "name": "Deadlift (T2)",
@@ -313,7 +303,6 @@
           {"intensity": 0.85, "reps": 3, "isAMRAP": true}
         ]
       },
-      { "type": "tm", "name": "Squat TM", "lift": "Squat" },
       {
         "type": "structured",
         "name": "Squat (T2)",
@@ -339,7 +328,6 @@
           {"intensity": 0.85, "reps": 3, "isAMRAP": true}
         ]
       },
-      { "type": "tm", "name": "OHP TM", "lift": "Overhead Press" },
       {
         "type": "structured",
         "name": "OHP (T2)",

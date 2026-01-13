@@ -682,7 +682,7 @@ struct FilterChip: View {
 #Preview {
     AccessoryExercisePickerSheet(
         title: "Select Exercise",
-        onSelect: { print("Selected: \($0)") },
+        onSelect: { Logger.debug("Selected: \($0)", category: .ui) },
         onCancel: { },
         showFilterChips: true
     )

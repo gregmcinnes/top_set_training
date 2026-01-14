@@ -1,6 +1,49 @@
 import Foundation
 import WatchConnectivity
 
+// MARK: - Watch Workout State
+
+/// Workout state data to sync to Watch
+public struct WatchWorkoutState: Codable {
+    public let exerciseName: String
+    public let currentSet: Int
+    public let totalSets: Int
+    public let weight: Double
+    public let targetReps: Int
+    public let isRestTimerActive: Bool
+    public let restTimerRemaining: Int
+    public let restTimerDuration: Int
+    public let useMetric: Bool
+    public let nextSetInfo: String?  // e.g. "Next: Set 3 of 5"
+    public let isRepOutSet: Bool
+    
+    public init(
+        exerciseName: String,
+        currentSet: Int,
+        totalSets: Int,
+        weight: Double,
+        targetReps: Int,
+        isRestTimerActive: Bool,
+        restTimerRemaining: Int,
+        restTimerDuration: Int,
+        useMetric: Bool,
+        nextSetInfo: String?,
+        isRepOutSet: Bool
+    ) {
+        self.exerciseName = exerciseName
+        self.currentSet = currentSet
+        self.totalSets = totalSets
+        self.weight = weight
+        self.targetReps = targetReps
+        self.isRestTimerActive = isRestTimerActive
+        self.restTimerRemaining = restTimerRemaining
+        self.restTimerDuration = restTimerDuration
+        self.useMetric = useMetric
+        self.nextSetInfo = nextSetInfo
+        self.isRepOutSet = isRepOutSet
+    }
+}
+
 // MARK: - Watch Connectivity Manager (iOS)
 
 /// Manages Watch Connectivity for starting/stopping workout sessions on the Watch
@@ -64,6 +107,59 @@ public final class WatchConnectivityManager: NSObject, ObservableObject {
             Logger.error("Failed to send workout end to Watch: \(error.localizedDescription)", category: .general)
         }
         Logger.debug("Sent workout end to Watch", category: .general)
+    }
+    
+    /// Send workout state update to Watch
+    public func sendWorkoutState(_ state: WatchWorkoutState) {
+        guard let session = session,
+              session.activationState == .activated,
+              session.isReachable else {
+            return  // Silently fail - state updates are best-effort
+        }
+        
+        // Encode state to JSON data then to dictionary
+        guard let data = try? JSONEncoder().encode(state),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return
+        }
+        
+        var message: [String: Any] = ["type": "workoutState"]
+        message["state"] = json
+        
+        session.sendMessage(message, replyHandler: nil) { _ in
+            // Silently fail - state updates are best-effort
+        }
+    }
+    
+    /// Send rest timer update to Watch
+    public func sendRestTimerUpdate(remaining: Int, duration: Int, exerciseName: String) {
+        guard let session = session,
+              session.activationState == .activated,
+              session.isReachable else {
+            return
+        }
+        
+        session.sendMessage([
+            "type": "restTimerUpdate",
+            "remaining": remaining,
+            "duration": duration,
+            "exerciseName": exerciseName
+        ], replyHandler: nil) { _ in
+            // Silently fail
+        }
+    }
+    
+    /// Send rest timer ended notification to Watch
+    public func sendRestTimerEnded() {
+        guard let session = session,
+              session.activationState == .activated,
+              session.isReachable else {
+            return
+        }
+        
+        session.sendMessage(["type": "restTimerEnded"], replyHandler: nil) { _ in
+            // Silently fail
+        }
     }
 }
 

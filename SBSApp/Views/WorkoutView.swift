@@ -825,12 +825,60 @@ struct WorkoutView: View {
     private func setupWatchSync() {
         guard storeManager.canAccess(.watchApp) else { return }
         WatchConnectivityManager.shared.sendWorkoutStarted()
+        
+        // Send initial workout state after a brief delay (to allow workout to start on Watch)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.syncWorkoutStateToWatch()
+        }
     }
     
     /// Notify Watch to end workout session
     private func syncWorkoutEndedToWatch() {
         guard storeManager.canAccess(.watchApp) else { return }
         WatchConnectivityManager.shared.sendWorkoutEnded()
+    }
+    
+    /// Send current workout state to Watch
+    private func syncWorkoutStateToWatch() {
+        guard storeManager.canAccess(.watchApp) else { return }
+        guard let exercise = workoutState.currentExercise else { return }
+        
+        // Get current set weight and reps
+        let currentWeight: Double
+        let currentReps: Int
+        
+        if exercise.isStructured,
+           let sets = exercise.structuredSetInfo,
+           workoutState.currentSetNumber > 0 && workoutState.currentSetNumber <= sets.count {
+            let setInfo = sets[workoutState.currentSetNumber - 1]
+            currentWeight = setInfo.weight
+            currentReps = setInfo.targetReps
+        } else {
+            currentWeight = exercise.weight
+            currentReps = exercise.repsPerSet
+        }
+        
+        // Build next set info
+        var nextSetInfo: String? = nil
+        if workoutState.showingTimer {
+            nextSetInfo = "Next: Set \(workoutState.currentSetNumber) of \(exercise.totalSets)"
+        }
+        
+        let state = WatchWorkoutState(
+            exerciseName: exercise.name,
+            currentSet: workoutState.currentSetNumber,
+            totalSets: exercise.totalSets,
+            weight: currentWeight,
+            targetReps: currentReps,
+            isRestTimerActive: workoutState.showingTimer && workoutState.timerIsRunning,
+            restTimerRemaining: workoutState.timerRemaining,
+            restTimerDuration: workoutState.timerDuration,
+            useMetric: appState.settings.useMetric,
+            nextSetInfo: nextSetInfo,
+            isRepOutSet: workoutState.isCurrentSetRepOut
+        )
+        
+        WatchConnectivityManager.shared.sendWorkoutState(state)
     }
     
     /// Whether the user has made any progress in this workout (completed at least one set)
@@ -1061,6 +1109,9 @@ struct WorkoutView: View {
             )
         }
         
+        // Send initial timer state to Watch
+        syncWorkoutStateToWatch()
+        
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak workoutState] _ in
             Task { @MainActor in
                 guard let workoutState = workoutState else { return }
@@ -1072,6 +1123,19 @@ struct WorkoutView: View {
                         secondsRemaining: workoutState.timerRemaining,
                         isPaused: workoutState.timerIsPaused
                     )
+                }
+                
+                // Update Watch with timer state (every 5 seconds to reduce message frequency)
+                if workoutState.timerRemaining % 5 == 0 || workoutState.timerRemaining <= 10 {
+                    // Send timer update directly to Watch
+                    if StoreManager.shared.canAccess(.watchApp),
+                       let exercise = workoutState.currentExercise {
+                        WatchConnectivityManager.shared.sendRestTimerUpdate(
+                            remaining: workoutState.timerRemaining,
+                            duration: workoutState.timerDuration,
+                            exerciseName: exercise.name
+                        )
+                    }
                 }
                 
                 // Note: Timer end is handled by the View through handleTimerEnd()
@@ -1117,6 +1181,12 @@ struct WorkoutView: View {
         
         // Cancel push notification (app is in foreground, no need for notification)
         NotificationManager.shared.cancelRestTimerNotification()
+        
+        // Notify Watch that timer ended (plays haptic on Watch)
+        if storeManager.canAccess(.watchApp) {
+            WatchConnectivityManager.shared.sendRestTimerEnded()
+            syncWorkoutStateToWatch()
+        }
         
         // Play haptics and chime
         playTimerEndFeedback()

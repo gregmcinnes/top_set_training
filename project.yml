@@ -59,7 +59,6 @@ targets:
     entitlements:
       path: SBSApp/SBSApp.entitlements
       properties:
-        com.apple.developer.in-app-payments: []
         com.apple.developer.healthkit: true
     info:
       path: SBSApp/Info.plist

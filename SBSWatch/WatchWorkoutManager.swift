@@ -9,6 +9,9 @@ class WatchWorkoutManager: NSObject, ObservableObject {
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
     
+    // Heart rate query for continuous monitoring
+    private var heartRateQuery: HKAnchoredObjectQuery?
+    
     // Published state
     @Published var isWorkoutActive = false
     @Published var isAuthorized = false
@@ -99,10 +102,15 @@ class WatchWorkoutManager: NSObject, ObservableObject {
             builder?.delegate = self
             
             // Set up data source for live data
-            builder?.dataSource = HKLiveWorkoutDataSource(
+            let dataSource = HKLiveWorkoutDataSource(
                 healthStore: healthStore,
                 workoutConfiguration: configuration
             )
+            builder?.dataSource = dataSource
+            
+            // Explicitly enable heart rate collection for more frequent updates
+            let heartRateType = HKQuantityType(.heartRate)
+            dataSource.enableCollection(for: heartRateType, predicate: nil)
             
             // Start the session and builder
             let startDate = Date()
@@ -113,6 +121,9 @@ class WatchWorkoutManager: NSObject, ObservableObject {
             isWorkoutActive = true
             startDurationTimer()
             
+            // Start continuous heart rate monitoring query
+            startHeartRateQuery(from: startDate)
+            
         } catch {
             session = nil
             builder = nil
@@ -120,10 +131,69 @@ class WatchWorkoutManager: NSObject, ObservableObject {
         }
     }
     
+    // MARK: - Heart Rate Query
+    
+    /// Start an anchored object query for continuous heart rate monitoring
+    /// This provides more frequent updates than relying solely on the workout builder
+    private func startHeartRateQuery(from startDate: Date) {
+        let heartRateType = HKQuantityType(.heartRate)
+        
+        // Create predicate to only get samples from this workout
+        let predicate = HKQuery.predicateForSamples(
+            withStart: startDate,
+            end: nil,
+            options: .strictStartDate
+        )
+        
+        // Create anchored query that will receive updates as new samples arrive
+        let query = HKAnchoredObjectQuery(
+            type: heartRateType,
+            predicate: predicate,
+            anchor: nil,
+            limit: HKObjectQueryNoLimit
+        ) { [weak self] _, samples, _, _, _ in
+            self?.processHeartRateSamples(samples)
+        }
+        
+        // Set up the update handler for continuous monitoring
+        query.updateHandler = { [weak self] _, samples, _, _, _ in
+            self?.processHeartRateSamples(samples)
+        }
+        
+        heartRateQuery = query
+        healthStore.execute(query)
+    }
+    
+    /// Stop the heart rate query
+    private func stopHeartRateQuery() {
+        if let query = heartRateQuery {
+            healthStore.stop(query)
+            heartRateQuery = nil
+        }
+    }
+    
+    /// Process heart rate samples from the query
+    private nonisolated func processHeartRateSamples(_ samples: [HKSample]?) {
+        guard let heartRateSamples = samples as? [HKQuantitySample],
+              let mostRecent = heartRateSamples.last else { return }
+        
+        let heartRateUnit = HKUnit.count().unitDivided(by: .minute())
+        let value = mostRecent.quantity.doubleValue(for: heartRateUnit)
+        
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            self.currentHeartRate = value
+            self.onHeartRateUpdate?(value)
+        }
+    }
+    
     func endWorkout() async throws {
         guard isWorkoutActive, let session = session, let builder = builder else { return }
         
         let endDate = Date()
+        
+        // Stop heart rate monitoring
+        stopHeartRateQuery()
         
         session.end()
         
@@ -186,6 +256,7 @@ extension WatchWorkoutManager: HKWorkoutSessionDelegate {
     
     nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
         Task { @MainActor in
+            stopHeartRateQuery()
             isWorkoutActive = false
             session = nil
             builder = nil

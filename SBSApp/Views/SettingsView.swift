@@ -218,9 +218,9 @@ struct SettingsView: View {
                             }
                         } label: {
                             HStack {
-                                Image(systemName: "heart.fill")
+                                Image(systemName: "heart.text.square.fill")
                                     .foregroundStyle(.red)
-                                Text("Use Weight from Health")
+                                Text("Fetch from HealthKit")
                             }
                         }
                     }
@@ -403,7 +403,7 @@ struct SettingsView: View {
                     Text("Sound notification plays a chime when the timer ends (respects silent mode). Push notifications alert you when the rest timer ends while the app is in the background. PR celebrations show a full-screen animation when you achieve a new personal record. When superset is enabled, accessories will be shown during rest periods.")
                 }
                 
-                // Apple Fitness Integration (Premium)
+                // HealthKit / Apple Fitness Integration (Premium)
                 Section {
                     if StoreManager.shared.canAccess(.appleFitness) {
                         Toggle(isOn: $appState.settings.healthKitEnabled) {
@@ -418,7 +418,7 @@ struct SettingsView: View {
                                         .foregroundStyle(.red)
                                 }
                                 
-                                Text("Sync to Apple Fitness")
+                                Text("Enable HealthKit Sync")
                             }
                         }
                         .onChange(of: appState.settings.healthKitEnabled) { _, enabled in
@@ -438,7 +438,7 @@ struct SettingsView: View {
                         
                         if HealthKitManager.shared.isHealthKitAvailable {
                             HStack {
-                                Text("Status")
+                                Text("HealthKit Status")
                                 Spacer()
                                 if appState.settings.healthKitEnabled && HealthKitManager.shared.isAuthorized {
                                     Label("Connected", systemImage: "checkmark.circle.fill")
@@ -453,6 +453,25 @@ struct SettingsView: View {
                                         .font(SBSFonts.caption())
                                         .foregroundStyle(SBSColors.textSecondaryFallback)
                                 }
+                            }
+                            
+                            // Show what data is accessed
+                            if appState.settings.healthKitEnabled {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Data Accessed via HealthKit:")
+                                        .font(SBSFonts.caption())
+                                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                                    
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Label("Workouts (write)", systemImage: "figure.strengthtraining.traditional")
+                                        Label("Active Energy (write)", systemImage: "flame.fill")
+                                        Label("Body Weight (read)", systemImage: "scalemass.fill")
+                                        Label("Heart Rate (read, via Watch)", systemImage: "heart.fill")
+                                    }
+                                    .font(SBSFonts.caption())
+                                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                                }
+                                .padding(.vertical, 4)
                             }
                         }
                     } else {
@@ -472,7 +491,7 @@ struct SettingsView: View {
                                 }
                                 
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("Sync to Apple Fitness")
+                                    Text("Enable HealthKit Sync")
                                         .foregroundStyle(SBSColors.textPrimaryFallback)
                                     
                                     Text("Premium Feature")
@@ -489,8 +508,10 @@ struct SettingsView: View {
                         }
                     }
                 } header: {
-                    HStack {
-                        Text("Apple Fitness")
+                    HStack(spacing: 6) {
+                        Image(systemName: "heart.text.square.fill")
+                            .foregroundStyle(.red)
+                        Text("HealthKit & Apple Fitness")
                         if !StoreManager.shared.canAccess(.appleFitness) {
                             Text("PRO")
                                 .font(.system(size: 9, weight: .bold))
@@ -504,12 +525,12 @@ struct SettingsView: View {
                 } footer: {
                     if StoreManager.shared.canAccess(.appleFitness) {
                         if HealthKitManager.shared.isHealthKitAvailable {
-                            Text("When enabled, starting a workout will automatically begin a Strength Training workout in Apple Fitness. Your workout duration and calories will be tracked and saved when you finish.")
+                            Text("This app uses Apple HealthKit to log workouts to Apple Fitness. When enabled, starting a workout automatically begins a Strength Training workout. Your workout duration, calories burned, and heart rate (via Apple Watch) are tracked and saved to the Health app when you finish.")
                         } else {
                             Text("HealthKit is not available on this device.")
                         }
                     } else {
-                        Text("Upgrade to Premium to automatically log your workouts to Apple Fitness with duration, calories, and volume tracking.")
+                        Text("Upgrade to Premium to use HealthKit and automatically log your workouts to Apple Fitness with duration, calories, and volume tracking.")
                     }
                 }
                 

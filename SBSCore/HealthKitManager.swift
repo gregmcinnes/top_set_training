@@ -82,16 +82,7 @@ public final class HealthKitManager: ObservableObject {
     /// Get the user's most recent body weight from HealthKit (in kg)
     public func getUserBodyWeight() async -> Double? {
         let bodyMassType = HKQuantityType(.bodyMass)
-        
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
-        let query = HKSampleQuery(
-            sampleType: bodyMassType,
-            predicate: nil,
-            limit: 1,
-            sortDescriptors: [sortDescriptor]
-        ) { _, samples, _ in
-            // This will be handled by the continuation below
-        }
         
         return await withCheckedContinuation { continuation in
             let query = HKSampleQuery(
@@ -99,7 +90,7 @@ public final class HealthKitManager: ObservableObject {
                 predicate: nil,
                 limit: 1,
                 sortDescriptors: [sortDescriptor]
-            ) { _, samples, error in
+            ) { _, samples, _ in
                 if let sample = samples?.first as? HKQuantitySample {
                     let weightKg = sample.quantity.doubleValue(for: .gramUnit(with: .kilo))
                     continuation.resume(returning: weightKg)
@@ -107,7 +98,7 @@ public final class HealthKitManager: ObservableObject {
                     continuation.resume(returning: nil)
                 }
             }
-            healthStore.execute(query)
+            self.healthStore.execute(query)
         }
     }
     

@@ -823,8 +823,11 @@ struct WorkoutView: View {
     
     /// Notify Watch to start workout session for heart rate collection
     private func setupWatchSync() {
-        guard storeManager.canAccess(.watchApp) else { return }
+        let isReachable = WatchConnectivityManager.shared.isWatchReachable
+        Logger.debug("🔵 setupWatchSync: isReachable=\(isReachable)", category: .general)
+        
         WatchConnectivityManager.shared.sendWorkoutStarted()
+        Logger.debug("✅ Sent workoutStarted to Watch", category: .general)
         
         // Send initial workout state after a brief delay (to allow workout to start on Watch)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -834,13 +837,11 @@ struct WorkoutView: View {
     
     /// Notify Watch to end workout session
     private func syncWorkoutEndedToWatch() {
-        guard storeManager.canAccess(.watchApp) else { return }
         WatchConnectivityManager.shared.sendWorkoutEnded()
     }
     
     /// Send current workout state to Watch
     private func syncWorkoutStateToWatch() {
-        guard storeManager.canAccess(.watchApp) else { return }
         guard let exercise = workoutState.currentExercise else { return }
         
         // Get current set weight and reps
@@ -1125,17 +1126,13 @@ struct WorkoutView: View {
                     )
                 }
                 
-                // Update Watch with timer state (every 5 seconds to reduce message frequency)
-                if workoutState.timerRemaining % 5 == 0 || workoutState.timerRemaining <= 10 {
-                    // Send timer update directly to Watch
-                    if StoreManager.shared.canAccess(.watchApp),
-                       let exercise = workoutState.currentExercise {
-                        WatchConnectivityManager.shared.sendRestTimerUpdate(
-                            remaining: workoutState.timerRemaining,
-                            duration: workoutState.timerDuration,
-                            exerciseName: exercise.name
-                        )
-                    }
+                // Send timer update to Watch every second
+                if let exercise = workoutState.currentExercise {
+                    WatchConnectivityManager.shared.sendRestTimerUpdate(
+                        remaining: workoutState.timerRemaining,
+                        duration: workoutState.timerDuration,
+                        exerciseName: exercise.name
+                    )
                 }
                 
                 // Note: Timer end is handled by the View through handleTimerEnd()
@@ -1183,9 +1180,11 @@ struct WorkoutView: View {
         NotificationManager.shared.cancelRestTimerNotification()
         
         // Notify Watch that timer ended (plays haptic on Watch)
-        if storeManager.canAccess(.watchApp) {
-            WatchConnectivityManager.shared.sendRestTimerEnded()
-            syncWorkoutStateToWatch()
+        WatchConnectivityManager.shared.sendRestTimerEnded()
+        
+        // Send updated workout state after a small delay to ensure timer state is cleared
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.syncWorkoutStateToWatch()
         }
         
         // Play haptics and chime

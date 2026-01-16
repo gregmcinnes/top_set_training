@@ -188,7 +188,8 @@ class WatchWorkoutManager: NSObject, ObservableObject {
     }
     
     func endWorkout() async throws {
-        guard isWorkoutActive, let session = session, let builder = builder else { return }
+        // Only check if session exists - don't check isWorkoutActive since forceInactive() may have cleared it
+        guard let session = session, let builder = builder else { return }
         
         let endDate = Date()
         
@@ -216,6 +217,16 @@ class WatchWorkoutManager: NSObject, ObservableObject {
     
     func resumeWorkout() {
         session?.resume()
+    }
+    
+    /// Immediately mark the workout as inactive (for UI purposes)
+    /// Called when iPhone signals workout ended, before async cleanup completes
+    func forceInactive() {
+        isWorkoutActive = false
+        currentHeartRate = nil
+        durationTimer?.invalidate()
+        durationTimer = nil
+        workoutDuration = 0
     }
     
     // MARK: - Timer

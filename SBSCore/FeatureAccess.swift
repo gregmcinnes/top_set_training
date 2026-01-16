@@ -25,9 +25,6 @@ public enum PremiumFeature: String, CaseIterable {
     /// Live Activity on lock screen and Dynamic Island
     case liveActivity
     
-    /// Apple Watch companion app integration
-    case watchApp
-    
     /// Apple Fitness / HealthKit workout sync
     case appleFitness
     
@@ -48,8 +45,6 @@ public enum PremiumFeature: String, CaseIterable {
             return "Superset Accessories"
         case .liveActivity:
             return "Lock Screen Timer"
-        case .watchApp:
-            return "Apple Watch App"
         case .appleFitness:
             return "Apple Fitness Sync"
         }
@@ -72,8 +67,6 @@ public enum PremiumFeature: String, CaseIterable {
             return "Do accessory exercises during rest periods to save time"
         case .liveActivity:
             return "See your rest timer on the lock screen and Dynamic Island"
-        case .watchApp:
-            return "Heart rate tracking during workouts via Apple Watch"
         case .appleFitness:
             return "Automatically log workouts to Apple Fitness with calories and duration"
         }
@@ -96,8 +89,6 @@ public enum PremiumFeature: String, CaseIterable {
             return "arrow.triangle.2.circlepath"
         case .liveActivity:
             return "timer"
-        case .watchApp:
-            return "applewatch"
         case .appleFitness:
             return "heart.fill"
         }

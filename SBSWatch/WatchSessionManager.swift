@@ -155,28 +155,38 @@ class WatchSessionManager: NSObject, ObservableObject {
     private func endWorkoutFromPhone() {
         isWorkoutActive = false
         workoutState = WatchWorkoutStateData()  // Reset workout state
+        
+        // Also immediately tell the workout manager to mark itself inactive
+        // (in case the async endWorkout() takes time or fails)
+        workoutManager?.forceInactive()
+        
         Task {
             do {
                 try await workoutManager?.endWorkout()
                 WKInterfaceDevice.current().play(.success)
             } catch {
                 Logger.error("Failed to end workout: \(error)", category: .healthKit)
+                // Still play a sound even if HealthKit fails
+                WKInterfaceDevice.current().play(.success)
             }
         }
     }
     
     private func updateWorkoutState(from dict: [String: Any]) {
-        workoutState.exerciseName = dict["exerciseName"] as? String ?? ""
-        workoutState.currentSet = dict["currentSet"] as? Int ?? 0
-        workoutState.totalSets = dict["totalSets"] as? Int ?? 0
-        workoutState.weight = dict["weight"] as? Double ?? 0
-        workoutState.targetReps = dict["targetReps"] as? Int ?? 0
-        workoutState.isRestTimerActive = dict["isRestTimerActive"] as? Bool ?? false
-        workoutState.restTimerRemaining = dict["restTimerRemaining"] as? Int ?? 0
-        workoutState.restTimerDuration = dict["restTimerDuration"] as? Int ?? 0
-        workoutState.useMetric = dict["useMetric"] as? Bool ?? false
-        workoutState.nextSetInfo = dict["nextSetInfo"] as? String
-        workoutState.isRepOutSet = dict["isRepOutSet"] as? Bool ?? false
+        // Replace the entire struct to ensure SwiftUI detects the change
+        workoutState = WatchWorkoutStateData(
+            exerciseName: dict["exerciseName"] as? String ?? "",
+            currentSet: dict["currentSet"] as? Int ?? 0,
+            totalSets: dict["totalSets"] as? Int ?? 0,
+            weight: dict["weight"] as? Double ?? 0,
+            targetReps: dict["targetReps"] as? Int ?? 0,
+            isRestTimerActive: dict["isRestTimerActive"] as? Bool ?? false,
+            restTimerRemaining: dict["restTimerRemaining"] as? Int ?? 0,
+            restTimerDuration: dict["restTimerDuration"] as? Int ?? 0,
+            useMetric: dict["useMetric"] as? Bool ?? false,
+            nextSetInfo: dict["nextSetInfo"] as? String,
+            isRepOutSet: dict["isRepOutSet"] as? Bool ?? false
+        )
     }
     
     private func updateRestTimer(remaining: Int, duration: Int, exerciseName: String) {
@@ -193,6 +203,63 @@ class WatchSessionManager: NSObject, ObservableObject {
         workoutState.restTimerRemaining = 0
         WKInterfaceDevice.current().play(.notification)  // Haptic when timer ends
     }
+    
+    /// Manually sync from current application context
+    /// Called when app becomes active to ensure state is up to date
+    func syncFromApplicationContext() {
+        guard let session = session else { return }
+        handleApplicationContext(session.receivedApplicationContext)
+    }
+    
+    /// Handle application context received from iPhone
+    /// This is used when the Watch wasn't reachable when state changed
+    @MainActor
+    private func handleApplicationContext(_ context: [String: Any]) {
+        // Handle workout state
+        if let workoutActive = context["workoutActive"] as? Bool {
+            if workoutActive && !isWorkoutActive {
+                // Workout started while we were unreachable - start now
+                if workoutManager != nil {
+                    startWorkoutFromPhone()
+                } else {
+                    pendingWorkoutStart = true
+                }
+            } else if !workoutActive && isWorkoutActive {
+                // Workout ended while we were unreachable - end now
+                endWorkoutFromPhone()
+            }
+        }
+        
+        // Handle timer state (sync when Watch wakes up)
+        if let timerActive = context["timerActive"] as? Bool {
+            if timerActive {
+                let remaining = context["timerRemaining"] as? Int ?? 0
+                let duration = context["timerDuration"] as? Int ?? 0
+                workoutState = WatchWorkoutStateData(
+                    exerciseName: workoutState.exerciseName,
+                    currentSet: workoutState.currentSet,
+                    totalSets: workoutState.totalSets,
+                    weight: workoutState.weight,
+                    targetReps: workoutState.targetReps,
+                    isRestTimerActive: true,
+                    restTimerRemaining: remaining,
+                    restTimerDuration: duration
+                )
+            } else if workoutState.isRestTimerActive {
+                // Timer ended while we were unreachable
+                workoutState = WatchWorkoutStateData(
+                    exerciseName: workoutState.exerciseName,
+                    currentSet: workoutState.currentSet,
+                    totalSets: workoutState.totalSets,
+                    weight: workoutState.weight,
+                    targetReps: workoutState.targetReps,
+                    isRestTimerActive: false,
+                    restTimerRemaining: 0,
+                    restTimerDuration: 0
+                )
+            }
+        }
+    }
 }
 
 // MARK: - WCSessionDelegate
@@ -201,6 +268,8 @@ extension WatchSessionManager: WCSessionDelegate {
     nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         Task { @MainActor in
             self.isPhoneReachable = session.isReachable
+            // Check application context on activation (in case we missed messages while inactive)
+            self.handleApplicationContext(session.receivedApplicationContext)
         }
     }
     
@@ -216,8 +285,15 @@ extension WatchSessionManager: WCSessionDelegate {
         }
     }
     
+    nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
+        Task { @MainActor in
+            self.handleApplicationContext(applicationContext)
+        }
+    }
+    
     @MainActor
     private func handleMessage(_ message: [String: Any]) {
+        
         guard let type = message["type"] as? String else { return }
         
         switch type {

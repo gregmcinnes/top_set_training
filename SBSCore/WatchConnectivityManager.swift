@@ -79,16 +79,23 @@ public final class WatchConnectivityManager: NSObject, ObservableObject {
     /// Notify Watch to start a workout session (for heart rate collection)
     public func sendWorkoutStarted() {
         guard let session = session,
-              session.activationState == .activated,
-              session.isReachable else {
-            Logger.debug("Watch not reachable, cannot send workout start", category: .general)
+              session.activationState == .activated else {
+            Logger.debug("Watch session not active, cannot send workout start", category: .general)
             return
         }
         
-        session.sendMessage(["type": "workoutStarted"], replyHandler: nil) { error in
-            Logger.error("Failed to send workout start to Watch: \(error.localizedDescription)", category: .general)
+        // Always update application context (works even when unreachable)
+        updateWorkoutContext(isActive: true)
+        
+        // Also try to send immediate message if reachable
+        if session.isReachable {
+            session.sendMessage(["type": "workoutStarted"], replyHandler: nil) { error in
+                Logger.error("Failed to send workout start to Watch: \(error.localizedDescription)", category: .general)
+            }
+            Logger.debug("Sent workout start to Watch", category: .general)
+        } else {
+            Logger.debug("Watch not reachable, workout start saved to context", category: .general)
         }
-        Logger.debug("Sent workout start to Watch", category: .general)
     }
     
     /// Notify Watch to end the workout session
@@ -97,16 +104,40 @@ public final class WatchConnectivityManager: NSObject, ObservableObject {
         currentHeartRate = nil
         
         guard let session = session,
-              session.activationState == .activated,
-              session.isReachable else {
-            Logger.debug("Watch not reachable, cannot send workout end", category: .general)
+              session.activationState == .activated else {
+            Logger.debug("Watch session not active, cannot send workout end", category: .general)
             return
         }
         
-        session.sendMessage(["type": "workoutEnded"], replyHandler: nil) { error in
-            Logger.error("Failed to send workout end to Watch: \(error.localizedDescription)", category: .general)
+        // Always update application context (works even when unreachable)
+        updateWorkoutContext(isActive: false)
+        
+        // Also try to send immediate message if reachable
+        if session.isReachable {
+            session.sendMessage(["type": "workoutEnded"], replyHandler: nil) { error in
+                Logger.error("Failed to send workout end to Watch: \(error.localizedDescription)", category: .general)
+            }
+            Logger.debug("Sent workout end to Watch", category: .general)
+        } else {
+            Logger.debug("Watch not reachable, workout end saved to context", category: .general)
         }
-        Logger.debug("Sent workout end to Watch", category: .general)
+    }
+    
+    /// Update application context with workout and timer state
+    /// This persists even when Watch is unreachable and syncs when it wakes
+    private func updateWorkoutContext(isActive: Bool, timerActive: Bool = false, timerRemaining: Int = 0, timerDuration: Int = 0) {
+        guard let session = session else { return }
+        
+        do {
+            try session.updateApplicationContext([
+                "workoutActive": isActive,
+                "timerActive": timerActive,
+                "timerRemaining": timerRemaining,
+                "timerDuration": timerDuration
+            ])
+        } catch {
+            Logger.error("Failed to update application context: \(error.localizedDescription)", category: .general)
+        }
     }
     
     /// Send workout state update to Watch
@@ -134,31 +165,43 @@ public final class WatchConnectivityManager: NSObject, ObservableObject {
     /// Send rest timer update to Watch
     public func sendRestTimerUpdate(remaining: Int, duration: Int, exerciseName: String) {
         guard let session = session,
-              session.activationState == .activated,
-              session.isReachable else {
+              session.activationState == .activated else {
             return
         }
         
-        session.sendMessage([
-            "type": "restTimerUpdate",
-            "remaining": remaining,
-            "duration": duration,
-            "exerciseName": exerciseName
-        ], replyHandler: nil) { _ in
-            // Silently fail
+        // Update application context periodically (every 5 seconds) so Watch can sync when it wakes
+        if remaining % 5 == 0 || remaining <= 5 {
+            updateWorkoutContext(isActive: true, timerActive: true, timerRemaining: remaining, timerDuration: duration)
+        }
+        
+        // Send immediate message if reachable
+        if session.isReachable {
+            session.sendMessage([
+                "type": "restTimerUpdate",
+                "remaining": remaining,
+                "duration": duration,
+                "exerciseName": exerciseName
+            ], replyHandler: nil) { _ in
+                // Silently fail
+            }
         }
     }
     
     /// Send rest timer ended notification to Watch
     public func sendRestTimerEnded() {
         guard let session = session,
-              session.activationState == .activated,
-              session.isReachable else {
+              session.activationState == .activated else {
             return
         }
         
-        session.sendMessage(["type": "restTimerEnded"], replyHandler: nil) { _ in
-            // Silently fail
+        // Always update application context (works even when unreachable)
+        updateWorkoutContext(isActive: true, timerActive: false, timerRemaining: 0, timerDuration: 0)
+        
+        // Also try to send immediate message if reachable
+        if session.isReachable {
+            session.sendMessage(["type": "restTimerEnded"], replyHandler: nil) { _ in
+                // Silently fail
+            }
         }
     }
 }

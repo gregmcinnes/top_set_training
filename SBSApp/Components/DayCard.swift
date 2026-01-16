@@ -178,3 +178,4 @@ struct LogStatusBadge: View {
 }
 
 
+

@@ -173,6 +173,7 @@ public final class AppState {
             "nsuns_4day_12week",
             "nsuns_5day_12week",
             "reddit_ppl_12week",
+            "basic_ppl_12week",
             "sbs_program_config"
         ]
         

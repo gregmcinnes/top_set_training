@@ -67,6 +67,7 @@
 		A69C5A6D873C5A9D241AE414 /* LinearProgressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9313590030390738C788AF8 /* LinearProgressionTests.swift */; };
 		A71AAD1CA7F83E5A951426ED /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F46C7C52EFEA53288A58CA9F /* StoreManager.swift */; };
 		A7EBDFF2568F3549F81AC05E /* reddit_ppl_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = BF3F8B5D987C02F886932160 /* reddit_ppl_12week.json */; };
+		A8F1C3D4E5B6A7890CDEF123 /* basic_ppl_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = B9E2D4C5F6A7B8901DEFA234 /* basic_ppl_12week.json */; };
 		A95A52851940BEDADDE0D298 /* gzclp_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = DDB3E217F9ABA8174F8F2BD3 /* gzclp_12week.json */; };
 		AA4A2C7842B7B932364A473E /* ExerciseLibraryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51AD74D4BDAD2C088FDA03D1 /* ExerciseLibraryTests.swift */; };
 		AF2CB987C394F3E223425F71 /* gzclp_3day_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = 854A78BF3E4A007871189B44 /* gzclp_3day_12week.json */; };
@@ -212,6 +213,7 @@
 		BE40AB3A0A886E906EF6276B /* LiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
 		BED4971D69459FEF06379959 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		BED4972E79459FFF16379960 /* ReviewRequestManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewRequestManager.swift; sourceTree = "<group>"; };
+		B9E2D4C5F6A7B8901DEFA234 /* basic_ppl_12week.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = basic_ppl_12week.json; sourceTree = "<group>"; };
 		BF3F8B5D987C02F886932160 /* reddit_ppl_12week.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = reddit_ppl_12week.json; sourceTree = "<group>"; };
 		C24F72D3FE4F8A71B48E169A /* stronglifts_5x5_12week.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = stronglifts_5x5_12week.json; sourceTree = "<group>"; };
 		C7FC400A9D0A7572464FE65F /* AccessoryExercisePickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessoryExercisePickerSheet.swift; sourceTree = "<group>"; };
@@ -331,6 +333,7 @@
 				87CFB04697D24F25F499FACD /* nsuns_4day_12week.json */,
 				AF0C7186A63FD6E6318B4821 /* nsuns_5day_12week.json */,
 				6A7F872F9AEF33D8CCEFA758 /* powerlifting_percentiles.json */,
+				B9E2D4C5F6A7B8901DEFA234 /* basic_ppl_12week.json */,
 				BF3F8B5D987C02F886932160 /* reddit_ppl_12week.json */,
 				E83767D47A7FD3C765C51216 /* sbs_program_config.json */,
 				60921EA1490EA8A05A1CE2C6 /* starting_strength_12week.json */,
@@ -548,6 +551,7 @@
 				496A053AF877A020E60538FB /* nsuns_4day_12week.json in Resources */,
 				959EC8C9EB1DBF8332994B78 /* nsuns_5day_12week.json in Resources */,
 				F841F391F45F55CC8C28F6A6 /* powerlifting_percentiles.json in Resources */,
+				A8F1C3D4E5B6A7890CDEF123 /* basic_ppl_12week.json in Resources */,
 				A7EBDFF2568F3549F81AC05E /* reddit_ppl_12week.json in Resources */,
 				E8DCE40763AD20B3491325C3 /* sbs_program_config.json in Resources */,
 				838645D48109C3110090D039 /* starting_strength_12week.json in Resources */,

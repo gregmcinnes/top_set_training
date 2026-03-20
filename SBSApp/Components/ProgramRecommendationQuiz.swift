@@ -993,6 +993,15 @@ struct ProgramScorer {
             sessionTime: "long",
             complexity: "detailed",
             tags: ["Advanced", "5 Days", "Auto-Regulated", "20 Weeks"]
+        ),
+        "basic_ppl_12week": ProgramMetadata(
+            id: "basic_ppl_12week",
+            experienceLevel: 1,
+            days: 3,
+            goalFocus: "size",
+            sessionTime: "medium",
+            complexity: "simple",
+            tags: ["Beginner", "3 Days", "PPL Split", "Hypertrophy"]
         )
     ]
     

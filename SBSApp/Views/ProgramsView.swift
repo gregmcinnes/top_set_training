@@ -102,6 +102,13 @@ struct ProgramsView: View {
             shortDescription: "Push/Pull/Legs split, twice per week.",
             isFree: false
         ),
+        "basic_ppl_12week": ProgramMeta(
+            family: "PPL",
+            level: .beginner,
+            focus: .hypertrophy,
+            shortDescription: "Simple 3-day Push/Pull/Legs with progression.",
+            isFree: false
+        ),
         "sbs_program_config": ProgramMeta(
             family: "SBS",
             level: .advanced,

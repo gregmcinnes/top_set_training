@@ -1,0 +1,86 @@
+{
+  "name": "Basic PPL",
+  "displayName": "Basic PPL",
+  "days_per_week": 3,
+  "description": "3 days/week Push/Pull/Legs for 12 weeks. All main lifts are 3x10 with an AMRAP last set. Beat the 10-rep target on the AMRAP and your weight goes up next week. Simple progression for beginners looking to build size and strength.",
+  "rounding": 5,
+  "day_titles": {
+    "1": "Push",
+    "2": "Pull",
+    "3": "Legs"
+  },
+  "weeks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+  "days": {
+    "1": [
+      {
+        "type": "structured",
+        "name": "Bench Press",
+        "lift": "Bench Press",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Incline Bench Press",
+        "lift": "Incline Bench Press",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Overhead Press",
+        "lift": "Overhead Press",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Dips", "defaultSets": 3, "defaultReps": 10}
+    ],
+    "2": [
+      {
+        "type": "structured",
+        "name": "Barbell Row",
+        "lift": "Barbell Row",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Lat Pulldowns", "defaultSets": 3, "defaultReps": 10},
+      {"type": "accessory", "name": "Curls", "defaultSets": 3, "defaultReps": 10}
+    ],
+    "3": [
+      {
+        "type": "structured",
+        "name": "Squat",
+        "lift": "Squat",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Deadlift",
+        "lift": "Deadlift",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Leg Curls", "defaultSets": 3, "defaultReps": 10}
+    ]
+  },
+  "lifts": {}
+}

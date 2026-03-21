@@ -91,6 +91,20 @@ struct ProgramSelector: View {
             shortDescription: "Maximum volume, 5 days per week.",
             isFree: true
         ),
+        "nsuns_6day_squat_12week": ProgramMeta(
+            family: "nSuns",
+            level: .intermediate,
+            focus: .strength,
+            shortDescription: "5-day plus extra squat volume day.",
+            isFree: false
+        ),
+        "nsuns_6day_deadlift_12week": ProgramMeta(
+            family: "nSuns",
+            level: .intermediate,
+            focus: .strength,
+            shortDescription: "5-day plus extra deadlift volume day.",
+            isFree: false
+        ),
         "reddit_ppl_12week": ProgramMeta(
             family: "PPL",
             level: .intermediate,

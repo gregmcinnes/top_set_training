@@ -172,6 +172,8 @@ public final class AppState {
             "531_triumvirate_12week",
             "nsuns_4day_12week",
             "nsuns_5day_12week",
+            "nsuns_6day_squat_12week",
+            "nsuns_6day_deadlift_12week",
             "reddit_ppl_12week",
             "basic_ppl_12week",
             "sbs_program_config"

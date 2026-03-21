@@ -1,22 +1,79 @@
 import SwiftUI
 import StoreKit
 
+// MARK: - Plan Option
+
+enum PlanOption: String, CaseIterable {
+    case weekly
+    case monthly
+    case lifetime
+
+    var label: String {
+        switch self {
+        case .weekly: return "Weekly"
+        case .monthly: return "Monthly"
+        case .lifetime: return "Lifetime"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .weekly: return "Billed weekly"
+        case .monthly: return "Billed monthly"
+        case .lifetime: return "One-time purchase"
+        }
+    }
+
+    var badgeText: String? {
+        switch self {
+        case .monthly: return "Best Value"
+        case .lifetime: return "Forever"
+        case .weekly: return nil
+        }
+    }
+
+    func priceString(from store: StoreManager) -> String {
+        switch self {
+        case .weekly: return store.weeklyPriceString
+        case .monthly: return store.monthlyPriceString
+        case .lifetime: return store.premiumPriceString
+        }
+    }
+
+    var periodLabel: String {
+        switch self {
+        case .weekly: return "/wk"
+        case .monthly: return "/mo"
+        case .lifetime: return ""
+        }
+    }
+
+    func product(from store: StoreManager) -> Product? {
+        switch self {
+        case .weekly: return store.weeklyProduct
+        case .monthly: return store.monthlyProduct
+        case .lifetime: return store.premiumProduct
+        }
+    }
+}
+
 // MARK: - Paywall View
 
 /// Full-screen upgrade view with feature comparison
 struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
-    
+
     let storeManager = StoreManager.shared
-    
+
+    @State private var selectedPlan: PlanOption = .monthly
     @State private var isPurchasing = false
     @State private var showError = false
     @State private var errorMessage = ""
     @State private var animateIn = false
-    
+
     /// Optional: The specific feature that triggered this paywall
     var triggeredByFeature: PremiumFeature?
-    
+
     var body: some View {
         ZStack {
             // Background
@@ -30,33 +87,38 @@ struct PaywallView: View {
                 endPoint: .bottom
             )
             .ignoresSafeArea()
-            
+
             ScrollView {
                 VStack(spacing: SBSLayout.paddingLarge) {
                     // Header
                     headerSection
                         .opacity(animateIn ? 1 : 0)
                         .offset(y: animateIn ? 0 : 20)
-                    
+
                     // Feature list
                     featuresSection
                         .opacity(animateIn ? 1 : 0)
                         .offset(y: animateIn ? 0 : 30)
-                    
-                    // Price and purchase
+
+                    // Plan selection
+                    planSelectionSection
+                        .opacity(animateIn ? 1 : 0)
+                        .offset(y: animateIn ? 0 : 35)
+
+                    // Purchase button
                     purchaseSection
                         .opacity(animateIn ? 1 : 0)
                         .offset(y: animateIn ? 0 : 40)
-                    
+
                     // Restore purchases
                     restoreSection
                         .opacity(animateIn ? 1 : 0)
-                    
+
                     Spacer(minLength: 50)
                 }
                 .padding()
             }
-            
+
             // Close button
             VStack {
                 HStack {
@@ -84,9 +146,9 @@ struct PaywallView: View {
             }
         }
     }
-    
+
     // MARK: - Header Section
-    
+
     private var headerSection: some View {
         VStack(spacing: SBSLayout.paddingMedium) {
             // Crown icon
@@ -103,7 +165,7 @@ struct PaywallView: View {
                         )
                     )
                     .frame(width: 100, height: 100)
-                
+
                 Image(systemName: "crown.fill")
                     .font(.system(size: 44))
                     .foregroundStyle(
@@ -114,18 +176,18 @@ struct PaywallView: View {
                         )
                     )
             }
-            
+
             VStack(spacing: SBSLayout.paddingSmall) {
                 Text("Unlock Premium")
                     .font(.system(size: 28, weight: .bold, design: .rounded))
                     .foregroundStyle(SBSColors.textPrimaryFallback)
-                
+
                 Text("Get the most out of your training")
                     .font(SBSFonts.body())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                     .multilineTextAlignment(.center)
             }
-            
+
             // If triggered by a specific feature, highlight it
             if let feature = triggeredByFeature {
                 HStack(spacing: SBSLayout.paddingSmall) {
@@ -145,16 +207,16 @@ struct PaywallView: View {
         }
         .padding(.top, 60)
     }
-    
+
     // MARK: - Features Section
-    
+
     private var featuresSection: some View {
         VStack(spacing: SBSLayout.paddingMedium) {
             Text("What's Included")
                 .font(SBSFonts.title3())
                 .foregroundStyle(SBSColors.textPrimaryFallback)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            
+
             VStack(spacing: SBSLayout.paddingSmall) {
                 ForEach(PremiumFeature.allCases, id: \.rawValue) { feature in
                     PremiumFeatureRow(feature: feature)
@@ -167,30 +229,41 @@ struct PaywallView: View {
                 .fill(SBSColors.surfaceFallback)
         )
     }
-    
-    // MARK: - Purchase Section
-    
-    private var purchaseSection: some View {
+
+    // MARK: - Plan Selection Section
+
+    private var planSelectionSection: some View {
         VStack(spacing: SBSLayout.paddingMedium) {
-            // Price badge
-            VStack(spacing: 4) {
-                Text("One-Time Purchase")
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
-                
-                Text(storeManager.premiumPriceString)
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                
-                Text("Unlock forever • No subscription")
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+            Text("Choose Your Plan")
+                .font(SBSFonts.title3())
+                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            VStack(spacing: SBSLayout.paddingSmall) {
+                ForEach(PlanOption.allCases, id: \.rawValue) { plan in
+                    PlanOptionCard(
+                        plan: plan,
+                        priceString: plan.priceString(from: storeManager),
+                        isSelected: selectedPlan == plan
+                    )
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedPlan = plan
+                        }
+                    }
+                }
             }
-            
+        }
+    }
+
+    // MARK: - Purchase Section
+
+    private var purchaseSection: some View {
+        VStack(spacing: SBSLayout.paddingSmall) {
             // Purchase button
             Button {
                 Task {
-                    await purchasePremium()
+                    await purchaseSelectedPlan()
                 }
             } label: {
                 HStack(spacing: SBSLayout.paddingSmall) {
@@ -199,7 +272,7 @@ struct PaywallView: View {
                             .tint(.white)
                     } else {
                         Image(systemName: "crown.fill")
-                        Text("Upgrade Now")
+                        Text(selectedPlan == .lifetime ? "Unlock Forever" : "Subscribe Now")
                     }
                 }
                 .font(SBSFonts.button())
@@ -218,11 +291,18 @@ struct PaywallView: View {
                 )
             }
             .disabled(isPurchasing)
+
+            if selectedPlan != .lifetime {
+                Text("Cancel anytime. Subscription auto-renews.")
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                    .multilineTextAlignment(.center)
+            }
         }
     }
-    
+
     // MARK: - Restore Section
-    
+
     private var restoreSection: some View {
         Button {
             Task {
@@ -235,36 +315,123 @@ struct PaywallView: View {
         }
         .padding(.top, SBSLayout.paddingSmall)
     }
-    
+
     // MARK: - Actions
-    
-    private func purchasePremium() async {
+
+    private func purchaseSelectedPlan() async {
+        guard let product = selectedPlan.product(from: storeManager) else {
+            // Try loading products first
+            await storeManager.loadProducts()
+            guard let product = selectedPlan.product(from: storeManager) else {
+                errorMessage = "Product not available. Please try again."
+                showError = true
+                return
+            }
+            await doPurchase(product)
+            return
+        }
+        await doPurchase(product)
+    }
+
+    private func doPurchase(_ product: Product) async {
         isPurchasing = true
-        
+
         do {
-            let transaction = try await storeManager.purchasePremium()
+            let transaction = try await storeManager.purchase(product)
             isPurchasing = false
-            
+
             if transaction != nil {
-                // Purchase successful - dismiss
                 dismiss()
             }
-            // If nil, user cancelled - stay on paywall
         } catch {
             isPurchasing = false
             errorMessage = error.localizedDescription
             showError = true
         }
     }
-    
+
     private func restorePurchases() async {
         isPurchasing = true
         await storeManager.restorePurchases()
         isPurchasing = false
-        
+
         if storeManager.isPremium {
             dismiss()
         }
+    }
+}
+
+// MARK: - Plan Option Card
+
+private struct PlanOptionCard: View {
+    let plan: PlanOption
+    let priceString: String
+    let isSelected: Bool
+
+    var body: some View {
+        HStack(spacing: SBSLayout.paddingMedium) {
+            // Radio indicator
+            ZStack {
+                Circle()
+                    .stroke(isSelected ? SBSColors.accentFallback : SBSColors.textTertiaryFallback.opacity(0.4), lineWidth: 2)
+                    .frame(width: 22, height: 22)
+
+                if isSelected {
+                    Circle()
+                        .fill(SBSColors.accentFallback)
+                        .frame(width: 14, height: 14)
+                }
+            }
+
+            // Plan info
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: SBSLayout.paddingSmall) {
+                    Text(plan.label)
+                        .font(SBSFonts.bodyBold())
+                        .foregroundStyle(SBSColors.textPrimaryFallback)
+
+                    if let badge = plan.badgeText {
+                        Text(badge)
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule()
+                                    .fill(SBSColors.accentFallback)
+                            )
+                    }
+                }
+
+                Text(plan.subtitle)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(SBSColors.textSecondaryFallback)
+            }
+
+            Spacer()
+
+            // Price
+            HStack(alignment: .firstTextBaseline, spacing: 1) {
+                Text(priceString)
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundStyle(SBSColors.textPrimaryFallback)
+
+                if !plan.periodLabel.isEmpty {
+                    Text(plan.periodLabel)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                }
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                .fill(SBSColors.surfaceFallback)
+                .overlay(
+                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                        .stroke(isSelected ? SBSColors.accentFallback : Color.clear, lineWidth: 2)
+                )
+        )
     }
 }
 
@@ -272,7 +439,7 @@ struct PaywallView: View {
 
 private struct PremiumFeatureRow: View {
     let feature: PremiumFeature
-    
+
     var body: some View {
         HStack(spacing: SBSLayout.paddingMedium) {
             // Icon
@@ -280,26 +447,26 @@ private struct PremiumFeatureRow: View {
                 Circle()
                     .fill(SBSColors.accentFallback.opacity(0.1))
                     .frame(width: 36, height: 36)
-                
+
                 Image(systemName: feature.iconName)
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(SBSColors.accentFallback)
             }
-            
+
             // Text
             VStack(alignment: .leading, spacing: 2) {
                 Text(feature.displayName)
                     .font(SBSFonts.bodyBold())
                     .foregroundStyle(SBSColors.textPrimaryFallback)
-                
+
                 Text(feature.featureDescription)
                     .font(SBSFonts.caption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                     .lineLimit(2)
             }
-            
+
             Spacer()
-            
+
             // Checkmark
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 20))
@@ -315,19 +482,19 @@ struct FeatureComparisonRow: View {
     let feature: String
     let freeValue: String
     let premiumValue: String
-    
+
     var body: some View {
         HStack {
             Text(feature)
                 .font(SBSFonts.body())
                 .foregroundStyle(SBSColors.textPrimaryFallback)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            
+
             Text(freeValue)
                 .font(SBSFonts.caption())
                 .foregroundStyle(SBSColors.textSecondaryFallback)
                 .frame(width: 60)
-            
+
             Text(premiumValue)
                 .font(SBSFonts.captionBold())
                 .foregroundStyle(SBSColors.accentFallback)
@@ -346,4 +513,3 @@ struct FeatureComparisonRow: View {
 #Preview("Triggered by Feature") {
     PaywallView(triggeredByFeature: .plateCalculator)
 }
-

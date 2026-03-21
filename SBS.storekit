@@ -5,24 +5,24 @@
   ],
   "products" : [
     {
-      "displayPrice" : "9.99",
+      "displayPrice" : "14.99",
       "familyShareable" : false,
       "internalID" : "6738A1B2-3C4D-5E6F-7A8B-9C0D1E2F3A4B",
       "localizations" : [
         {
-          "description" : "Unlock all training programs, full workout history, plate calculator, and E1RM tracking.",
-          "displayName" : "Premium Unlock",
+          "description" : "Unlock all training programs, full workout history, plate calculator, and E1RM tracking. One-time purchase, yours forever.",
+          "displayName" : "Premium Lifetime",
           "locale" : "en_US"
         }
       ],
       "productID" : "com.gregorymcinnes.topsettraining.premium",
-      "referenceName" : "Premium Unlock",
+      "referenceName" : "Premium Lifetime",
       "type" : "NonConsumable"
     }
   ],
   "settings" : {
     "_applicationInternalID" : "1234567890",
-    "_developerTeamID" : "XXXXXXXXXX",
+    "_developerTeamID" : "2K7MV7G4ZJ",
     "_failTransactionsEnabled" : false,
     "_lastSynchronizedDate" : 759171234.56789,
     "_locale" : "en_US",
@@ -76,11 +76,68 @@
     ]
   },
   "subscriptionGroups" : [
+    {
+      "id" : "A1B2C3D4-5E6F-7A8B-9C0D-1E2F3A4B5C6D",
+      "localizations" : [
 
+      ],
+      "name" : "Premium Access",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "0.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "B2C3D4E5-6F7A-8B9C-0D1E-2F3A4B5C6D7E",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Full access to all premium features, billed weekly.",
+              "displayName" : "Premium Weekly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.gregorymcinnes.topsettraining.premium.weekly",
+          "recurringSubscriptionPeriod" : "P1W",
+          "referenceName" : "Premium Weekly",
+          "subscriptionGroupID" : "A1B2C3D4-5E6F-7A8B-9C0D-1E2F3A4B5C6D",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "2.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "C3D4E5F6-7A8B-9C0D-1E2F-3A4B5C6D7E8F",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Full access to all premium features, billed monthly.",
+              "displayName" : "Premium Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.gregorymcinnes.topsettraining.premium.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Premium Monthly",
+          "subscriptionGroupID" : "A1B2C3D4-5E6F-7A8B-9C0D-1E2F3A4B5C6D",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
   ],
   "version" : {
     "major" : 3,
     "minor" : 0
   }
 }
-

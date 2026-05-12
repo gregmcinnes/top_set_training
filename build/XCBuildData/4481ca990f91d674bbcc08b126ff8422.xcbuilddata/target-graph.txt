@@ -1,2 +1,0 @@
-Target dependency graph (1 target)
-Target 'SBSWatch' in project 'SBS' (no dependencies)

@@ -1,0 +1,9 @@
+# Xcode build outputs
+build/
+DerivedData/
+
+# macOS
+.DS_Store
+
+# Xcode user-specific state (kept tracked for now where already committed)
+*.xcuserstate

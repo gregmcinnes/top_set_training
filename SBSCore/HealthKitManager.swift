@@ -189,20 +189,7 @@ public final class HealthKitManager: ObservableObject {
             // Calculate calories burned
             let caloriesBurned = estimateCaloriesBurned(durationMinutes: durationMinutes, bodyWeightKg: bodyWeight)
             
-            // Create active energy sample
-            let energyType = HKQuantityType(.activeEnergyBurned)
-            let energyQuantity = HKQuantity(unit: .kilocalorie(), doubleValue: caloriesBurned)
-            let energySample = HKQuantitySample(
-                type: energyType,
-                quantity: energyQuantity,
-                start: startDate,
-                end: endDate
-            )
-            
-            // Add energy sample to workout
-            try await builder.addSamples([energySample])
-            
-            // End data collection
+            // End data collection first
             try await builder.endCollection(at: endDate)
             
             // Build metadata
@@ -233,6 +220,26 @@ public final class HealthKitManager: ObservableObject {
             
             // Finish and save the workout
             let workout = try await builder.finishWorkout()
+            
+            // Save energy sample directly to HealthStore, associated with the workout
+            // This ensures the Fitness app properly displays calories burned
+            if let workout = workout {
+                let energyType = HKQuantityType(.activeEnergyBurned)
+                let energyQuantity = HKQuantity(unit: .kilocalorie(), doubleValue: caloriesBurned)
+                let energySample = HKQuantitySample(
+                    type: energyType,
+                    quantity: energyQuantity,
+                    start: startDate,
+                    end: endDate,
+                    device: .local(),
+                    metadata: [HKMetadataKeyExternalUUID: workout.uuid.uuidString]
+                )
+                
+                try await healthStore.save(energySample)
+                
+                // Also add the sample to the workout for proper association
+                try await healthStore.addSamples([energySample], to: workout)
+            }
             
             // Clean up
             workoutBuilder = nil

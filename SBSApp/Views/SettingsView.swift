@@ -786,7 +786,31 @@ struct SettingsView: View {
                 } header: {
                     Text("About")
                 }
-                
+
+                // Legal
+                Section {
+                    Link(destination: URL(string: "https://gregorymcinnes.com/apps/top-set-training/")!) {
+                        HStack {
+                            Text("Privacy Policy")
+                            Spacer()
+                            Image(systemName: "arrow.up.forward")
+                                .font(.system(size: 12))
+                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                        }
+                    }
+                    Link(destination: URL(string: "https://gregorymcinnes.com/terms")!) {
+                        HStack {
+                            Text("Terms of Use")
+                            Spacer()
+                            Image(systemName: "arrow.up.forward")
+                                .font(.system(size: 12))
+                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                        }
+                    }
+                } header: {
+                    Text("Legal")
+                }
+
                 // More Apps - Cross promotion
                 Section {
                     Link(destination: URL(string: "https://apps.apple.com/us/app/top-set-timer/id6756226855")!) {

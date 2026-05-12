@@ -223,11 +223,7 @@ public final class StoreManager {
                     let transaction = try self.checkVerified(result)
 
                     // Update the purchased products on the main actor
-                    await MainActor.run {
-                        Task {
-                            await self.updatePurchasedProducts()
-                        }
-                    }
+                    await self.updatePurchasedProducts()
 
                     // Always finish transactions
                     await transaction.finish()

@@ -114,6 +114,10 @@ struct PaywallView: View {
                     restoreSection
                         .opacity(animateIn ? 1 : 0)
 
+                    // Legal links
+                    legalSection
+                        .opacity(animateIn ? 1 : 0)
+
                     Spacer(minLength: 50)
                 }
                 .padding()
@@ -298,6 +302,12 @@ struct PaywallView: View {
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                     .multilineTextAlignment(.center)
             }
+
+            Text("By purchasing, you agree to our [Terms of Use](https://gregorymcinnes.com/terms) and [Privacy Policy](https://gregorymcinnes.com/apps/top-set-training/).")
+                .font(SBSFonts.caption())
+                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .multilineTextAlignment(.center)
+                .tint(SBSColors.accentFallback)
         }
     }
 
@@ -314,6 +324,19 @@ struct PaywallView: View {
                 .foregroundStyle(SBSColors.accentFallback)
         }
         .padding(.top, SBSLayout.paddingSmall)
+    }
+
+    // MARK: - Legal Section
+
+    private var legalSection: some View {
+        HStack(spacing: SBSLayout.paddingSmall) {
+            Link("Privacy Policy", destination: URL(string: "https://gregorymcinnes.com/apps/top-set-training/")!)
+            Text("|")
+                .foregroundStyle(SBSColors.textTertiaryFallback)
+            Link("Terms of Use", destination: URL(string: "https://gregorymcinnes.com/terms")!)
+        }
+        .font(SBSFonts.caption())
+        .foregroundStyle(SBSColors.textTertiaryFallback)
     }
 
     // MARK: - Actions

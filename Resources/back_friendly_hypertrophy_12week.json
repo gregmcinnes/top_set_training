@@ -1,0 +1,192 @@
+{
+  "name": "Back-Friendly Hypertrophy",
+  "displayName": "Back-Friendly",
+  "days_per_week": 5,
+  "description": "5 days/week, 12 weeks. A hypertrophy split designed to minimize axial spinal loading: no barbell squats, deadlifts, RDLs, or bent rows. Belt squats anchor the lower body; cable and unilateral work fill in row volume. Bench, OHP, Incline, Belt Squat, Weighted Dips, Weighted Pull-Ups, and EZ Curl are TM-tracked with AMRAP last sets. Lifts that appear twice have a heavy primary day (100% TM) and a higher-rep volume day (90% TM); the primary day's AMRAP drives auto-progression.",
+  "rounding": 5,
+  "single_at_8_percent": {
+    "Bench Press": 1.0,
+    "Overhead Press": 1.0,
+    "Incline Press": 1.0,
+    "Belt Squat": 1.0,
+    "Weighted Dips": 1.0,
+    "Weighted Pull-Ups": 1.0,
+    "EZ Bar Curl": 1.0
+  },
+  "day_titles": {
+    "1": "Push",
+    "2": "Pull",
+    "3": "Legs",
+    "4": "Upper",
+    "5": "Delts + Arms"
+  },
+  "weeks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+  "days": {
+    "1": [
+      {
+        "type": "structured",
+        "name": "Bench Press",
+        "lift": "Bench Press",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 8, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 8, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 8, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 8, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Weighted Dips",
+        "lift": "Weighted Dips",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Single-Arm Cable Chest Press", "defaultSets": 3, "defaultReps": 15},
+      {
+        "type": "structured",
+        "name": "Overhead Press",
+        "lift": "Overhead Press",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 8, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 8, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 8, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Cable Lateral Raise", "defaultSets": 4, "defaultReps": 15},
+      {"type": "accessory", "name": "Overhead Cable Triceps Extension", "defaultSets": 3, "defaultReps": 15},
+      {"type": "accessory", "name": "Cable Pressdown", "defaultSets": 2, "defaultReps": 15}
+    ],
+    "2": [
+      {
+        "type": "structured",
+        "name": "Weighted Pull-Ups",
+        "lift": "Weighted Pull-Ups",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Single-Arm Cable Lat Pulldown", "defaultSets": 3, "defaultReps": 15},
+      {"type": "accessory", "name": "Single-Arm Cable Row", "defaultSets": 3, "defaultReps": 15},
+      {"type": "accessory", "name": "Cable Face Pull", "defaultSets": 3, "defaultReps": 15},
+      {"type": "accessory", "name": "Rear Delt Cable Fly", "defaultSets": 3, "defaultReps": 20},
+      {"type": "accessory", "name": "Roman Chair Back Extension", "defaultSets": 3, "defaultReps": 15},
+      {
+        "type": "structured",
+        "name": "EZ Bar Curl",
+        "lift": "EZ Bar Curl",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 12, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 12, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 12, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Cable Curl", "defaultSets": 3, "defaultReps": 15}
+    ],
+    "3": [
+      {
+        "type": "structured",
+        "name": "Belt Squat",
+        "lift": "Belt Squat",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 12, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 12, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 12, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 12, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Belt Squat (Quad-Biased)", "defaultSets": 3, "defaultReps": 15},
+      {"type": "accessory", "name": "Step-Ups", "defaultSets": 3, "defaultReps": 12},
+      {"type": "accessory", "name": "Split Squat", "defaultSets": 3, "defaultReps": 12},
+      {"type": "accessory", "name": "Cable Leg Curl", "defaultSets": 3, "defaultReps": 15},
+      {"type": "accessory", "name": "Standing Calf Raise", "defaultSets": 4, "defaultReps": 15},
+      {"type": "accessory", "name": "Cable Crunch", "defaultSets": 3, "defaultReps": 15}
+    ],
+    "4": [
+      {
+        "type": "structured",
+        "name": "Incline Press",
+        "lift": "Incline Press",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 8, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 8, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 8, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Weighted Pull-Ups (Volume)",
+        "lift": "Weighted Pull-Ups",
+        "sets_detail": [
+          {"intensity": 0.9, "reps": 12, "isAMRAP": false},
+          {"intensity": 0.9, "reps": 12, "isAMRAP": false},
+          {"intensity": 0.9, "reps": 12, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Single-Arm Cable Row", "defaultSets": 3, "defaultReps": 15},
+      {"type": "accessory", "name": "Single-Arm Cable Lat Pulldown", "defaultSets": 3, "defaultReps": 15},
+      {"type": "accessory", "name": "Cable Fly", "defaultSets": 3, "defaultReps": 15},
+      {"type": "accessory", "name": "Cable Lateral Raise", "defaultSets": 3, "defaultReps": 20},
+      {
+        "type": "structured",
+        "name": "EZ Bar Curl (Volume)",
+        "lift": "EZ Bar Curl",
+        "sets_detail": [
+          {"intensity": 0.9, "reps": 15, "isAMRAP": false},
+          {"intensity": 0.9, "reps": 15, "isAMRAP": false},
+          {"intensity": 0.9, "reps": 15, "isAMRAP": false},
+          {"intensity": 0.9, "reps": 15, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Cable Triceps Extension", "defaultSets": 3, "defaultReps": 12}
+    ],
+    "5": [
+      {
+        "type": "structured",
+        "name": "Overhead Press (Volume)",
+        "lift": "Overhead Press",
+        "sets_detail": [
+          {"intensity": 0.9, "reps": 10, "isAMRAP": false},
+          {"intensity": 0.9, "reps": 10, "isAMRAP": false},
+          {"intensity": 0.9, "reps": 10, "isAMRAP": false},
+          {"intensity": 0.9, "reps": 10, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Cable Lateral Raise", "defaultSets": 4, "defaultReps": 15},
+      {"type": "accessory", "name": "Leaning Cable Lateral Raise", "defaultSets": 3, "defaultReps": 15},
+      {"type": "accessory", "name": "Rear Delt Cable Fly", "defaultSets": 3, "defaultReps": 20},
+      {
+        "type": "structured",
+        "name": "Weighted Dips (Volume)",
+        "lift": "Weighted Dips",
+        "sets_detail": [
+          {"intensity": 0.9, "reps": 12, "isAMRAP": false},
+          {"intensity": 0.9, "reps": 12, "isAMRAP": false},
+          {"intensity": 0.9, "reps": 12, "isAMRAP": false},
+          {"intensity": 0.9, "reps": 12, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Overhead Cable Triceps Extension", "defaultSets": 3, "defaultReps": 15},
+      {"type": "accessory", "name": "Cable Pressdown", "defaultSets": 3, "defaultReps": 15},
+      {
+        "type": "structured",
+        "name": "EZ Bar Curl (Volume)",
+        "lift": "EZ Bar Curl",
+        "sets_detail": [
+          {"intensity": 0.9, "reps": 15, "isAMRAP": false},
+          {"intensity": 0.9, "reps": 15, "isAMRAP": false},
+          {"intensity": 0.9, "reps": 15, "isAMRAP": false},
+          {"intensity": 0.9, "reps": 15, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Cable Curl", "defaultSets": 3, "defaultReps": 15},
+      {"type": "accessory", "name": "Reverse EZ Curl", "defaultSets": 2, "defaultReps": 15}
+    ]
+  },
+  "lifts": {}
+}

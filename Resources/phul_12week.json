@@ -1,0 +1,125 @@
+{
+  "name": "PHUL",
+  "displayName": "PHUL",
+  "description": "4 days/week. Power Hypertrophy Upper Lower split. Two power days with heavy compound lifts (4×5) and two hypertrophy days with higher rep work (4×10). AMRAP final sets drive auto-progression. Great for building both strength and size.",
+  "rounding": 5,
+  "single_at_8_percent": {
+    "Bench Press": 1.0,
+    "Barbell Row": 1.0,
+    "Squat": 1.0,
+    "Deadlift": 1.0,
+    "Incline Bench Press": 1.0,
+    "Cable Rows": 1.0,
+    "Front Squat": 1.0
+  },
+  "day_titles": {
+    "1": "Upper Power",
+    "2": "Lower Power",
+    "3": "Upper Hypertrophy",
+    "4": "Lower Hypertrophy"
+  },
+  "weeks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+  "days": {
+    "1": [
+      {
+        "type": "structured",
+        "name": "Bench Press",
+        "lift": "Bench Press",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Barbell Row",
+        "lift": "Barbell Row",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Overhead Press", "default_sets": 3, "default_reps": 8},
+      {"type": "accessory", "name": "Lat Pulldowns", "default_sets": 3, "default_reps": 8},
+      {"type": "accessory", "name": "Barbell Curls", "default_sets": 3, "default_reps": 10},
+      {"type": "accessory", "name": "Skullcrushers", "default_sets": 3, "default_reps": 10}
+    ],
+    "2": [
+      {
+        "type": "structured",
+        "name": "Squat",
+        "lift": "Squat",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Deadlift",
+        "lift": "Deadlift",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 5, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Leg Press", "default_sets": 3, "default_reps": 10},
+      {"type": "accessory", "name": "Leg Curls", "default_sets": 3, "default_reps": 10},
+      {"type": "accessory", "name": "Calf Raises", "default_sets": 4, "default_reps": 10}
+    ],
+    "3": [
+      {
+        "type": "structured",
+        "name": "Incline Bench Press",
+        "lift": "Incline Bench Press",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": true}
+        ]
+      },
+      {
+        "type": "structured",
+        "name": "Cable Rows",
+        "lift": "Cable Rows",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Dumbbell Flyes", "default_sets": 3, "default_reps": 12},
+      {"type": "accessory", "name": "Lateral Raises", "default_sets": 3, "default_reps": 12},
+      {"type": "accessory", "name": "Incline Curls", "default_sets": 3, "default_reps": 12},
+      {"type": "accessory", "name": "Tricep Pushdowns", "default_sets": 3, "default_reps": 12}
+    ],
+    "4": [
+      {
+        "type": "structured",
+        "name": "Front Squat",
+        "lift": "Front Squat",
+        "sets_detail": [
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": false},
+          {"intensity": 1.0, "reps": 10, "isAMRAP": true}
+        ]
+      },
+      {"type": "accessory", "name": "Barbell Lunges", "default_sets": 3, "default_reps": 10},
+      {"type": "accessory", "name": "Leg Extensions", "default_sets": 3, "default_reps": 12},
+      {"type": "accessory", "name": "Leg Curls", "default_sets": 3, "default_reps": 12},
+      {"type": "accessory", "name": "Calf Raises", "default_sets": 4, "default_reps": 12}
+    ]
+  },
+  "lifts": {}
+}

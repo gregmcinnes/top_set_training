@@ -4,6 +4,14 @@
   "days_per_week": 3,
   "description": "3 days/week Push/Pull/Legs for 12 weeks. All main lifts are 3x10 with an AMRAP last set. Beat the 10-rep target on the AMRAP and your weight goes up next week. Simple progression for beginners looking to build size and strength.",
   "rounding": 5,
+  "single_at_8_percent": {
+    "Bench Press": 1.0,
+    "Incline Bench Press": 1.0,
+    "Overhead Press": 1.0,
+    "Barbell Row": 1.0,
+    "Squat": 1.0,
+    "Deadlift": 1.0
+  },
   "day_titles": {
     "1": "Push",
     "2": "Pull",

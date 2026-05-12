@@ -68,16 +68,20 @@
 		A71AAD1CA7F83E5A951426ED /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F46C7C52EFEA53288A58CA9F /* StoreManager.swift */; };
 		A7EBDFF2568F3549F81AC05E /* reddit_ppl_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = BF3F8B5D987C02F886932160 /* reddit_ppl_12week.json */; };
 		A8F1C3D4E5B6A7890CDEF123 /* basic_ppl_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = B9E2D4C5F6A7B8901DEFA234 /* basic_ppl_12week.json */; };
+		BF1F8B5D987C02F886932161 /* back_friendly_hypertrophy_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = CFF3D4F50617283A4B5C6D7F /* back_friendly_hypertrophy_12week.json */; };
 		A95A52851940BEDADDE0D298 /* gzclp_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = DDB3E217F9ABA8174F8F2BD3 /* gzclp_12week.json */; };
 		AA4A2C7842B7B932364A473E /* ExerciseLibraryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51AD74D4BDAD2C088FDA03D1 /* ExerciseLibraryTests.swift */; };
 		AF2CB987C394F3E223425F71 /* gzclp_3day_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = 854A78BF3E4A007871189B44 /* gzclp_3day_12week.json */; };
 		AFF5FB7CE0E6443B4128D822 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE40AB3A0A886E906EF6276B /* LiveActivityManager.swift */; };
+		B1C2D3E4F5061728394A5B6C /* phul_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = C2D3E4F50617283A4B5C6D7E /* phul_12week.json */; };
 		BFA800A6D3AE759C6505C270 /* CSVExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8846CF0A9BBAA916E9D62D8 /* CSVExporter.swift */; };
 		CD2A0258E255A3A99FADAE12 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 81A47D6751CFE5F4634BC563 /* Assets.xcassets */; };
 		D1441D450B8CF166437B21C4 /* TemplateListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33B52731ABCCAC30EC52F1FE /* TemplateListView.swift */; };
 		D17CF4314B73D5DAB533C874 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED4971D69459FEF06379959 /* NotificationManager.swift */; };
 		D18CF4325C73D6EBC534C975 /* ReviewRequestManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED4972E79459FFF16379960 /* ReviewRequestManager.swift */; };
+		D1A2B3C4E5F60718293A4B5C /* nsuns_6day_squat_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = E2B3C4D5F6071829A3B4C5D6 /* nsuns_6day_squat_12week.json */; };
 		D20B42024436A54A33228A86 /* CycleBuilderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 373312ECAAD079C56E0EE43F /* CycleBuilderView.swift */; };
+		D2E3F4051627384950A1B2C3 /* 531_fsl_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = E3F40516273849A0B1C2D3E4 /* 531_fsl_12week.json */; };
 		D65A10082CE9B02C09C13578 /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DC9C493373DEDA57D0E2149 /* HealthKitManager.swift */; };
 		D778FDDD650AD4450A6B2F45 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A71077D88D076DC9F77B359 /* HomeView.swift */; };
 		D83D2573F566B233B5491B68 /* RestTimerActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E53C666BFF136063AFC58CC /* RestTimerActivity.swift */; };
@@ -90,6 +94,7 @@
 		E84F8781C4AA008399C33DD1 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D4D5D49D4F3AC3DE5541B46 /* Logger.swift */; };
 		E8508B050F57F8223265AC15 /* FeatureAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BB92ABD28DE86330AC9CEA7 /* FeatureAccess.swift */; };
 		E8DCE40763AD20B3491325C3 /* sbs_program_config.json in Resources */ = {isa = PBXBuildFile; fileRef = E83767D47A7FD3C765C51216 /* sbs_program_config.json */; };
+		F3A4B5C6D7E8091A2B3C4D5E /* nsuns_6day_deadlift_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = A4B5C6D7E809F1A2B3C4D5E6 /* nsuns_6day_deadlift_12week.json */; };
 		F454C4992EE30EFE14B1EC1A /* WorkoutShareCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 646698B507A55F864507FE92 /* WorkoutShareCard.swift */; };
 		F46D703B883F2D79F0480CDD /* ProgramsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2639043DF479B7D4E3272F3B /* ProgramsView.swift */; };
 		F5A53541151C1ECE978E2C70 /* WatchWorkoutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 838AAFCF4CB288F3795E5FF8 /* WatchWorkoutManager.swift */; };
@@ -205,17 +210,20 @@
 		9BEDB65E56215B04BED66354 /* CustomTemplateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomTemplateTests.swift; sourceTree = "<group>"; };
 		9D899E1F8F0B1A007BB8A0EA /* RestTimerLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTimerLiveActivity.swift; sourceTree = "<group>"; };
 		9E53C666BFF136063AFC58CC /* RestTimerActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTimerActivity.swift; sourceTree = "<group>"; };
+		A4B5C6D7E809F1A2B3C4D5E6 /* nsuns_6day_deadlift_12week.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = nsuns_6day_deadlift_12week.json; sourceTree = "<group>"; };
 		A8AB56C3F8708C7C25E43EF9 /* ProgramModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgramModels.swift; sourceTree = "<group>"; };
 		AC26A6FA73A5663D0BDA9A04 /* PRCelebration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PRCelebration.swift; sourceTree = "<group>"; };
 		AF0C7186A63FD6E6318B4821 /* nsuns_5day_12week.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = nsuns_5day_12week.json; sourceTree = "<group>"; };
 		B38802AFFF9DE7C3428AD82C /* ProgramRecommendationQuiz.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgramRecommendationQuiz.swift; sourceTree = "<group>"; };
 		B55EA33C473A5D6F5F89AB96 /* RestTimerWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTimerWidgetBundle.swift; sourceTree = "<group>"; };
+		B9E2D4C5F6A7B8901DEFA234 /* basic_ppl_12week.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = basic_ppl_12week.json; sourceTree = "<group>"; };
+		CFF3D4F50617283A4B5C6D7F /* back_friendly_hypertrophy_12week.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = back_friendly_hypertrophy_12week.json; sourceTree = "<group>"; };
 		BE40AB3A0A886E906EF6276B /* LiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
 		BED4971D69459FEF06379959 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		BED4972E79459FFF16379960 /* ReviewRequestManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewRequestManager.swift; sourceTree = "<group>"; };
-		B9E2D4C5F6A7B8901DEFA234 /* basic_ppl_12week.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = basic_ppl_12week.json; sourceTree = "<group>"; };
 		BF3F8B5D987C02F886932160 /* reddit_ppl_12week.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = reddit_ppl_12week.json; sourceTree = "<group>"; };
 		C24F72D3FE4F8A71B48E169A /* stronglifts_5x5_12week.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = stronglifts_5x5_12week.json; sourceTree = "<group>"; };
+		C2D3E4F50617283A4B5C6D7E /* phul_12week.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = phul_12week.json; sourceTree = "<group>"; };
 		C7FC400A9D0A7572464FE65F /* AccessoryExercisePickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessoryExercisePickerSheet.swift; sourceTree = "<group>"; };
 		C84D332BEE6622A721A02D62 /* WeightAdjustmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightAdjustmentTests.swift; sourceTree = "<group>"; };
 		C8846CF0A9BBAA916E9D62D8 /* CSVExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVExporter.swift; sourceTree = "<group>"; };
@@ -225,6 +233,8 @@
 		D95A29C2E46E3C6237BF2780 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		DC3DD5926701E19CB4B908E3 /* CalculatorsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculatorsView.swift; sourceTree = "<group>"; };
 		DDB3E217F9ABA8174F8F2BD3 /* gzclp_12week.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = gzclp_12week.json; sourceTree = "<group>"; };
+		E2B3C4D5F6071829A3B4C5D6 /* nsuns_6day_squat_12week.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = nsuns_6day_squat_12week.json; sourceTree = "<group>"; };
+		E3F40516273849A0B1C2D3E4 /* 531_fsl_12week.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = 531_fsl_12week.json; sourceTree = "<group>"; };
 		E447E30E086ECB138DCFE49E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		E7F3C994C725013B14E2B28C /* StructuredProgressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StructuredProgressionTests.swift; sourceTree = "<group>"; };
 		E83767D47A7FD3C765C51216 /* sbs_program_config.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = sbs_program_config.json; sourceTree = "<group>"; };
@@ -326,15 +336,20 @@
 			isa = PBXGroup;
 			children = (
 				22CA44A9A4E57D6B74FE2308 /* 531_bbb_12week.json */,
+				E3F40516273849A0B1C2D3E4 /* 531_fsl_12week.json */,
 				2A71441F30620FC37FEFB6ED /* 531_triumvirate_12week.json */,
 				36D0928D8C00902C3CDDD7F9 /* greyskull_lp_12week.json */,
 				854A78BF3E4A007871189B44 /* gzclp_3day_12week.json */,
 				DDB3E217F9ABA8174F8F2BD3 /* gzclp_12week.json */,
 				87CFB04697D24F25F499FACD /* nsuns_4day_12week.json */,
 				AF0C7186A63FD6E6318B4821 /* nsuns_5day_12week.json */,
+				E2B3C4D5F6071829A3B4C5D6 /* nsuns_6day_squat_12week.json */,
+				A4B5C6D7E809F1A2B3C4D5E6 /* nsuns_6day_deadlift_12week.json */,
+				C2D3E4F50617283A4B5C6D7E /* phul_12week.json */,
 				6A7F872F9AEF33D8CCEFA758 /* powerlifting_percentiles.json */,
 				B9E2D4C5F6A7B8901DEFA234 /* basic_ppl_12week.json */,
 				BF3F8B5D987C02F886932160 /* reddit_ppl_12week.json */,
+				CFF3D4F50617283A4B5C6D7F /* back_friendly_hypertrophy_12week.json */,
 				E83767D47A7FD3C765C51216 /* sbs_program_config.json */,
 				60921EA1490EA8A05A1CE2C6 /* starting_strength_12week.json */,
 				C24F72D3FE4F8A71B48E169A /* stronglifts_5x5_12week.json */,
@@ -543,6 +558,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				77954402A6BF1B7BCA4CE696 /* 531_bbb_12week.json in Resources */,
+				D2E3F4051627384950A1B2C3 /* 531_fsl_12week.json in Resources */,
 				024DA8D2D42AB095B29EA255 /* 531_triumvirate_12week.json in Resources */,
 				FE55ECB0F430C7CBE59F2BE1 /* Assets.xcassets in Resources */,
 				1E3EF283F4C9D97FEC70B63F /* greyskull_lp_12week.json in Resources */,
@@ -550,9 +566,13 @@
 				AF2CB987C394F3E223425F71 /* gzclp_3day_12week.json in Resources */,
 				496A053AF877A020E60538FB /* nsuns_4day_12week.json in Resources */,
 				959EC8C9EB1DBF8332994B78 /* nsuns_5day_12week.json in Resources */,
+				D1A2B3C4E5F60718293A4B5C /* nsuns_6day_squat_12week.json in Resources */,
+				F3A4B5C6D7E8091A2B3C4D5E /* nsuns_6day_deadlift_12week.json in Resources */,
+				B1C2D3E4F5061728394A5B6C /* phul_12week.json in Resources */,
 				F841F391F45F55CC8C28F6A6 /* powerlifting_percentiles.json in Resources */,
 				A8F1C3D4E5B6A7890CDEF123 /* basic_ppl_12week.json in Resources */,
 				A7EBDFF2568F3549F81AC05E /* reddit_ppl_12week.json in Resources */,
+				BF1F8B5D987C02F886932161 /* back_friendly_hypertrophy_12week.json in Resources */,
 				E8DCE40763AD20B3491325C3 /* sbs_program_config.json in Resources */,
 				838645D48109C3110090D039 /* starting_strength_12week.json in Resources */,
 				75B4433AA5840C7E8F875BE8 /* stronglifts_5x5_12week.json in Resources */,
@@ -691,13 +711,13 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = SBSWatch/SBSWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = 2K7MV7G4ZJ;
 				INFOPLIST_FILE = SBSWatch/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Top Set Training";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.gregorymcinnes.topsettraining;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.gregorymcinnes.topsettraining.watchkitapp;
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -710,7 +730,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = 2K7MV7G4ZJ;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = RestTimerWidget/Info.plist;
@@ -722,7 +742,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.gregorymcinnes.topsettraining.RestTimerWidget;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -804,7 +824,7 @@
 				CODE_SIGN_ENTITLEMENTS = SBSApp/SBSApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = 2K7MV7G4ZJ;
 				INFOPLIST_FILE = SBSApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Top Set Training";
@@ -814,7 +834,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.gregorymcinnes.topsettraining;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -833,7 +853,7 @@
 				CODE_SIGN_ENTITLEMENTS = SBSApp/SBSApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = 2K7MV7G4ZJ;
 				INFOPLIST_FILE = SBSApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Top Set Training";
@@ -843,7 +863,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.gregorymcinnes.topsettraining;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -916,13 +936,13 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = SBSWatch/SBSWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = 2K7MV7G4ZJ;
 				INFOPLIST_FILE = SBSWatch/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Top Set Training";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.gregorymcinnes.topsettraining;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.gregorymcinnes.topsettraining.watchkitapp;
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -935,7 +955,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = 2K7MV7G4ZJ;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = RestTimerWidget/Info.plist;
@@ -947,7 +967,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.gregorymcinnes.topsettraining.RestTimerWidget;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

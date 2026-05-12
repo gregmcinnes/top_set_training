@@ -12,11 +12,10 @@ public final class LiveActivityManager: ObservableObject {
     private var timerEndTime: Date?
     
     private init() {
-        // TEMPORARILY DISABLED FOR DEBUGGING
         // Clean up any stale activities on init
-        // Task {
-        //     await endAllActivities()
-        // }
+        Task {
+            await endAllActivities()
+        }
     }
     
     /// Check if Live Activities are supported and enabled
@@ -27,17 +26,49 @@ public final class LiveActivityManager: ObservableObject {
     /// End all running Live Activities (cleanup on app launch)
     public func endAllActivities() async {
         Logger.debug("🧹 Cleaning up any stale Live Activities...", category: .liveActivity)
-        
+
         for activity in Activity<RestTimerAttributes>.activities {
-            Logger.debug("   - Ending stale activity: \(activity.id)", category: .liveActivity)
-            await activity.end(nil, dismissalPolicy: .immediate)
+            Logger.debug("   - Ending activity: \(activity.id)", category: .liveActivity)
+            await endActivity(activity)
         }
-        
+
         currentActivity = nil
         timerEndTime = nil
-        
+
         let remaining = Activity<RestTimerAttributes>.activities.count
         Logger.debug("   - Remaining activities: \(remaining)", category: .liveActivity)
+    }
+
+    /// End any activities whose timer has already expired. Safe to call on app
+    /// foreground — won't disturb a still-running timer.
+    public func endExpiredActivities() async {
+        let now = Date()
+        for activity in Activity<RestTimerAttributes>.activities {
+            if activity.content.state.endTime <= now {
+                Logger.debug("🧹 Ending expired Live Activity: \(activity.id)", category: .liveActivity)
+                await endActivity(activity)
+                if currentActivity?.id == activity.id {
+                    currentActivity = nil
+                    timerEndTime = nil
+                }
+            }
+        }
+    }
+
+    /// Ends a single activity with a refreshed final content state. Passing a
+    /// fresh ActivityContent (rather than nil) is important because iOS will
+    /// not reliably dismiss an already-stale activity ended with nil content.
+    private func endActivity(_ activity: Activity<RestTimerAttributes>) async {
+        let finalState = RestTimerAttributes.ContentState(
+            secondsRemaining: 0,
+            isPaused: false,
+            endTime: Date()
+        )
+        let finalContent = ActivityContent(
+            state: finalState,
+            staleDate: Date().addingTimeInterval(60 * 60)
+        )
+        await activity.end(finalContent, dismissalPolicy: .immediate)
     }
     
     /// Start a Live Activity for the rest timer
@@ -60,17 +91,14 @@ public final class LiveActivityManager: ObservableObject {
             return
         }
         
-        // End ALL existing activities first (not just tracked one)
-        Task {
+        // End any existing activities first, then create the new one in
+        // sequence so they can't race.
+        Task { @MainActor in
             await endAllActivities()
-        }
-        
-        // Small delay to ensure cleanup completes
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [self] in
-            self.createNewActivity(exerciseName: exerciseName, duration: duration, nextSetInfo: nextSetInfo)
+            createNewActivity(exerciseName: exerciseName, duration: duration, nextSetInfo: nextSetInfo)
         }
     }
-    
+
     private func createNewActivity(exerciseName: String, duration: Int, nextSetInfo: String) {
         let endTime = Date().addingTimeInterval(TimeInterval(duration))
         timerEndTime = endTime
@@ -87,9 +115,14 @@ public final class LiveActivityManager: ObservableObject {
             endTime: endTime
         )
         
+        // No near-term staleDate: a short staleDate causes iOS to overlay the
+        // "stale" sparkle indicator over the icons/text once the timer hits 0,
+        // which looks broken on the lock screen / Dynamic Island. The activity
+        // is dismissed explicitly by endTimer(); if the timer expires while the
+        // app is backgrounded, scenePhase-active cleanup ends it on reopen.
         let content = ActivityContent(
             state: contentState,
-            staleDate: endTime.addingTimeInterval(10) // Stale 10s after timer ends
+            staleDate: nil
         )
         
         do {
@@ -128,7 +161,7 @@ public final class LiveActivityManager: ObservableObject {
         
         let content = ActivityContent(
             state: contentState,
-            staleDate: isPaused ? nil : endTime.addingTimeInterval(10)
+            staleDate: nil
         )
         
         Task {
@@ -138,18 +171,17 @@ public final class LiveActivityManager: ObservableObject {
     
     /// End the Live Activity
     public func endTimer() async {
-        // End the tracked activity
         if let activity = currentActivity {
             Logger.debug("🛑 Ending tracked Live Activity: \(activity.id)", category: .liveActivity)
-            await activity.end(nil, dismissalPolicy: .immediate)
+            await endActivity(activity)
         }
-        
+
         // Also end any other activities that might be lingering
         for activity in Activity<RestTimerAttributes>.activities {
             Logger.debug("🛑 Ending lingering activity: \(activity.id)", category: .liveActivity)
-            await activity.end(nil, dismissalPolicy: .immediate)
+            await endActivity(activity)
         }
-        
+
         currentActivity = nil
         timerEndTime = nil
         Logger.info("✅ All Live Activities ended", category: .liveActivity)

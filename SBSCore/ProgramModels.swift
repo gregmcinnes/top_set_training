@@ -145,12 +145,16 @@ public struct AccessoryLog: Codable, Equatable {
     public var sets: Int
     public var reps: Int
     public var note: String
-    
-    public init(weight: Double, sets: Int = 4, reps: Int = 10, note: String = "") {
+    /// Optional self-rating: true = the lifter marked the last session as easy
+    /// (we surface a "try heavier" hint next time). nil = no rating.
+    public var wasEasy: Bool?
+
+    public init(weight: Double, sets: Int = 4, reps: Int = 10, note: String = "", wasEasy: Bool? = nil) {
         self.weight = weight
         self.sets = sets
         self.reps = reps
         self.note = note
+        self.wasEasy = wasEasy
     }
 }
 

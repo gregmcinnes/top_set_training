@@ -565,6 +565,16 @@ struct AccessoryCard: View {
                                 .font(SBSFonts.caption())
                         }
                         .foregroundStyle(SBSColors.textTertiaryFallback)
+
+                        if log.wasEasy == true {
+                            HStack(spacing: 4) {
+                                Image(systemName: "hand.thumbsup.fill")
+                                    .font(.system(size: 11))
+                                Text("Last was easy — try heavier")
+                                    .font(SBSFonts.caption())
+                            }
+                            .foregroundStyle(SBSColors.success)
+                        }
                     } else {
                         Text("No weight logged")
                             .font(SBSFonts.caption())

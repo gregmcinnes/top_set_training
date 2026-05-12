@@ -16,7 +16,8 @@ struct WatchWorkoutStateData {
     var restTimerDuration: Int = 0
     var useMetric: Bool = false
     var nextSetInfo: String?
-    var isRepOutSet: Bool = false
+    var isRepOutSet: Bool = false  // Volume program rep-out set
+    var isAMRAPSet: Bool = false   // Any AMRAP set (volume or structured)
     
     init(
         exerciseName: String = "",
@@ -29,7 +30,8 @@ struct WatchWorkoutStateData {
         restTimerDuration: Int = 0,
         useMetric: Bool = false,
         nextSetInfo: String? = nil,
-        isRepOutSet: Bool = false
+        isRepOutSet: Bool = false,
+        isAMRAPSet: Bool = false
     ) {
         self.exerciseName = exerciseName
         self.currentSet = currentSet
@@ -42,6 +44,7 @@ struct WatchWorkoutStateData {
         self.useMetric = useMetric
         self.nextSetInfo = nextSetInfo
         self.isRepOutSet = isRepOutSet
+        self.isAMRAPSet = isAMRAPSet
     }
     
     /// Formatted weight string
@@ -140,6 +143,34 @@ class WatchSessionManager: NSObject, ObservableObject {
         }
     }
     
+    /// Send set completed action to iPhone
+    /// This triggers set completion on the iPhone, which then syncs updated state back
+    /// - Parameter reps: Optional rep count for AMRAP sets. If nil, uses target reps.
+    func sendSetCompleted(reps: Int?) {
+        guard let session = session,
+              session.activationState == .activated,
+              session.isReachable else {
+            // Haptic feedback to indicate the action couldn't be sent
+            WKInterfaceDevice.current().play(.failure)
+            return
+        }
+        
+        var message: [String: Any] = ["type": "setCompleted"]
+        if let reps = reps {
+            message["reps"] = reps
+        }
+        
+        session.sendMessage(message, replyHandler: nil) { error in
+            Task { @MainActor in
+                // Play failure haptic if message couldn't be sent
+                WKInterfaceDevice.current().play(.failure)
+            }
+        }
+        
+        // Play success haptic immediately (optimistic feedback)
+        WKInterfaceDevice.current().play(.click)
+    }
+    
     private func startWorkoutFromPhone() {
         isWorkoutActive = true
         Task {
@@ -185,7 +216,8 @@ class WatchSessionManager: NSObject, ObservableObject {
             restTimerDuration: dict["restTimerDuration"] as? Int ?? 0,
             useMetric: dict["useMetric"] as? Bool ?? false,
             nextSetInfo: dict["nextSetInfo"] as? String,
-            isRepOutSet: dict["isRepOutSet"] as? Bool ?? false
+            isRepOutSet: dict["isRepOutSet"] as? Bool ?? false,
+            isAMRAPSet: dict["isAMRAPSet"] as? Bool ?? false
         )
     }
     

@@ -16,20 +16,22 @@ struct WorkoutExercise: Identifiable {
     let id = UUID()
     let name: String
     let lift: String?
-    let weight: Double
+    var weight: Double
     let totalSets: Int
     let repsPerSet: Int
     let repOutTarget: Int
     let isRepOutSet: (Int) -> Bool  // Given set number (1-indexed), is it a rep-out?
     let isAccessory: Bool  // True if this is an accessory exercise
     let isStructured: Bool  // True if this is a structured exercise
-    let structuredSetInfo: [StructuredSetInfo]?  // Set details for structured exercises
+    var structuredSetInfo: [StructuredSetInfo]?  // Set details for structured exercises (mutable so weight overrides can scale per-set weights)
     let isLinear: Bool  // True if this is a linear progression exercise
     let linearInfo: LinearExerciseInfo?  // Linear progression info
     let intensity: Double?  // Percentage of training max (0.0-1.0)
+    let calculatedWeight: Double?  // Original calculated weight (before any override)
+    var lastWasEasy: Bool? = nil  // For accessories: did the user mark the previous session as easy?
     
     /// For volume exercises, the last set is the rep-out
-    static func fromVolumeItem(name: String, lift: String, weight: Double, sets: Int, repsPerSet: Int, repOutTarget: Int, intensity: Double) -> WorkoutExercise {
+    static func fromVolumeItem(name: String, lift: String, weight: Double, sets: Int, repsPerSet: Int, repOutTarget: Int, intensity: Double, calculatedWeight: Double? = nil) -> WorkoutExercise {
         WorkoutExercise(
             name: name,
             lift: lift,
@@ -43,13 +45,14 @@ struct WorkoutExercise: Identifiable {
             structuredSetInfo: nil,
             isLinear: false,
             linearInfo: nil,
-            intensity: intensity
+            intensity: intensity,
+            calculatedWeight: calculatedWeight ?? weight
         )
     }
     
     /// For accessory exercises (no rep-out)
-    static func fromAccessory(name: String, sets: Int, reps: Int, lastLogWeight: Double?) -> WorkoutExercise {
-        WorkoutExercise(
+    static func fromAccessory(name: String, sets: Int, reps: Int, lastLogWeight: Double?, lastWasEasy: Bool? = nil) -> WorkoutExercise {
+        var ex = WorkoutExercise(
             name: name,
             lift: nil,
             weight: lastLogWeight ?? 0,
@@ -62,8 +65,11 @@ struct WorkoutExercise: Identifiable {
             structuredSetInfo: nil,
             isLinear: false,
             linearInfo: nil,
-            intensity: nil
+            intensity: nil,
+            calculatedWeight: nil
         )
+        ex.lastWasEasy = lastWasEasy
+        return ex
     }
     
     /// For nSuns exercises with varying sets
@@ -91,7 +97,8 @@ struct WorkoutExercise: Identifiable {
             structuredSetInfo: sets,
             isLinear: false,
             linearInfo: nil,
-            intensity: nil  // Structured exercises have per-set intensity
+            intensity: nil,  // Structured exercises have per-set intensity
+            calculatedWeight: heaviestWeight
         )
     }
     
@@ -110,7 +117,8 @@ struct WorkoutExercise: Identifiable {
             structuredSetInfo: nil,
             isLinear: true,
             linearInfo: info,
-            intensity: 1.0  // Linear progression is always at 100% working weight
+            intensity: 1.0,  // Linear progression is always at 100% working weight
+            calculatedWeight: info.weight
         )
     }
 }
@@ -122,6 +130,7 @@ struct SupersetAccessoryData {
     let sets: Int
     let reps: Int
     let weight: Double?  // from lastLog if available
+    var lastWasEasy: Bool? = nil
 }
 
 // MARK: - Workout PR Record
@@ -344,6 +353,30 @@ final class WorkoutState {
         timerEndDate = nil
         timerPausedRemaining = nil
     }
+
+    /// Adjust the running rest timer by `delta` seconds, continuing from the elapsed time.
+    /// Example: 60s timer with 12s elapsed (48s remaining) + 15s → 75s timer with 63s remaining.
+    /// Returns the new effective `timerDuration` (clamped to `minimumDuration`).
+    @discardableResult
+    func adjustTimer(by delta: Int, minimumDuration: Int = 15) -> Int {
+        let newDuration = max(minimumDuration, timerDuration + delta)
+        let appliedDelta = newDuration - timerDuration
+        timerDuration = newDuration
+
+        if timerIsRunning, let endDate = timerEndDate {
+            let shifted = endDate.addingTimeInterval(TimeInterval(appliedDelta))
+            timerEndDate = shifted
+            timerRemaining = max(0, Int(ceil(shifted.timeIntervalSinceNow)))
+        } else if timerIsPaused, let paused = timerPausedRemaining {
+            let newRemaining = max(0, paused + appliedDelta)
+            timerPausedRemaining = newRemaining
+            timerRemaining = newRemaining
+        } else {
+            // Timer hasn't started yet — only the planned duration changes.
+            timerRemaining = max(0, timerRemaining + appliedDelta)
+        }
+        return newDuration
+    }
     
     func timerTick() {
         if timerIsRunning, let endDate = timerEndDate {
@@ -389,6 +422,8 @@ struct WorkoutView: View {
     @State private var showingPaywall = false  // For premium features
     @State private var showingShareSheet = false  // For workout summary share
     @State private var showingAccessoryWeightSheet = false  // For editing superset accessory weight
+    @State private var showingStandaloneAccessoryWeight = false  // For editing the current standalone accessory's weight
+    @State private var showingWeightOverride = false  // For overriding exercise weight mid-workout
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var watchConnectivity = WatchConnectivityManager.shared
     
@@ -443,6 +478,9 @@ struct WorkoutView: View {
                                     nextSetInfo: "Set \(workoutState.currentSetNumber) of \(exercise.totalSets)"
                                 )
                             }
+                        },
+                        onAdjust: { delta in
+                            handleTimerAdjust(by: delta)
                         }
                     )
                 } else {
@@ -453,7 +491,15 @@ struct WorkoutView: View {
                         barWeight: appState.settings.barWeight,
                         showPlateCalculator: appState.shouldShowPlateCalculator,
                         onComplete: handleSetComplete,
-                        onUnlockTap: { showingPaywall = true }
+                        onUnlockTap: { showingPaywall = true },
+                        onWeightTap: {
+                            guard let exercise = workoutState.currentExercise else { return }
+                            if exercise.isAccessory {
+                                showingStandaloneAccessoryWeight = true
+                            } else {
+                                showingWeightOverride = true
+                            }
+                        }
                     )
                 }
             }
@@ -679,6 +725,50 @@ struct WorkoutView: View {
                 .presentationDragIndicator(.visible)
             }
         }
+        .sheet(isPresented: $showingStandaloneAccessoryWeight) {
+            if let exercise = workoutState.currentExercise, exercise.isAccessory {
+                AccessoryWeightSheet(
+                    accessoryName: exercise.name,
+                    currentWeight: exercise.weight > 0 ? exercise.weight : nil,
+                    defaultSets: exercise.totalSets,
+                    defaultReps: exercise.repsPerSet,
+                    useMetric: appState.settings.useMetric,
+                    roundingIncrement: appState.settings.roundingIncrement,
+                    onSave: { weight, sets, reps in
+                        updateStandaloneAccessoryWeight(weight: weight, sets: sets, reps: reps)
+                        showingStandaloneAccessoryWeight = false
+                    },
+                    onCancel: { showingStandaloneAccessoryWeight = false }
+                )
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+            }
+        }
+        .sheet(isPresented: $showingWeightOverride) {
+            if let exercise = workoutState.currentExercise, let lift = exercise.lift {
+                let currentOverride = appState.getWeightOverride(lift: lift, week: week, day: day)
+                let baseWeight = exercise.calculatedWeight ?? exercise.weight
+                WeightOverrideSheet(
+                    liftName: exercise.name,
+                    calculatedWeight: baseWeight,
+                    currentOverride: currentOverride,
+                    prescribedReps: prescribedRepsDescription(for: exercise),
+                    useMetric: appState.settings.useMetric,
+                    roundingIncrement: appState.settings.roundingIncrement,
+                    onSave: { newWeight in
+                        applyWeightOverride(newWeight: newWeight, lift: lift)
+                        showingWeightOverride = false
+                    },
+                    onClear: {
+                        clearWeightOverride(lift: lift)
+                        showingWeightOverride = false
+                    },
+                    onCancel: { showingWeightOverride = false }
+                )
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
+        }
         .onAppear {
             setupWorkout()
             resumeTimerLoopIfNeeded()
@@ -731,7 +821,7 @@ struct WorkoutView: View {
         
         for item in plan {
             switch item {
-            case let .volume(name, lift, weight, intensity, sets, repsPerSet, repOutTarget, _, _, _, _):
+            case let .volume(name, lift, weight, intensity, sets, repsPerSet, repOutTarget, _, _, _, calcWeight):
                 exercises.append(
                     WorkoutExercise.fromVolumeItem(
                         name: name,
@@ -740,7 +830,8 @@ struct WorkoutView: View {
                         sets: sets,
                         repsPerSet: repsPerSet,
                         repOutTarget: repOutTarget,
-                        intensity: intensity
+                        intensity: intensity,
+                        calculatedWeight: calcWeight
                     )
                 )
             case let .structured(name, lift, _, setInfos, _):
@@ -763,7 +854,8 @@ struct WorkoutView: View {
                     name: name,
                     sets: sets,
                     reps: reps,
-                    weight: lastLog?.weight
+                    weight: lastLog?.weight,
+                    lastWasEasy: lastLog?.wasEasy
                 ))
                 // Also create workout exercise for standalone accessory mode
                 accessoryExercises.append(
@@ -771,7 +863,8 @@ struct WorkoutView: View {
                         name: name,
                         sets: sets,
                         reps: reps,
-                        lastLogWeight: lastLog?.weight
+                        lastLogWeight: lastLog?.weight,
+                        lastWasEasy: lastLog?.wasEasy
                     )
                 )
             default:
@@ -829,6 +922,11 @@ struct WorkoutView: View {
         WatchConnectivityManager.shared.sendWorkoutStarted()
         Logger.debug("✅ Sent workoutStarted to Watch", category: .general)
         
+        // Set up callback for set completion from Watch
+        WatchConnectivityManager.shared.onSetCompletedFromWatch = { reps in
+            handleSetCompleteFromWatch(reps: reps)
+        }
+        
         // Send initial workout state after a brief delay (to allow workout to start on Watch)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             self.syncWorkoutStateToWatch()
@@ -837,7 +935,58 @@ struct WorkoutView: View {
     
     /// Notify Watch to end workout session
     private func syncWorkoutEndedToWatch() {
+        WatchConnectivityManager.shared.onSetCompletedFromWatch = nil
         WatchConnectivityManager.shared.sendWorkoutEnded()
+    }
+    
+    /// Handle set completion triggered from Watch
+    /// - Parameter reps: Rep count from Watch for AMRAP sets, nil for normal sets
+    private func handleSetCompleteFromWatch(reps: Int?) {
+        guard let exercise = workoutState.currentExercise else { return }
+        
+        // Guard: Don't complete if current set is already completed
+        if workoutState.isSetCompleted(workoutState.currentSetNumber) {
+            Logger.debug("Set \(workoutState.currentSetNumber) already completed, ignoring Watch request", category: .general)
+            return
+        }
+        
+        Logger.debug("⌚️ Completing set from Watch: \(exercise.name) set \(workoutState.currentSetNumber) (reps: \(reps?.description ?? "nil"))", category: .general)
+        
+        // Check if current set is a structured AMRAP (nSuns, etc.)
+        let structuredSetInfo: StructuredSetInfo? = {
+            guard exercise.isStructured,
+                  let sets = exercise.structuredSetInfo,
+                  workoutState.currentSetNumber > 0 && workoutState.currentSetNumber <= sets.count else {
+                return nil
+            }
+            return sets[workoutState.currentSetNumber - 1]
+        }()
+        let isStructuredAMRAP = structuredSetInfo?.isAMRAP ?? false
+        
+        // For AMRAP/rep-out sets, log the reps from Watch (or target reps as fallback)
+        if workoutState.isCurrentSetRepOut {
+            // Volume program rep-out set
+            let repsToLog = reps ?? exercise.repOutTarget
+            if let result = appState.logReps(lift: exercise.lift ?? exercise.name, week: week, day: day, reps: repsToLog) {
+                workoutState.repOutLogs[exercise.lift ?? exercise.name] = repsToLog
+                workoutState.amrapResults[exercise.lift ?? exercise.name] = (result.weight, result.reps, result.newE1RM)
+            }
+            Logger.debug("⌚️ Logged AMRAP reps: \(repsToLog)", category: .general)
+        } else if isStructuredAMRAP {
+            // Structured program AMRAP set (nSuns, etc.)
+            if let reps = reps,
+               let setInfo = structuredSetInfo,
+               let lift = exercise.lift {
+                appState.logStructuredReps(lift: lift, week: week, day: day, setIndex: setInfo.setIndex, reps: reps)
+                Logger.debug("⌚️ Logged structured AMRAP reps: \(reps) for set \(setInfo.setIndex)", category: .general)
+            }
+        }
+        
+        // Complete the set and start rest timer
+        completeSetAndStartTimer()
+        
+        // Sync updated state back to Watch
+        syncWorkoutStateToWatch()
     }
     
     /// Send current workout state to Watch
@@ -865,6 +1014,17 @@ struct WorkoutView: View {
             nextSetInfo = "Next: Set \(workoutState.currentSetNumber) of \(exercise.totalSets)"
         }
         
+        // Determine if current set is any type of AMRAP (volume or structured)
+        let isStructuredAMRAP: Bool = {
+            guard exercise.isStructured,
+                  let sets = exercise.structuredSetInfo,
+                  workoutState.currentSetNumber > 0 && workoutState.currentSetNumber <= sets.count else {
+                return false
+            }
+            return sets[workoutState.currentSetNumber - 1].isAMRAP
+        }()
+        let isAnyAMRAP = workoutState.isCurrentSetRepOut || isStructuredAMRAP
+        
         let state = WatchWorkoutState(
             exerciseName: exercise.name,
             currentSet: workoutState.currentSetNumber,
@@ -876,7 +1036,8 @@ struct WorkoutView: View {
             restTimerDuration: workoutState.timerDuration,
             useMetric: appState.settings.useMetric,
             nextSetInfo: nextSetInfo,
-            isRepOutSet: workoutState.isCurrentSetRepOut
+            isRepOutSet: workoutState.isCurrentSetRepOut,
+            isAMRAPSet: isAnyAMRAP
         )
         
         WatchConnectivityManager.shared.sendWorkoutState(state)
@@ -1077,13 +1238,44 @@ struct WorkoutView: View {
     
     private func completeSetAndStartTimer() {
         workoutState.markSetComplete()
-        
+
         // Don't start timer if workout is complete
         guard !workoutState.isWorkoutComplete else { return }
-        
+
         // Start rest timer
         workoutState.startTimer(duration: appState.settings.restTimerDuration)
         startTimerLoop()
+    }
+
+    /// Bump the running rest timer by `delta` seconds and persist as the new default duration.
+    private func handleTimerAdjust(by delta: Int) {
+        let newDuration = workoutState.adjustTimer(by: delta)
+        appState.settings.restTimerDuration = newDuration
+
+        // Mirror the new remaining to dependent sinks.
+        if storeManager.canAccess(.liveActivity) {
+            LiveActivityManager.shared.updateTimer(
+                secondsRemaining: workoutState.timerRemaining,
+                isPaused: workoutState.timerIsPaused
+            )
+        }
+        if appState.settings.pushNotificationsEnabled,
+           workoutState.timerIsRunning,
+           let exercise = workoutState.currentExercise {
+            NotificationManager.shared.cancelRestTimerNotification()
+            NotificationManager.shared.scheduleRestTimerNotification(
+                duration: workoutState.timerRemaining,
+                exerciseName: exercise.name,
+                nextSetInfo: "Set \(workoutState.currentSetNumber) of \(exercise.totalSets)"
+            )
+        }
+
+        // If we shrunk past zero, end the timer immediately.
+        if workoutState.timerRemaining <= 0 && workoutState.showingTimer {
+            handleTimerEnd()
+        }
+
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
     
     private func startTimerLoop() {
@@ -1276,7 +1468,7 @@ struct WorkoutView: View {
     /// Update accessory weight from the sheet
     private func updateAccessoryWeight(weight: Double, sets: Int, reps: Int) {
         guard let accessory = workoutState.currentSupersetAccessory else { return }
-        
+
         // Update the accessory in the workout state (for current session display)
         let updatedAccessory = SupersetAccessoryData(
             name: accessory.name,
@@ -1285,11 +1477,106 @@ struct WorkoutView: View {
             weight: weight
         )
         workoutState.supersetAccessories[workoutState.currentExerciseIndex] = updatedAccessory
-        
+
         // Persist to appState so it shows in future workouts
         appState.logAccessory(name: accessory.name, weight: weight, sets: sets, reps: reps)
     }
+
+    /// Update the weight of the current standalone accessory exercise (not a superset).
+    private func updateStandaloneAccessoryWeight(weight: Double, sets: Int, reps: Int) {
+        let idx = workoutState.currentExerciseIndex
+        guard idx < workoutState.exercises.count else { return }
+        var exercise = workoutState.exercises[idx]
+        guard exercise.isAccessory else { return }
+        exercise.weight = weight
+        workoutState.exercises[idx] = exercise
+
+        // Persist as the new last-log so it pre-fills next time.
+        appState.logAccessory(name: exercise.name, weight: weight, sets: sets, reps: reps)
+    }
     
+    /// Build a human-readable prescribed-reps line for the weight override sheet
+    /// (e.g. "5 × 5+", "3 × 5", "3+ AMRAP at 95% TM").
+    private func prescribedRepsDescription(for exercise: WorkoutExercise) -> String? {
+        if exercise.isStructured, let sets = exercise.structuredSetInfo {
+            // Show the topmost AMRAP set for context (the "primary" set in nSuns)
+            let amrapSets = sets.filter { $0.isAMRAP }
+            if let primary = amrapSets.first(where: { $0.targetReps == 1 }) ?? amrapSets.first {
+                return "\(sets.count) sets · \(primary.targetReps)+ AMRAP @ \(Int(primary.intensity * 100))% TM"
+            }
+            return "\(sets.count) sets"
+        }
+        if exercise.isLinear {
+            return "\(exercise.totalSets) × \(exercise.repsPerSet)"
+        }
+        if exercise.isAccessory {
+            return "\(exercise.totalSets) × \(exercise.repsPerSet)"
+        }
+        // Volume (5/3/1 style): last set is rep-out
+        let normalSets = max(0, exercise.totalSets - 1)
+        if normalSets > 0 {
+            return "\(normalSets) × \(exercise.repsPerSet), then \(exercise.repOutTarget)+ AMRAP"
+        }
+        return "\(exercise.repOutTarget)+ AMRAP"
+    }
+
+    /// Apply a weight override to the current exercise and persist it
+    private func applyWeightOverride(newWeight: Double, lift: String) {
+        // Persist the override
+        appState.setWeightOverride(lift: lift, week: week, day: day, weight: newWeight)
+        // Update the live workout state so the display changes immediately
+        let idx = workoutState.currentExerciseIndex
+        guard idx < workoutState.exercises.count else { return }
+        var exercise = workoutState.exercises[idx]
+        let oldWeight = exercise.weight
+        exercise.weight = newWeight
+
+        // For structured exercises, the per-set weight is rendered from structuredSetInfo
+        // (not from exercise.weight), so scale every set proportionally.
+        if exercise.isStructured, let sets = exercise.structuredSetInfo, oldWeight > 0 {
+            let ratio = newWeight / oldWeight
+            exercise.structuredSetInfo = sets.map { set in
+                StructuredSetInfo(
+                    setIndex: set.setIndex,
+                    intensity: set.intensity,
+                    targetReps: set.targetReps,
+                    isAMRAP: set.isAMRAP,
+                    weight: (set.weight * ratio * 100).rounded() / 100,
+                    loggedReps: set.loggedReps
+                )
+            }
+        }
+        workoutState.exercises[idx] = exercise
+    }
+
+    /// Clear a weight override and revert to the calculated weight
+    private func clearWeightOverride(lift: String) {
+        appState.clearWeightOverride(lift: lift, week: week, day: day)
+        let idx = workoutState.currentExerciseIndex
+        guard idx < workoutState.exercises.count else { return }
+        var exercise = workoutState.exercises[idx]
+
+        if exercise.isStructured {
+            // Re-fetch the original per-set weights from the day plan now that the
+            // override is cleared. dayPlan ignores override for structured today, so
+            // this returns the originally calculated TM-based weights.
+            if let plan = appState.dayPlan(week: week, day: day) {
+                for item in plan {
+                    if case let .structured(_, planLift, _, setInfos, _) = item, planLift == lift {
+                        exercise.structuredSetInfo = setInfos
+                        if let heaviest = setInfos.max(by: { $0.weight < $1.weight }) {
+                            exercise.weight = heaviest.weight
+                        }
+                        break
+                    }
+                }
+            }
+        } else if let calcWeight = exercise.calculatedWeight {
+            exercise.weight = calcWeight
+        }
+        workoutState.exercises[idx] = exercise
+    }
+
     /// Build workout summary for sharing
     private func buildWorkoutSummary() -> WorkoutSummary {
         let exercises: [WorkoutSummary.ExerciseSummary] = workoutState.exercises.map { exercise in
@@ -1447,6 +1734,7 @@ struct CurrentSetView: View {
     var showPlateCalculator: Bool = true
     let onComplete: () -> Void
     var onUnlockTap: (() -> Void)?
+    var onWeightTap: (() -> Void)?
     
     /// Get the current set info for nSuns exercises
     private var currentStructuredSet: StructuredSetInfo? {
@@ -1531,7 +1819,7 @@ struct CurrentSetView: View {
                             Image(systemName: "dumbbell.fill")
                                 .font(.system(size: 16))
                                 .foregroundStyle(SBSColors.accentSecondaryFallback)
-                            
+
                             Text("ACCESSORY")
                                 .font(SBSFonts.captionBold())
                                 .foregroundStyle(SBSColors.accentSecondaryFallback)
@@ -1542,21 +1830,47 @@ struct CurrentSetView: View {
                             Capsule()
                                 .fill(SBSColors.accentSecondaryFallback.opacity(0.15))
                         )
-                        
-                        // Weight (show even if 0 for bodyweight exercises)
-                        Text(exercise.weight.formattedWeight(useMetric: useMetric))
-                            .font(.system(size: 48, weight: .bold, design: .rounded))
-                            .foregroundStyle(SBSColors.accentSecondaryFallback)
-                        
+
+                        // Weight (tappable to edit; shown even if 0 for bodyweight)
+                        Button {
+                            onWeightTap?()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text(exercise.weight.formattedWeight(useMetric: useMetric))
+                                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                                    .foregroundStyle(SBSColors.accentSecondaryFallback)
+
+                                Image(systemName: "pencil.circle")
+                                    .font(.system(size: 18))
+                                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                            }
+                        }
+
                         // Reps
                         HStack(spacing: SBSLayout.paddingSmall) {
                             Text("\(exercise.repsPerSet)")
                                 .font(.system(size: 36, weight: .bold, design: .rounded))
                                 .foregroundStyle(SBSColors.textPrimaryFallback)
-                            
+
                             Text("reps")
                                 .font(SBSFonts.title2())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
+                        }
+
+                        if exercise.lastWasEasy == true {
+                            HStack(spacing: 4) {
+                                Image(systemName: "hand.thumbsup.fill")
+                                    .font(.system(size: 12))
+                                Text("Last was easy — try heavier")
+                                    .font(SBSFonts.caption())
+                            }
+                            .foregroundStyle(SBSColors.success)
+                            .padding(.horizontal, SBSLayout.paddingMedium)
+                            .padding(.vertical, SBSLayout.paddingSmall)
+                            .background(
+                                Capsule()
+                                    .fill(SBSColors.success.opacity(0.15))
+                            )
                         }
                     }
                 } else if exercise.isStructured {
@@ -1575,10 +1889,20 @@ struct CurrentSetView: View {
                                 )
                         }
                         
-                        // Weight for THIS set
-                        Text(currentWeight.formattedWeight(useMetric: useMetric))
-                            .font(.system(size: 56, weight: .bold, design: .rounded))
-                            .foregroundStyle(isCurrentAMRAP ? SBSColors.warning : SBSColors.accentFallback)
+                        // Weight for THIS set (tappable to override)
+                        Button {
+                            onWeightTap?()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text(currentWeight.formattedWeight(useMetric: useMetric))
+                                    .font(.system(size: 56, weight: .bold, design: .rounded))
+                                    .foregroundStyle(isCurrentAMRAP ? SBSColors.warning : SBSColors.accentFallback)
+
+                                Image(systemName: "pencil.circle")
+                                    .font(.system(size: 18))
+                                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                            }
+                        }
                         
                         // Plate Calculator
                         if showPlateCalculator && currentWeight >= barWeight {
@@ -1641,11 +1965,21 @@ struct CurrentSetView: View {
                                         .fill(SBSColors.accentFallback.opacity(0.15))
                                 )
                         }
-                        
-                        // Weight
-                        Text(exercise.weight.formattedWeight(useMetric: useMetric))
-                            .font(.system(size: 56, weight: .bold, design: .rounded))
-                            .foregroundStyle(SBSColors.accentFallback)
+
+                        // Weight (tappable to override)
+                        Button {
+                            onWeightTap?()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text(exercise.weight.formattedWeight(useMetric: useMetric))
+                                    .font(.system(size: 56, weight: .bold, design: .rounded))
+                                    .foregroundStyle(SBSColors.accentFallback)
+
+                                Image(systemName: "pencil.circle")
+                                    .font(.system(size: 18))
+                                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                            }
+                        }
                         
                         // Plate Calculator - visual barbell
                         if showPlateCalculator && exercise.weight >= barWeight {
@@ -1704,11 +2038,21 @@ struct CurrentSetView: View {
                                         .fill(SBSColors.accentFallback.opacity(0.15))
                                 )
                         }
-                        
-                        // Weight
-                        Text(exercise.weight.formattedWeight(useMetric: useMetric))
-                            .font(.system(size: 56, weight: .bold, design: .rounded))
-                            .foregroundStyle(SBSColors.accentFallback)
+
+                        // Weight (tappable to override)
+                        Button {
+                            onWeightTap?()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text(exercise.weight.formattedWeight(useMetric: useMetric))
+                                    .font(.system(size: 56, weight: .bold, design: .rounded))
+                                    .foregroundStyle(SBSColors.accentFallback)
+
+                                Image(systemName: "pencil.circle")
+                                    .font(.system(size: 18))
+                                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                            }
+                        }
                         
                         // Plate Calculator - visual barbell
                         if showPlateCalculator && exercise.weight >= barWeight {
@@ -1968,6 +2312,7 @@ struct TimerView: View {
     var onAccessoryWeightTap: (() -> Void)?
     var onPause: (() -> Void)?
     var onResume: (() -> Void)?
+    var onAdjust: ((Int) -> Void)?
     
     private var hasSuperset: Bool {
         showSuperset && workoutState.currentSupersetAccessory != nil
@@ -2023,9 +2368,23 @@ struct TimerView: View {
             }
             
             // Timer controls - smaller when superset is showing
-            HStack(spacing: hasSuperset ? SBSLayout.paddingLarge : SBSLayout.paddingXLarge) {
+            HStack(spacing: hasSuperset ? SBSLayout.paddingMedium : SBSLayout.paddingLarge) {
                 let buttonSize: CGFloat = hasSuperset ? 48 : 56
-                
+                let adjustSize: CGFloat = hasSuperset ? 44 : 50
+
+                // -15s
+                Button {
+                    onAdjust?(-15)
+                } label: {
+                    Text("−15s")
+                        .font(.system(size: hasSuperset ? 13 : 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .frame(width: adjustSize, height: adjustSize)
+                        .background(
+                            Circle().fill(SBSColors.surfaceFallback)
+                        )
+                }
+
                 // Pause/Resume
                 Button {
                     if workoutState.timerIsPaused {
@@ -2052,7 +2411,7 @@ struct TimerView: View {
                                 .fill(SBSColors.surfaceFallback)
                         )
                 }
-                
+
                 // Skip
                 Button {
                     onTimerEnd()
@@ -2064,6 +2423,19 @@ struct TimerView: View {
                         .background(
                             Circle()
                                 .fill(workoutState.isCurrentExerciseAccessory ? SBSColors.accentSecondaryFallback : SBSColors.accentFallback)
+                        )
+                }
+
+                // +15s
+                Button {
+                    onAdjust?(15)
+                } label: {
+                    Text("+15s")
+                        .font(.system(size: hasSuperset ? 13 : 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .frame(width: adjustSize, height: adjustSize)
+                        .background(
+                            Circle().fill(SBSColors.surfaceFallback)
                         )
                 }
             }
@@ -2249,6 +2621,16 @@ struct SupersetAccessoryCard: View {
                     Text("\(accessory.sets) × \(accessory.reps) reps")
                         .font(compact ? SBSFonts.caption() : SBSFonts.body())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
+
+                    if accessory.lastWasEasy == true {
+                        HStack(spacing: 3) {
+                            Image(systemName: "hand.thumbsup.fill")
+                                .font(.system(size: compact ? 9 : 10))
+                            Text("Last was easy — push it")
+                                .font(SBSFonts.caption())
+                        }
+                        .foregroundStyle(SBSColors.success)
+                    }
                 }
                 
                 Spacer()
@@ -2544,24 +2926,49 @@ struct ExercisePickerSheet: View {
     let workoutState: WorkoutState
     let useMetric: Bool
     let onSelect: (Int) -> Void
-    
+
     @Environment(\.dismiss) private var dismiss
-    
+
     /// Check if workout has any accessory exercises
     private var hasAccessories: Bool {
         workoutState.exercises.contains { $0.isAccessory }
     }
-    
+
+    private var totalSets: Int {
+        workoutState.exercises.reduce(0) { $0 + $1.totalSets }
+    }
+
+    private var completedExerciseCount: Int {
+        workoutState.exercises.enumerated().filter { idx, ex in
+            workoutState.completedSetsForExercise(at: idx) >= ex.totalSets
+        }.count
+    }
+
     var body: some View {
         NavigationStack {
             ScrollViewReader { proxy in
                 List {
+                    Section {
+                        WorkoutOverviewSummary(
+                            progress: workoutState.progress,
+                            completedSets: workoutState.completedSetsCount,
+                            totalSets: totalSets,
+                            completedExercises: completedExerciseCount,
+                            totalExercises: workoutState.exercises.count,
+                            prCount: workoutState.prsAchieved.count
+                        )
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                    }
+
                     ForEach(Array(workoutState.exercises.enumerated()), id: \.element.id) { index, exercise in
                         ExercisePickerRow(
                             exercise: exercise,
                             index: index,
                             isCurrent: index == workoutState.currentExerciseIndex,
                             completedSets: workoutState.completedSetsForExercise(at: index),
+                            amrapResult: workoutState.amrapResults[exercise.lift ?? exercise.name],
                             useMetric: useMetric,
                             onTap: {
                                 onSelect(index)
@@ -2574,7 +2981,7 @@ struct ExercisePickerSheet: View {
                                 : Color.clear
                         )
                     }
-                    
+
                     // Hint about adding accessories if none are configured
                     if !hasAccessories {
                         Section {
@@ -2582,12 +2989,12 @@ struct ExercisePickerSheet: View {
                                 Image(systemName: "plus.circle")
                                     .font(.system(size: 20))
                                     .foregroundStyle(SBSColors.accentSecondaryFallback)
-                                
+
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Add Accessories")
                                         .font(SBSFonts.bodyBold())
                                         .foregroundStyle(SBSColors.textPrimaryFallback)
-                                    
+
                                     Text("You can add accessory exercises to each day via Settings → Day Accessories")
                                         .font(SBSFonts.caption())
                                         .foregroundStyle(SBSColors.textSecondaryFallback)
@@ -2604,7 +3011,7 @@ struct ExercisePickerSheet: View {
                     proxy.scrollTo(workoutState.currentExerciseIndex, anchor: .center)
                 }
             }
-            .navigationTitle("Exercises")
+            .navigationTitle("Workout Overview")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -2618,18 +3025,114 @@ struct ExercisePickerSheet: View {
     }
 }
 
+// MARK: - Workout Overview Summary
+
+private struct WorkoutOverviewSummary: View {
+    let progress: Double
+    let completedSets: Int
+    let totalSets: Int
+    let completedExercises: Int
+    let totalExercises: Int
+    let prCount: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("\(Int(progress * 100))%")
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .foregroundStyle(SBSColors.accentFallback)
+                Text("complete")
+                    .font(SBSFonts.body())
+                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                Spacer()
+                if prCount > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "trophy.fill")
+                        Text("\(prCount) PR\(prCount == 1 ? "" : "s")")
+                            .font(SBSFonts.captionBold())
+                    }
+                    .foregroundStyle(.orange)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(Color.orange.opacity(0.15)))
+                }
+            }
+
+            // Progress bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(SBSColors.surfaceFallback)
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(SBSColors.accentFallback)
+                        .frame(width: max(0, geo.size.width * progress))
+                }
+            }
+            .frame(height: 6)
+
+            HStack(spacing: SBSLayout.paddingLarge) {
+                summaryStat(label: "Sets", value: "\(completedSets) / \(totalSets)")
+                summaryStat(label: "Exercises", value: "\(completedExercises) / \(totalExercises)")
+                Spacer()
+            }
+        }
+        .padding(SBSLayout.paddingMedium)
+        .background(
+            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                .fill(SBSColors.surfaceFallback.opacity(0.5))
+        )
+        .padding(.horizontal, SBSLayout.paddingMedium)
+        .padding(.vertical, SBSLayout.paddingSmall)
+    }
+
+    private func summaryStat(label: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value)
+                .font(SBSFonts.bodyBold())
+                .foregroundStyle(SBSColors.textPrimaryFallback)
+            Text(label)
+                .font(SBSFonts.caption())
+                .foregroundStyle(SBSColors.textTertiaryFallback)
+        }
+    }
+}
+
 struct ExercisePickerRow: View {
     let exercise: WorkoutExercise
     let index: Int
     let isCurrent: Bool
     let completedSets: Int
+    var amrapResult: (weight: Double, reps: Int, e1rm: Double)? = nil
     let useMetric: Bool
     let onTap: () -> Void
-    
+
     private var isComplete: Bool {
         completedSets >= exercise.totalSets
     }
-    
+
+    private var isInProgress: Bool {
+        completedSets > 0 && !isComplete
+    }
+
+    private var repsLabel: String {
+        if exercise.isStructured, let sets = exercise.structuredSetInfo,
+           let amrap = sets.first(where: { $0.isAMRAP }) {
+            return "\(sets.count) × \(amrap.targetReps)+"
+        }
+        if exercise.isLinear {
+            return "\(exercise.totalSets) × \(exercise.repsPerSet)"
+        }
+        if exercise.isAccessory {
+            return "\(exercise.totalSets) × \(exercise.repsPerSet)"
+        }
+        // Volume: last set is rep-out
+        let normal = max(0, exercise.totalSets - 1)
+        if normal > 0 {
+            return "\(normal) × \(exercise.repsPerSet) + \(exercise.repOutTarget)+"
+        }
+        return "\(exercise.repOutTarget)+"
+    }
+
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: SBSLayout.paddingMedium) {
@@ -2638,7 +3141,7 @@ struct ExercisePickerRow: View {
                     Circle()
                         .fill(statusColor.opacity(0.15))
                         .frame(width: 40, height: 40)
-                    
+
                     if isComplete {
                         Image(systemName: "checkmark")
                             .font(.system(size: 16, weight: .bold))
@@ -2649,54 +3152,80 @@ struct ExercisePickerRow: View {
                             .foregroundStyle(statusColor)
                     }
                 }
-                
-                VStack(alignment: .leading, spacing: 2) {
+
+                VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: SBSLayout.paddingSmall) {
                         if exercise.isAccessory {
                             Image(systemName: "dumbbell.fill")
                                 .font(.system(size: 12))
                                 .foregroundStyle(SBSColors.accentSecondaryFallback)
                         }
-                        
-                        if exercise.isStructured, let sets = exercise.structuredSetInfo {
-                            // Show number of sets for nSuns exercises
-                            Text("\(sets.count) sets")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
-                        }
-                        
+
                         Text(exercise.name)
                             .font(SBSFonts.bodyBold())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
                             .lineLimit(1)
                     }
-                    
+
                     HStack(spacing: SBSLayout.paddingSmall) {
                         Text(exercise.weight.formattedWeightShort(useMetric: useMetric))
                             .font(SBSFonts.caption())
                             .foregroundStyle(exercise.isAccessory ? SBSColors.accentSecondaryFallback : SBSColors.accentFallback)
-                        
-                        Text("\(completedSets)/\(exercise.totalSets) sets")
+
+                        Text("·")
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(SBSColors.textTertiaryFallback)
+
+                        Text(repsLabel)
                             .font(SBSFonts.caption())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
+
+                        Text("·")
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(SBSColors.textTertiaryFallback)
+
+                        Text("\(completedSets)/\(exercise.totalSets) sets")
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(isComplete ? SBSColors.success : SBSColors.textSecondaryFallback)
+                    }
+
+                    if let amrap = amrapResult {
+                        HStack(spacing: 4) {
+                            Image(systemName: "flame.fill")
+                                .font(.system(size: 10))
+                            Text("AMRAP: \(amrap.reps) reps @ \(amrap.weight.formattedWeightShort(useMetric: useMetric))")
+                                .font(SBSFonts.caption())
+                        }
+                        .foregroundStyle(SBSColors.success)
                     }
                 }
-                
+
                 Spacer()
-                
-                // Current indicator
+
+                // Status badge: CURRENT > IN PROGRESS > COMPLETE > nothing
                 if isCurrent {
                     Text("CURRENT")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(SBSColors.accentFallback)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(
-                            Capsule()
-                                .fill(SBSColors.accentFallback.opacity(0.15))
-                        )
+                        .background(Capsule().fill(SBSColors.accentFallback.opacity(0.15)))
+                } else if isInProgress {
+                    Text("IN PROGRESS")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(SBSColors.warning)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(SBSColors.warning.opacity(0.15)))
+                } else if isComplete {
+                    Text("DONE")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(SBSColors.success)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(SBSColors.success.opacity(0.15)))
                 }
-                
+
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(SBSColors.textTertiaryFallback)
@@ -2705,12 +3234,14 @@ struct ExercisePickerRow: View {
         }
         .buttonStyle(.plain)
     }
-    
+
     private var statusColor: Color {
         if isComplete {
             return SBSColors.success
         } else if isCurrent {
             return SBSColors.accentFallback
+        } else if isInProgress {
+            return SBSColors.warning
         } else if exercise.isAccessory {
             return SBSColors.accentSecondaryFallback
         } else {

@@ -157,6 +157,8 @@ struct RestTimerView: View {
 struct CurrentExerciseView: View {
     let state: WatchWorkoutStateData
     let heartRate: Double?
+    @EnvironmentObject var sessionManager: WatchSessionManager
+    @State private var showingRepPicker = false
     
     var body: some View {
         VStack(spacing: 6) {
@@ -184,11 +186,11 @@ struct CurrentExerciseView: View {
                     .monospacedDigit()
                 
                 HStack(spacing: 2) {
-                    if state.isRepOutSet {
+                    if state.isAMRAPSet {
                         Text("\(state.targetReps)+")
                             .font(.callout)
                             .fontWeight(.semibold)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(.green)
                         Text("reps")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -203,8 +205,55 @@ struct CurrentExerciseView: View {
                 }
             }
             
+            // Complete Set Button - different behavior for AMRAP vs normal sets
+            if state.isAMRAPSet {
+                // AMRAP set - show rep picker
+                Button(action: {
+                    showingRepPicker = true
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "number.circle.fill")
+                            .font(.caption)
+                        Text("Log Reps")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.green)
+                    )
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 4)
+            } else {
+                // Normal set - complete directly
+                Button(action: {
+                    sessionManager.sendSetCompleted(reps: nil)
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.caption)
+                        Text("Done")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.orange)
+                    )
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 4)
+            }
+            
             Divider()
-                .padding(.vertical, 4)
+                .padding(.vertical, 2)
             
             // Heart rate
             HStack(spacing: 4) {
@@ -228,6 +277,116 @@ struct CurrentExerciseView: View {
             }
         }
         .padding(.top, 4)
+        .sheet(isPresented: $showingRepPicker) {
+            RepPickerView(
+                targetReps: state.targetReps,
+                exerciseName: state.exerciseName
+            ) { reps in
+                sessionManager.sendSetCompleted(reps: reps)
+                showingRepPicker = false
+            }
+        }
+    }
+}
+
+// MARK: - Rep Picker View
+
+struct RepPickerView: View {
+    let targetReps: Int
+    let exerciseName: String
+    let onComplete: (Int) -> Void
+    
+    @State private var selectedRepsDouble: Double
+    @FocusState private var isFocused: Bool
+    
+    private var selectedReps: Int {
+        Int(selectedRepsDouble.rounded())
+    }
+    
+    init(targetReps: Int, exerciseName: String, onComplete: @escaping (Int) -> Void) {
+        self.targetReps = targetReps
+        self.exerciseName = exerciseName
+        self.onComplete = onComplete
+        // Start with target reps as default
+        _selectedRepsDouble = State(initialValue: Double(targetReps))
+    }
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Text("Reps Completed")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            
+            // Rep counter with Digital Crown support
+            Text("\(selectedReps)")
+                .font(.system(size: 56, weight: .bold, design: .rounded))
+                .foregroundStyle(.green)
+                .focusable()
+                .focused($isFocused)
+                .digitalCrownRotation(
+                    $selectedRepsDouble,
+                    from: 1.0,
+                    through: 30.0,
+                    by: 1.0,
+                    sensitivity: .medium,
+                    isContinuous: false,
+                    isHapticFeedbackEnabled: true
+                )
+            
+            // +/- buttons for manual adjustment
+            HStack(spacing: 20) {
+                Button(action: {
+                    if selectedRepsDouble > 1 {
+                        selectedRepsDouble -= 1
+                    }
+                }) {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                
+                Button(action: {
+                    if selectedRepsDouble < 30 {
+                        selectedRepsDouble += 1
+                    }
+                }) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.green)
+                }
+                .buttonStyle(.plain)
+            }
+            
+            Text("Use crown to adjust")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            
+            // Confirm button
+            Button(action: {
+                onComplete(selectedReps)
+            }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "checkmark")
+                        .font(.caption)
+                    Text("Log \(selectedReps) reps")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.green)
+                )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding()
+        .onAppear {
+            isFocused = true
+        }
     }
 }
 
@@ -335,4 +494,32 @@ struct BasicWorkoutView: View {
     return WorkoutActiveView()
         .environmentObject(manager)
         .environmentObject(session)
+}
+
+#Preview("AMRAP Set") {
+    let manager = WatchWorkoutManager()
+    let session = WatchSessionManager.shared
+    session.workoutState = WatchWorkoutStateData(
+        exerciseName: "Squat",
+        currentSet: 5,
+        totalSets: 5,
+        weight: 225,
+        targetReps: 5,
+        isRestTimerActive: false,
+        restTimerRemaining: 0,
+        restTimerDuration: 120,
+        useMetric: false,
+        nextSetInfo: nil,
+        isRepOutSet: true,
+        isAMRAPSet: true
+    )
+    return WorkoutActiveView()
+        .environmentObject(manager)
+        .environmentObject(session)
+}
+
+#Preview("Rep Picker") {
+    RepPickerView(targetReps: 5, exerciseName: "Squat") { reps in
+        print("Logged \(reps) reps")
+    }
 }

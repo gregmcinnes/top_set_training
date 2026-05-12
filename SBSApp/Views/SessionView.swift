@@ -34,6 +34,7 @@ struct WeightOverrideData: Identifiable {
     let liftName: String
     let calculatedWeight: Double
     let currentOverride: Double?
+    var prescribedReps: String? = nil
 }
 
 // Data for linear progression log sheet
@@ -63,6 +64,7 @@ struct SessionView: View {
     @State private var showingWorkout = false
     @State private var showingAccessoryWorkout = false
     @State private var showingAccessoryEditor = false
+    @State private var showingAccessoryPicker = false
     @State private var prResult: AppState.LogRepsResult?
     @State private var showingPRCelebration = false
     
@@ -96,6 +98,9 @@ struct SessionView: View {
                         },
                         onEdit: {
                             showingAccessoryEditor = true
+                        },
+                        onAdd: {
+                            showingAccessoryPicker = true
                         }
                     )
                     .padding(.horizontal)
@@ -181,8 +186,8 @@ struct SessionView: View {
                 currentLog: data.currentLog,
                 useMetric: appState.settings.useMetric,
                 roundingIncrement: appState.settings.roundingIncrement,
-                onSave: { weight, sets, reps, note in
-                    appState.logAccessory(name: data.name, weight: weight, sets: sets, reps: reps, note: note)
+                onSave: { weight, sets, reps, note, wasEasy in
+                    appState.logAccessory(name: data.name, weight: weight, sets: sets, reps: reps, note: note, wasEasy: wasEasy)
                     accessoryLogData = nil
                 },
                 onClear: {
@@ -201,6 +206,7 @@ struct SessionView: View {
                 liftName: data.liftName,
                 calculatedWeight: data.calculatedWeight,
                 currentOverride: data.currentOverride,
+                prescribedReps: data.prescribedReps,
                 useMetric: appState.settings.useMetric,
                 roundingIncrement: appState.settings.roundingIncrement,
                 onSave: { weight in
@@ -301,6 +307,16 @@ struct SessionView: View {
                 onDismiss: { showingAccessoryEditor = false }
             )
         }
+        .sheet(isPresented: $showingAccessoryPicker) {
+            AccessoryExercisePickerSheet(
+                title: "Add Accessory",
+                onSelect: { name in
+                    appState.addAccessory(to: day, name: name)
+                    showingAccessoryPicker = false
+                },
+                onCancel: { showingAccessoryPicker = false }
+            )
+        }
     }
     
     @ViewBuilder
@@ -342,15 +358,20 @@ struct SessionView: View {
                     )
                 },
                 onWeightTap: {
+                    let normal = max(0, sets - 1)
+                    let prescribed = normal > 0
+                        ? "\(normal) × \(repsPerSet), then \(repOutTarget)+ AMRAP"
+                        : "\(repOutTarget)+ AMRAP"
                     weightOverrideData = WeightOverrideData(
                         lift: lift,
                         liftName: name,
                         calculatedWeight: calculatedWeight,
-                        currentOverride: isOverridden ? weight : nil
+                        currentOverride: isOverridden ? weight : nil,
+                        prescribedReps: prescribed
                     )
                 }
             )
-            
+
         case let .structured(name, lift, trainingMax, sets, logEntry):
             StructuredCard(
                 name: name,
@@ -429,7 +450,8 @@ struct AccessoryWorkoutCard: View {
     var hasAccessories: Bool = true
     let onStart: () -> Void
     var onEdit: (() -> Void)? = nil
-    
+    var onAdd: (() -> Void)? = nil
+
     var body: some View {
         VStack(spacing: SBSLayout.paddingMedium) {
             HStack {
@@ -438,34 +460,58 @@ struct AccessoryWorkoutCard: View {
                         Image(systemName: "timer")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(SBSColors.accentSecondaryFallback)
-                        
+
                         Text(hasAccessories ? "Accessory Workout" : "Rest Timer")
                             .font(SBSFonts.bodyBold())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
                     }
-                    
+
                     Text(hasAccessories ? "Use the timer to track your accessory sets" : "Track rest between sets")
                         .font(SBSFonts.caption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
-                
+
                 Spacer()
-                
+
                 // Edit button
                 if let onEdit = onEdit {
                     Button(action: onEdit) {
-                        Image(systemName: "pencil.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundStyle(SBSColors.accentSecondaryFallback)
+                        HStack(spacing: 4) {
+                            Image(systemName: "pencil.circle.fill")
+                                .font(.system(size: 20))
+                            Text("Edit")
+                                .font(SBSFonts.caption())
+                        }
+                        .foregroundStyle(SBSColors.accentSecondaryFallback)
                     }
                 }
             }
-            
+
+            // Add Accessory button
+            if let onAdd = onAdd {
+                Button(action: onAdd) {
+                    HStack(spacing: SBSLayout.paddingSmall) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 16, weight: .semibold))
+
+                        Text("Add Accessory")
+                            .font(SBSFonts.button())
+                    }
+                    .foregroundStyle(SBSColors.accentFallback)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, SBSLayout.paddingMedium)
+                    .background(
+                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                            .strokeBorder(SBSColors.accentFallback, lineWidth: 1.5)
+                    )
+                }
+            }
+
             Button(action: onStart) {
                 HStack(spacing: SBSLayout.paddingSmall) {
                     Image(systemName: "play.fill")
                         .font(.system(size: 12, weight: .semibold))
-                    
+
                     Text("Start Timer")
                         .font(SBSFonts.button())
                 }
@@ -704,15 +750,16 @@ struct AccessoryLogSheet: View {
     let currentLog: AccessoryLog?
     let useMetric: Bool
     let roundingIncrement: Double
-    let onSave: (Double, Int, Int, String) -> Void
+    let onSave: (Double, Int, Int, String, Bool?) -> Void
     let onClear: () -> Void
     let onCancel: () -> Void
-    
+
     @State private var weightText: String = ""
     @State private var sets: Int = 4
     @State private var reps: Int = 10
     @State private var note: String = ""
     @State private var showingNoteField: Bool = false
+    @State private var wasEasy: Bool = false
     
     private var weight: Double? {
         Double(weightText)
@@ -830,6 +877,29 @@ struct AccessoryLogSheet: View {
                         }
                         .padding(.horizontal)
                         
+                        // Easy toggle - hint shown next time
+                        Toggle(isOn: $wasEasy) {
+                            HStack(spacing: SBSLayout.paddingSmall) {
+                                Image(systemName: "hand.thumbsup.fill")
+                                    .foregroundStyle(SBSColors.success)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("That was easy")
+                                        .font(SBSFonts.bodyBold())
+                                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                                    Text("We'll prompt you to push it next time")
+                                        .font(SBSFonts.caption())
+                                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                                }
+                            }
+                        }
+                        .tint(SBSColors.success)
+                        .padding(SBSLayout.paddingMedium)
+                        .background(
+                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                                .fill(SBSColors.surfaceFallback)
+                        )
+                        .padding(.horizontal)
+
                         // Note field (collapsible)
                         VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
                             if showingNoteField || !note.isEmpty {
@@ -885,7 +955,7 @@ struct AccessoryLogSheet: View {
                         // Save button
                         Button(action: {
                             if let w = weight {
-                                onSave(w, sets, reps, note)
+                                onSave(w, sets, reps, note, wasEasy ? true : nil)
                             }
                         }) {
                             Text("Save")
@@ -932,6 +1002,7 @@ struct AccessoryLogSheet: View {
                 reps = log.reps
                 note = log.note
                 showingNoteField = !log.note.isEmpty
+                wasEasy = log.wasEasy ?? false
             } else {
                 sets = defaultSets
                 reps = defaultReps
@@ -1018,12 +1089,13 @@ struct WeightOverrideSheet: View {
     let liftName: String
     let calculatedWeight: Double
     let currentOverride: Double?
+    var prescribedReps: String? = nil  // e.g. "5 × 5+" or "AMRAP at 1+"
     let useMetric: Bool
     let roundingIncrement: Double
     let onSave: (Double) -> Void
     let onClear: () -> Void
     let onCancel: () -> Void
-    
+
     @State private var weightText: String = ""
     
     private var weight: Double? {
@@ -1043,128 +1115,130 @@ struct WeightOverrideSheet: View {
                     Text(liftName)
                         .font(SBSFonts.title())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
-                    
+
+                    if let prescribedReps {
+                        Text(prescribedReps)
+                            .font(SBSFonts.bodyBold())
+                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                    }
+
                     Text("Override the recommended weight")
                         .font(SBSFonts.caption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
                 .padding(.top)
-                
-                ScrollView {
-                    VStack(spacing: SBSLayout.paddingLarge) {
-                        // Recommended weight display
-                        VStack(spacing: SBSLayout.paddingSmall) {
-                            Text("Recommended")
-                                .font(SBSFonts.caption())
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
-                            
-                            Text(calculatedWeight.formattedWeight(useMetric: useMetric))
-                                .font(SBSFonts.weight())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                                .fill(SBSColors.surfaceFallback)
-                        )
-                        .padding(.horizontal)
-                        
-                        // Weight input
-                        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
-                            Text("Your Weight")
-                                .font(SBSFonts.caption())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
-                            
-                            HStack {
-                                TextField("0", text: $weightText)
-                                    .keyboardType(.decimalPad)
-                                    .font(.system(size: 32, weight: .bold, design: .rounded))
-                                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                                    .multilineTextAlignment(.center)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(
-                                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                                            .fill(SBSColors.surfaceFallback)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                                                    .strokeBorder(SBSColors.accentFallback, lineWidth: 2)
-                                            )
-                                    )
-                                
-                                Text(useMetric ? "kg" : "lbs")
-                                    .font(SBSFonts.title2())
-                                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                                    .frame(width: 50)
-                            }
-                            
-                            // Quick adjust buttons
-                            HStack(spacing: SBSLayout.paddingSmall) {
-                                QuickAdjustButton(
-                                    label: "-\(roundingIncrement.formattedWeightShort(useMetric: useMetric))",
-                                    onTap: {
-                                        let current = weight ?? calculatedWeight
-                                        weightText = String(format: "%.1f", max(0, current - roundingIncrement))
-                                    }
-                                )
-                                
-                                QuickAdjustButton(
-                                    label: "Reset",
-                                    onTap: {
-                                        weightText = String(format: "%.1f", calculatedWeight)
-                                    }
-                                )
-                                
-                                QuickAdjustButton(
-                                    label: "+\(roundingIncrement.formattedWeightShort(useMetric: useMetric))",
-                                    onTap: {
-                                        let current = weight ?? calculatedWeight
-                                        weightText = String(format: "%.1f", current + roundingIncrement)
-                                    }
-                                )
-                            }
-                        }
-                        .padding(.horizontal)
-                        
-                        // Info text
-                        VStack(spacing: SBSLayout.paddingSmall) {
-                            HStack(spacing: SBSLayout.paddingSmall) {
-                                Image(systemName: "info.circle")
-                                    .font(.system(size: 14))
-                                Text("Weight changes will cascade to future weeks")
-                                    .font(SBSFonts.caption())
-                            }
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
-                        }
-                        .padding(.horizontal)
-                        
-                        Spacer(minLength: 20)
-                        
-                        // Save button
-                        Button(action: {
-                            if let w = weight {
-                                onSave(w)
-                            }
-                        }) {
-                            Text("Save Override")
-                                .font(SBSFonts.button())
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, SBSLayout.paddingMedium + 4)
-                                .background(
-                                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusLarge)
-                                        .fill(canSave ? SBSColors.accentFallback : SBSColors.surfaceFallback)
-                                )
-                        }
-                        .disabled(!canSave)
-                        .padding(.horizontal)
-                    }
-                    .padding(.top, SBSLayout.paddingLarge)
+
+                // Recommended weight display
+                VStack(spacing: SBSLayout.paddingSmall) {
+                    Text("Recommended")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(SBSColors.textTertiaryFallback)
+
+                    Text(calculatedWeight.formattedWeight(useMetric: useMetric))
+                        .font(SBSFonts.weight())
+                        .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
-                .scrollDismissesKeyboard(.interactively)
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                        .fill(SBSColors.surfaceFallback)
+                )
+                .padding(.horizontal)
+                .padding(.top, SBSLayout.paddingLarge)
+
+                // Weight input
+                VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                    Text("Your Weight")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(SBSColors.textSecondaryFallback)
+
+                    HStack {
+                        TextField("0", text: $weightText)
+                            .keyboardType(.decimalPad)
+                            .font(.system(size: 32, weight: .bold, design: .rounded))
+                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                                    .fill(SBSColors.surfaceFallback)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                                            .strokeBorder(SBSColors.accentFallback, lineWidth: 2)
+                                    )
+                            )
+
+                        Text(useMetric ? "kg" : "lbs")
+                            .font(SBSFonts.title2())
+                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .frame(width: 50)
+                    }
+
+                    // Quick adjust buttons
+                    HStack(spacing: SBSLayout.paddingSmall) {
+                        QuickAdjustButton(
+                            label: "-\(roundingIncrement.formattedWeightShort(useMetric: useMetric))",
+                            onTap: {
+                                let current = weight ?? calculatedWeight
+                                weightText = String(format: "%.1f", max(0, current - roundingIncrement))
+                            }
+                        )
+
+                        QuickAdjustButton(
+                            label: "Reset",
+                            onTap: {
+                                weightText = String(format: "%.1f", calculatedWeight)
+                            }
+                        )
+
+                        QuickAdjustButton(
+                            label: "+\(roundingIncrement.formattedWeightShort(useMetric: useMetric))",
+                            onTap: {
+                                let current = weight ?? calculatedWeight
+                                weightText = String(format: "%.1f", current + roundingIncrement)
+                            }
+                        )
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.top, SBSLayout.paddingLarge)
+
+                // Info text
+                HStack(spacing: SBSLayout.paddingSmall) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 14))
+                    Text("Weight changes will cascade to future weeks")
+                        .font(SBSFonts.caption())
+                }
+                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .padding(.top, SBSLayout.paddingMedium)
+
+                Spacer()
+
+                // Save button pinned to bottom
+                Button(action: {
+                    if let w = weight {
+                        onSave(w)
+                    }
+                }) {
+                    Text("Save Override")
+                        .font(SBSFonts.button())
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, SBSLayout.paddingMedium + 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusLarge)
+                                .fill(canSave ? SBSColors.accentFallback : SBSColors.surfaceFallback)
+                        )
+                }
+                .disabled(!canSave)
+                .padding(.horizontal)
+                .padding(.bottom, SBSLayout.paddingLarge)
             }
             .sbsBackground()
+            .scrollDismissesKeyboard(.interactively)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -1175,7 +1249,7 @@ struct WeightOverrideSheet: View {
                         .foregroundStyle(SBSColors.error)
                     }
                 }
-                
+
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Cancel") {
                         onCancel()

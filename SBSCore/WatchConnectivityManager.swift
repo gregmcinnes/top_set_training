@@ -15,7 +15,8 @@ public struct WatchWorkoutState: Codable {
     public let restTimerDuration: Int
     public let useMetric: Bool
     public let nextSetInfo: String?  // e.g. "Next: Set 3 of 5"
-    public let isRepOutSet: Bool
+    public let isRepOutSet: Bool  // Volume program rep-out set
+    public let isAMRAPSet: Bool   // Any AMRAP set (volume or structured)
     
     public init(
         exerciseName: String,
@@ -28,7 +29,8 @@ public struct WatchWorkoutState: Codable {
         restTimerDuration: Int,
         useMetric: Bool,
         nextSetInfo: String?,
-        isRepOutSet: Bool
+        isRepOutSet: Bool,
+        isAMRAPSet: Bool = false
     ) {
         self.exerciseName = exerciseName
         self.currentSet = currentSet
@@ -41,6 +43,7 @@ public struct WatchWorkoutState: Codable {
         self.useMetric = useMetric
         self.nextSetInfo = nextSetInfo
         self.isRepOutSet = isRepOutSet
+        self.isAMRAPSet = isAMRAPSet
     }
 }
 
@@ -55,6 +58,11 @@ public final class WatchConnectivityManager: NSObject, ObservableObject {
     @Published public private(set) var isWatchReachable = false
     @Published public private(set) var isWatchAppInstalled = false
     @Published public private(set) var currentHeartRate: Double?
+    
+    /// Callback triggered when Watch requests set completion
+    /// WorkoutView should set this to handle set completion from Watch
+    /// Parameter is the rep count for AMRAP sets (nil for normal sets)
+    public var onSetCompletedFromWatch: ((Int?) -> Void)?
     
     private var session: WCSession?
     
@@ -247,6 +255,11 @@ extension WatchConnectivityManager: WCSessionDelegate {
                 if let heartRate = message["heartRate"] as? Double {
                     self.currentHeartRate = heartRate
                 }
+            case "setCompleted":
+                // Watch requested set completion - notify listener
+                let reps = message["reps"] as? Int
+                Logger.debug("Received set completion request from Watch (reps: \(reps?.description ?? "nil"))", category: .general)
+                self.onSetCompletedFromWatch?(reps)
             default:
                 break
             }

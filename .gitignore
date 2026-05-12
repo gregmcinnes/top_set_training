@@ -1,9 +1,48 @@
-# Xcode build outputs
-build/
-DerivedData/
-
 # macOS
 .DS_Store
+._*
 
-# Xcode user-specific state (kept tracked for now where already committed)
+# Xcode — build outputs
+build/
+DerivedData/
+*.dSYM
+*.dSYM.zip
+*.ipa
+*.hmap
+*.o
+*.LinkFileList
+*.SwiftFileList
+
+# Xcode — per-user state (not shared across collaborators)
+xcuserdata/
 *.xcuserstate
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# Xcode — playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+
+# CocoaPods (uncomment Pods/ if not checking in pods)
+# Pods/
+
+# Carthage
+Carthage/Build/
+Carthage/Checkouts/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Logs and crash reports
+*.log
+crash.log

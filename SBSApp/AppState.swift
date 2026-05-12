@@ -169,13 +169,16 @@ public final class AppState {
             "gzclp_12week",
             "gzclp_3day_12week",
             "531_bbb_12week",
+            "531_fsl_12week",
             "531_triumvirate_12week",
             "nsuns_4day_12week",
             "nsuns_5day_12week",
             "nsuns_6day_squat_12week",
             "nsuns_6day_deadlift_12week",
+            "phul_12week",
             "reddit_ppl_12week",
             "basic_ppl_12week",
+            "back_friendly_hypertrophy_12week",
             "sbs_program_config"
         ]
         
@@ -263,11 +266,15 @@ public final class AppState {
                 userData.trainingMaxes[lift] = tm
             }
             
+            // Save current customizations for the old program before switching
+            if let oldProgramId = userData.selectedProgram {
+                userData.saveCustomizations(for: oldProgramId)
+            }
+
             // Clear logs since they've been archived
             userData.logs = [:]
             userData.structuredLogs = [:]
             userData.linearLogs = [:]
-            userData.accessoryLogs = [:]
             // Capture date before removeAll to avoid exclusivity violation
             let cycleStartDate = userData.currentCycleStartDate
             userData.workoutRecords.removeAll { $0.date >= cycleStartDate }
@@ -283,42 +290,43 @@ public final class AppState {
                 throw AppError.configNotFound
             }
             
-            // Clear program-specific data when switching programs
+            // Restore or clear program-specific data when switching programs
             if isSwitchingPrograms {
-                userData.customDays = [:]
-                userData.customInitialMaxes = [:]
+                if !userData.restoreCustomizations(for: programId) {
+                    userData.customDays = [:]
+                    userData.customInitialMaxes = [:]
+                    userData.accessoryLogs = [:]
+                }
             }
-            
+
             // Save the selection
             userData.selectedProgram = programId
-            
+
             // Convert template to ProgramData and load it
             let pdata = template.toProgramData()
             await MainActor.run {
                 self.programData = pdata
                 self.programState = ProgramState.fromProgramData(pdata)
-                
+
                 // Apply user data to program state
                 if let state = self.programState {
                     state.logs = self.userData.logs
                     state.structuredLogs = self.userData.structuredLogs
                     state.linearLogs = self.userData.linearLogs
-                    
-                    // Apply custom initial maxes (only if not switching programs)
-                    if !isSwitchingPrograms {
-                        for (lift, max) in self.userData.customInitialMaxes {
-                            state.initialMaxes[lift] = max
-                        }
-                        
-                        // Apply custom day configurations and copy WeekData for swapped lifts
-                        for (day, items) in self.userData.customDays {
-                            // Copy WeekData for any swapped lifts before applying
-                            let originalItems = pdata.days[String(day)] ?? []
-                            self.copyWeekDataForSwappedLifts(newItems: items, originalItems: originalItems)
-                            state.days[day] = items
-                        }
+
+                    // Apply custom initial maxes
+                    for (lift, max) in self.userData.customInitialMaxes {
+                        state.initialMaxes[lift] = max
                     }
-                    
+
+                    // Apply custom day configurations and copy WeekData for swapped lifts
+                    for (day, items) in self.userData.customDays {
+                        // Copy WeekData for any swapped lifts before applying
+                        let originalItems = pdata.days[String(day)] ?? []
+                        self.copyWeekDataForSwappedLifts(newItems: items, originalItems: originalItems)
+                        state.days[day] = items
+                    }
+
                     // Apply rounding from settings
                     state.rounding = self.settings.roundingIncrement
                 }
@@ -331,15 +339,18 @@ public final class AppState {
             throw AppError.configNotFound
         }
         
-        // Clear program-specific data when switching programs
+        // Restore or clear program-specific data when switching programs
         if isSwitchingPrograms {
-            userData.customDays = [:]
-            userData.customInitialMaxes = [:]
+            if !userData.restoreCustomizations(for: programId) {
+                userData.customDays = [:]
+                userData.customInitialMaxes = [:]
+                userData.accessoryLogs = [:]
+            }
         }
-        
+
         // Save the selection
         userData.selectedProgram = programId
-        
+
         try await loadFromURL(program.url)
     }
     
@@ -1010,8 +1021,8 @@ public final class AppState {
     
     // MARK: - Accessory Logging
     
-    func logAccessory(name: String, weight: Double, sets: Int, reps: Int, note: String = "") {
-        userData.accessoryLogs[name] = AccessoryLog(weight: weight, sets: sets, reps: reps, note: note)
+    func logAccessory(name: String, weight: Double, sets: Int, reps: Int, note: String = "", wasEasy: Bool? = nil) {
+        userData.accessoryLogs[name] = AccessoryLog(weight: weight, sets: sets, reps: reps, note: note, wasEasy: wasEasy)
     }
     
     func getAccessoryLog(name: String) -> AccessoryLog? {
@@ -1493,13 +1504,19 @@ public final class AppState {
     }
     
     func setInitialMax(for lift: String, value: Double) {
-        userData.customInitialMaxes[lift] = value
+        // Use full reassignment to guarantee @Observable tracking and didSet persistence
+        var updated = userData
+        updated.customInitialMaxes[lift] = value
+        userData = updated
         // Update program state
         programState?.initialMaxes[lift] = value
     }
-    
+
     func resetInitialMax(for lift: String) {
-        userData.customInitialMaxes.removeValue(forKey: lift)
+        // Use full reassignment to guarantee @Observable tracking and didSet persistence
+        var updated = userData
+        updated.customInitialMaxes.removeValue(forKey: lift)
+        userData = updated
         if let defaultMax = programData?.initialMaxes[lift] {
             programState?.initialMaxes[lift] = defaultMax
         }
@@ -1664,6 +1681,19 @@ public final class AppState {
         return matchingDays.sorted()
     }
     
+    /// Reset all days to default exercises and clear accessory logs
+    func resetAllDayItems() {
+        userData.customDays = [:]
+        userData.accessoryLogs = [:]
+        if let pdata = programData {
+            for (dayStr, items) in pdata.days {
+                if let dayNum = Int(dayStr) {
+                    programState?.days[dayNum] = items
+                }
+            }
+        }
+    }
+
     /// Reset a day to default exercises
     /// For programs with day variants, this also resets accessories on all days of the same variant
     func resetDayItems(for day: Int) {
@@ -2080,24 +2110,23 @@ public final class AppState {
             }
         }
         
-        // Clear current cycle logs (all log types)
+        // Clear current cycle logs (preserve accessoryLogs — they represent user preferences)
         userData.logs = [:]
         userData.structuredLogs = [:]
         userData.linearLogs = [:]
-        userData.accessoryLogs = [:]
         // Clear workout records from this cycle (they're archived in cycleHistory now)
         // Capture date before removeAll to avoid exclusivity violation
         let cycleStartDate = userData.currentCycleStartDate
         userData.workoutRecords.removeAll { $0.date >= cycleStartDate }
-        
+
         // Reset to week 1, day 1
         settings.currentWeek = 1
         settings.currentDay = 1
-        
+
         // Set new cycle start date
         userData.currentCycleStartDate = Date()
     }
-    
+
     /// Delete a cycle from history
     func deleteCycle(id: UUID) {
         userData.cycleHistory.removeAll { $0.id == id }
@@ -2143,12 +2172,15 @@ public final class AppState {
     
     /// Set multiple initial maxes at once (for cycle builder)
     func setInitialMaxes(_ maxes: [String: Double]) {
+        // Use full reassignment to guarantee @Observable tracking and didSet persistence
+        var updated = userData
         for (lift, value) in maxes {
-            userData.customInitialMaxes[lift] = value
+            updated.customInitialMaxes[lift] = value
             programState?.initialMaxes[lift] = value
             // Also update universal trainingMaxes for cross-program consistency
-            userData.trainingMaxes[lift] = value
+            updated.trainingMaxes[lift] = value
         }
+        userData = updated
     }
     
     /// Apply exercise customizations from cycle builder
@@ -2197,12 +2229,11 @@ public final class AppState {
             userData.cycleHistory.append(completedCycle)
         }
         
-        // Clear current cycle logs (all log types)
+        // Clear current cycle logs (preserve accessoryLogs — they represent user preferences)
         userData.logs = [:]
         userData.structuredLogs = [:]
         userData.linearLogs = [:]
-        userData.accessoryLogs = [:]
-        
+
         // Clear old customDays and restore program defaults before applying new customizations
         userData.customDays = [:]
         if let pdata = programData {

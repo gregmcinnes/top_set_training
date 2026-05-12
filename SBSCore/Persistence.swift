@@ -199,6 +199,28 @@ public struct PersonalRecord: Codable, Equatable {
     }
 }
 
+// MARK: - Per-Program Customizations
+
+public struct ProgramCustomizations: Codable, Equatable {
+    public var customDays: [Int: [DayItem]]
+    public var accessoryLogs: [String: AccessoryLog]
+    public var customInitialMaxes: [String: Double]
+
+    public init(
+        customDays: [Int: [DayItem]] = [:],
+        accessoryLogs: [String: AccessoryLog] = [:],
+        customInitialMaxes: [String: Double] = [:]
+    ) {
+        self.customDays = customDays
+        self.accessoryLogs = accessoryLogs
+        self.customInitialMaxes = customInitialMaxes
+    }
+
+    public var isEmpty: Bool {
+        customDays.isEmpty && accessoryLogs.isEmpty && customInitialMaxes.isEmpty
+    }
+}
+
 // MARK: - User Data (Logs + Custom TMs + Custom Exercises)
 
 public struct UserData: Codable, Equatable {
@@ -246,8 +268,13 @@ public struct UserData: Codable, Equatable {
     // User-created workout templates
     public var customTemplates: [CustomTemplate]
     
+    // MARK: - Saved per-program customizations
+
+    // Saved customizations per program ID (restored when returning to a program)
+    public var savedProgramCustomizations: [String: ProgramCustomizations]
+
     // MARK: - App state
-    
+
     // Whether onboarding has been completed
     public var hasCompletedOnboarding: Bool
     
@@ -266,6 +293,7 @@ public struct UserData: Codable, Equatable {
         currentCycleStartDate: Date = Date(),
         cycleHistory: [CompletedCycle] = [],
         customTemplates: [CustomTemplate] = [],
+        savedProgramCustomizations: [String: ProgramCustomizations] = [:],
         hasCompletedOnboarding: Bool = false
     ) {
         self.logs = logs
@@ -282,7 +310,37 @@ public struct UserData: Codable, Equatable {
         self.currentCycleStartDate = currentCycleStartDate
         self.cycleHistory = cycleHistory
         self.customTemplates = customTemplates
+        self.savedProgramCustomizations = savedProgramCustomizations
         self.hasCompletedOnboarding = hasCompletedOnboarding
+    }
+
+    // Custom decoder for backward compatibility — existing data without savedProgramCustomizations
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        logs = try container.decodeIfPresent([String: [Int: [Int: LogEntry]]].self, forKey: .logs) ?? [:]
+        structuredLogs = try container.decodeIfPresent([String: [Int: [Int: StructuredLogEntry]]].self, forKey: .structuredLogs) ?? [:]
+        linearLogs = try container.decodeIfPresent([String: [Int: [Int: LinearLogEntry]]].self, forKey: .linearLogs) ?? [:]
+        customInitialMaxes = try container.decodeIfPresent([String: Double].self, forKey: .customInitialMaxes) ?? [:]
+        customDays = try container.decodeIfPresent([Int: [DayItem]].self, forKey: .customDays) ?? [:]
+        accessoryLogs = try container.decodeIfPresent([String: AccessoryLog].self, forKey: .accessoryLogs) ?? [:]
+        selectedProgram = try container.decodeIfPresent(String.self, forKey: .selectedProgram)
+        trainingMaxes = try container.decodeIfPresent([String: Double].self, forKey: .trainingMaxes) ?? [:]
+        liftHistory = try container.decodeIfPresent([LiftRecord].self, forKey: .liftHistory) ?? []
+        personalRecords = try container.decodeIfPresent([String: PersonalRecord].self, forKey: .personalRecords) ?? [:]
+        workoutRecords = try container.decodeIfPresent([WorkoutRecord].self, forKey: .workoutRecords) ?? []
+        currentCycleStartDate = try container.decodeIfPresent(Date.self, forKey: .currentCycleStartDate) ?? Date()
+        cycleHistory = try container.decodeIfPresent([CompletedCycle].self, forKey: .cycleHistory) ?? []
+        customTemplates = try container.decodeIfPresent([CustomTemplate].self, forKey: .customTemplates) ?? []
+        savedProgramCustomizations = try container.decodeIfPresent([String: ProgramCustomizations].self, forKey: .savedProgramCustomizations) ?? [:]
+        hasCompletedOnboarding = try container.decodeIfPresent(Bool.self, forKey: .hasCompletedOnboarding) ?? false
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case logs, structuredLogs, linearLogs
+        case customInitialMaxes, customDays, accessoryLogs, selectedProgram
+        case trainingMaxes, liftHistory, personalRecords, workoutRecords
+        case currentCycleStartDate, cycleHistory, customTemplates
+        case savedProgramCustomizations, hasCompletedOnboarding
     }
     
     // MARK: - Lift History Helpers
@@ -354,6 +412,9 @@ public struct UserData: Codable, Equatable {
     /// Delete a template by ID
     public mutating func deleteTemplate(id: UUID) {
         customTemplates.removeAll { $0.id == id }
+        // Clean up any saved customizations for this template
+        let programId = UserData.programId(for: id)
+        savedProgramCustomizations.removeValue(forKey: programId)
     }
     
     /// Get a template by ID
@@ -378,6 +439,41 @@ public struct UserData: Codable, Equatable {
         return UUID(uuidString: uuidString)
     }
     
+    // MARK: - Per-Program Customization Helpers
+
+    /// Save current customizations for a given program ID
+    public mutating func saveCustomizations(for programId: String) {
+        let customizations = ProgramCustomizations(
+            customDays: customDays,
+            accessoryLogs: accessoryLogs,
+            customInitialMaxes: customInitialMaxes
+        )
+        if !customizations.isEmpty {
+            savedProgramCustomizations[programId] = customizations
+        }
+    }
+
+    /// Restore saved customizations for a program, returning true if any were found
+    @discardableResult
+    public mutating func restoreCustomizations(for programId: String) -> Bool {
+        guard let saved = savedProgramCustomizations[programId] else { return false }
+        customDays = saved.customDays
+        accessoryLogs = saved.accessoryLogs
+        customInitialMaxes = saved.customInitialMaxes
+        return true
+    }
+
+    /// Check if a program has saved customizations
+    public func hasCustomizations(for programId: String) -> Bool {
+        guard let saved = savedProgramCustomizations[programId] else { return false }
+        return !saved.isEmpty
+    }
+
+    /// Clear saved customizations for a specific program
+    public mutating func clearSavedCustomizations(for programId: String) {
+        savedProgramCustomizations.removeValue(forKey: programId)
+    }
+
     public static let empty = UserData()
 }
 

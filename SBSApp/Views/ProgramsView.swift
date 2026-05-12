@@ -23,6 +23,10 @@ struct ProgramsView: View {
     @State private var templateToEdit: CustomTemplate?
     @State private var templateToDelete: CustomTemplate?
     @State private var showingDeleteConfirmation = false
+
+    // Reset customizations state
+    @State private var programToResetCustomizations: String?
+    @State private var showingResetCustomizationsAlert = false
     
     private let storeManager = StoreManager.shared
     
@@ -81,6 +85,13 @@ struct ProgramsView: View {
             shortDescription: "Strength + 5×10 volume for size.",
             isFree: true
         ),
+        "531_fsl_12week": ProgramMeta(
+            family: "5/3/1",
+            level: .intermediate,
+            focus: .strength,
+            shortDescription: "Strength + 5×5 at first set weight.",
+            isFree: false
+        ),
         "nsuns_4day_12week": ProgramMeta(
             family: "nSuns",
             level: .intermediate,
@@ -94,6 +105,27 @@ struct ProgramsView: View {
             focus: .strength,
             shortDescription: "Maximum volume, 5 days per week.",
             isFree: true
+        ),
+        "nsuns_6day_squat_12week": ProgramMeta(
+            family: "nSuns",
+            level: .intermediate,
+            focus: .strength,
+            shortDescription: "5-day plus extra squat volume day.",
+            isFree: false
+        ),
+        "nsuns_6day_deadlift_12week": ProgramMeta(
+            family: "nSuns",
+            level: .intermediate,
+            focus: .strength,
+            shortDescription: "5-day plus extra deadlift volume day.",
+            isFree: false
+        ),
+        "phul_12week": ProgramMeta(
+            family: "PHUL",
+            level: .intermediate,
+            focus: .balanced,
+            shortDescription: "4-day power & hypertrophy upper/lower split.",
+            isFree: false
         ),
         "reddit_ppl_12week": ProgramMeta(
             family: "PPL",
@@ -131,7 +163,7 @@ struct ProgramsView: View {
         return groups.map { (family: $0.key, programs: $0.value) }
             .sorted { lhs, rhs in
                 // Priority order matching family names in programMetadata
-                let order = ["Strong Lifts", "Starting Strength", "Beginner AMRAP", "GZCL", "5/3/1", "nSuns", "PPL", "SBS"]
+                let order = ["Strong Lifts", "Starting Strength", "Beginner AMRAP", "GZCL", "5/3/1", "nSuns", "PHUL", "PPL", "SBS"]
                 let lhsIndex = order.firstIndex(of: lhs.family) ?? 99
                 let rhsIndex = order.firstIndex(of: rhs.family) ?? 99
                 return lhsIndex < rhsIndex
@@ -270,6 +302,22 @@ struct ProgramsView: View {
             } message: {
                 Text("You have a cycle in progress. Starting a new cycle will clear your current cycle's workout data. Your workout history will still be available in Past Cycles.")
             }
+            .alert("Reset Customizations?", isPresented: $showingResetCustomizationsAlert) {
+                Button("Cancel", role: .cancel) {
+                    programToResetCustomizations = nil
+                }
+                Button("Reset", role: .destructive) {
+                    if let programId = programToResetCustomizations {
+                        appState.userData.clearSavedCustomizations(for: programId)
+                        if appState.userData.selectedProgram == programId {
+                            appState.resetAllDayItems()
+                        }
+                    }
+                    programToResetCustomizations = nil
+                }
+            } message: {
+                Text("This will remove all your saved accessory and exercise customizations for this program. This cannot be undone.")
+            }
             .fullScreenCover(isPresented: $showingProgramQuiz) {
                 ProgramRecommendationQuiz(
                     appState: appState,
@@ -368,6 +416,7 @@ struct ProgramsView: View {
                             isExpanded: shouldExpandFamily(group.family, programs: group.programs),
                             metadata: programMetadata,
                             isProgramLocked: isProgramLocked,
+                            hasCustomizations: { appState.userData.hasCustomizations(for: $0) },
                             onToggle: { toggleFamily(group.family) },
                             onLockedTap: { showingPaywall = true },
                             onStartCycle: { programId in
@@ -377,6 +426,10 @@ struct ProgramsView: View {
                                 } else {
                                     showingCycleBuilder = true
                                 }
+                            },
+                            onResetCustomizations: { programId in
+                                programToResetCustomizations = programId
+                                showingResetCustomizationsAlert = true
                             }
                         )
                     }
@@ -481,6 +534,7 @@ struct ProgramsView: View {
                 ForEach(templates) { template in
                     TemplateRowView(
                         template: template,
+                        isCustomized: appState.userData.hasCustomizations(for: UserData.programId(for: template.id)),
                         onEdit: {
                             templateToEdit = template
                         },
@@ -632,9 +686,11 @@ struct ProgramFamilyGroupView: View {
     let isExpanded: Bool
     let metadata: [String: ProgramMeta]
     let isProgramLocked: (String) -> Bool
+    let hasCustomizations: (String) -> Bool
     let onToggle: () -> Void
     let onLockedTap: () -> Void
     let onStartCycle: (String) -> Void
+    let onResetCustomizations: (String) -> Void
     
     private var familyColor: Color {
         if let first = programs.first, let meta = metadata[first.id] {
@@ -685,8 +741,10 @@ struct ProgramFamilyGroupView: View {
                             program: program,
                             meta: meta,
                             isLocked: isLocked,
+                            isCustomized: hasCustomizations(program.id),
                             onLockedTap: onLockedTap,
-                            onStartCycle: { onStartCycle(program.id) }
+                            onStartCycle: { onStartCycle(program.id) },
+                            onResetCustomizations: { onResetCustomizations(program.id) }
                         )
                     }
                 }
@@ -703,8 +761,10 @@ struct ProgramCardView: View {
     let program: AppState.AvailableProgramInfo
     let meta: ProgramMeta?
     let isLocked: Bool
+    let isCustomized: Bool
     let onLockedTap: () -> Void
     let onStartCycle: () -> Void
+    let onResetCustomizations: () -> Void
     
     @State private var showingDetail = false
     
@@ -729,8 +789,12 @@ struct ProgramCardView: View {
                         if meta?.isFree == true && !isLocked {
                             FreeBadge()
                         }
+
+                        if isCustomized {
+                            ModifiedBadge()
+                        }
                     }
-                    
+
                     Text(meta?.shortDescription ?? program.programDescription)
                         .font(SBSFonts.caption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
@@ -812,6 +876,15 @@ struct ProgramCardView: View {
                 .fill(SBSColors.surfaceFallback)
         )
         .opacity(isLocked ? 0.7 : 1.0)
+        .contextMenu {
+            if isCustomized {
+                Button(role: .destructive) {
+                    onResetCustomizations()
+                } label: {
+                    Label("Reset Customizations", systemImage: "arrow.counterclockwise")
+                }
+            }
+        }
         .sheet(isPresented: $showingDetail) {
             ProgramDetailView(
                 program: program,
@@ -827,6 +900,7 @@ struct ProgramCardView: View {
 
 struct TemplateRowView: View {
     let template: CustomTemplate
+    let isCustomized: Bool
     let onEdit: () -> Void
     let onDelete: () -> Void
     let onStartCycle: () -> Void
@@ -863,8 +937,12 @@ struct TemplateRowView: View {
                                 Capsule()
                                     .fill(template.mode == .advanced ? SBSColors.accentSecondaryFallback.opacity(0.15) : SBSColors.surfaceFallback)
                             )
+
+                        if isCustomized {
+                            ModifiedBadge()
+                        }
                     }
-                    
+
                     if !template.templateDescription.isEmpty {
                         Text(template.templateDescription)
                             .font(SBSFonts.caption())

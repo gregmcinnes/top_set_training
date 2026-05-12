@@ -77,6 +77,13 @@ struct ProgramSelector: View {
             shortDescription: "Strength + 5×10 volume for size.",
             isFree: true
         ),
+        "531_fsl_12week": ProgramMeta(
+            family: "5/3/1",
+            level: .intermediate,
+            focus: .strength,
+            shortDescription: "Strength + 5×5 at first set weight.",
+            isFree: false
+        ),
         "nsuns_4day_12week": ProgramMeta(
             family: "nSuns",
             level: .intermediate,
@@ -105,6 +112,13 @@ struct ProgramSelector: View {
             shortDescription: "5-day plus extra deadlift volume day.",
             isFree: false
         ),
+        "phul_12week": ProgramMeta(
+            family: "PHUL",
+            level: .intermediate,
+            focus: .balanced,
+            shortDescription: "4-day power & hypertrophy upper/lower split.",
+            isFree: false
+        ),
         "reddit_ppl_12week": ProgramMeta(
             family: "PPL",
             level: .intermediate,
@@ -117,6 +131,13 @@ struct ProgramSelector: View {
             level: .beginner,
             focus: .hypertrophy,
             shortDescription: "Simple 3-day Push/Pull/Legs with progression.",
+            isFree: false
+        ),
+        "back_friendly_hypertrophy_12week": ProgramMeta(
+            family: "Back-Friendly",
+            level: .intermediate,
+            focus: .hypertrophy,
+            shortDescription: "5-day hypertrophy split with low spinal loading.",
             isFree: false
         ),
         "sbs_program_config": ProgramMeta(
@@ -143,7 +164,7 @@ struct ProgramSelector: View {
         return groups.map { (family: $0.key, programs: $0.value) }
             .sorted { lhs, rhs in
                 // Priority order matching family names in programMetadata
-                let order = ["Strong Lifts", "Starting Strength", "Beginner AMRAP", "GZCL", "5/3/1", "nSuns", "PPL", "SBS"]
+                let order = ["Strong Lifts", "Starting Strength", "Beginner AMRAP", "GZCL", "5/3/1", "nSuns", "PHUL", "PPL", "Back-Friendly", "SBS"]
                 let lhsIndex = order.firstIndex(of: lhs.family) ?? 99
                 let rhsIndex = order.firstIndex(of: rhs.family) ?? 99
                 return lhsIndex < rhsIndex
@@ -250,6 +271,7 @@ struct ProgramSelector: View {
                             templates: appState.userData.customTemplates,
                             selectedProgram: $selectedProgram,
                             isExpanded: expandedFamilies.contains("__custom__"),
+                            hasCustomizations: { appState.userData.hasCustomizations(for: $0) },
                             onToggle: { toggleFamily("__custom__") }
                         )
                     }
@@ -264,6 +286,7 @@ struct ProgramSelector: View {
                             metadata: programMetadata,
                             isProgramLocked: isProgramLocked,
                             isPremiumUser: storeManager.isPremium,
+                            hasCustomizations: { appState.userData.hasCustomizations(for: $0) },
                             onToggle: { toggleFamily(group.family) },
                             onLockedTap: { showingPaywall = true }
                         )
@@ -335,6 +358,7 @@ struct ProgramFamilyGroup: View {
     let metadata: [String: ProgramMeta]
     let isProgramLocked: (String) -> Bool
     let isPremiumUser: Bool
+    let hasCustomizations: (String) -> Bool
     let onToggle: () -> Void
     let onLockedTap: () -> Void
     
@@ -396,6 +420,7 @@ struct ProgramFamilyGroup: View {
                             isSelected: selectedProgram == program.id,
                             isLocked: isLocked,
                             isPremiumUser: isPremiumUser,
+                            isCustomized: hasCustomizations(program.id),
                             onSelect: {
                                 if isLocked {
                                     onLockedTap()
@@ -421,6 +446,7 @@ struct ProgramCard: View {
     let isSelected: Bool
     let isLocked: Bool
     let isPremiumUser: Bool
+    let isCustomized: Bool
     let onSelect: () -> Void
     
     @State private var showingDetail = false
@@ -445,8 +471,12 @@ struct ProgramCard: View {
                                 if meta?.isFree == true && !isLocked && !isPremiumUser {
                                     FreeBadge()
                                 }
+
+                                if isCustomized {
+                                    ModifiedBadge()
+                                }
                             }
-                            
+
                             Text(meta?.shortDescription ?? program.programDescription)
                                 .font(SBSFonts.caption())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
@@ -575,12 +605,33 @@ struct FreeBadge: View {
     }
 }
 
+// MARK: - Modified Badge
+
+struct ModifiedBadge: View {
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "pencil")
+                .font(.system(size: 8, weight: .bold))
+            Text("MODIFIED")
+                .font(.system(size: 9, weight: .bold))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(
+            Capsule()
+                .fill(Color.orange)
+        )
+    }
+}
+
 // MARK: - Custom Templates Group
 
 struct CustomTemplatesGroup: View {
     let templates: [CustomTemplate]
     @Binding var selectedProgram: String
     let isExpanded: Bool
+    let hasCustomizations: (String) -> Bool
     let onToggle: () -> Void
     
     private var hasSelectedTemplate: Bool {
@@ -628,6 +679,7 @@ struct CustomTemplatesGroup: View {
                         CustomTemplateRow(
                             template: template,
                             isSelected: selectedProgram == programId,
+                            isCustomized: hasCustomizations(programId),
                             onSelect: { selectedProgram = programId }
                         )
                     }
@@ -642,6 +694,7 @@ struct CustomTemplatesGroup: View {
 struct CustomTemplateRow: View {
     let template: CustomTemplate
     let isSelected: Bool
+    let isCustomized: Bool
     let onSelect: () -> Void
     
     @State private var showingDetail = false
@@ -662,8 +715,12 @@ struct CustomTemplateRow: View {
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 2)
                                 .background(Capsule().fill(SBSColors.accentFallback))
+
+                            if isCustomized {
+                                ModifiedBadge()
+                            }
                         }
-                        
+
                         if !template.templateDescription.isEmpty {
                             Text(template.templateDescription)
                                 .font(SBSFonts.caption())

@@ -49,9 +49,19 @@ struct RestTimerLiveActivity: Widget {
                             .font(.subheadline.bold())
                             .foregroundStyle(.white)
                             .lineLimit(1)
-                        
-                        ProgressView(value: progressValue(context: context))
-                            .tint(context.state.isPaused ? .yellow : themeColor)
+
+                        if context.state.isPaused {
+                            ProgressView(value: pausedProgress(context: context))
+                                .tint(.yellow)
+                        } else {
+                            ProgressView(
+                                timerInterval: timerRange(context: context),
+                                countsDown: true,
+                                label: { EmptyView() },
+                                currentValueLabel: { EmptyView() }
+                            )
+                            .tint(themeColor)
+                        }
                     }
                 }
             } compactLeading: {
@@ -81,11 +91,17 @@ struct RestTimerLiveActivity: Widget {
         }
     }
     
-    private func progressValue(context: ActivityViewContext<RestTimerAttributes>) -> Double {
+    private func timerRange(context: ActivityViewContext<RestTimerAttributes>) -> ClosedRange<Date> {
+        let end = context.state.endTime
+        let start = end.addingTimeInterval(-Double(context.attributes.totalDuration))
+        return start...end
+    }
+
+    private func pausedProgress(context: ActivityViewContext<RestTimerAttributes>) -> Double {
         let total = Double(context.attributes.totalDuration)
         let remaining = Double(context.state.secondsRemaining)
         guard total > 0 else { return 0 }
-        return remaining / total
+        return max(0, min(1, remaining / total))
     }
 }
 
@@ -93,36 +109,26 @@ struct RestTimerLiveActivity: Widget {
 
 struct LockScreenView: View {
     let context: ActivityViewContext<RestTimerAttributes>
-    
+
+    private var timerRange: ClosedRange<Date> {
+        let end = context.state.endTime
+        let start = end.addingTimeInterval(-Double(context.attributes.totalDuration))
+        return start...end
+    }
+
+    private var pausedProgress: Double {
+        let total = Double(context.attributes.totalDuration)
+        let remaining = Double(context.state.secondsRemaining)
+        guard total > 0 else { return 0 }
+        return max(0, min(1, remaining / total))
+    }
+
     var body: some View {
         HStack(spacing: 16) {
-            // Timer circle
-            ZStack {
-                Circle()
-                    .stroke(Color.gray.opacity(0.3), lineWidth: 4)
-                    .frame(width: 56, height: 56)
-                
-                Circle()
-                    .trim(from: 0, to: progressValue)
-                    .stroke(
-                        themeColor,
-                        style: StrokeStyle(lineWidth: 4, lineCap: .round)
-                    )
-                    .frame(width: 56, height: 56)
-                    .rotationEffect(.degrees(-90))
-                
-                if context.state.isPaused {
-                    Image(systemName: "pause.fill")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.yellow)
-                } else {
-                    Text(timerInterval: Date()...context.state.endTime, countsDown: true)
-                        .font(.system(size: 16, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.white)
-                        .monospacedDigit()
-                }
-            }
-            
+            // Timer ring with time text centered inside
+            timerRing
+                .frame(width: 64, height: 64)
+
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Image(systemName: "dumbbell.fill")
@@ -169,12 +175,62 @@ struct LockScreenView: View {
             )
         )
     }
-    
-    private var progressValue: Double {
-        let total = Double(context.attributes.totalDuration)
-        let remaining = Double(context.state.secondsRemaining)
-        guard total > 0 else { return 0 }
-        return remaining / total
+
+    @ViewBuilder
+    private var timerRing: some View {
+        if context.state.isPaused {
+            ZStack {
+                Circle()
+                    .stroke(Color.gray.opacity(0.3), lineWidth: 4)
+                Circle()
+                    .trim(from: 0, to: pausedProgress)
+                    .stroke(Color.yellow, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                Image(systemName: "pause.fill")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(.yellow)
+            }
+        } else {
+            ProgressView(
+                timerInterval: timerRange,
+                countsDown: true,
+                label: { EmptyView() },
+                currentValueLabel: {
+                    Text(timerInterval: Date()...context.state.endTime, countsDown: true)
+                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.white)
+                        .monospacedDigit()
+                        .multilineTextAlignment(.center)
+                        .minimumScaleFactor(0.6)
+                        .lineLimit(1)
+                }
+            )
+            .progressViewStyle(CircularTimerProgressStyle(color: themeColor))
+        }
+    }
+}
+
+// MARK: - Circular Timer Progress Style
+//
+// The system updates `configuration.fractionCompleted` over the timer interval
+// without requiring the app to push state updates, which is what keeps the ring
+// in sync with `Text(timerInterval:)` even while the device is locked.
+struct CircularTimerProgressStyle: ProgressViewStyle {
+    let color: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        // fractionCompleted goes 0 -> 1 across the interval; the ring should drain.
+        let remaining = 1 - (configuration.fractionCompleted ?? 0)
+        return ZStack {
+            Circle()
+                .stroke(Color.gray.opacity(0.3), lineWidth: 4)
+            Circle()
+                .trim(from: 0, to: max(0, min(1, remaining)))
+                .stroke(color, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            configuration.currentValueLabel
+                .padding(6)
+        }
     }
 }
 

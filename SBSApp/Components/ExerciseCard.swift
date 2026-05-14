@@ -570,7 +570,7 @@ struct AccessoryCard: View {
                             HStack(spacing: 4) {
                                 Image(systemName: "hand.thumbsup.fill")
                                     .font(.system(size: 11))
-                                Text("Last was easy — try heavier")
+                                Text("Last time was easy, go heavier")
                                     .font(SBSFonts.caption())
                             }
                             .foregroundStyle(SBSColors.success)

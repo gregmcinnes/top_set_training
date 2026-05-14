@@ -68,12 +68,12 @@
 		A71AAD1CA7F83E5A951426ED /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F46C7C52EFEA53288A58CA9F /* StoreManager.swift */; };
 		A7EBDFF2568F3549F81AC05E /* reddit_ppl_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = BF3F8B5D987C02F886932160 /* reddit_ppl_12week.json */; };
 		A8F1C3D4E5B6A7890CDEF123 /* basic_ppl_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = B9E2D4C5F6A7B8901DEFA234 /* basic_ppl_12week.json */; };
-		BF1F8B5D987C02F886932161 /* back_friendly_hypertrophy_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = CFF3D4F50617283A4B5C6D7F /* back_friendly_hypertrophy_12week.json */; };
 		A95A52851940BEDADDE0D298 /* gzclp_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = DDB3E217F9ABA8174F8F2BD3 /* gzclp_12week.json */; };
 		AA4A2C7842B7B932364A473E /* ExerciseLibraryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51AD74D4BDAD2C088FDA03D1 /* ExerciseLibraryTests.swift */; };
 		AF2CB987C394F3E223425F71 /* gzclp_3day_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = 854A78BF3E4A007871189B44 /* gzclp_3day_12week.json */; };
 		AFF5FB7CE0E6443B4128D822 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE40AB3A0A886E906EF6276B /* LiveActivityManager.swift */; };
 		B1C2D3E4F5061728394A5B6C /* phul_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = C2D3E4F50617283A4B5C6D7E /* phul_12week.json */; };
+		BF1F8B5D987C02F886932161 /* back_friendly_hypertrophy_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = CFF3D4F50617283A4B5C6D7F /* back_friendly_hypertrophy_12week.json */; };
 		BFA800A6D3AE759C6505C270 /* CSVExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8846CF0A9BBAA916E9D62D8 /* CSVExporter.swift */; };
 		CD2A0258E255A3A99FADAE12 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 81A47D6751CFE5F4634BC563 /* Assets.xcassets */; };
 		D1441D450B8CF166437B21C4 /* TemplateListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33B52731ABCCAC30EC52F1FE /* TemplateListView.swift */; };
@@ -217,7 +217,6 @@
 		B38802AFFF9DE7C3428AD82C /* ProgramRecommendationQuiz.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgramRecommendationQuiz.swift; sourceTree = "<group>"; };
 		B55EA33C473A5D6F5F89AB96 /* RestTimerWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTimerWidgetBundle.swift; sourceTree = "<group>"; };
 		B9E2D4C5F6A7B8901DEFA234 /* basic_ppl_12week.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = basic_ppl_12week.json; sourceTree = "<group>"; };
-		CFF3D4F50617283A4B5C6D7F /* back_friendly_hypertrophy_12week.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = back_friendly_hypertrophy_12week.json; sourceTree = "<group>"; };
 		BE40AB3A0A886E906EF6276B /* LiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
 		BED4971D69459FEF06379959 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		BED4972E79459FFF16379960 /* ReviewRequestManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewRequestManager.swift; sourceTree = "<group>"; };
@@ -228,6 +227,7 @@
 		C84D332BEE6622A721A02D62 /* WeightAdjustmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightAdjustmentTests.swift; sourceTree = "<group>"; };
 		C8846CF0A9BBAA916E9D62D8 /* CSVExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVExporter.swift; sourceTree = "<group>"; };
 		C9313590030390738C788AF8 /* LinearProgressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinearProgressionTests.swift; sourceTree = "<group>"; };
+		CFF3D4F50617283A4B5C6D7F /* back_friendly_hypertrophy_12week.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = back_friendly_hypertrophy_12week.json; sourceTree = "<group>"; };
 		D682CE64F9980CF0EE49AE2F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		D8F370DCA7663BC7F8A501EC /* PastCyclesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PastCyclesView.swift; sourceTree = "<group>"; };
 		D95A29C2E46E3C6237BF2780 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -711,13 +711,13 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = SBSWatch/SBSWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = 2K7MV7G4ZJ;
 				INFOPLIST_FILE = SBSWatch/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Top Set Training";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.gregorymcinnes.topsettraining;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.gregorymcinnes.topsettraining.watchkitapp;
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -730,7 +730,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = 2K7MV7G4ZJ;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = RestTimerWidget/Info.plist;
@@ -742,7 +742,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.gregorymcinnes.topsettraining.RestTimerWidget;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -824,7 +824,7 @@
 				CODE_SIGN_ENTITLEMENTS = SBSApp/SBSApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = 2K7MV7G4ZJ;
 				INFOPLIST_FILE = SBSApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Top Set Training";
@@ -834,7 +834,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.gregorymcinnes.topsettraining;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -853,7 +853,7 @@
 				CODE_SIGN_ENTITLEMENTS = SBSApp/SBSApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = 2K7MV7G4ZJ;
 				INFOPLIST_FILE = SBSApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Top Set Training";
@@ -863,7 +863,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.gregorymcinnes.topsettraining;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -936,13 +936,13 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = SBSWatch/SBSWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = 2K7MV7G4ZJ;
 				INFOPLIST_FILE = SBSWatch/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Top Set Training";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.gregorymcinnes.topsettraining;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.gregorymcinnes.topsettraining.watchkitapp;
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -955,7 +955,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = 2K7MV7G4ZJ;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = RestTimerWidget/Info.plist;
@@ -967,7 +967,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.gregorymcinnes.topsettraining.RestTimerWidget;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

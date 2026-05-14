@@ -29,6 +29,7 @@ struct WorkoutExercise: Identifiable {
     let intensity: Double?  // Percentage of training max (0.0-1.0)
     let calculatedWeight: Double?  // Original calculated weight (before any override)
     var lastWasEasy: Bool? = nil  // For accessories: did the user mark the previous session as easy?
+    var markedEasy: Bool = false  // For accessories: did the user mark this current session as easy?
     
     /// For volume exercises, the last set is the rep-out
     static func fromVolumeItem(name: String, lift: String, weight: Double, sets: Int, repsPerSet: Int, repOutTarget: Int, intensity: Double, calculatedWeight: Double? = nil) -> WorkoutExercise {
@@ -499,7 +500,8 @@ struct WorkoutView: View {
                             } else {
                                 showingWeightOverride = true
                             }
-                        }
+                        },
+                        onMarkEasy: toggleCurrentAccessoryEasy
                     )
                 }
             }
@@ -1482,6 +1484,25 @@ struct WorkoutView: View {
         appState.logAccessory(name: accessory.name, weight: weight, sets: sets, reps: reps)
     }
 
+    /// Toggle the "that was easy" flag on the current standalone accessory and
+    /// persist it to the accessory log so the nudge shows up next session.
+    private func toggleCurrentAccessoryEasy() {
+        let idx = workoutState.currentExerciseIndex
+        guard idx < workoutState.exercises.count else { return }
+        var exercise = workoutState.exercises[idx]
+        guard exercise.isAccessory else { return }
+        exercise.markedEasy.toggle()
+        workoutState.exercises[idx] = exercise
+
+        appState.logAccessory(
+            name: exercise.name,
+            weight: exercise.weight,
+            sets: exercise.totalSets,
+            reps: exercise.repsPerSet,
+            wasEasy: exercise.markedEasy ? true : nil
+        )
+    }
+
     /// Update the weight of the current standalone accessory exercise (not a superset).
     private func updateStandaloneAccessoryWeight(weight: Double, sets: Int, reps: Int) {
         let idx = workoutState.currentExerciseIndex
@@ -1735,6 +1756,7 @@ struct CurrentSetView: View {
     let onComplete: () -> Void
     var onUnlockTap: (() -> Void)?
     var onWeightTap: (() -> Void)?
+    var onMarkEasy: (() -> Void)?
     
     /// Get the current set info for nSuns exercises
     private var currentStructuredSet: StructuredSetInfo? {
@@ -1861,7 +1883,7 @@ struct CurrentSetView: View {
                             HStack(spacing: 4) {
                                 Image(systemName: "hand.thumbsup.fill")
                                     .font(.system(size: 12))
-                                Text("Last was easy — try heavier")
+                                Text("Last time was easy, go heavier")
                                     .font(SBSFonts.caption())
                             }
                             .foregroundStyle(SBSColors.success)
@@ -1871,6 +1893,32 @@ struct CurrentSetView: View {
                                 Capsule()
                                     .fill(SBSColors.success.opacity(0.15))
                             )
+                        }
+
+                        if workoutState.currentSetNumber == exercise.totalSets {
+                            Button(action: { onMarkEasy?() }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: exercise.markedEasy ? "hand.thumbsup.fill" : "hand.thumbsup")
+                                        .font(.system(size: 12))
+                                    Text(exercise.markedEasy ? "Marked easy" : "That was easy?")
+                                        .font(SBSFonts.caption())
+                                }
+                                .foregroundStyle(exercise.markedEasy ? SBSColors.success : SBSColors.textSecondaryFallback)
+                                .padding(.horizontal, SBSLayout.paddingMedium)
+                                .padding(.vertical, SBSLayout.paddingSmall)
+                                .background(
+                                    Capsule()
+                                        .fill(exercise.markedEasy ? SBSColors.success.opacity(0.15) : SBSColors.surfaceFallback)
+                                        .overlay(
+                                            Capsule()
+                                                .strokeBorder(
+                                                    exercise.markedEasy ? SBSColors.success.opacity(0.4) : SBSColors.textTertiaryFallback.opacity(0.3),
+                                                    lineWidth: 1
+                                                )
+                                        )
+                                )
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                 } else if exercise.isStructured {
@@ -2626,7 +2674,7 @@ struct SupersetAccessoryCard: View {
                         HStack(spacing: 3) {
                             Image(systemName: "hand.thumbsup.fill")
                                 .font(.system(size: compact ? 9 : 10))
-                            Text("Last was easy — push it")
+                            Text("Last time was easy, go heavier")
                                 .font(SBSFonts.caption())
                         }
                         .foregroundStyle(SBSColors.success)

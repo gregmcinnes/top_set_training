@@ -14,7 +14,6 @@ final class AccessoryWorkoutState {
     // Timer state
     var timerRemaining: Int = 0
     var timerDuration: Int = 120
-    var timerInitialDuration: Int = 0  // Duration when timer was first started, before any adjustments
     var timerIsRunning: Bool = false
     var timerIsPaused: Bool = false
     var showingTimer: Bool = false
@@ -69,7 +68,6 @@ final class AccessoryWorkoutState {
     
     func startTimer(duration: Int) {
         timerDuration = duration
-        timerInitialDuration = duration
         timerRemaining = duration
         timerIsRunning = true
         timerIsPaused = false
@@ -827,8 +825,8 @@ struct AccessoryTimerView: View {
                         .font(SBSFonts.caption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
 
-                    if workoutState.timerInitialDuration > 0 {
-                        Text("of \(formatDuration(workoutState.timerInitialDuration))")
+                    if workoutState.timerDuration > 0 {
+                        Text("of \(formatDuration(workoutState.timerDuration))")
                             .font(.system(size: 12, weight: .medium, design: .monospaced))
                             .foregroundStyle(SBSColors.textTertiaryFallback)
                     }
@@ -1253,8 +1251,8 @@ struct StandaloneTimerView: View {
                             .font(SBSFonts.caption())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
 
-                        if workoutState.timerInitialDuration > 0 {
-                            Text("of \(formatDuration(workoutState.timerInitialDuration))")
+                        if workoutState.timerDuration > 0 {
+                            Text("of \(formatDuration(workoutState.timerDuration))")
                                 .font(.system(size: 12, weight: .medium, design: .monospaced))
                                 .foregroundStyle(SBSColors.textTertiaryFallback)
                         }

@@ -55,9 +55,27 @@ public final class LiveActivityManager: ObservableObject {
         }
     }
 
+    /// End any activity that this process isn't tracking as `currentActivity`.
+    /// Catches activities left behind by a force-quit / memory-pressure kill:
+    /// after relaunch `currentActivity` is nil, so every still-registered
+    /// activity is an orphan and gets ended. A genuinely active in-foreground
+    /// timer is matched and left alone.
+    public func endOrphanedActivities() async {
+        let trackedID = currentActivity?.id
+        for activity in Activity<RestTimerAttributes>.activities where activity.id != trackedID {
+            Logger.debug("🧹 Ending orphaned Live Activity: \(activity.id)", category: .liveActivity)
+            await endActivity(activity)
+        }
+    }
+
     /// Ends a single activity with a refreshed final content state. Passing a
     /// fresh ActivityContent (rather than nil) is important because iOS will
     /// not reliably dismiss an already-stale activity ended with nil content.
+    /// staleDate must be nil here: a future staleDate combined with
+    /// `dismissalPolicy: .immediate` causes iOS to keep the ended activity
+    /// visible in a redacted/shimmer presentation on the lock screen until the
+    /// staleDate passes (a 1-hour value here was leaving frozen icons up for
+    /// ~an hour after exiting a workout).
     private func endActivity(_ activity: Activity<RestTimerAttributes>) async {
         let finalState = RestTimerAttributes.ContentState(
             secondsRemaining: 0,
@@ -66,7 +84,7 @@ public final class LiveActivityManager: ObservableObject {
         )
         let finalContent = ActivityContent(
             state: finalState,
-            staleDate: Date().addingTimeInterval(60 * 60)
+            staleDate: nil
         )
         await activity.end(finalContent, dismissalPolicy: .immediate)
     }

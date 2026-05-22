@@ -172,6 +172,7 @@ final class WorkoutState {
     // Timer state
     var timerRemaining: Int = 0
     var timerDuration: Int = 120
+    var timerInitialDuration: Int = 0  // Duration when timer was first started, before any adjustments
     var timerIsRunning: Bool = false
     var timerIsPaused: Bool = false
     var showingTimer: Bool = false
@@ -321,6 +322,7 @@ final class WorkoutState {
     
     func startTimer(duration: Int) {
         timerDuration = duration
+        timerInitialDuration = duration
         timerRemaining = duration
         timerIsRunning = true
         timerIsPaused = false
@@ -1099,9 +1101,16 @@ struct WorkoutView: View {
     }
     
     private func finishAndDismiss() {
+        stopTimer()
+
         // End Watch sync
         syncWorkoutEndedToWatch()
-        
+
+        // End Live Activity (lock screen / Dynamic Island) — abort paths do
+        // this; the normal-completion path used to skip it and orphan the
+        // activity if a rest timer was still running when the user tapped Done.
+        LiveActivityManager.shared.endTimerSync()
+
         // End HealthKit workout if active (premium feature)
         if storeManager.canAccess(.appleFitness) && appState.settings.healthKitEnabled {
             // Calculate workout stats for HealthKit
@@ -2408,10 +2417,16 @@ struct TimerView: View {
                     Text(timerText)
                         .font(.system(size: hasSuperset ? 36 : 48, weight: .bold, design: .monospaced))
                         .foregroundStyle(SBSColors.textPrimaryFallback)
-                    
+
                     Text(hasSuperset ? "SUPERSET" : "REST")
                         .font(SBSFonts.caption())
                         .foregroundStyle(hasSuperset ? SBSColors.accentSecondaryFallback : SBSColors.textSecondaryFallback)
+
+                    if workoutState.timerInitialDuration > 0 {
+                        Text("of \(formatDuration(workoutState.timerInitialDuration))")
+                            .font(.system(size: hasSuperset ? 11 : 12, weight: .medium, design: .monospaced))
+                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                    }
                 }
             }
             
@@ -2492,10 +2507,32 @@ struct TimerView: View {
             
             // Next set preview
             if let exercise = workoutState.currentExercise {
+                // Structured exercises store per-set targets in
+                // structuredSetInfo and intentionally leave the top-level
+                // weight/reps fields blank (heaviest weight, 0 reps) — read
+                // from the per-set info when available so the upcoming set
+                // shows its actual targets. Mirrors CurrentSetView.
+                let upcomingSet: StructuredSetInfo? = {
+                    guard exercise.isStructured,
+                          let sets = exercise.structuredSetInfo,
+                          workoutState.currentSetNumber > 0,
+                          workoutState.currentSetNumber <= sets.count
+                    else { return nil }
+                    return sets[workoutState.currentSetNumber - 1]
+                }()
+                let nextWeight = upcomingSet?.weight ?? exercise.weight
+                let nextReps: String = {
+                    if workoutState.isCurrentSetRepOut {
+                        return "\(exercise.repOutTarget)+"
+                    }
+                    if let s = upcomingSet { return "\(s.targetReps)" }
+                    return "\(exercise.repsPerSet)"
+                }()
+
                 NextSetPreview(
                     exerciseName: exercise.name,
-                    weight: exercise.weight,
-                    reps: workoutState.isCurrentSetRepOut ? "\(exercise.repOutTarget)+" : "\(exercise.repsPerSet)",
+                    weight: nextWeight,
+                    reps: nextReps,
                     isRepOut: workoutState.isCurrentSetRepOut,
                     isAccessory: exercise.isAccessory,
                     setNumber: workoutState.currentSetNumber,
@@ -2535,6 +2572,12 @@ struct TimerView: View {
         let minutes = workoutState.timerRemaining / 60
         let seconds = workoutState.timerRemaining % 60
         return String(format: "%d:%02d", minutes, seconds)
+    }
+
+    private func formatDuration(_ seconds: Int) -> String {
+        let m = seconds / 60
+        let s = seconds % 60
+        return String(format: "%d:%02d", m, s)
     }
 }
 

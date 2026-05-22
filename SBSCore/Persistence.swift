@@ -255,6 +255,10 @@ public struct UserData: Codable, Equatable {
     public var personalRecords: [String: PersonalRecord]
     // Complete workout records - stores all data for history display (new system)
     public var workoutRecords: [WorkoutRecord]
+    // Time-series accessory log entries — parallel to liftHistory for the
+    // volume-by-body-part view. Populated going forward; pre-update data has
+    // no per-date accessory entries (only the snapshot in accessoryLogs).
+    public var accessoryHistory: [AccessoryRecord]
     
     // MARK: - Cycle management
     
@@ -290,6 +294,7 @@ public struct UserData: Codable, Equatable {
         liftHistory: [LiftRecord] = [],
         personalRecords: [String: PersonalRecord] = [:],
         workoutRecords: [WorkoutRecord] = [],
+        accessoryHistory: [AccessoryRecord] = [],
         currentCycleStartDate: Date = Date(),
         cycleHistory: [CompletedCycle] = [],
         customTemplates: [CustomTemplate] = [],
@@ -307,6 +312,7 @@ public struct UserData: Codable, Equatable {
         self.liftHistory = liftHistory
         self.personalRecords = personalRecords
         self.workoutRecords = workoutRecords
+        self.accessoryHistory = accessoryHistory
         self.currentCycleStartDate = currentCycleStartDate
         self.cycleHistory = cycleHistory
         self.customTemplates = customTemplates
@@ -328,6 +334,7 @@ public struct UserData: Codable, Equatable {
         liftHistory = try container.decodeIfPresent([LiftRecord].self, forKey: .liftHistory) ?? []
         personalRecords = try container.decodeIfPresent([String: PersonalRecord].self, forKey: .personalRecords) ?? [:]
         workoutRecords = try container.decodeIfPresent([WorkoutRecord].self, forKey: .workoutRecords) ?? []
+        accessoryHistory = try container.decodeIfPresent([AccessoryRecord].self, forKey: .accessoryHistory) ?? []
         currentCycleStartDate = try container.decodeIfPresent(Date.self, forKey: .currentCycleStartDate) ?? Date()
         cycleHistory = try container.decodeIfPresent([CompletedCycle].self, forKey: .cycleHistory) ?? []
         customTemplates = try container.decodeIfPresent([CustomTemplate].self, forKey: .customTemplates) ?? []
@@ -339,6 +346,7 @@ public struct UserData: Codable, Equatable {
         case logs, structuredLogs, linearLogs
         case customInitialMaxes, customDays, accessoryLogs, selectedProgram
         case trainingMaxes, liftHistory, personalRecords, workoutRecords
+        case accessoryHistory
         case currentCycleStartDate, cycleHistory, customTemplates
         case savedProgramCustomizations, hasCompletedOnboarding
     }

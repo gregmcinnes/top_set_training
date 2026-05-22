@@ -126,6 +126,13 @@ public final class ExerciseLibrary {
         let lowercased = query.lowercased()
         return exercises.filter { $0.name.lowercased().contains(lowercased) }
     }
+
+    /// Resolve a lift / accessory name to its library body part.
+    /// Case-insensitive exact match — returns nil for custom or unknown names.
+    public func bodyPart(for name: String) -> BodyPart? {
+        let lowered = name.lowercased()
+        return exercises.first { $0.name.lowercased() == lowered }?.bodyPart
+    }
     
     /// Create a custom exercise
     public static func customExercise(name: String, bodyPart: BodyPart) -> Exercise {

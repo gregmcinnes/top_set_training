@@ -7,6 +7,35 @@ enum ChartDisplayMode: String, CaseIterable {
     case trainingMax = "Training Max"
 }
 
+/// Time period for the volume-by-body-part card
+enum VolumePeriod: String, CaseIterable {
+    case thisWeek = "This week"
+    case last4Weeks = "Last 4 weeks"
+    case thisCycle = "This cycle"
+    case allTime = "All time"
+}
+
+/// Metric for the volume-by-body-part card
+enum VolumeMetric: String, CaseIterable {
+    case hardSets = "Sets"
+    case tonnage = "Tonnage"
+}
+
+/// Sort modes for the lift selector pills
+enum LiftSortMode: String, CaseIterable {
+    case mostRecent = "Most recent"
+    case mostData = "Most data"
+    case alphabetical = "A–Z"
+
+    var systemImage: String {
+        switch self {
+        case .mostRecent: return "clock"
+        case .mostData: return "chart.bar.fill"
+        case .alphabetical: return "textformat.abc"
+        }
+    }
+}
+
 /// Strength score formula options
 enum StrengthScoreFormula: String, CaseIterable {
     case wilks = "WILKS"
@@ -41,7 +70,10 @@ struct HistoryView: View {
     @State private var ageCategory: AgeCategory = .allAges
     @State private var selectedStrengthFormula: StrengthScoreFormula = .wilks
     @State private var showStrengthScore = true // Show strength score by default
-    
+    @State private var liftSortMode: LiftSortMode = .mostRecent
+    @State private var volumePeriod: VolumePeriod = .thisWeek
+    @State private var volumeMetric: VolumeMetric = .hardSets
+
     private let storeManager = StoreManager.shared
     
     /// Classic lifts that should always appear first (in this order)
@@ -55,64 +87,166 @@ struct HistoryView: View {
         "Overhead Press": ["Overhead Press", "OHP", "Press"]
     ]
     
-    /// Get lifts ordered for history view: classic lifts first, then other program lifts
-    /// For paid users, also includes lifts from past cycles and unified history
-    private var orderedLifts: [String] {
-        var allLifts = Set<String>()
-        
-        // Get lifts from current program state
-        if let state = appState.programState {
-            // Get lifts from the lifts dictionary (programs with training maxes)
-            allLifts.formUnion(state.lifts.keys)
-            
-            // Also get lifts from day items (for nSuns programs which may use lifts dict differently)
-            for (_, items) in state.days {
-                for item in items {
-                    if let lift = item.lift {
-                        allLifts.insert(lift)
+    /// Volume aggregated per body part for the current `volumePeriod` and
+    /// `volumeMetric`. Main lifts come from per-set `workoutRecords`;
+    /// accessories come from `accessoryHistory`. Returned sorted desc; rows
+    /// with zero volume are dropped. A nil body-part bucket holds custom or
+    /// unrecognized exercises ("Other" in the UI).
+    private var volumeByBodyPart: [(bodyPart: BodyPart?, value: Double)] {
+        let (start, end) = volumeDateRange(for: volumePeriod)
+        var totals: [BodyPart?: Double] = [:]
+
+        for workout in appState.userData.workoutRecords where workout.date >= start && workout.date < end {
+            for exercise in workout.exercises {
+                let bp = ExerciseLibrary.shared.bodyPart(for: exercise.lift)
+                for set in exercise.sets where set.completed {
+                    let reps = set.actualReps ?? 0
+                    guard reps > 0 else { continue }
+                    switch volumeMetric {
+                    case .hardSets:
+                        totals[bp, default: 0] += 1
+                    case .tonnage:
+                        totals[bp, default: 0] += set.weight * Double(reps)
                     }
                 }
             }
         }
-        
-        // Always include lifts from current unified history (all users can see current cycle)
-        allLifts.formUnion(appState.allRecordedLifts)
-        
-        // For paid users, also include lifts from past cycle history
+
+        for record in appState.userData.accessoryHistory where record.date >= start && record.date < end {
+            switch volumeMetric {
+            case .hardSets:
+                totals[record.bodyPart, default: 0] += Double(record.sets)
+            case .tonnage:
+                totals[record.bodyPart, default: 0] += record.weight * Double(record.sets) * Double(record.reps)
+            }
+        }
+
+        return totals
+            .filter { $0.value > 0 }
+            .map { (bodyPart: $0.key, value: $0.value) }
+            .sorted { $0.value > $1.value }
+    }
+
+    /// [start, end) date range for a `VolumePeriod`. End is the start of
+    /// tomorrow so today's records are always included.
+    private func volumeDateRange(for period: VolumePeriod) -> (start: Date, end: Date) {
+        let cal = Calendar.current
+        let now = Date()
+        let endOfToday = cal.startOfDay(for: now)
+        let end = cal.date(byAdding: .day, value: 1, to: endOfToday) ?? now
+        switch period {
+        case .thisWeek:
+            let start = cal.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+            return (start, end)
+        case .last4Weeks:
+            let start = cal.date(byAdding: .day, value: -28, to: endOfToday) ?? now
+            return (start, end)
+        case .thisCycle:
+            return (appState.userData.currentCycleStartDate, end)
+        case .allTime:
+            return (.distantPast, end)
+        }
+    }
+
+    /// Per-lift record count and most-recent activity date. Drives both the
+    /// "only show lifts with data" filter and the sort orderings below. Pulls
+    /// from `liftHistory` (canonical, dated per-record) and — for paid users —
+    /// past cycle logs (using cycle.endDate as the proxy date since per-entry
+    /// dates aren't stored in the cycle log dictionaries).
+    private var liftStats: [String: (count: Int, lastDate: Date)] {
+        var stats: [String: (count: Int, lastDate: Date)] = [:]
+
+        for record in appState.userData.liftHistory {
+            if let existing = stats[record.liftName] {
+                stats[record.liftName] = (
+                    count: existing.count + 1,
+                    lastDate: max(existing.lastDate, record.date)
+                )
+            } else {
+                stats[record.liftName] = (count: 1, lastDate: record.date)
+            }
+        }
+
         if canAccessFullHistory {
             for cycle in appState.userData.cycleHistory {
-                allLifts.formUnion(cycle.logs.keys)
-                allLifts.formUnion(cycle.liftData.keys)
-                allLifts.formUnion(cycle.tmHistory.keys)
-                allLifts.formUnion(cycle.structuredLogs.keys)
-                allLifts.formUnion(cycle.linearLogs.keys)
-            }
-        }
-        
-        var result: [String] = []
-        var usedLifts = Set<String>()
-        
-        // First, add classic lifts in order (if they exist in our lifts)
-        for classicLift in classicLifts {
-            if let aliases = classicLiftAliases[classicLift] {
-                for alias in aliases {
-                    if allLifts.contains(alias) && !usedLifts.contains(alias) {
-                        result.append(alias)
-                        usedLifts.insert(alias)
-                        break // Only add one version of each classic lift
+                let liftsInCycle = Set(cycle.logs.keys)
+                    .union(cycle.structuredLogs.keys)
+                    .union(cycle.linearLogs.keys)
+                for lift in liftsInCycle {
+                    var count = 0
+                    if let liftLogs = cycle.logs[lift] {
+                        for (_, dayLogs) in liftLogs {
+                            count += dayLogs.values.filter { $0.repsLastSet != nil }.count
+                        }
+                    }
+                    if let liftLogs = cycle.structuredLogs[lift] {
+                        for (_, dayLogs) in liftLogs {
+                            count += dayLogs.values.count
+                        }
+                    }
+                    if let liftLogs = cycle.linearLogs[lift] {
+                        for (_, dayLogs) in liftLogs {
+                            count += dayLogs.values.count
+                        }
+                    }
+                    guard count > 0 else { continue }
+
+                    if let existing = stats[lift] {
+                        stats[lift] = (
+                            count: existing.count + count,
+                            lastDate: max(existing.lastDate, cycle.endDate)
+                        )
+                    } else {
+                        stats[lift] = (count: count, lastDate: cycle.endDate)
                     }
                 }
             }
         }
-        
-        // Then add any remaining lifts alphabetically
-        let remainingLifts = allLifts
-            .filter { !usedLifts.contains($0) }
-            .sorted()
-        
-        result.append(contentsOf: remainingLifts)
-        
-        return result
+
+        return stats
+    }
+
+    /// Lifts to show in the selector. Filtered to lifts with logged data (no
+    /// more clutter from program lifts the user has never touched) and sorted
+    /// by `liftSortMode`. The classic-lifts-first rule applies only in the
+    /// alphabetical mode — the data-driven modes are purely data-driven.
+    private var orderedLifts: [String] {
+        let stats = liftStats
+        let liftsWithData = Array(stats.keys)
+
+        switch liftSortMode {
+        case .mostRecent:
+            return liftsWithData.sorted { a, b in
+                let da = stats[a]?.lastDate ?? .distantPast
+                let db = stats[b]?.lastDate ?? .distantPast
+                if da != db { return da > db }
+                return a < b
+            }
+        case .mostData:
+            return liftsWithData.sorted { a, b in
+                let ca = stats[a]?.count ?? 0
+                let cb = stats[b]?.count ?? 0
+                if ca != cb { return ca > cb }
+                return a < b
+            }
+        case .alphabetical:
+            var result: [String] = []
+            var used = Set<String>()
+            for classicLift in classicLifts {
+                if let aliases = classicLiftAliases[classicLift] {
+                    for alias in aliases {
+                        if stats.keys.contains(alias) && !used.contains(alias) {
+                            result.append(alias)
+                            used.insert(alias)
+                            break
+                        }
+                    }
+                }
+            }
+            let remaining = liftsWithData.filter { !used.contains($0) }.sorted()
+            result.append(contentsOf: remaining)
+            return result
+        }
     }
     
     /// Whether the user can access the E1RM chart
@@ -189,6 +323,41 @@ struct HistoryView: View {
         }
     }
     
+    /// Sort menu for the lift selector pills
+    private var liftSortMenu: some View {
+        Menu {
+            ForEach(LiftSortMode.allCases, id: \.self) { mode in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        liftSortMode = mode
+                    }
+                } label: {
+                    HStack {
+                        Label(mode.rawValue, systemImage: mode.systemImage)
+                        if mode == liftSortMode {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: liftSortMode.systemImage)
+                    .font(.system(size: 10, weight: .semibold))
+                Text(liftSortMode.rawValue)
+                    .font(SBSFonts.caption())
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8, weight: .bold))
+            }
+            .foregroundStyle(SBSColors.textSecondaryFallback)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                Capsule().fill(SBSColors.surfaceFallback)
+            )
+        }
+    }
+
     /// Share lift progress button
     private var shareLiftProgressButton: some View {
         Button {
@@ -329,13 +498,30 @@ struct HistoryView: View {
                         onTap: { showingTMProgress = true }
                     )
                     .padding(.horizontal)
-                    
-                    // Lift selector
-                    LiftSelector(
-                        lifts: orderedLifts,
-                        selectedLift: $selectedLift
+
+                    // Volume by Body Part card
+                    VolumeByBodyPartCard(
+                        period: $volumePeriod,
+                        metric: $volumeMetric,
+                        rows: volumeByBodyPart,
+                        useMetric: appState.settings.useMetric
                     )
                     .padding(.horizontal)
+
+                    // Lift selector with sort menu
+                    VStack(spacing: SBSLayout.paddingSmall) {
+                        HStack {
+                            Spacer()
+                            liftSortMenu
+                        }
+                        .padding(.horizontal)
+
+                        LiftSelector(
+                            lifts: orderedLifts,
+                            selectedLift: $selectedLift
+                        )
+                        .padding(.horizontal)
+                    }
                     
                     // Progress Chart with mode toggle
                     if let lift = selectedLift {
@@ -1030,6 +1216,139 @@ struct HistoryLogEntry: Identifiable {
     let date: Date
     let note: String?
     let programName: String?  // Program name for this cycle
+}
+
+// MARK: - Volume by Body Part
+
+struct VolumeByBodyPartCard: View {
+    @Binding var period: VolumePeriod
+    @Binding var metric: VolumeMetric
+    let rows: [(bodyPart: BodyPart?, value: Double)]
+    let useMetric: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
+            HStack(alignment: .center) {
+                Text("Volume by Body Part")
+                    .font(SBSFonts.bodyBold())
+                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                Spacer()
+                periodMenu
+            }
+
+            Picker("", selection: $metric) {
+                ForEach(VolumeMetric.allCases, id: \.self) { m in
+                    Text(m.rawValue).tag(m)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            if rows.isEmpty {
+                Text("Log a workout to see your volume.")
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .padding(.vertical, SBSLayout.paddingSmall)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                let maxValue = rows.first?.value ?? 1
+                VStack(spacing: SBSLayout.paddingSmall) {
+                    ForEach(rows.indices, id: \.self) { i in
+                        VolumeRow(
+                            label: rows[i].bodyPart?.rawValue ?? "Other",
+                            value: rows[i].value,
+                            maxValue: maxValue,
+                            metric: metric,
+                            useMetric: useMetric
+                        )
+                    }
+                }
+            }
+        }
+        .padding(SBSLayout.paddingMedium)
+        .background(
+            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                .fill(SBSColors.surfaceFallback)
+        )
+    }
+
+    private var periodMenu: some View {
+        Menu {
+            ForEach(VolumePeriod.allCases, id: \.self) { p in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        period = p
+                    }
+                } label: {
+                    HStack {
+                        Text(p.rawValue)
+                        if p == period {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(period.rawValue)
+                    .font(SBSFonts.caption())
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8, weight: .bold))
+            }
+            .foregroundStyle(SBSColors.textSecondaryFallback)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Capsule().fill(SBSColors.backgroundFallback))
+        }
+    }
+}
+
+private struct VolumeRow: View {
+    let label: String
+    let value: Double
+    let maxValue: Double
+    let metric: VolumeMetric
+    let useMetric: Bool
+
+    var body: some View {
+        HStack(spacing: SBSLayout.paddingSmall) {
+            Text(label)
+                .font(SBSFonts.body())
+                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .frame(width: 90, alignment: .leading)
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(SBSColors.backgroundFallback)
+                    Capsule()
+                        .fill(SBSColors.accentFallback)
+                        .frame(width: max(2, geo.size.width * CGFloat(value / max(maxValue, 1))))
+                }
+            }
+            .frame(height: 8)
+
+            Text(formattedValue)
+                .font(SBSFonts.captionBold())
+                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .frame(minWidth: 60, alignment: .trailing)
+        }
+    }
+
+    private var formattedValue: String {
+        switch metric {
+        case .hardSets:
+            let sets = Int(value.rounded())
+            return "\(sets) \(sets == 1 ? "set" : "sets")"
+        case .tonnage:
+            let converted = useMetric ? value * 0.453592 : value
+            let unit = useMetric ? "kg" : "lb"
+            let formatter = NumberFormatter()
+            formatter.numberStyle = .decimal
+            formatter.maximumFractionDigits = 0
+            let str = formatter.string(from: NSNumber(value: converted)) ?? String(format: "%.0f", converted)
+            return "\(str) \(unit)"
+        }
+    }
 }
 
 // MARK: - Lift Selector

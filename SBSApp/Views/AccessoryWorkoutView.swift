@@ -14,6 +14,7 @@ final class AccessoryWorkoutState {
     // Timer state
     var timerRemaining: Int = 0
     var timerDuration: Int = 120
+    var timerInitialDuration: Int = 0  // Duration when timer was first started, before any adjustments
     var timerIsRunning: Bool = false
     var timerIsPaused: Bool = false
     var showingTimer: Bool = false
@@ -68,6 +69,7 @@ final class AccessoryWorkoutState {
     
     func startTimer(duration: Int) {
         timerDuration = duration
+        timerInitialDuration = duration
         timerRemaining = duration
         timerIsRunning = true
         timerIsPaused = false
@@ -364,6 +366,13 @@ struct AccessoryWorkoutView: View {
     }
     
     private func finishAndDismiss() {
+        stopTimer()
+
+        // End Live Activity (lock screen / Dynamic Island) — abort paths do
+        // this; the normal-completion path used to skip it and orphan the
+        // activity if a rest timer was still running when the user tapped Done.
+        LiveActivityManager.shared.endTimerSync()
+
         // End HealthKit workout if active (premium feature)
         if StoreManager.shared.canAccess(.appleFitness) && appState.settings.healthKitEnabled && HealthKitManager.shared.isWorkoutActive {
             // Calculate workout stats for HealthKit
@@ -813,13 +822,19 @@ struct AccessoryTimerView: View {
                     Text(timerText)
                         .font(.system(size: 48, weight: .bold, design: .monospaced))
                         .foregroundStyle(SBSColors.textPrimaryFallback)
-                    
+
                     Text("REST")
                         .font(SBSFonts.caption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
+
+                    if workoutState.timerInitialDuration > 0 {
+                        Text("of \(formatDuration(workoutState.timerInitialDuration))")
+                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                    }
                 }
             }
-            
+
             // Timer controls
             HStack(spacing: SBSLayout.paddingXLarge) {
                 // Pause/Resume
@@ -848,7 +863,7 @@ struct AccessoryTimerView: View {
                                 .fill(SBSColors.surfaceFallback)
                         )
                 }
-                
+
                 // Skip
                 Button {
                     onTimerEnd()
@@ -905,6 +920,12 @@ struct AccessoryTimerView: View {
         let minutes = workoutState.timerRemaining / 60
         let seconds = workoutState.timerRemaining % 60
         return String(format: "%d:%02d", minutes, seconds)
+    }
+
+    private func formatDuration(_ seconds: Int) -> String {
+        let m = seconds / 60
+        let s = seconds % 60
+        return String(format: "%d:%02d", m, s)
     }
 }
 
@@ -1227,10 +1248,16 @@ struct StandaloneTimerView: View {
                         Text(timerText)
                             .font(.system(size: 48, weight: .bold, design: .monospaced))
                             .foregroundStyle(SBSColors.textPrimaryFallback)
-                        
+
                         Text("REST")
                             .font(SBSFonts.caption())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
+
+                        if workoutState.timerInitialDuration > 0 {
+                            Text("of \(formatDuration(workoutState.timerInitialDuration))")
+                                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                        }
                     }
                 }
                 
@@ -1380,6 +1407,12 @@ struct StandaloneTimerView: View {
         let minutes = workoutState.timerRemaining / 60
         let seconds = workoutState.timerRemaining % 60
         return String(format: "%d:%02d", minutes, seconds)
+    }
+
+    private func formatDuration(_ seconds: Int) -> String {
+        let m = seconds / 60
+        let s = seconds % 60
+        return String(format: "%d:%02d", m, s)
     }
 }
 

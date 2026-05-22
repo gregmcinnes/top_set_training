@@ -93,6 +93,43 @@ public struct LiftRecord: Codable, Identifiable, Equatable {
     }
 }
 
+// MARK: - Accessory Record (time-series log)
+
+/// A dated record of a single accessory session, parallel to `LiftRecord`.
+/// Stored in `UserData.accessoryHistory`; powers the per-body-part volume
+/// view. `bodyPart` is captured at log time because custom exercises don't
+/// persist their body part anywhere else — nil means "Other / unknown".
+public struct AccessoryRecord: Codable, Identifiable, Equatable {
+    public let id: UUID
+    public let date: Date
+    public let name: String
+    public let bodyPart: BodyPart?
+    public let weight: Double
+    public let sets: Int
+    public let reps: Int
+    public let note: String
+
+    public init(
+        id: UUID = UUID(),
+        date: Date = Date(),
+        name: String,
+        bodyPart: BodyPart?,
+        weight: Double,
+        sets: Int,
+        reps: Int,
+        note: String = ""
+    ) {
+        self.id = id
+        self.date = date
+        self.name = name
+        self.bodyPart = bodyPart
+        self.weight = weight
+        self.sets = sets
+        self.reps = reps
+        self.note = note
+    }
+}
+
 // MARK: - Structured Set Detail (for per-set intensity/reps)
 
 /// Represents a single set in a structured exercise with varying intensity per set

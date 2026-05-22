@@ -1023,6 +1023,20 @@ public final class AppState {
     
     func logAccessory(name: String, weight: Double, sets: Int, reps: Int, note: String = "", wasEasy: Bool? = nil) {
         userData.accessoryLogs[name] = AccessoryLog(weight: weight, sets: sets, reps: reps, note: note, wasEasy: wasEasy)
+
+        // Also append to time-series accessoryHistory for the volume-by-body-part view.
+        // Body part comes from the library; unknown names (custom exercises) get nil
+        // and bucket as "Other" in the volume card.
+        let record = AccessoryRecord(
+            date: Date(),
+            name: name,
+            bodyPart: ExerciseLibrary.shared.bodyPart(for: name),
+            weight: weight,
+            sets: sets,
+            reps: reps,
+            note: note
+        )
+        userData.accessoryHistory.append(record)
     }
     
     func getAccessoryLog(name: String) -> AccessoryLog? {

@@ -23,12 +23,13 @@ struct SBSApp: App {
                 // Clear any delivered rest timer notifications (user is back in app)
                 NotificationManager.shared.clearDeliveredNotifications()
 
-                // End any Live Activity whose timer has already expired. This
-                // covers the case where the rest timer hit 0 while the app was
-                // backgrounded — the foreground Timer can't fire to call
-                // handleTimerEnd(), so the activity would otherwise linger.
+                // End any Live Activity this process isn't tracking. Covers
+                // both the expired-while-backgrounded case (foreground Timer
+                // can't fire handleTimerEnd) and the force-quit case (relaunched
+                // process has currentActivity=nil so every survivor is orphaned).
+                // A still-active foreground timer is matched and left alone.
                 Task { @MainActor in
-                    await LiveActivityManager.shared.endExpiredActivities()
+                    await LiveActivityManager.shared.endOrphanedActivities()
                 }
             }
         }

@@ -293,17 +293,24 @@ final class CSVExporterTests: XCTestCase {
     
     // MARK: - Week Number Tests
     
-    func testWeekNumberInOutput() {
+    func testWeekNumberInOutput() throws {
         let plan: [Int: [PlanItem]] = [
             1: [.tm(name: "Squat", lift: "Squat", trainingMax: 300, topSingleAt8: 270)]
         ]
-        
-        // Test different weeks
-        let week5Csv = CSVExporter.exportWeekCSV(plan: plan, week: 5)
-        let week12Csv = CSVExporter.exportWeekCSV(plan: plan, week: 12)
-        
-        XCTAssertTrue(week5Csv.contains(",5,") || week5Csv.contains("5,") || week5Csv.contains(",5\n"))
-        XCTAssertTrue(week12Csv.contains(",12,") || week12Csv.contains("12,") || week12Csv.contains(",12\n"))
+
+        // Parse the CSV's Week column instead of substring-matching: Week ends up as
+        // the alphabetically-last header, so it's followed by neither a comma nor a
+        // trailing newline, which made the old substring checks miss it.
+        XCTAssertEqual(try weekColumnValue(in: CSVExporter.exportWeekCSV(plan: plan, week: 5)), "5")
+        XCTAssertEqual(try weekColumnValue(in: CSVExporter.exportWeekCSV(plan: plan, week: 12)), "12")
+    }
+
+    private func weekColumnValue(in csv: String) throws -> String {
+        let lines = csv.split(separator: "\n", omittingEmptySubsequences: false)
+        let header = lines[0].split(separator: ",", omittingEmptySubsequences: false).map(String.init)
+        let weekIndex = try XCTUnwrap(header.firstIndex(of: "Week"))
+        let row = lines[1].split(separator: ",", omittingEmptySubsequences: false).map(String.init)
+        return row[weekIndex]
     }
     
     // MARK: - Field Names Tests

@@ -298,8 +298,8 @@ final class PersistenceTests: XCTestCase {
     func testImportUserDataJSON() throws {
         // Create JSON to import
         let userData = UserData(
-            selectedProgram: "imported_program",
-            customInitialMaxes: ["Deadlift": 400]
+            customInitialMaxes: ["Deadlift": 400],
+            selectedProgram: "imported_program"
         )
         
         let encoder = JSONEncoder()

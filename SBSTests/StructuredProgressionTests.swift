@@ -229,21 +229,23 @@ final class StructuredProgressionTests: XCTestCase {
     
     func testStructuredTMsLowerBodyProgression() {
         var state = createNSunsStyleState(initialMaxes: ["Squat": 300])
-        
+
         // Log 4 reps on the 1+ set (set index 2)
         state.structuredLogs["Squat"] = [
             1: [2: StructuredLogEntry(amrapReps: [2: 4], note: "")]
         ]
-        
+
         let liftInfo = engine.gatherStructuredLiftInfo(from: state)
         let tms = engine.computeStructuredTrainingMaxes(
             state: state,
             upToWeek: 2,
             structuredLiftInfo: liftInfo
         )
-        
-        // Squat is lower body, 4 reps = +15 lbs
-        XCTAssertEqual(tms[2]?["Squat"], 315)
+
+        // nSuns-style 1+ sets (targetReps=1) use the body-part-agnostic schedule:
+        // 2-4 reps = +5 lbs. The upper/lower distinction only applies to standard
+        // structured progression (targetReps != 1). See ProgramEngine.structuredProgression.
+        XCTAssertEqual(tms[2]?["Squat"], 305)
     }
     
     func testStructuredTMsNoLogKeepsSame() {
@@ -329,26 +331,51 @@ final class StructuredProgressionTests: XCTestCase {
     
     func testWeekPlanStructuredWithLoggedReps() throws {
         var state = createNSunsStyleState(initialMaxes: ["Bench Press": 200])
-        
+
         // Log AMRAP reps on the 1+ set
         state.structuredLogs["Bench Press"] = [
             1: [1: StructuredLogEntry(amrapReps: [2: 4, 8: 12], note: "Felt strong")]
         ]
-        
+
         let plan = try engine.weekPlan(state: state, week: 1)
-        
+
         guard case let .structured(_, _, _, sets, logEntry) = plan[1]?.first else {
             XCTFail("Expected structured item")
             return
         }
-        
+
         // Check logged reps are included
         XCTAssertEqual(sets[2].loggedReps, 4)
         XCTAssertEqual(sets[8].loggedReps, 12)
         XCTAssertNil(sets[0].loggedReps) // Non-AMRAP set
-        
+
         XCTAssertNotNil(logEntry)
         XCTAssertEqual(logEntry?.note, "Felt strong")
+    }
+
+    // Regression: structured-only programs (state.lifts is empty) must surface the
+    // structured TM in weekPlan for week >= 2, not the initial TM. Previously the
+    // SBS-style computeTrainingMaxes was emitting initialMaxes for every week even
+    // when state.lifts was empty, and weekPlan's merge logic preferred that value
+    // over the structured TM — so the plan kept rendering week 1's weight forever.
+    func testWeekPlanStructuredProgressesAcrossWeeks() throws {
+        var state = createNSunsStyleState(initialMaxes: ["Bench Press": 200])
+
+        // Week 1: 5 reps on the 1+ set (upper body, 5-targetReps=1 → +10 lbs nSuns rule)
+        state.structuredLogs["Bench Press"] = [
+            1: [1: StructuredLogEntry(amrapReps: [2: 5], note: "")]
+        ]
+
+        let week2Plan = try engine.weekPlan(state: state, week: 2)
+
+        guard case let .structured(_, _, trainingMax, sets, _) = week2Plan[1]?.first else {
+            XCTFail("Expected structured item in week 2")
+            return
+        }
+
+        XCTAssertEqual(trainingMax, 210, accuracy: 0.1, "Week 2 TM should reflect +10 lb progression from week 1 AMRAP")
+        // Set 2 (1+ set) weight should reflect new TM: 95% of 210 = 199.5 → rounded to 200
+        XCTAssertEqual(sets[2].weight, 200, accuracy: 1)
     }
     
     // MARK: - Sets Detail By Week Tests

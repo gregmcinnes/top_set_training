@@ -99,9 +99,9 @@ final class ProgramEngineTests: XCTestCase {
         
         // Week 2 should have increased TM (1.5% for +3 reps)
         let expectedTM = 300 * (1.0 + 0.015)
-        XCTAssertEqual(tms[2]?["Squat"]!, expectedTM, accuracy: 0.01)
+        XCTAssertEqual(tms[2]!["Squat"]!, expectedTM, accuracy: 0.01)
     }
-    
+
     func testComputeTrainingMaxesWithBelowTargetLogs() {
         var state = createTestProgramState()
         
@@ -113,9 +113,9 @@ final class ProgramEngineTests: XCTestCase {
         
         // Week 2 should have decreased TM (-5% for -2 or more reps)
         let expectedTM = 300 * (1.0 - 0.05)
-        XCTAssertEqual(tms[2]?["Squat"]!, expectedTM, accuracy: 0.01)
+        XCTAssertEqual(tms[2]!["Squat"]!, expectedTM, accuracy: 0.01)
     }
-    
+
     func testComputeTrainingMaxesCumulativeProgression() {
         var state = createTestProgramState()
         
@@ -132,9 +132,9 @@ final class ProgramEngineTests: XCTestCase {
         let week3TM = week2TM * 1.01
         let week4TM = week3TM * 1.01
         
-        XCTAssertEqual(tms[2]?["Squat"]!, week2TM, accuracy: 0.1)
-        XCTAssertEqual(tms[3]?["Squat"]!, week3TM, accuracy: 0.1)
-        XCTAssertEqual(tms[4]?["Squat"]!, week4TM, accuracy: 0.1)
+        XCTAssertEqual(tms[2]!["Squat"]!, week2TM, accuracy: 0.1)
+        XCTAssertEqual(tms[3]!["Squat"]!, week3TM, accuracy: 0.1)
+        XCTAssertEqual(tms[4]!["Squat"]!, week4TM, accuracy: 0.1)
     }
     
     func testComputeTrainingMaxesWithWeightOverride() {
@@ -149,7 +149,7 @@ final class ProgramEngineTests: XCTestCase {
         
         // TM should be back-calculated: TM = weight / intensity
         let expectedTM = overrideWeight / intensity
-        XCTAssertEqual(tms[1]?["Squat"]!, expectedTM, accuracy: 0.1)
+        XCTAssertEqual(tms[1]!["Squat"]!, expectedTM, accuracy: 0.1)
     }
     
     // MARK: - Per Week Adjustment Tests

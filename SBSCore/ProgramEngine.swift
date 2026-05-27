@@ -25,8 +25,11 @@ public final class ProgramEngine {
     // Returns [week: [lift: TM]]
     public func computeTrainingMaxes(state: ProgramState, upToWeek: Int) -> [Int: [String: Double]] {
         var tms: [Int: [String: Double]] = [:]
-        // week 1 starts from initial maxes
-        var current: [String: Double] = state.initialMaxes
+        // week 1 starts from initial maxes — but only for SBS-style lifts (those present in state.lifts).
+        // Structured-only programs (Greyskull, GZCLP, nSuns, Back-Friendly, etc.) leave state.lifts empty;
+        // emitting their initialMaxes here would short-circuit the structured TM calc in callers.
+        let sbsLiftNames = Set(state.lifts.keys)
+        var current: [String: Double] = state.initialMaxes.filter { sbsLiftNames.contains($0.key) }
         tms[1] = current
         
         // Helper to find any log entry for a lift/week (from any day)

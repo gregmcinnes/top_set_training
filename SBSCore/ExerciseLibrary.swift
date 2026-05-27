@@ -10,7 +10,7 @@ public struct Exercise: Identifiable, Hashable, Codable {
     public let category: ExerciseCategory
     public let equipment: Equipment
     public let isCompound: Bool
-    
+
     public init(
         id: String? = nil,
         name: String,
@@ -25,6 +25,16 @@ public struct Exercise: Identifiable, Hashable, Codable {
         self.category = category
         self.equipment = equipment
         self.isCompound = isCompound
+    }
+
+    // Identity is id-based: two exercises with the same id refer to the same
+    // catalog entry, so they hash and compare equal regardless of metadata drift.
+    public static func == (lhs: Exercise, rhs: Exercise) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 }
 

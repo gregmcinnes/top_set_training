@@ -75,7 +75,12 @@ struct HistoryView: View {
     @State private var volumeMetric: VolumeMetric = .hardSets
 
     private let storeManager = StoreManager.shared
-    
+
+    /// Volume-by-body-part is disabled until exercise-name → body-part resolution is
+    /// reliable (most logged lifts/accessories currently fall through to "Other").
+    /// Flip to `true` to re-enable. See ExerciseLibrary.bodyPart(for:).
+    private let showVolumeByBodyPart = false
+
     /// Classic lifts that should always appear first (in this order)
     private let classicLifts = ["Squat", "Deadlift", "Bench Press", "Overhead Press"]
     
@@ -499,14 +504,16 @@ struct HistoryView: View {
                     )
                     .padding(.horizontal)
 
-                    // Volume by Body Part card
-                    VolumeByBodyPartCard(
-                        period: $volumePeriod,
-                        metric: $volumeMetric,
-                        rows: volumeByBodyPart,
-                        useMetric: appState.settings.useMetric
-                    )
-                    .padding(.horizontal)
+                    // Volume by Body Part card (disabled — see showVolumeByBodyPart)
+                    if showVolumeByBodyPart {
+                        VolumeByBodyPartCard(
+                            period: $volumePeriod,
+                            metric: $volumeMetric,
+                            rows: volumeByBodyPart,
+                            useMetric: appState.settings.useMetric
+                        )
+                        .padding(.horizontal)
+                    }
 
                     // Lift selector with sort menu
                     VStack(spacing: SBSLayout.paddingSmall) {

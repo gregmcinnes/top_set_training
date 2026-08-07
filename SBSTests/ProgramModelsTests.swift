@@ -369,6 +369,46 @@ final class ProgramModelsTests: XCTestCase {
         XCTAssertEqual(config.failuresBeforeDeload, 3)
         XCTAssertEqual(config.deloadPercentage, 0.10)
     }
+
+    /// Every bundled program JSON must decode with the current ProgramData.
+    /// `discoverAvailablePrograms` silently skips files that fail to parse, and
+    /// `loadProgramConfig` then falls back to StrongLifts — so a decode
+    /// regression here shows up as "my program got cleared", not a crash.
+    func testAllBundledProgramsDecode() throws {
+        let programFiles = [
+            "stronglifts_5x5_12week",
+            "starting_strength_12week",
+            "greyskull_lp_12week",
+            "gzclp_12week",
+            "gzclp_3day_12week",
+            "531_bbb_12week",
+            "531_fsl_12week",
+            "531_triumvirate_12week",
+            // 531_beach_body / 531_monolith are unreleased drafts: not listed in
+            // discoverAvailablePrograms, and beach_body uses a "fixed" item type
+            // ProgramData doesn't support. Excluded until they're wired up.
+            "nsuns_4day_12week",
+            "nsuns_5day_12week",
+            "nsuns_6day_squat_12week",
+            "nsuns_6day_deadlift_12week",
+            "phul_12week",
+            "reddit_ppl_12week",
+            "basic_ppl_12week",
+            "back_friendly_hypertrophy_12week",
+            "sbs_program_config"
+        ]
+        for filename in programFiles {
+            guard let url = Bundle.main.url(forResource: filename, withExtension: "json") else {
+                XCTFail("\(filename).json missing from app bundle")
+                continue
+            }
+            let data = try Data(contentsOf: url)
+            XCTAssertNoThrow(
+                try JSONDecoder().decode(ProgramData.self, from: data),
+                "\(filename).json no longer decodes — it will silently vanish from availablePrograms"
+            )
+        }
+    }
 }
 
 

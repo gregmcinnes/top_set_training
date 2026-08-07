@@ -17,6 +17,14 @@ class WatchWorkoutManager: NSObject, ObservableObject {
     @Published var isAuthorized = false
     @Published var currentHeartRate: Double?
     @Published var workoutDuration: TimeInterval = 0
+    /// True when a workout was requested with HealthKit saving but authorization
+    /// failed and we fell back to tracking without HealthKit. Drives an inline
+    /// "Allow Health access on your watch" hint in the UI.
+    @Published var healthKitError = false
+
+    /// Whether an HealthKit-saving workout session is currently running on the
+    /// Watch (i.e. a workout will be written to HealthKit on finish).
+    var isSavingToHealthKit: Bool { session != nil }
     
     // Callback for heart rate updates (to send to iPhone)
     var onHeartRateUpdate: ((Double) -> Void)?
@@ -80,55 +88,92 @@ class WatchWorkoutManager: NSObject, ObservableObject {
     
     // MARK: - Workout Session
     
-    func startWorkout() async throws {
-        guard !isWorkoutActive else { return }
-        
-        // Request authorization if needed
-        if !isAuthorized {
-            try await requestAuthorization()
+    /// Start a workout on the Watch.
+    ///
+    /// - Parameter saveToHealthKit: when `true` the Watch runs an
+    ///   `HKLiveWorkoutSession` and writes its own workout (plus heart rate) to
+    ///   HealthKit. When `false`, the Watch tracks the workout for display only and
+    ///   does NOT touch HealthKit — this honors the phone's HealthKit setting and
+    ///   avoids duplicate HealthKit workouts.
+    ///
+    /// This method handles its own errors and never throws: if HealthKit isn't
+    /// available or authorization fails, it falls back to non-HealthKit tracking so
+    /// the workout UI stays usable (and sets `healthKitError` so the UI can hint).
+    func startWorkout(saveToHealthKit: Bool) async {
+        // Don't stack sessions: bail if a workout is already active or an HK session
+        // is still finishing (guarding on `session` covers the forceInactive() case
+        // where isWorkoutActive was cleared but the HK session hasn't ended yet).
+        guard !isWorkoutActive, session == nil else { return }
+
+        healthKitError = false
+
+        // Non-HealthKit path: either the phone's HealthKit setting is off, or
+        // HealthKit isn't available on this device.
+        guard saveToHealthKit, HKHealthStore.isHealthDataAvailable() else {
+            startWorkoutWithoutHealthKit()
+            return
         }
-        
-        // Configure workout
-        let configuration = HKWorkoutConfiguration()
-        configuration.activityType = .traditionalStrengthTraining
-        configuration.locationType = .indoor
-        
-        // Create and start session
+
         do {
+            // Request authorization if needed
+            if !isAuthorized {
+                try await requestAuthorization()
+            }
+
+            // Configure workout
+            let configuration = HKWorkoutConfiguration()
+            configuration.activityType = .traditionalStrengthTraining
+            configuration.locationType = .indoor
+
             session = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
             builder = session?.associatedWorkoutBuilder()
-            
+
             session?.delegate = self
             builder?.delegate = self
-            
+
             // Set up data source for live data
             let dataSource = HKLiveWorkoutDataSource(
                 healthStore: healthStore,
                 workoutConfiguration: configuration
             )
             builder?.dataSource = dataSource
-            
+
             // Explicitly enable heart rate collection for more frequent updates
             let heartRateType = HKQuantityType(.heartRate)
             dataSource.enableCollection(for: heartRateType, predicate: nil)
-            
+
             // Start the session and builder
             let startDate = Date()
             session?.startActivity(with: startDate)
             try await builder?.beginCollection(at: startDate)
-            
+
             workoutStartDate = startDate
             isWorkoutActive = true
             startDurationTimer()
-            
+
             // Start continuous heart rate monitoring query
             startHeartRateQuery(from: startDate)
-            
+
         } catch {
+            // HealthKit failed (e.g. user declined auth). Don't get stuck — fall
+            // back to non-HealthKit tracking so the workout UI is still usable, and
+            // surface a hint.
+            Logger.error("Watch HealthKit workout start failed, tracking without HealthKit: \(error)", category: .healthKit)
             session = nil
             builder = nil
-            throw WatchWorkoutError.workoutStartFailed(error)
+            healthKitError = true
+            startWorkoutWithoutHealthKit()
         }
+    }
+
+    /// Track a workout without HealthKit: no HK session, no saved workout, no heart
+    /// rate. The UI still shows duration and lets the user drive the workout.
+    private func startWorkoutWithoutHealthKit() {
+        let startDate = Date()
+        workoutStartDate = startDate
+        isWorkoutActive = true
+        currentHeartRate = nil
+        startDurationTimer()
     }
     
     // MARK: - Heart Rate Query
@@ -224,6 +269,7 @@ class WatchWorkoutManager: NSObject, ObservableObject {
     func forceInactive() {
         isWorkoutActive = false
         currentHeartRate = nil
+        healthKitError = false
         durationTimer?.invalidate()
         durationTimer = nil
         workoutDuration = 0

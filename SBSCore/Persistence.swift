@@ -495,12 +495,20 @@ public final class ProgramPersistence {
     private let settingsKey = "sbs_settings"
     private let userDataKey = "sbs_user_data"
     private let programStateKey = "sbs_program_state"
-    
+    private let userDataBackupKey = "sbs_user_data_backup"
+
     public init(store: KeyValueStore = UserDefaultsStore()) {
         self.store = store
         self.encoder = JSONEncoder()
         self.decoder = JSONDecoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    }
+
+    /// Pretty-printed encoder for human-readable exports. The main save path
+    /// deliberately uses compact output: it runs on every mutation.
+    private var exportEncoder: JSONEncoder {
+        let e = JSONEncoder()
+        e.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return e
     }
     
     // MARK: - Settings
@@ -526,11 +534,45 @@ public final class ProgramPersistence {
     }
     
     public func loadUserData() -> UserData {
-        guard let data = store.data(forKey: userDataKey),
-              let userData = try? decoder.decode(UserData.self, from: data) else {
+        guard let data = store.data(forKey: userDataKey) else {
+            // Fresh install — nothing saved yet.
             return .empty
         }
-        return userData
+        do {
+            return try decoder.decode(UserData.self, from: data)
+        } catch {
+            // Never silently discard user history: the caller will start from
+            // .empty and the next autosave would overwrite this blob forever.
+            // Preserve it for recovery. Keep the OLDEST backup — a later failure
+            // would only be backing up post-reset data.
+            if store.data(forKey: userDataBackupKey) == nil {
+                store.set(data, forKey: userDataBackupKey)
+            }
+            Logger.error("Failed to decode user data (\(data.count) bytes) — raw blob preserved under \(userDataBackupKey): \(error)", category: .program)
+            return .empty
+        }
+    }
+
+    /// Raw user-data blob preserved from a failed decode, if any.
+    public func corruptedUserDataBackup() -> Data? {
+        store.data(forKey: userDataBackupKey)
+    }
+
+    /// Try to restore the preserved backup (e.g. after an app update that fixes
+    /// the decoding). Returns true and clears the backup on success.
+    @discardableResult
+    public func restoreUserDataBackupIfDecodable() -> Bool {
+        guard let data = store.data(forKey: userDataBackupKey),
+              (try? decoder.decode(UserData.self, from: data)) != nil else {
+            return false
+        }
+        store.set(data, forKey: userDataKey)
+        store.remove(forKey: userDataBackupKey)
+        return true
+    }
+
+    public func clearCorruptedUserDataBackup() {
+        store.remove(forKey: userDataBackupKey)
     }
     
     // MARK: - Full Program State (Legacy support)
@@ -549,7 +591,7 @@ public final class ProgramPersistence {
     
     public func exportUserDataJSON() throws -> Data {
         let userData = loadUserData()
-        return try encoder.encode(userData)
+        return try exportEncoder.encode(userData)
     }
     
     public func importUserDataJSON(_ data: Data) throws {

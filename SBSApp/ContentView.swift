@@ -88,7 +88,8 @@ struct ContentView: View {
 struct MainTabView: View {
     @Bindable var appState: AppState
     @Binding var selectedTab: ContentView.Tab
-    
+    private let restTimerStatus = RestTimerStatus.shared
+
     var body: some View {
         TabView(selection: $selectedTab) {
             HomeView(appState: appState)
@@ -122,6 +123,19 @@ struct MainTabView: View {
                 }
         }
         .tint(SBSColors.accentFallback)
+        .overlay(alignment: .bottom) {
+            // Keep the rest timer visible while the user is on another tab
+            // mid-workout. The workout lives in the Home tab's stack, so
+            // tapping the pill lands back on it.
+            if restTimerStatus.isActive && !restTimerStatus.isWorkoutScreenVisible {
+                RestTimerPill(status: restTimerStatus) {
+                    selectedTab = .home
+                }
+                .padding(.bottom, 58)  // clear the tab bar
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(duration: 0.3), value: restTimerStatus.isActive && !restTimerStatus.isWorkoutScreenVisible)
     }
 }
 

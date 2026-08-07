@@ -32,14 +32,6 @@ enum PlanOption: String, CaseIterable {
         }
     }
 
-    func priceString(from store: StoreManager) -> String {
-        switch self {
-        case .weekly: return store.weeklyPriceString
-        case .monthly: return store.monthlyPriceString
-        case .lifetime: return store.premiumPriceString
-        }
-    }
-
     var periodLabel: String {
         switch self {
         case .weekly: return "/wk"
@@ -67,9 +59,16 @@ struct PaywallView: View {
 
     @State private var selectedPlan: PlanOption = .monthly
     @State private var isPurchasing = false
+    @State private var isRestoring = false
     @State private var showError = false
     @State private var errorMessage = ""
+    @State private var showInfo = false
+    @State private var infoMessage = ""
+    @State private var showRedeemSheet = false
     @State private var animateIn = false
+
+    /// True while a purchase or restore is in flight — disables the action buttons.
+    private var isBusy: Bool { isPurchasing || isRestoring }
 
     /// Optional: The specific feature that triggered this paywall
     var triggeredByFeature: PremiumFeature?
@@ -110,12 +109,8 @@ struct PaywallView: View {
                         .opacity(animateIn ? 1 : 0)
                         .offset(y: animateIn ? 0 : 40)
 
-                    // Restore purchases
+                    // Restore purchases & redeem code
                     restoreSection
-                        .opacity(animateIn ? 1 : 0)
-
-                    // Legal links
-                    legalSection
                         .opacity(animateIn ? 1 : 0)
 
                     Spacer(minLength: 50)
@@ -143,6 +138,33 @@ struct PaywallView: View {
             Button("OK") { }
         } message: {
             Text(errorMessage)
+        }
+        .alert("Purchases", isPresented: $showInfo) {
+            Button("OK") { }
+        } message: {
+            Text(infoMessage)
+        }
+        .alert("Purchase Pending", isPresented: Binding(
+            get: { storeManager.purchasePending },
+            set: { if !$0 { storeManager.clearPurchasePending() } }
+        )) {
+            Button("OK") { storeManager.clearPurchasePending() }
+        } message: {
+            Text("Your purchase is awaiting approval. You'll get access once it's approved.")
+        }
+        .offerCodeRedemption(isPresented: $showRedeemSheet) { result in
+            // Refresh entitlements after redemption; the transaction listener also
+            // picks up a successful redeem. Cancellation is a no-op here.
+            if case .failure(let error) = result {
+                Logger.error("Offer code redemption failed: \(error)", category: .store)
+            }
+            Task { await storeManager.refreshEntitlements() }
+        }
+        .task {
+            // Retry the product fetch if it hasn't succeeded yet (e.g. launched offline).
+            if storeManager.products.isEmpty {
+                await storeManager.loadProducts()
+            }
         }
         .onAppear {
             withAnimation(.easeOut(duration: 0.5)) {
@@ -247,24 +269,57 @@ struct PaywallView: View {
                 ForEach(PlanOption.allCases, id: \.rawValue) { plan in
                     PlanOptionCard(
                         plan: plan,
-                        priceString: plan.priceString(from: storeManager),
+                        product: plan.product(from: storeManager),
                         isSelected: selectedPlan == plan
                     )
                     .onTapGesture {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             selectedPlan = plan
                         }
+                        Haptics.selection()
                     }
                 }
             }
+
+            // Inline retry if pricing failed to load (e.g. launched offline).
+            if storeManager.loadState == .failed && storeManager.products.isEmpty {
+                loadFailedRow
+            }
         }
+    }
+
+    private var loadFailedRow: some View {
+        HStack(spacing: SBSLayout.paddingSmall) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(SBSColors.warning)
+            Text("Couldn't load pricing.")
+                .font(SBSFonts.caption())
+                .foregroundStyle(SBSColors.textSecondaryFallback)
+
+            Spacer()
+
+            Button {
+                Task { await storeManager.loadProducts() }
+            } label: {
+                Text("Retry")
+                    .font(SBSFonts.captionBold())
+                    .foregroundStyle(SBSColors.accentFallback)
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                .fill(SBSColors.surfaceFallback)
+        )
     }
 
     // MARK: - Purchase Section
 
     private var purchaseSection: some View {
         VStack(spacing: SBSLayout.paddingSmall) {
-            // Purchase button
+            // Purchase button — disabled until the selected product has actually
+            // loaded, so we never let the user tap "buy" on a price we can't show.
+            let selectedProduct = selectedPlan.product(from: storeManager)
             Button {
                 Task {
                     await purchaseSelectedPlan()
@@ -292,9 +347,10 @@ struct PaywallView: View {
                                 endPoint: .trailing
                             )
                         )
+                        .opacity(selectedProduct == nil ? 0.5 : 1)
                 )
             }
-            .disabled(isPurchasing)
+            .disabled(isBusy || selectedProduct == nil)
 
             if selectedPlan != .lifetime {
                 Text("Cancel anytime. Subscription auto-renews.")
@@ -314,29 +370,34 @@ struct PaywallView: View {
     // MARK: - Restore Section
 
     private var restoreSection: some View {
-        Button {
-            Task {
-                await restorePurchases()
+        HStack(spacing: SBSLayout.paddingLarge) {
+            Button {
+                Task {
+                    await restorePurchases()
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    if isRestoring {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                    Text("Restore Purchases")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(SBSColors.accentFallback)
+                }
             }
-        } label: {
-            Text("Restore Purchases")
-                .font(SBSFonts.caption())
-                .foregroundStyle(SBSColors.accentFallback)
+            .disabled(isBusy)
+
+            Button {
+                showRedeemSheet = true
+            } label: {
+                Text("Redeem Code")
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(SBSColors.accentFallback)
+            }
+            .disabled(isBusy)
         }
         .padding(.top, SBSLayout.paddingSmall)
-    }
-
-    // MARK: - Legal Section
-
-    private var legalSection: some View {
-        HStack(spacing: SBSLayout.paddingSmall) {
-            Link("Privacy Policy", destination: URL(string: "https://gregorymcinnes.com/apps/top-set-training/")!)
-            Text("|")
-                .foregroundStyle(SBSColors.textTertiaryFallback)
-            Link("Terms of Use", destination: URL(string: "https://gregorymcinnes.com/terms")!)
-        }
-        .font(SBSFonts.caption())
-        .foregroundStyle(SBSColors.textTertiaryFallback)
     }
 
     // MARK: - Actions
@@ -364,23 +425,58 @@ struct PaywallView: View {
             isPurchasing = false
 
             if transaction != nil {
+                Haptics.success()
                 dismiss()
             }
+            // A `.pending` result surfaces via the storeManager.purchasePending
+            // alert binding; `.userCancelled` intentionally does nothing.
         } catch {
             isPurchasing = false
-            errorMessage = error.localizedDescription
+            Haptics.warning()
+            errorMessage = friendlyMessage(for: error)
             showError = true
         }
     }
 
     private func restorePurchases() async {
-        isPurchasing = true
-        await storeManager.restorePurchases()
-        isPurchasing = false
+        isRestoring = true
+        let result = await storeManager.restorePurchases()
+        isRestoring = false
 
-        if storeManager.isPremium {
+        switch result {
+        case .restored:
+            Haptics.success()
             dismiss()
+        case .nothingToRestore:
+            infoMessage = "No previous purchases were found for your Apple Account."
+            showInfo = true
+        case .failed(let error):
+            Haptics.warning()
+            errorMessage = friendlyMessage(for: error)
+            showError = true
         }
+    }
+
+    /// Map common StoreKit errors to friendly copy, falling back to the raw
+    /// description for anything unrecognized.
+    private func friendlyMessage(for error: Error) -> String {
+        if let storeKitError = error as? StoreKitError {
+            switch storeKitError {
+            case .networkError:
+                return "Couldn't reach the App Store. Check your connection and try again."
+            case .userCancelled:
+                return "The request was cancelled."
+            case .notEntitled:
+                return "This Apple Account isn't entitled to this purchase."
+            case .notAvailableInStorefront:
+                return "This purchase isn't available in your region's App Store."
+            case .systemError:
+                return "The App Store ran into a problem. Please try again in a moment."
+            default:
+                break
+            }
+        }
+        return error.localizedDescription
     }
 }
 
@@ -388,7 +484,7 @@ struct PaywallView: View {
 
 private struct PlanOptionCard: View {
     let plan: PlanOption
-    let priceString: String
+    let product: Product?
     let isSelected: Bool
 
     var body: some View {
@@ -433,16 +529,24 @@ private struct PlanOptionCard: View {
 
             Spacer()
 
-            // Price
+            // Price — redacted placeholder until the real Product loads, so we
+            // never render a fabricated fallback price.
             HStack(alignment: .firstTextBaseline, spacing: 1) {
-                Text(priceString)
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                if let product {
+                    Text(product.displayPrice)
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(SBSColors.textPrimaryFallback)
 
-                if !plan.periodLabel.isEmpty {
-                    Text(plan.periodLabel)
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                    if !plan.periodLabel.isEmpty {
+                        Text(plan.periodLabel)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                    }
+                } else {
+                    Text("$0.00")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .redacted(reason: .placeholder)
                 }
             }
         }

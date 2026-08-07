@@ -113,6 +113,10 @@ struct ProgramRecommendationQuiz: View {
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     .animation(.spring(response: 0.4, dampingFraction: 0.8), value: currentQuestion)
+                    // Block free swiping between questions — the user must answer
+                    // the current question (tapping an option auto-advances) so no
+                    // question can be skipped and left scoring on its default value.
+                    .gesture(DragGesture())
                 }
             }
         }
@@ -223,12 +227,16 @@ struct QuizOption: Identifiable {
 struct QuizAnswers {
     var experience: String = ""
     var days: Int = 3
+    /// Whether the user explicitly answered the days question. `days` carries a
+    /// non-zero default for scoring, so a separate flag is needed to know it was
+    /// actually chosen rather than left at its placeholder value.
+    var daysAnswered: Bool = false
     var goal: String = ""
     var sessionTime: String = ""
     var complexity: String = ""
-    
+
     var isComplete: Bool {
-        !experience.isEmpty && !goal.isEmpty && !sessionTime.isEmpty && !complexity.isEmpty
+        !experience.isEmpty && daysAnswered && !goal.isEmpty && !sessionTime.isEmpty && !complexity.isEmpty
     }
 }
 
@@ -244,7 +252,7 @@ struct QuestionView: View {
     private func isSelected(_ optionId: String) -> Bool {
         switch question.id {
         case "experience": return answers.experience == optionId
-        case "days": return answers.days == (Int(optionId) ?? 3)
+        case "days": return answers.daysAnswered && answers.days == (Int(optionId) ?? 3)
         case "goal": return answers.goal == optionId
         case "time": return answers.sessionTime == optionId
         case "complexity": return answers.complexity == optionId
@@ -259,7 +267,9 @@ struct QuestionView: View {
         
         switch question.id {
         case "experience": answers.experience = option.id
-        case "days": answers.days = option.value
+        case "days":
+            answers.days = option.value
+            answers.daysAnswered = true
         case "goal": answers.goal = option.id
         case "time": answers.sessionTime = option.id
         case "complexity": answers.complexity = option.id

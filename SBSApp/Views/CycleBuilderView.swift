@@ -1,5 +1,33 @@
 import SwiftUI
 
+// MARK: - Onboarding Draft Persistence
+
+/// Lightweight UserDefaults-backed snapshot of onboarding progress. Persisted as
+/// the user advances so an app kill mid-flow restores their program pick, step,
+/// and entered training maxes instead of restarting from zero. Deliberately not a
+/// full state machine — just enough to avoid losing meaningful work.
+private struct OnboardingDraft: Codable {
+    var step: Int
+    var selectedProgram: String
+    var trainingMaxes: [String: Double]
+
+    private static let key = "onboarding.draft.v1"
+
+    static func load() -> OnboardingDraft? {
+        guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
+        return try? JSONDecoder().decode(OnboardingDraft.self, from: data)
+    }
+
+    func save() {
+        guard let data = try? JSONEncoder().encode(self) else { return }
+        UserDefaults.standard.set(data, forKey: Self.key)
+    }
+
+    static func clear() {
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+}
+
 // MARK: - Cycle Builder View
 
 struct CycleBuilderView: View {
@@ -40,6 +68,7 @@ struct CycleBuilderView: View {
     @State private var carryOverTMs: Bool = true
     @State private var animateIn: Bool = false
     @State private var isLoadingProgram: Bool = false
+    @State private var showingLockedProgramPaywall: Bool = false
     @State private var lastLoadedProgram: String? = nil
     @State private var showingProgramQuiz: Bool = false
     @State private var showingTemplateBuilder: Bool = false
@@ -118,7 +147,8 @@ struct CycleBuilderView: View {
                     WelcomeStepView(
                         isOnboarding: isOnboarding,
                         onContinue: { goToStep(.program) },
-                        onTakeQuiz: { showingProgramQuiz = true }
+                        onTakeQuiz: { showingProgramQuiz = true },
+                        onSkip: isOnboarding ? { skipOnboarding() } : nil
                     )
                     .tag(BuilderStep.welcome)
                     
@@ -174,20 +204,22 @@ struct CycleBuilderView: View {
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut(duration: 0.3), value: currentStep)
+                .gesture(DragGesture())
             }
-            
+
             // Close button (for non-onboarding)
-            if !isOnboarding, let onCancel = onCancel {
+            if !isOnboarding, onCancel != nil {
                 VStack {
                     HStack {
                         Spacer()
                         Button {
-                            onCancel()
+                            cancelAndRestore()
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 28))
                                 .foregroundStyle(SBSColors.textTertiaryFallback)
                         }
+                        .accessibilityLabel("Cancel new cycle")
                         .padding()
                     }
                     Spacer()
@@ -220,6 +252,11 @@ struct CycleBuilderView: View {
             withAnimation(.easeOut(duration: 0.4)) {
                 animateIn = true
             }
+            // Snapshot user data before any program preview so cancelling the
+            // builder can restore the cycle exactly as it was.
+            if !isOnboarding {
+                appState.beginProgramPreview()
+            }
             // If an initial program was provided (e.g., from ProgramsView), load it
             // The step was already set to .exercises in init
             if let initial = initialProgram, !isOnboarding {
@@ -236,12 +273,19 @@ struct CycleBuilderView: View {
                         }
                     }
                 }
+            } else if isOnboarding {
+                restoreOnboardingDraftIfNeeded()
             } else if let currentProgram = appState.userData.selectedProgram {
                 // Initialize with currently loaded program so we don't reload unnecessarily
                 selectedProgram = currentProgram
                 lastLoadedProgram = currentProgram
             }
         }
+        // Persist onboarding progress as the user advances so an app kill mid-flow
+        // doesn't restart from zero. Guarded to onboarding inside the helper.
+        .onChange(of: currentStep) { _, _ in persistOnboardingDraftIfNeeded() }
+        .onChange(of: selectedProgram) { _, _ in persistOnboardingDraftIfNeeded() }
+        .onChange(of: trainingMaxes) { _, _ in persistOnboardingDraftIfNeeded() }
         .fullScreenCover(isPresented: $showingProgramQuiz) {
             ProgramRecommendationQuiz(
                 appState: appState,
@@ -274,8 +318,11 @@ struct CycleBuilderView: View {
                 }
             )
         }
+        .sheet(isPresented: $showingLockedProgramPaywall) {
+            PaywallView(triggeredByFeature: .allPrograms)
+        }
     }
-    
+
     private func goToStep(_ step: BuilderStep) {
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
             currentStep = step
@@ -316,7 +363,10 @@ struct CycleBuilderView: View {
     private func initializeTrainingMaxes() {
         // Use actualConfiguredLifts to get lifts from exerciseCustomizations (not appState)
         // This ensures we show the swapped-in lifts, not the original program lifts
-        for lift in actualConfiguredLifts {
+        let lifts = actualConfiguredLifts
+        // Drop stale entries for lifts no longer configured (e.g., after a swap)
+        trainingMaxes = trainingMaxes.filter { lifts.contains($0.key) }
+        for lift in lifts {
             if !isOnboarding && carryOverTMs {
                 // For new cycles, use current TMs with multiple fallbacks
                 let lastWeek = appState.highestLoggedWeek()
@@ -339,7 +389,74 @@ struct CycleBuilderView: View {
         }
     }
     
+    /// Persist onboarding progress (program pick, step, entered maxes). No-op
+    /// outside onboarding.
+    private func persistOnboardingDraftIfNeeded() {
+        guard isOnboarding else { return }
+        OnboardingDraft(
+            step: currentStep.rawValue,
+            selectedProgram: selectedProgram,
+            trainingMaxes: trainingMaxes
+        ).save()
+    }
+
+    /// Restore a saved onboarding draft, if any. Steps past program selection need
+    /// the chosen program loaded into appState, so those load asynchronously before
+    /// jumping to the restored step; a load failure falls back to program selection.
+    private func restoreOnboardingDraftIfNeeded() {
+        guard let draft = OnboardingDraft.load(),
+              let restoredStep = BuilderStep(rawValue: draft.step) else { return }
+
+        selectedProgram = draft.selectedProgram
+        trainingMaxes = draft.trainingMaxes
+
+        guard restoredStep.rawValue > BuilderStep.program.rawValue else {
+            currentStep = restoredStep
+            return
+        }
+
+        isLoadingProgram = true
+        Task {
+            do {
+                try await appState.loadProgram(draft.selectedProgram)
+                await MainActor.run {
+                    lastLoadedProgram = draft.selectedProgram
+                    isLoadingProgram = false
+                    goToStep(restoredStep)
+                }
+            } catch {
+                await MainActor.run {
+                    isLoadingProgram = false
+                    goToStep(.program)
+                }
+            }
+        }
+    }
+
+    /// "Skip for now": finish onboarding with a sensible default free program so
+    /// the user lands on a usable app rather than an empty state.
+    private func skipOnboarding() {
+        Haptics.light()
+        isLoadingProgram = true
+        Task {
+            await appState.skipOnboardingWithDefault()
+            await MainActor.run {
+                OnboardingDraft.clear()
+                appState.commitProgramPreview()
+                isLoadingProgram = false
+                onComplete()
+            }
+        }
+    }
+
     private func completeCycleSetup() {
+        // Backstop: every path into the builder gates locked programs (selector
+        // taps, program-step Continue, ProgramsView rows), but never commit a
+        // cycle on a program the user can't access.
+        guard StoreManager.shared.canAccessProgram(selectedProgram) else {
+            showingLockedProgramPaywall = true
+            return
+        }
         if isOnboarding {
             // Apply all customizations
             appState.setInitialMaxes(trainingMaxes)
@@ -347,6 +464,8 @@ struct CycleBuilderView: View {
                 appState.applyExerciseCustomizations(exerciseCustomizations)
             }
             appState.completeOnboarding()
+            // Onboarding finished successfully — discard the resume draft.
+            OnboardingDraft.clear()
         } else {
             // Start new cycle with builder settings
             appState.startNewCycleWithBuilder(
@@ -355,7 +474,22 @@ struct CycleBuilderView: View {
                 exerciseCustomizations: exerciseCustomizations.isEmpty ? nil : exerciseCustomizations
             )
         }
+        appState.commitProgramPreview()
         onComplete()
+    }
+
+    /// Cancel the builder: roll back any previewed program switch (archived
+    /// cycle, cleared logs, changed selection) before dismissing.
+    private func cancelAndRestore() {
+        guard let onCancel else { return }
+        isLoadingProgram = true
+        Task {
+            await appState.cancelProgramPreview()
+            await MainActor.run {
+                isLoadingProgram = false
+                onCancel()
+            }
+        }
     }
 }
 
@@ -377,7 +511,7 @@ struct StepProgressView: View {
                         .frame(width: 8, height: 8)
                     
                     Text(step.title)
-                        .font(.system(size: 10, weight: .medium))
+                        .font(SBSFonts.caption2())
                         .foregroundStyle(step.rawValue <= currentStep.rawValue 
                                         ? SBSColors.textPrimaryFallback 
                                         : SBSColors.textTertiaryFallback)
@@ -404,7 +538,9 @@ struct WelcomeStepView: View {
     let isOnboarding: Bool
     let onContinue: () -> Void
     let onTakeQuiz: () -> Void
-    
+    /// Onboarding-only escape hatch that finishes setup with sensible defaults.
+    var onSkip: (() -> Void)? = nil
+
     @State private var animateIcon = false
     @State private var animateContent = false
     
@@ -441,7 +577,7 @@ struct WelcomeStepView: View {
                         
                         Text(isOnboarding 
                              ? "Let's set up your personalized training program. This will only take a minute."
-                             : "Ready to start a new 20-week cycle? Let's review your setup.")
+                             : "Ready to start a new cycle? Let's review your setup.")
                             .font(SBSFonts.body())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                             .multilineTextAlignment(.center)
@@ -463,7 +599,7 @@ struct WelcomeStepView: View {
                                 Image(systemName: "arrow.uturn.backward.circle.fill")
                                     .font(.system(size: 20))
                                     .foregroundStyle(SBSColors.success)
-                                
+
                                 Text("Don't worry, you can change all of these settings later in the app.")
                                     .font(SBSFonts.caption())
                                     .foregroundStyle(SBSColors.textSecondaryFallback)
@@ -471,6 +607,19 @@ struct WelcomeStepView: View {
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             .padding(.top, SBSLayout.paddingSmall)
+
+                            // Point new users toward the custom template builder.
+                            HStack(spacing: SBSLayout.paddingSmall) {
+                                Image(systemName: "hammer.fill")
+                                    .font(.system(size: 20))
+                                    .foregroundStyle(SBSColors.accentFallback)
+
+                                Text("Prefer your own routine? You can build a custom program anytime in Settings.")
+                                    .font(SBSFonts.caption())
+                                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                                    .multilineTextAlignment(.center)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
                         }
                     }
                     .padding(.horizontal, SBSLayout.paddingLarge)
@@ -484,6 +633,7 @@ struct WelcomeStepView: View {
             VStack(spacing: SBSLayout.paddingSmall) {
                 // Primary: Get Started
                 Button {
+                    Haptics.light()
                     onContinue()
                 } label: {
                     HStack {
@@ -517,6 +667,19 @@ struct WelcomeStepView: View {
                             RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
                                 .strokeBorder(SBSColors.accentFallback, lineWidth: 2)
                         )
+                    }
+
+                    // Tertiary: escape hatch — finish now with sensible defaults.
+                    if let onSkip {
+                        Button {
+                            onSkip()
+                        } label: {
+                            Text("Skip for now")
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, SBSLayout.paddingSmall)
+                        }
                     }
                 }
             }
@@ -580,9 +743,10 @@ struct ProgramSelectionStepView: View {
     let onContinue: () -> Void
     let onTakeQuiz: () -> Void
     let onBuildTemplate: () -> Void
-    
+
     @State private var isLoading = false
-    
+    @State private var showingProgramPaywall = false
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -612,6 +776,14 @@ struct ProgramSelectionStepView: View {
                 continueTitle: isLoading ? "Loading..." : "Continue",
                 onBack: onBack,
                 onContinue: {
+                    // The selector blocks *tapping* locked programs, but the
+                    // current program is preselected on entry — a grandfathered
+                    // user (mid-cycle on a program that left the free tier)
+                    // hits the paywall here when starting a new cycle on it.
+                    guard StoreManager.shared.canAccessProgram(selectedProgram) else {
+                        showingProgramPaywall = true
+                        return
+                    }
                     isLoading = true
                     Task {
                         do {
@@ -630,6 +802,9 @@ struct ProgramSelectionStepView: View {
                 }
             )
             .disabled(isLoading)
+            .sheet(isPresented: $showingProgramPaywall) {
+                PaywallView(triggeredByFeature: .allPrograms)
+            }
         }
         .onAppear {
             // Set initial selection to currently loaded program or first free program
@@ -736,11 +911,11 @@ struct ExerciseReviewStepView: View {
                     }
                     
                     // Accessories
-                    let accessories = items.filter { $0.type == .accessory }
+                    let accessoryIndices = items.indices.filter { items[$0].type == .accessory }
                     SectionHeader(title: "Accessories")
-                    
-                    ForEach(Array(accessories.enumerated()), id: \.offset) { index, item in
-                        let actualIndex = items.firstIndex { $0.type == .accessory && $0.name == item.name } ?? 0
+
+                    ForEach(accessoryIndices, id: \.self) { actualIndex in
+                        let item = items[actualIndex]
                         ExerciseItemRow(
                             name: item.name,
                             subtitle: "\(item.defaultSets ?? 4) sets × \(item.defaultReps ?? 10) reps",
@@ -859,9 +1034,9 @@ struct ExerciseReviewStepView: View {
         
         for i in items.indices {
             if items[i].lift == oldLift {
-                let type = items[i].type
-                let newName = type == .tm ? "\(newLift) TM" : newLift
-                items[i] = DayItem(type: type, lift: newLift, name: newName, defaultSets: items[i].defaultSets, defaultReps: items[i].defaultReps)
+                let newName = items[i].type == .tm ? "\(newLift) TM" : newLift
+                items[i].lift = newLift
+                items[i].name = newName
             }
         }
         
@@ -993,9 +1168,10 @@ struct DayTab: View {
                     .font(SBSFonts.captionBold())
                     .foregroundStyle(isSelected ? .white : SBSColors.textPrimaryFallback)
                 Text(subtitle.replacingOccurrences(of: " Day", with: ""))
-                    .font(.system(size: 10))
+                    .font(SBSFonts.caption2())
                     .foregroundStyle(isSelected ? .white.opacity(0.8) : SBSColors.textTertiaryFallback)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.75)
             }
             .padding(.horizontal, SBSLayout.paddingMedium)
             .padding(.vertical, SBSLayout.paddingSmall)
@@ -1075,6 +1251,7 @@ struct ExerciseItemRow: View {
                         .font(.system(size: 14))
                         .foregroundStyle(SBSColors.error)
                 }
+                .accessibilityLabel("Delete \(name)")
             }
         }
         .padding()
@@ -1173,6 +1350,11 @@ struct TrainingMaxesStepView: View {
                                     let currentTMs = appState.finalTrainingMaxes(atWeek: lastWeek)
                                     for (lift, tm) in currentTMs {
                                         trainingMaxes[lift] = tm
+                                    }
+                                } else {
+                                    // Reset to the program's default initial maxes
+                                    for lift in configuredLifts {
+                                        trainingMaxes[lift] = appState.programData?.initialMaxes[lift] ?? 100
                                     }
                                 }
                             }) {
@@ -1303,7 +1485,8 @@ struct TMInputRow: View {
                                     .fill(SBSColors.backgroundFallback)
                             )
                     }
-                    
+                    .accessibilityLabel("Decrease \(liftName) training max")
+
                     Button {
                         adjustValue(by: useMetric ? 2.5 : 5)
                     } label: {
@@ -1316,6 +1499,7 @@ struct TMInputRow: View {
                                     .fill(SBSColors.backgroundFallback)
                             )
                     }
+                    .accessibilityLabel("Increase \(liftName) training max")
                 }
             }
             .padding()
@@ -1367,9 +1551,12 @@ struct WorkoutSettingsStepView: View {
     let onBack: () -> Void
     let onContinue: () -> Void
     
-    @State private var showingPaywall = false
+    /// The premium feature whose locked row was tapped. Drives an attributed
+    /// paywall via `.sheet(item:)` so each row opens a paywall for its own
+    /// feature rather than a single hard-coded one.
+    @State private var paywallFeature: PremiumFeature?
     private let storeManager = StoreManager.shared
-    
+
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
@@ -1448,7 +1635,7 @@ struct WorkoutSettingsStepView: View {
                             } else {
                                 // Non-premium: show disabled state with premium badge
                                 Button {
-                                    showingPaywall = true
+                                    paywallFeature = .supersets
                                 } label: {
                                     HStack {
                                         VStack(alignment: .leading, spacing: 4) {
@@ -1540,10 +1727,19 @@ struct WorkoutSettingsStepView: View {
                                         
                                         Spacer()
                                         
-                                        Picker("Bar Weight", selection: $appState.settings.barWeight) {
-                                            Text("35 lb / 15 kg").tag(35.0)
-                                            Text("45 lb / 20 kg").tag(45.0)
-                                            Text("55 lb / 25 kg").tag(55.0)
+                                        let barOptions = BarWeightOptions.options(useMetric: appState.settings.useMetric)
+                                        let snappedBar = BarWeightOptions.selection(for: appState.settings.barWeight, useMetric: appState.settings.useMetric)
+                                        Picker("Bar Weight", selection: Binding(
+                                            get: { snappedBar ?? appState.settings.barWeight },
+                                            set: { appState.settings.barWeight = $0 }
+                                        )) {
+                                            ForEach(barOptions) { option in
+                                                Text(option.label).tag(option.value)
+                                            }
+                                            if snappedBar == nil {
+                                                Text(appState.settings.barWeight.formattedWeight(useMetric: appState.settings.useMetric))
+                                                    .tag(appState.settings.barWeight)
+                                            }
                                         }
                                         .pickerStyle(.menu)
                                     }
@@ -1551,7 +1747,7 @@ struct WorkoutSettingsStepView: View {
                             } else {
                                 // Non-premium: show disabled state with premium badge
                                 Button {
-                                    showingPaywall = true
+                                    paywallFeature = .plateCalculator
                                 } label: {
                                     HStack {
                                         VStack(alignment: .leading, spacing: 4) {
@@ -1603,7 +1799,7 @@ struct WorkoutSettingsStepView: View {
                             } else {
                                 // Non-premium: show disabled state with premium badge
                                 Button {
-                                    showingPaywall = true
+                                    paywallFeature = .appleFitness
                                 } label: {
                                     HStack {
                                         VStack(alignment: .leading, spacing: 4) {
@@ -1637,8 +1833,8 @@ struct WorkoutSettingsStepView: View {
                 onContinue: onContinue
             )
         }
-        .sheet(isPresented: $showingPaywall) {
-            PaywallView(triggeredByFeature: .plateCalculator)
+        .sheet(item: $paywallFeature) { feature in
+            PaywallView(triggeredByFeature: feature)
         }
     }
 }
@@ -1702,7 +1898,7 @@ struct SummaryStepView: View {
         if let template = customTemplate {
             return template.name
         }
-        return programInfo?.displayName ?? appState.programInfo?.name ?? selectedProgram
+        return programInfo?.displayName ?? appState.displayName(forProgramId: selectedProgram)
     }
     
     private var programWeeks: Int {
@@ -1762,7 +1958,7 @@ struct SummaryStepView: View {
                             
                             if isCustomTemplate {
                                 Text("Custom")
-                                    .font(.system(size: 9, weight: .bold))
+                                    .font(SBSFonts.label())
                                     .foregroundStyle(.white)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
@@ -1851,6 +2047,7 @@ struct SummaryStepView: View {
             // Complete button
             VStack(spacing: SBSLayout.paddingMedium) {
                 Button {
+                    Haptics.success()
                     onComplete()
                 } label: {
                     HStack {
@@ -1972,6 +2169,7 @@ struct NavigationButtons: View {
             }
             
             Button {
+                Haptics.light()
                 onContinue()
             } label: {
                 HStack {
@@ -2438,7 +2636,7 @@ struct ProgramDetailView: View {
                             
                             // Note about percentages
                             Text("% = Training Max")
-                                .font(.system(size: 10))
+                                .font(SBSFonts.caption2())
                                 .foregroundStyle(SBSColors.textTertiaryFallback)
                         }
                         
@@ -2691,7 +2889,7 @@ struct ExercisePreviewRow: View {
                             
                             if info.hasAMRAP {
                                 Text("AMRAP")
-                                    .font(.system(size: 8, weight: .bold))
+                                    .font(SBSFonts.label())
                                     .foregroundStyle(.white)
                                     .padding(.horizontal, 4)
                                     .padding(.vertical, 1)
@@ -2703,7 +2901,7 @@ struct ExercisePreviewRow: View {
                             
                             if let note = info.noteText {
                                 Text(note)
-                                    .font(.system(size: 9))
+                                    .font(SBSFonts.caption2())
                                     .foregroundStyle(SBSColors.textTertiaryFallback)
                                     .italic()
                             }
@@ -2729,6 +2927,7 @@ struct ExercisePreviewRow: View {
                             .foregroundStyle(SBSColors.textTertiaryFallback)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(isExpanded ? "Hide set details" : "Show set details")
                 }
             }
             
@@ -3162,7 +3361,7 @@ struct CustomTemplateDetailView: View {
                             Spacer()
                             
                             Text("% = Training Max")
-                                .font(.system(size: 10))
+                                .font(SBSFonts.caption2())
                                 .foregroundStyle(SBSColors.textTertiaryFallback)
                         }
                         
@@ -3419,7 +3618,7 @@ struct VolumeBarChart: View {
                     
                     // Label
                     Text("\(entry.totalSets)")
-                        .font(.system(size: 9, weight: .medium))
+                        .font(SBSFonts.caption2())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
             }

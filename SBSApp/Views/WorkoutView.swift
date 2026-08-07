@@ -99,7 +99,8 @@ struct WorkoutExercise: Identifiable {
             isLinear: false,
             linearInfo: nil,
             intensity: nil,  // Structured exercises have per-set intensity
-            calculatedWeight: heaviestWeight
+            // Pre-override weight, so the override sheet still shows the prescribed load
+            calculatedWeight: sets.max(by: { $0.calculatedWeight < $1.calculatedWeight })?.calculatedWeight ?? heaviestWeight
         )
     }
     
@@ -293,7 +294,8 @@ final class WorkoutState {
         timerIsPaused = false
         showingTimer = false
         timerRemaining = 0
-        
+        RestTimerStatus.shared.timerCleared()
+
         currentExerciseIndex = index
         
         // Reset to first incomplete set for this exercise, or set 1 if none completed
@@ -325,27 +327,32 @@ final class WorkoutState {
         timerIsRunning = true
         timerIsPaused = false
         showingTimer = true
-        timerEndDate = Date().addingTimeInterval(TimeInterval(duration))
+        let endDate = Date().addingTimeInterval(TimeInterval(duration))
+        timerEndDate = endDate
         timerPausedRemaining = nil
+        RestTimerStatus.shared.timerStarted(endDate: endDate)
     }
-    
+
     func pauseTimer() {
         timerIsPaused = true
         timerIsRunning = false
         timerPausedRemaining = timerRemaining
         timerEndDate = nil
+        RestTimerStatus.shared.timerPaused(remaining: timerRemaining)
     }
-    
+
     func resumeTimer() {
         timerIsPaused = false
         timerIsRunning = true
         // Restore end date based on remaining time
         if let pausedRemaining = timerPausedRemaining {
-            timerEndDate = Date().addingTimeInterval(TimeInterval(pausedRemaining))
+            let endDate = Date().addingTimeInterval(TimeInterval(pausedRemaining))
+            timerEndDate = endDate
+            RestTimerStatus.shared.timerStarted(endDate: endDate)
         }
         timerPausedRemaining = nil
     }
-    
+
     func skipTimer() {
         timerIsRunning = false
         timerIsPaused = false
@@ -353,6 +360,7 @@ final class WorkoutState {
         timerRemaining = 0
         timerEndDate = nil
         timerPausedRemaining = nil
+        RestTimerStatus.shared.timerCleared()
     }
 
     /// Adjust the running rest timer by `delta` seconds, continuing from the elapsed time.
@@ -368,10 +376,12 @@ final class WorkoutState {
             let shifted = endDate.addingTimeInterval(TimeInterval(appliedDelta))
             timerEndDate = shifted
             timerRemaining = max(0, Int(ceil(shifted.timeIntervalSinceNow)))
+            RestTimerStatus.shared.timerStarted(endDate: shifted)
         } else if timerIsPaused, let paused = timerPausedRemaining {
             let newRemaining = max(0, paused + appliedDelta)
             timerPausedRemaining = newRemaining
             timerRemaining = newRemaining
+            RestTimerStatus.shared.timerPaused(remaining: newRemaining)
         } else {
             // Timer hasn't started yet — only the planned duration changes.
             timerRemaining = max(0, timerRemaining + appliedDelta)
@@ -425,6 +435,8 @@ struct WorkoutView: View {
     @State private var showingAccessoryWeightSheet = false  // For editing superset accessory weight
     @State private var showingStandaloneAccessoryWeight = false  // For editing the current standalone accessory's weight
     @State private var showingWeightOverride = false  // For overriding exercise weight mid-workout
+    @State private var pendingRepEntry: (exerciseIndex: Int, setNumber: Int)?  // Identity of the set the rep-input sheet was opened for
+    @State private var lastSyncedWatchSet: (exerciseIndex: Int, setNumber: Int)?  // Set identity last synced to the Watch
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var watchConnectivity = WatchConnectivityManager.shared
     
@@ -465,13 +477,20 @@ struct WorkoutView: View {
                         showSuperset: supersetsEnabled,
                         barWeight: appState.settings.barWeight,
                         showPlateCalculator: appState.shouldShowPlateCalculator,
-                        onTimerEnd: handleTimerEnd,
+                        onTimerEnd: { handleTimerEnd() },
+                        onSkip: { handleTimerSkip() },
                         onUnlockTap: { showingPaywall = true },
                         onAccessoryWeightTap: { showingAccessoryWeightSheet = true },
                         onPause: {
                             NotificationManager.shared.cancelRestTimerNotification()
+                            // Freeze the Watch countdown (endDate nil, isPaused true).
+                            sendRestTimerStateToWatch()
                         },
                         onResume: {
+                            // Pause + tab-switch invalidates the tick Timer, so
+                            // restart it — otherwise the countdown stays frozen
+                            // and never reaches handleTimerEnd().
+                            startTimerTickLoop()
                             if appState.settings.pushNotificationsEnabled, let exercise = workoutState.currentExercise {
                                 NotificationManager.shared.scheduleRestTimerNotification(
                                     duration: workoutState.timerRemaining,
@@ -479,6 +498,8 @@ struct WorkoutView: View {
                                     nextSetInfo: "Set \(workoutState.currentSetNumber) of \(exercise.totalSets)"
                                 )
                             }
+                            // Restart the Watch countdown from the fresh endDate.
+                            sendRestTimerStateToWatch()
                         },
                         onAdjust: { delta in
                             handleTimerAdjust(by: delta)
@@ -501,7 +522,8 @@ struct WorkoutView: View {
                                 showingWeightOverride = true
                             }
                         },
-                        onMarkEasy: toggleCurrentAccessoryEasy
+                        onMarkEasy: toggleCurrentAccessoryEasy,
+                        personalRecordE1RM: { appState.personalRecord(for: $0)?.estimatedOneRM }
                     )
                 }
             }
@@ -510,6 +532,9 @@ struct WorkoutView: View {
         .navigationTitle("Workout")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        // Cap Dynamic Type so the largest accessibility sizes can't break the
+        // fixed-height number pad / rest-timer layouts on this screen.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
@@ -524,8 +549,9 @@ struct WorkoutView: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
+                .accessibilityLabel("Exit workout")
             }
-            
+
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     showingExercisePicker = true
@@ -534,6 +560,7 @@ struct WorkoutView: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
+                .accessibilityLabel("Exercise list")
             }
         }
         .sheet(isPresented: $showingExercisePicker) {
@@ -541,9 +568,12 @@ struct WorkoutView: View {
                 workoutState: workoutState,
                 useMetric: appState.settings.useMetric,
                 onSelect: { index in
+                    // Jumping to another exercise abandons any running rest —
+                    // cancel every surface (notification / Live Activity / Watch)
+                    // so none orphans, not just the local Timer.
+                    cancelRestSurfaces()
                     workoutState.jumpToExercise(index)
                     showingExercisePicker = false
-                    stopTimer()
                 }
             )
             .presentationDetents([.medium, .large])
@@ -585,14 +615,45 @@ struct WorkoutView: View {
                     }
                     return nil
                 }(),
+                prRepsNeeded: {
+                    guard let exercise = workoutState.currentExercise else { return nil }
+                    let weight: Double
+                    if let setIndex = pendingStructuredSetIndex,
+                       let sets = exercise.structuredSetInfo,
+                       let setInfo = sets.first(where: { $0.setIndex == setIndex }) {
+                        weight = setInfo.weight
+                    } else {
+                        weight = exercise.weight
+                    }
+                    let lift = exercise.lift ?? exercise.name
+                    return E1RM.newPRRepThreshold(
+                        weight: weight,
+                        targetReps: currentRepTarget,
+                        bestE1RM: appState.personalRecord(for: lift)?.estimatedOneRM
+                    )
+                }(),
                 onSave: { reps, note in
+                    // Identity guard: the sheet was opened for a specific set. If the
+                    // workout state has moved on (re-entrant ✓ tap during the sheet's
+                    // dismiss animation) or that set is already completed, ignore the
+                    // tap — otherwise we'd log duplicate reps and complete the next
+                    // exercise's set 1.
+                    guard let pending = pendingRepEntry,
+                          pending.exerciseIndex == workoutState.currentExerciseIndex,
+                          pending.setNumber == workoutState.currentSetNumber,
+                          !workoutState.isSetCompleted(pending.setNumber) else {
+                        Logger.debug("Ignoring stale rep-input save (current: exercise \(workoutState.currentExerciseIndex), set \(workoutState.currentSetNumber))", category: .general)
+                        return
+                    }
+                    pendingRepEntry = nil
+
                     if let lift = workoutState.currentExercise?.lift,
                        let exercise = workoutState.currentExercise {
                         // Check if this is a structured (nSuns/GZCLP) set
                         if let setIndex = pendingStructuredSetIndex {
-                            // Log structured AMRAP
-                            appState.logStructuredReps(lift: lift, week: week, day: day, setIndex: setIndex, reps: reps)
-                            
+                            // Log structured AMRAP - check for PR
+                            let result = appState.logStructuredReps(lift: lift, week: week, day: day, setIndex: setIndex, reps: reps)
+
                             // Track AMRAP result for share card - only for 1+ progression sets (not back-off AMRAPs)
                             // This ensures we use the heavy 1+ set for e1RM, not the lighter final AMRAP
                             if exercise.isStructured, let sets = exercise.structuredSetInfo,
@@ -602,8 +663,41 @@ struct WorkoutView: View {
                                 let e1rm = weight * (1.0 + Double(reps) / 30.0)
                                 workoutState.amrapResults[lift] = (weight, reps, e1rm)
                             }
-                            
+
                             pendingStructuredSetIndex = nil
+
+                            if let result, result.isNewPR {
+                                // Track PR for share card
+                                let prRecord = WorkoutPRRecord(
+                                    liftName: result.liftName,
+                                    weight: result.weight,
+                                    reps: result.reps,
+                                    newE1RM: result.newE1RM,
+                                    previousE1RM: result.previousE1RM
+                                )
+                                workoutState.prsAchieved.append(prRecord)
+
+                                // Count this PR toward review-request eligibility
+                                // (queued only; presented later once the workout
+                                // is dismissed, never on the PR celebration).
+                                ReviewRequestManager.shared.recordPRAchieved()
+
+                                // Show PR celebration if enabled in settings
+                                if appState.settings.showPRCelebrations {
+                                    prResult = result
+                                    showingRepInput = false
+
+                                    // Complete the set and start timer (same as non-PR flow)
+                                    completeSetAndStartTimer()
+
+                                    // Small delay before showing celebration
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                        showingPRCelebration = true
+                                    }
+                                    return
+                                }
+                                // If celebrations are disabled, fall through to normal completion
+                            }
                         } else {
                             // Standard volume log - check for PR
                             if let result = appState.logReps(lift: lift, week: week, day: day, reps: reps, note: note) {
@@ -622,7 +716,12 @@ struct WorkoutView: View {
                                         previousE1RM: result.previousE1RM
                                     )
                                     workoutState.prsAchieved.append(prRecord)
-                                    
+
+                                    // Count this PR toward review-request eligibility
+                                    // (queued only; presented later once the workout
+                                    // is dismissed, never on the PR celebration).
+                                    ReviewRequestManager.shared.recordPRAchieved()
+
                                     // Show PR celebration if enabled in settings
                                     if appState.settings.showPRCelebrations {
                                         prResult = result
@@ -647,6 +746,7 @@ struct WorkoutView: View {
                 },
                 onCancel: {
                     pendingStructuredSetIndex = nil
+                    pendingRepEntry = nil
                     showingRepInput = false
                 }
             )
@@ -662,6 +762,9 @@ struct WorkoutView: View {
                     weight: result.weight,
                     reps: result.reps,
                     useMetric: appState.settings.useMetric,
+                    week: week,
+                    day: day,
+                    programName: appState.programData?.displayName ?? appState.programData?.name,
                     onDismiss: {
                         showingPRCelebration = false
                         prResult = nil
@@ -669,7 +772,11 @@ struct WorkoutView: View {
                         // to match the non-PR flow and prevent skipping sets
                     }
                 )
-                .background(Color.clear)
+                // Make the cover itself transparent so the celebration's own
+                // dim scrim composites over the live workout rather than an
+                // opaque system background. (.background(Color.clear) does not
+                // achieve this on a fullScreenCover.)
+                .presentationBackground(.clear)
             }
         }
         .sheet(isPresented: $showingLinearResult) {
@@ -772,19 +879,22 @@ struct WorkoutView: View {
             }
         }
         .onAppear {
+            RestTimerStatus.shared.isWorkoutScreenVisible = true
             setupWorkout()
             resumeTimerLoopIfNeeded()
             startHealthKitWorkout()
             setupWatchSync()
-            
+
             // Keep screen awake during workout
             UIApplication.shared.isIdleTimerDisabled = true
         }
         .onDisappear {
+            RestTimerStatus.shared.isWorkoutScreenVisible = false
+
             // Only invalidate the Timer object, don't reset timer state
             // This allows the timer to continue when navigating to other tabs
             invalidateTimerOnly()
-            
+
             // Re-enable screen sleep when leaving workout
             UIApplication.shared.isIdleTimerDisabled = false
         }
@@ -921,12 +1031,15 @@ struct WorkoutView: View {
         let isReachable = WatchConnectivityManager.shared.isWatchReachable
         Logger.debug("🔵 setupWatchSync: isReachable=\(isReachable)", category: .general)
         
-        WatchConnectivityManager.shared.sendWorkoutStarted()
-        Logger.debug("✅ Sent workoutStarted to Watch", category: .general)
+        // Tell the Watch whether it may write its own HealthKit workout. Pass the
+        // same HealthKit setting that gates the phone's HKWorkoutBuilder below so
+        // the two stay in agreement about who owns the HealthKit workout.
+        WatchConnectivityManager.shared.sendWorkoutStarted(healthKitEnabled: appState.settings.healthKitEnabled)
+        Logger.debug("✅ Sent workoutStarted to Watch (healthKitEnabled: \(appState.settings.healthKitEnabled))", category: .general)
         
         // Set up callback for set completion from Watch
-        WatchConnectivityManager.shared.onSetCompletedFromWatch = { reps in
-            handleSetCompleteFromWatch(reps: reps)
+        WatchConnectivityManager.shared.onSetCompletedFromWatch = { reps, exerciseIndex, setNumber in
+            handleSetCompleteFromWatch(reps: reps, exerciseIndex: exerciseIndex, setNumber: setNumber)
         }
         
         // Send initial workout state after a brief delay (to allow workout to start on Watch)
@@ -942,17 +1055,40 @@ struct WorkoutView: View {
     }
     
     /// Handle set completion triggered from Watch
-    /// - Parameter reps: Rep count from Watch for AMRAP sets, nil for normal sets
-    private func handleSetCompleteFromWatch(reps: Int?) {
+    /// - Parameters:
+    ///   - reps: Rep count from Watch for AMRAP sets, nil for normal sets
+    ///   - exerciseIndex: Exercise index the Watch was showing (nil on older Watch builds)
+    ///   - setNumber: Set number the Watch was showing (nil on older Watch builds)
+    private func handleSetCompleteFromWatch(reps: Int?, exerciseIndex: Int?, setNumber: Int?) {
         guard let exercise = workoutState.currentExercise else { return }
-        
-        // Guard: Don't complete if current set is already completed
-        if workoutState.isSetCompleted(workoutState.currentSetNumber) {
-            Logger.debug("Set \(workoutState.currentSetNumber) already completed, ignoring Watch request", category: .general)
+
+        let currentExercise = workoutState.currentExerciseIndex
+        let currentSet = workoutState.currentSetNumber
+
+        // Resolve which set the Watch was acting on. Newer Watch builds stamp the
+        // completion with the exact (exerciseIndex, setNumber) the Watch was
+        // showing; older builds omit both, so fall back to the set last synced to
+        // the Watch.
+        let watchTarget: (exerciseIndex: Int, setNumber: Int)?
+        if let exerciseIndex = exerciseIndex, let setNumber = setNumber {
+            watchTarget = (exerciseIndex: exerciseIndex, setNumber: setNumber)
+        } else {
+            watchTarget = lastSyncedWatchSet
+        }
+
+        // Identity guard: only complete the set the Watch was actually showing,
+        // and only if the phone is still on that exact set and it isn't already
+        // done. Drops stale "set complete" messages that arrive after the phone
+        // advanced (which would otherwise complete the next exercise's set 1).
+        guard let target = watchTarget,
+              target.exerciseIndex == currentExercise,
+              target.setNumber == currentSet,
+              !workoutState.isSetCompleted(currentSet) else {
+            Logger.debug("Ignoring stale Watch set-complete (target: \(String(describing: watchTarget)), current: exercise \(currentExercise) set \(currentSet))", category: .general)
             return
         }
-        
-        Logger.debug("⌚️ Completing set from Watch: \(exercise.name) set \(workoutState.currentSetNumber) (reps: \(reps?.description ?? "nil"))", category: .general)
+
+        Logger.debug("⌚️ Completing set from Watch: \(exercise.name) set \(currentSet) (reps: \(reps?.description ?? "nil"))", category: .general)
         
         // Check if current set is a structured AMRAP (nSuns, etc.)
         let structuredSetInfo: StructuredSetInfo? = {
@@ -979,7 +1115,10 @@ struct WorkoutView: View {
             if let reps = reps,
                let setInfo = structuredSetInfo,
                let lift = exercise.lift {
-                appState.logStructuredReps(lift: lift, week: week, day: day, setIndex: setInfo.setIndex, reps: reps)
+                if let result = appState.logStructuredReps(lift: lift, week: week, day: day, setIndex: setInfo.setIndex, reps: reps),
+                   setInfo.targetReps == 1 {  // Only track 1+ progression sets for share card
+                    workoutState.amrapResults[lift] = (result.weight, result.reps, result.newE1RM)
+                }
                 Logger.debug("⌚️ Logged structured AMRAP reps: \(reps) for set \(setInfo.setIndex)", category: .general)
             }
         }
@@ -1039,9 +1178,15 @@ struct WorkoutView: View {
             useMetric: appState.settings.useMetric,
             nextSetInfo: nextSetInfo,
             isRepOutSet: workoutState.isCurrentSetRepOut,
-            isAMRAPSet: isAnyAMRAP
+            isAMRAPSet: isAnyAMRAP,
+            exerciseIndex: workoutState.currentExerciseIndex
         )
-        
+
+        // Record the set identity the Watch is now displaying. A Watch "set
+        // complete" acts on this set; handleSetCompleteFromWatch uses it as the
+        // backward-compatible fallback when the message carries no identity.
+        lastSyncedWatchSet = (exerciseIndex: workoutState.currentExerciseIndex, setNumber: workoutState.currentSetNumber)
+
         WatchConnectivityManager.shared.sendWorkoutState(state)
     }
     
@@ -1053,10 +1198,16 @@ struct WorkoutView: View {
     /// Exit workout without saving to Apple Fitness
     private func exitWorkoutWithoutSaving() {
         stopTimer()
-        
+
+        // The workout state dies with this view — clear the app-wide timer
+        // mirror and any pending rest-complete notification so neither
+        // outlives the workout.
+        RestTimerStatus.shared.timerCleared()
+        NotificationManager.shared.cancelRestTimerNotification()
+
         // End Watch workout session
         syncWorkoutEndedToWatch()
-        
+
         // End Live Activity
         LiveActivityManager.shared.endTimerSync()
         
@@ -1071,35 +1222,57 @@ struct WorkoutView: View {
     /// Exit workout and save to Apple Fitness
     private func exitWorkoutAndSaveToFitness() {
         stopTimer()
-        
+        RestTimerStatus.shared.timerCleared()
+        NotificationManager.shared.cancelRestTimerNotification()
+
+        // Capture whether the Watch owns the HealthKit workout BEFORE
+        // syncWorkoutEndedToWatch() clears the flag (sendWorkoutEnded resets it).
+        let watchOwnsHealthKitWorkout = WatchConnectivityManager.shared.isWatchWorkoutSessionActive
+
         // End Watch workout session
         syncWorkoutEndedToWatch()
-        
+
         // End Live Activity
         LiveActivityManager.shared.endTimerSync()
-        
+
         // Save to Apple Fitness with current progress
         if storeManager.canAccess(.appleFitness) && appState.settings.healthKitEnabled {
-            let stats = calculateWorkoutStats()
-            Task {
-                do {
-                    try await HealthKitManager.shared.endWorkout(
-                        totalVolume: stats.volume,
-                        setCount: stats.sets,
-                        repCount: stats.reps
-                    )
-                    Logger.debug("✅ Saved partial workout to Apple Fitness", category: .healthKit)
-                } catch {
-                    Logger.error("Failed to save workout to Apple Fitness: \(error)", category: .healthKit)
+            if watchOwnsHealthKitWorkout {
+                // The Watch is running its own HealthKit-saving session — discard
+                // the phone's builder so we don't write a duplicate workout.
+                HealthKitManager.shared.discardWorkout()
+            } else {
+                let stats = calculateWorkoutStats()
+                Task {
+                    do {
+                        try await HealthKitManager.shared.endWorkout(
+                            totalVolume: stats.volume,
+                            setCount: stats.sets,
+                            repCount: stats.reps
+                        )
+                        Logger.debug("✅ Saved partial workout to Apple Fitness", category: .healthKit)
+                    } catch {
+                        Logger.error("Failed to save workout to Apple Fitness: \(error)", category: .healthKit)
+                    }
                 }
             }
         }
-        
+
         dismiss()
     }
     
     private func finishAndDismiss() {
         stopTimer()
+        RestTimerStatus.shared.timerCleared()
+        NotificationManager.shared.cancelRestTimerNotification()
+
+        // The easy nudge has now been seen for any accessory trained this
+        // session — clear stale flags so it only shows once.
+        consumeAccessoryEasyFlags()
+
+        // Capture whether the Watch owns the HealthKit workout BEFORE
+        // syncWorkoutEndedToWatch() clears the flag (sendWorkoutEnded resets it).
+        let watchOwnsHealthKitWorkout = WatchConnectivityManager.shared.isWatchWorkoutSessionActive
 
         // End Watch sync
         syncWorkoutEndedToWatch()
@@ -1111,25 +1284,35 @@ struct WorkoutView: View {
 
         // End HealthKit workout if active (premium feature)
         if storeManager.canAccess(.appleFitness) && appState.settings.healthKitEnabled {
-            // Calculate workout stats for HealthKit
-            let stats = calculateWorkoutStats()
-            Task {
-                do {
-                    try await HealthKitManager.shared.endWorkout(
-                        totalVolume: stats.volume,
-                        setCount: stats.sets,
-                        repCount: stats.reps
-                    )
-                } catch {
-                    Logger.error("Failed to end HealthKit workout: \(error)", category: .healthKit)
+            if watchOwnsHealthKitWorkout {
+                // The Watch is running its own HealthKit-saving session (with live
+                // heart-rate data) — discard the phone's builder so we don't write
+                // a duplicate HealthKit workout.
+                HealthKitManager.shared.discardWorkout()
+            } else {
+                // Calculate workout stats for HealthKit
+                let stats = calculateWorkoutStats()
+                Task {
+                    do {
+                        try await HealthKitManager.shared.endWorkout(
+                            totalVolume: stats.volume,
+                            setCount: stats.sets,
+                            repCount: stats.reps
+                        )
+                    } catch {
+                        Logger.error("Failed to end HealthKit workout: \(error)", category: .healthKit)
+                    }
                 }
             }
         }
-        
-        // Record workout completion for review request tracking
-        // This may trigger a review request at milestone workouts (3rd, 10th, 25th, etc.)
+
+        // Record workout completion for review request tracking. This may
+        // queue a review request at milestone workouts (3rd, 10th, 25th, etc.),
+        // but presentation is deferred so the rating prompt never lands on the
+        // workout-complete celebration — it's flushed below once this view has
+        // dismissed.
         ReviewRequestManager.shared.recordWorkoutCompleted()
-        
+
         // Check if completing this workout completes the week
         // We need to check after the workout is logged, so do it on the next run loop
         Task { @MainActor in
@@ -1138,8 +1321,12 @@ struct WorkoutView: View {
             if appState.weekCompletionFraction(for: week) == 1.0 {
                 ReviewRequestManager.shared.recordWeekCompleted(weekNumber: week)
             }
+            // Flush any queued review request (workout milestone, week, or PR)
+            // now that this view is dismissed — presents ~2s later over a clean
+            // screen with no celebration/summary/sheet on top.
+            ReviewRequestManager.shared.presentPendingReviewRequestIfNeeded()
         }
-        
+
         dismiss()
     }
     
@@ -1189,7 +1376,10 @@ struct WorkoutView: View {
     
     private func handleSetComplete() {
         guard let exercise = workoutState.currentExercise else { return }
-        
+
+        // Tactile confirmation for the app's most-pressed button.
+        Haptics.medium()
+
         // Check if this is a linear progression exercise - on last set, show result dialog
         if exercise.isLinear && workoutState.currentSetNumber == exercise.totalSets {
             // Capture the exercise BEFORE advancing to the next one
@@ -1222,6 +1412,10 @@ struct WorkoutView: View {
             if currentSetInfo.isAMRAP {
                 // Store the set index for logging
                 pendingStructuredSetIndex = currentSetInfo.setIndex
+                // Stamp the identity of the set the sheet is opened for so a
+                // re-entrant ✓ tap during the dismiss animation can't log the
+                // next set (see onSave identity guard).
+                pendingRepEntry = (exerciseIndex: workoutState.currentExerciseIndex, setNumber: workoutState.currentSetNumber)
                 showingRepInput = true
                 return
             }
@@ -1237,6 +1431,9 @@ struct WorkoutView: View {
         } else if workoutState.isCurrentSetRepOut {
             // Standard volume AMRAP set
             pendingStructuredSetIndex = nil
+            // Stamp the identity of the set the sheet is opened for (see onSave
+            // identity guard) to block a re-entrant ✓ tap during dismissal.
+            pendingRepEntry = (exerciseIndex: workoutState.currentExerciseIndex, setNumber: workoutState.currentSetNumber)
             showingRepInput = true
             return
         }
@@ -1251,15 +1448,19 @@ struct WorkoutView: View {
         // Don't start timer if workout is complete
         guard !workoutState.isWorkoutComplete else { return }
 
-        // Start rest timer
+        // Start rest timer — the surfaces (Live Activity / notification /
+        // Watch) are created exactly once here, when the rest actually
+        // begins; the tick loop can be restarted freely on reappear.
         workoutState.startTimer(duration: appState.settings.restTimerDuration)
-        startTimerLoop()
+        startRestSurfaces()
+        startTimerTickLoop()
     }
 
-    /// Bump the running rest timer by `delta` seconds and persist as the new default duration.
+    /// Bump the running rest timer by `delta` seconds for this session only.
+    /// Deliberately does NOT write `appState.settings.restTimerDuration` — a
+    /// ±15s tap adjusts the running timer, not the user's saved default.
     private func handleTimerAdjust(by delta: Int) {
-        let newDuration = workoutState.adjustTimer(by: delta)
-        appState.settings.restTimerDuration = newDuration
+        workoutState.adjustTimer(by: delta)
 
         // Mirror the new remaining to dependent sinks.
         if storeManager.canAccess(.liveActivity) {
@@ -1279,41 +1480,81 @@ struct WorkoutView: View {
             )
         }
 
+        // Push the shifted timeline to the Watch (fresh endDate when running, or a
+        // frozen remaining when paused). If the timer just hit zero the
+        // handleTimerEnd() below immediately follows with sendRestTimerEnded().
+        sendRestTimerStateToWatch()
+
         // If we shrunk past zero, end the timer immediately.
         if workoutState.timerRemaining <= 0 && workoutState.showingTimer {
             handleTimerEnd()
         }
 
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        // ±15s tap feedback (light impact).
+        Haptics.light()
     }
     
-    private func startTimerLoop() {
-        stopTimer()
-        
+    /// Create the endDate-driven "surfaces" for a freshly started rest timer:
+    /// Live Activity, background notification, and Watch state. Call exactly
+    /// ONCE when a rest actually begins (see `completeSetAndStartTimer`). It
+    /// must NOT run on resume/reappear — those surfaces are still valid, and
+    /// re-creating them would restart the Dynamic Island / lock screen at full
+    /// duration and fire the rest-complete notification late.
+    private func startRestSurfaces() {
         // Start Live Activity for lock screen / Dynamic Island (Pro only)
         let canAccessLiveActivity = storeManager.canAccess(.liveActivity)
         Logger.debug("🔵 Timer started - canAccess(.liveActivity): \(canAccessLiveActivity), isPremium: \(storeManager.isPremium)", category: .liveActivity)
-        
+
         if canAccessLiveActivity, let exercise = workoutState.currentExercise {
             LiveActivityManager.shared.startTimer(
                 exerciseName: exercise.name,
-                duration: appState.settings.restTimerDuration,
+                duration: workoutState.timerDuration,
                 nextSetInfo: "Set \(workoutState.currentSetNumber) of \(exercise.totalSets)"
             )
         }
-        
+
         // Schedule push notification for background alert
         if appState.settings.pushNotificationsEnabled, let exercise = workoutState.currentExercise {
             NotificationManager.shared.scheduleRestTimerNotification(
-                duration: appState.settings.restTimerDuration,
+                duration: workoutState.timerDuration,
                 exerciseName: exercise.name,
                 nextSetInfo: "Set \(workoutState.currentSetNumber) of \(exercise.totalSets)"
             )
         }
-        
-        // Send initial timer state to Watch
+
+        // Send initial timer state to Watch (workout context + set-completion
+        // identity), then the authoritative endDate-based rest-timer timeline.
         syncWorkoutStateToWatch()
-        
+        sendRestTimerStateToWatch()
+    }
+
+    /// Push the current rest-timer timeline to the Watch as a single
+    /// endDate-based message. Call once when the rest starts and again ONLY on a
+    /// timeline change (pause / resume / ±15s adjust). It reads the live
+    /// `workoutState`, so it must run AFTER the state mutation: a paused timer
+    /// has `timerEndDate == nil` and `timerIsPaused == true`, while running/
+    /// resumed/adjusted timers carry a fresh `timerEndDate`. The Watch renders
+    /// the countdown locally from the endDate and schedules its own completion
+    /// haptic, so no per-second traffic is needed.
+    private func sendRestTimerStateToWatch() {
+        guard let exercise = workoutState.currentExercise else { return }
+        WatchConnectivityManager.shared.sendRestTimerState(
+            endDate: workoutState.timerIsPaused ? nil : workoutState.timerEndDate,
+            duration: workoutState.timerDuration,
+            remaining: workoutState.timerRemaining,
+            isPaused: workoutState.timerIsPaused,
+            exerciseName: exercise.name,
+            nextSetInfo: "Next: Set \(workoutState.currentSetNumber) of \(exercise.totalSets)"
+        )
+    }
+
+    /// (Re)start the 1s in-app tick loop that drives the countdown UI and the
+    /// per-second Live Activity / Watch updates. Safe to call on reappear or
+    /// on resume — it creates no surface and resets nothing; it only reads the
+    /// existing endDate-driven timer state.
+    private func startTimerTickLoop() {
+        stopTimer()
+
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak workoutState] _ in
             Task { @MainActor in
                 guard let workoutState = workoutState else { return }
@@ -1327,15 +1568,10 @@ struct WorkoutView: View {
                     )
                 }
                 
-                // Send timer update to Watch every second
-                if let exercise = workoutState.currentExercise {
-                    WatchConnectivityManager.shared.sendRestTimerUpdate(
-                        remaining: workoutState.timerRemaining,
-                        duration: workoutState.timerDuration,
-                        exerciseName: exercise.name
-                    )
-                }
-                
+                // The Watch renders the countdown locally from the endDate sent
+                // once via sendRestTimerState(...), so no per-second Watch traffic
+                // is sent here — only pause/resume/adjust push a new timeline.
+
                 // Note: Timer end is handled by the View through handleTimerEnd()
                 // which is called when timerRemaining <= 0 is detected in the View
             }
@@ -1355,22 +1591,43 @@ struct WorkoutView: View {
         timer = nil
         // Don't end Live Activity or reset timer state - timer is still logically running
     }
+
+    /// Fully tear down the rest timer and every surface it drives: the in-app
+    /// tick loop, the timer state + RestTimerStatus mirror, the pending
+    /// rest-complete notification, the Live Activity, and the Watch timer. Any
+    /// path that abandons a running rest without ending the workout (jumping to
+    /// or picking another exercise) must route through here so no surface
+    /// outlives the rest it belonged to.
+    private func cancelRestSurfaces() {
+        stopTimer()
+        workoutState.skipTimer()  // clears timer state + RestTimerStatus mirror
+        NotificationManager.shared.cancelRestTimerNotification()
+        LiveActivityManager.shared.endTimerSync()
+        WatchConnectivityManager.shared.sendRestTimerEnded()
+    }
     
     /// Restarts the timer loop if a timer is still running after view reappears
     private func resumeTimerLoopIfNeeded() {
         // Recalculate remaining time from end date
         workoutState.recalculateTimerIfNeeded()
         
-        // If timer is running and has time left, restart the loop
+        // If timer is running and has time left, restart only the tick loop.
+        // The surfaces (Live Activity / notification / Watch) are endDate-driven
+        // and still valid — recreating them here would reset them to full
+        // duration.
         if workoutState.timerIsRunning && workoutState.timerRemaining > 0 {
-            startTimerLoop()
+            startTimerTickLoop()
         } else if workoutState.timerIsRunning && workoutState.timerRemaining <= 0 {
-            // Timer expired while view was away
-            handleTimerEnd()
+            // Timer expired while the view was away. Only play the end fanfare
+            // if it *just* expired (~2s); a stale expiry already surfaced via
+            // the foreground notification banner, so replaying haptics/chime
+            // minutes late would be jarring.
+            let justExpired = (workoutState.timerEndDate?.timeIntervalSinceNow ?? -100) > -2
+            handleTimerEnd(playFeedback: justExpired)
         }
     }
-    
-    private func handleTimerEnd() {
+
+    private func handleTimerEnd(playFeedback: Bool = true) {
         workoutState.skipTimer()
         stopTimer()
         
@@ -1387,22 +1644,46 @@ struct WorkoutView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             self.syncWorkoutStateToWatch()
         }
-        
-        // Play haptics and chime
-        playTimerEndFeedback()
+
+        // Play haptics and chime — suppressed for a stale expiry detected on
+        // reappear (see resumeTimerLoopIfNeeded).
+        if playFeedback {
+            playTimerEndFeedback()
+        }
     }
-    
+
+    /// Manual skip of the rest timer. Performs the same surface teardown as
+    /// `handleTimerEnd` (Live Activity, notification, RestTimerStatus/timer
+    /// state, Watch) and advances state, but deliberately skips
+    /// `playTimerEndFeedback()` — a skip is a user action, not a rest
+    /// completion, so it gets only a light tap on the phone with no chime and
+    /// no triple-buzz fanfare. `sendRestTimerEnded()` still runs so the Watch's
+    /// pending completion haptic is cancelled and no surface orphans.
+    private func handleTimerSkip() {
+        Haptics.light()
+        workoutState.skipTimer()
+        stopTimer()
+        LiveActivityManager.shared.endTimerSync()
+        NotificationManager.shared.cancelRestTimerNotification()
+        WatchConnectivityManager.shared.sendRestTimerEnded()
+
+        // Send updated workout state after a small delay to ensure timer state is cleared
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.syncWorkoutStateToWatch()
+        }
+    }
+
     private func playTimerEndFeedback() {
-        // Strong haptic pattern - triple buzz
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.warning)
-        
+        // Strong haptic pattern - triple buzz (the final .success is the phone's
+        // completion buzz; the Watch buzzes independently via sendRestTimerEnded).
+        Haptics.warning()
+
         // Delay and buzz again for emphasis
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            generator.notificationOccurred(.warning)
+            Haptics.warning()
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.30) {
-            generator.notificationOccurred(.success)
+            Haptics.success()
         }
         
         // Only play sound if user has sound notifications enabled
@@ -1445,11 +1726,15 @@ struct WorkoutView: View {
                     previousE1RM: result.previousE1RM
                 )
                 workoutState.prsAchieved.append(prRecord)
-                
+
+                // Count this PR toward review-request eligibility (queued only;
+                // presented later once the workout is dismissed).
+                ReviewRequestManager.shared.recordPRAchieved()
+
                 // Show PR celebration if enabled in settings
                 if appState.settings.showPRCelebrations {
                     prResult = result
-                    
+
                     // Small delay before showing celebration
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         showingPRCelebration = true
@@ -1501,13 +1786,40 @@ struct WorkoutView: View {
         exercise.markedEasy.toggle()
         workoutState.exercises[idx] = exercise
 
-        appState.logAccessory(
-            name: exercise.name,
-            weight: exercise.weight,
-            sets: exercise.totalSets,
-            reps: exercise.repsPerSet,
-            wasEasy: exercise.markedEasy ? true : nil
-        )
+        if appState.getAccessoryLog(name: exercise.name) != nil {
+            // Flip just the flag — logAccessory would clobber the note and
+            // append a spurious accessoryHistory record on every toggle.
+            appState.setAccessoryWasEasy(name: exercise.name, wasEasy: exercise.markedEasy ? true : nil)
+        } else {
+            appState.logAccessory(
+                name: exercise.name,
+                weight: exercise.weight,
+                sets: exercise.totalSets,
+                reps: exercise.repsPerSet,
+                wasEasy: exercise.markedEasy ? true : nil
+            )
+        }
+    }
+
+    /// The "last time was easy" nudge is one-shot: once the user has trained
+    /// the accessory again, clear the stored flag unless they re-marked it
+    /// easy this session. Called when the workout is finished.
+    private func consumeAccessoryEasyFlags() {
+        for exercise in workoutState.exercises where exercise.isAccessory {
+            let performed = !(workoutState.completedSets[exercise.id]?.isEmpty ?? true)
+            if performed && !exercise.markedEasy {
+                appState.setAccessoryWasEasy(name: exercise.name, wasEasy: nil)
+            }
+        }
+        // Superset accessories ride along with their paired main lift and have
+        // no re-mark control, so performing the pair consumes the flag.
+        for (index, accessory) in workoutState.supersetAccessories {
+            guard index < workoutState.exercises.count else { continue }
+            let mainLift = workoutState.exercises[index]
+            if !(workoutState.completedSets[mainLift.id]?.isEmpty ?? true) {
+                appState.setAccessoryWasEasy(name: accessory.name, wasEasy: nil)
+            }
+        }
     }
 
     /// Update the weight of the current standalone accessory exercise (not a superset).
@@ -1519,8 +1831,15 @@ struct WorkoutView: View {
         exercise.weight = weight
         workoutState.exercises[idx] = exercise
 
-        // Persist as the new last-log so it pre-fills next time.
-        appState.logAccessory(name: exercise.name, weight: weight, sets: sets, reps: reps)
+        // Persist as the new last-log so it pre-fills next time. Keep the easy
+        // flag if the user marked this session easy before adjusting weight.
+        appState.logAccessory(
+            name: exercise.name,
+            weight: weight,
+            sets: sets,
+            reps: reps,
+            wasEasy: exercise.markedEasy ? true : nil
+        )
     }
     
     /// Build a human-readable prescribed-reps line for the weight override sheet
@@ -1570,7 +1889,8 @@ struct WorkoutView: View {
                     targetReps: set.targetReps,
                     isAMRAP: set.isAMRAP,
                     weight: (set.weight * ratio * 100).rounded() / 100,
-                    loggedReps: set.loggedReps
+                    loggedReps: set.loggedReps,
+                    calculatedWeight: set.calculatedWeight
                 )
             }
         }
@@ -1585,9 +1905,8 @@ struct WorkoutView: View {
         var exercise = workoutState.exercises[idx]
 
         if exercise.isStructured {
-            // Re-fetch the original per-set weights from the day plan now that the
-            // override is cleared. dayPlan ignores override for structured today, so
-            // this returns the originally calculated TM-based weights.
+            // Re-fetch the per-set weights from the day plan now that the override is
+            // cleared, so they revert to the calculated TM-based weights.
             if let plan = appState.dayPlan(week: week, day: day) {
                 for item in plan {
                     if case let .structured(_, planLift, _, setInfos, _) = item, planLift == lift {
@@ -1708,14 +2027,14 @@ struct WorkoutProgressHeader: View {
                     HStack(spacing: SBSLayout.paddingSmall) {
                         if isAccessory {
                             Image(systemName: "dumbbell.fill")
-                                .font(.system(size: 14))
+                                .font(SBSFonts.caption())
                                 .foregroundStyle(SBSColors.accentSecondaryFallback)
                         }
                         
                         Text(exerciseName)
                             .font(SBSFonts.title3())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
-                            .lineLimit(1)
+                            .lineLimit(2)
                     }
                     
                     Text(setInfo)
@@ -1729,7 +2048,7 @@ struct WorkoutProgressHeader: View {
                 if let hr = heartRate {
                     HStack(spacing: 4) {
                         Image(systemName: "heart.fill")
-                            .font(.system(size: 12))
+                            .font(SBSFonts.caption())
                             .foregroundStyle(.red)
                         Text("\(Int(hr))")
                             .font(SBSFonts.captionBold())
@@ -1764,7 +2083,8 @@ struct CurrentSetView: View {
     var onUnlockTap: (() -> Void)?
     var onWeightTap: (() -> Void)?
     var onMarkEasy: (() -> Void)?
-    
+    var personalRecordE1RM: (String) -> Double? = { _ in nil }
+
     /// Get the current set info for nSuns exercises
     private var currentStructuredSet: StructuredSetInfo? {
         guard let exercise = workoutState.currentExercise,
@@ -1800,6 +2120,20 @@ struct CurrentSetView: View {
         return workoutState.isCurrentSetRepOut
     }
     
+    /// Reps that would set a new E1RM PR on the current AMRAP set, if within
+    /// reach (5 reps past the AMRAP target). nil = no hint.
+    private var prHintReps: Int? {
+        guard isCurrentAMRAP, let exercise = workoutState.currentExercise else { return nil }
+        let lift = exercise.lift ?? exercise.name
+        // Volume rep-out sets target repOutTarget, not repsPerSet
+        let target = currentStructuredSet != nil ? currentReps : exercise.repOutTarget
+        return E1RM.newPRRepThreshold(
+            weight: currentWeight,
+            targetReps: target,
+            bestE1RM: personalRecordE1RM(lift)
+        )
+    }
+
     /// Intensity percentage for the current set/exercise
     private var intensityText: String? {
         // For structured exercises, use the per-set intensity
@@ -1846,7 +2180,7 @@ struct CurrentSetView: View {
                         // Accessory badge
                         HStack(spacing: SBSLayout.paddingSmall) {
                             Image(systemName: "dumbbell.fill")
-                                .font(.system(size: 16))
+                                .font(SBSFonts.body())
                                 .foregroundStyle(SBSColors.accentSecondaryFallback)
 
                             Text("ACCESSORY")
@@ -1866,11 +2200,11 @@ struct CurrentSetView: View {
                         } label: {
                             HStack(spacing: 6) {
                                 Text(exercise.weight.formattedWeight(useMetric: useMetric))
-                                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                                    .font(SBSFonts.display())
                                     .foregroundStyle(SBSColors.accentSecondaryFallback)
 
                                 Image(systemName: "pencil.circle")
-                                    .font(.system(size: 18))
+                                    .font(SBSFonts.title3())
                                     .foregroundStyle(SBSColors.textTertiaryFallback)
                             }
                         }
@@ -1878,7 +2212,7 @@ struct CurrentSetView: View {
                         // Reps
                         HStack(spacing: SBSLayout.paddingSmall) {
                             Text("\(exercise.repsPerSet)")
-                                .font(.system(size: 36, weight: .bold, design: .rounded))
+                                .font(SBSFonts.title())
                                 .foregroundStyle(SBSColors.textPrimaryFallback)
 
                             Text("reps")
@@ -1889,7 +2223,7 @@ struct CurrentSetView: View {
                         if exercise.lastWasEasy == true {
                             HStack(spacing: 4) {
                                 Image(systemName: "hand.thumbsup.fill")
-                                    .font(.system(size: 12))
+                                    .font(SBSFonts.caption())
                                 Text("Last time was easy, go heavier")
                                     .font(SBSFonts.caption())
                             }
@@ -1906,7 +2240,7 @@ struct CurrentSetView: View {
                             Button(action: { onMarkEasy?() }) {
                                 HStack(spacing: 4) {
                                     Image(systemName: exercise.markedEasy ? "hand.thumbsup.fill" : "hand.thumbsup")
-                                        .font(.system(size: 12))
+                                        .font(SBSFonts.caption())
                                     Text(exercise.markedEasy ? "Marked easy" : "That was easy?")
                                         .font(SBSFonts.caption())
                                 }
@@ -1950,11 +2284,11 @@ struct CurrentSetView: View {
                         } label: {
                             HStack(spacing: 6) {
                                 Text(currentWeight.formattedWeight(useMetric: useMetric))
-                                    .font(.system(size: 56, weight: .bold, design: .rounded))
+                                    .font(SBSFonts.display())
                                     .foregroundStyle(isCurrentAMRAP ? SBSColors.warning : SBSColors.accentFallback)
 
                                 Image(systemName: "pencil.circle")
-                                    .font(.system(size: 18))
+                                    .font(SBSFonts.title3())
                                     .foregroundStyle(SBSColors.textTertiaryFallback)
                             }
                         }
@@ -1976,7 +2310,7 @@ struct CurrentSetView: View {
                         HStack(spacing: SBSLayout.paddingSmall) {
                             if isCurrentAMRAP {
                                 Text("\(currentReps)+")
-                                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                                    .font(SBSFonts.title())
                                     .foregroundStyle(SBSColors.warning)
                                 
                                 Text("reps (AMRAP)")
@@ -1984,7 +2318,7 @@ struct CurrentSetView: View {
                                     .foregroundStyle(SBSColors.textSecondaryFallback)
                             } else {
                                 Text("\(currentReps)")
-                                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                                    .font(SBSFonts.title())
                                     .foregroundStyle(SBSColors.textPrimaryFallback)
                                 
                                 Text("reps")
@@ -1995,6 +2329,18 @@ struct CurrentSetView: View {
                         
                         if isCurrentAMRAP {
                             Text(currentReps == 1 ? "Heavy single - go for it!" : "AMRAP set - push it!")
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(SBSColors.warning)
+                                .padding(.horizontal, SBSLayout.paddingMedium)
+                                .padding(.vertical, SBSLayout.paddingSmall)
+                                .background(
+                                    Capsule()
+                                        .fill(SBSColors.warning.opacity(0.15))
+                                )
+                        }
+
+                        if let prReps = prHintReps {
+                            Text("\(prReps) reps would be a new 1RM!")
                                 .font(SBSFonts.caption())
                                 .foregroundStyle(SBSColors.warning)
                                 .padding(.horizontal, SBSLayout.paddingMedium)
@@ -2027,11 +2373,11 @@ struct CurrentSetView: View {
                         } label: {
                             HStack(spacing: 6) {
                                 Text(exercise.weight.formattedWeight(useMetric: useMetric))
-                                    .font(.system(size: 56, weight: .bold, design: .rounded))
+                                    .font(SBSFonts.display())
                                     .foregroundStyle(SBSColors.accentFallback)
 
                                 Image(systemName: "pencil.circle")
-                                    .font(.system(size: 18))
+                                    .font(SBSFonts.title3())
                                     .foregroundStyle(SBSColors.textTertiaryFallback)
                             }
                         }
@@ -2052,7 +2398,7 @@ struct CurrentSetView: View {
                         // Reps
                         HStack(spacing: SBSLayout.paddingSmall) {
                             Text("\(exercise.repsPerSet)")
-                                .font(.system(size: 36, weight: .bold, design: .rounded))
+                                .font(SBSFonts.title())
                                 .foregroundStyle(SBSColors.textPrimaryFallback)
                             
                             Text("reps")
@@ -2064,7 +2410,7 @@ struct CurrentSetView: View {
                         if let info = exercise.linearInfo, info.isDeloadPending {
                             HStack(spacing: SBSLayout.paddingSmall) {
                                 Image(systemName: "exclamationmark.triangle.fill")
-                                    .font(.system(size: 12))
+                                    .font(SBSFonts.caption())
                                 
                                 Text("Deload pending (\(info.consecutiveFailures) failures)")
                                     .font(SBSFonts.caption())
@@ -2100,11 +2446,11 @@ struct CurrentSetView: View {
                         } label: {
                             HStack(spacing: 6) {
                                 Text(exercise.weight.formattedWeight(useMetric: useMetric))
-                                    .font(.system(size: 56, weight: .bold, design: .rounded))
+                                    .font(SBSFonts.display())
                                     .foregroundStyle(SBSColors.accentFallback)
 
                                 Image(systemName: "pencil.circle")
-                                    .font(.system(size: 18))
+                                    .font(SBSFonts.title3())
                                     .foregroundStyle(SBSColors.textTertiaryFallback)
                             }
                         }
@@ -2126,7 +2472,7 @@ struct CurrentSetView: View {
                         HStack(spacing: SBSLayout.paddingSmall) {
                             if workoutState.isCurrentSetRepOut {
                                 Text("\(exercise.repOutTarget)+")
-                                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                                    .font(SBSFonts.title())
                                     .foregroundStyle(SBSColors.success)
                                 
                                 Text("reps (AMRAP)")
@@ -2134,7 +2480,7 @@ struct CurrentSetView: View {
                                     .foregroundStyle(SBSColors.textSecondaryFallback)
                             } else {
                                 Text("\(exercise.repsPerSet)")
-                                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                                    .font(SBSFonts.title())
                                     .foregroundStyle(SBSColors.textPrimaryFallback)
                                 
                                 Text("reps")
@@ -2154,6 +2500,18 @@ struct CurrentSetView: View {
                                         .fill(SBSColors.success.opacity(0.15))
                                 )
                         }
+
+                        if let prReps = prHintReps {
+                            Text("\(prReps) reps would be a new 1RM!")
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(SBSColors.success)
+                                .padding(.horizontal, SBSLayout.paddingMedium)
+                                .padding(.vertical, SBSLayout.paddingSmall)
+                                .background(
+                                    Capsule()
+                                        .fill(SBSColors.success.opacity(0.15))
+                                )
+                        }
                     }
                 }
                 
@@ -2163,7 +2521,7 @@ struct CurrentSetView: View {
                 Button(action: onComplete) {
                     HStack(spacing: SBSLayout.paddingSmall) {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 24))
+                            .font(SBSFonts.title())
                         
                         Text(isCurrentAMRAP ? "Log Reps" : "Complete Set")
                             .font(SBSFonts.button())
@@ -2246,7 +2604,7 @@ struct StructuredSetIndicator: View {
                 } else {
                     VStack(spacing: 0) {
                         Text(setInfo.isAMRAP ? "\(setInfo.targetReps)+" : "\(setInfo.targetReps)")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(SBSFonts.captionBold())
                             .foregroundStyle(isCurrent ? .white : (setInfo.isAMRAP ? SBSColors.warning : SBSColors.textSecondaryFallback))
                     }
                 }
@@ -2254,7 +2612,7 @@ struct StructuredSetIndicator: View {
             
             // Weight label
             Text(setInfo.weight.formattedWeightShort(useMetric: useMetric))
-                .font(.system(size: 8, weight: .medium))
+                .font(SBSFonts.label())
                 .foregroundStyle(isCurrent ? (setInfo.isAMRAP ? SBSColors.warning : SBSColors.accentFallback) : SBSColors.textTertiaryFallback)
         }
     }
@@ -2335,7 +2693,7 @@ struct SetIndicator: View {
             
             // Show set number label below
             Text("Set \(setNumber)")
-                .font(.system(size: 9, weight: .semibold))
+                .font(SBSFonts.label())
                 .foregroundStyle(isCurrent ? (isAmrap && !isAccessory ? SBSColors.success : SBSColors.accentFallback) : SBSColors.textTertiaryFallback)
         }
     }
@@ -2363,6 +2721,7 @@ struct TimerView: View {
     var barWeight: Double = 45
     var showPlateCalculator: Bool = true
     let onTimerEnd: () -> Void
+    var onSkip: (() -> Void)?
     var onUnlockTap: (() -> Void)?
     var onAccessoryWeightTap: (() -> Void)?
     var onPause: (() -> Void)?
@@ -2413,8 +2772,10 @@ struct TimerView: View {
                 // Timer text
                 VStack(spacing: 4) {
                     Text(timerText)
-                        .font(.system(size: hasSuperset ? 36 : 48, weight: .bold, design: .monospaced))
+                        .font(SBSFonts.displayMono())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .accessibilityLabel(hasSuperset ? "Superset timer" : "Rest timer")
+                        .accessibilityValue(timerAccessibilityValue)
 
                     Text(hasSuperset ? "SUPERSET" : "REST")
                         .font(SBSFonts.caption())
@@ -2422,7 +2783,7 @@ struct TimerView: View {
 
                     if workoutState.timerDuration > 0 {
                         Text("of \(formatDuration(workoutState.timerDuration))")
-                            .font(.system(size: hasSuperset ? 11 : 12, weight: .medium, design: .monospaced))
+                            .font(SBSFonts.caption2())
                             .foregroundStyle(SBSColors.textTertiaryFallback)
                     }
                 }
@@ -2438,16 +2799,18 @@ struct TimerView: View {
                     onAdjust?(-15)
                 } label: {
                     Text("−15s")
-                        .font(.system(size: hasSuperset ? 13 : 14, weight: .semibold, design: .rounded))
+                        .font(SBSFonts.captionBold())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                         .frame(width: adjustSize, height: adjustSize)
                         .background(
                             Circle().fill(SBSColors.surfaceFallback)
                         )
                 }
+                .accessibilityLabel("Subtract 15 seconds")
 
                 // Pause/Resume
                 Button {
+                    Haptics.light()
                     if workoutState.timerIsPaused {
                         workoutState.resumeTimer()
                         onResume?()
@@ -2472,10 +2835,11 @@ struct TimerView: View {
                                 .fill(SBSColors.surfaceFallback)
                         )
                 }
+                .accessibilityLabel(workoutState.timerIsPaused ? "Resume timer" : "Pause timer")
 
                 // Skip
                 Button {
-                    onTimerEnd()
+                    onSkip?()
                 } label: {
                     Image(systemName: "forward.fill")
                         .font(.system(size: hasSuperset ? 20 : 24))
@@ -2486,19 +2850,21 @@ struct TimerView: View {
                                 .fill(workoutState.isCurrentExerciseAccessory ? SBSColors.accentSecondaryFallback : SBSColors.accentFallback)
                         )
                 }
+                .accessibilityLabel("Skip rest timer")
 
                 // +15s
                 Button {
                     onAdjust?(15)
                 } label: {
                     Text("+15s")
-                        .font(.system(size: hasSuperset ? 13 : 14, weight: .semibold, design: .rounded))
+                        .font(SBSFonts.captionBold())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                         .frame(width: adjustSize, height: adjustSize)
                         .background(
                             Circle().fill(SBSColors.surfaceFallback)
                         )
                 }
+                .accessibilityLabel("Add 15 seconds")
             }
             
             Spacer(minLength: hasSuperset ? 8 : 20)
@@ -2549,8 +2915,11 @@ struct TimerView: View {
                 onTimerEnd()
             }
         }
+        // Keep the fixed-size timer ring and control buttons intact at large
+        // accessibility text sizes.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
-    
+
     private var timerProgress: Double {
         guard workoutState.timerDuration > 0 else { return 0 }
         return Double(workoutState.timerRemaining) / Double(workoutState.timerDuration)
@@ -2570,6 +2939,22 @@ struct TimerView: View {
         let minutes = workoutState.timerRemaining / 60
         let seconds = workoutState.timerRemaining % 60
         return String(format: "%d:%02d", minutes, seconds)
+    }
+
+    /// Spoken form of the countdown for VoiceOver, e.g. "1 minute 30 seconds
+    /// remaining". The digit-clock `timerText` reads poorly on its own.
+    private var timerAccessibilityValue: String {
+        let minutes = workoutState.timerRemaining / 60
+        let seconds = workoutState.timerRemaining % 60
+        var parts: [String] = []
+        if minutes > 0 {
+            parts.append("\(minutes) minute\(minutes == 1 ? "" : "s")")
+        }
+        if seconds > 0 || minutes == 0 {
+            parts.append("\(seconds) second\(seconds == 1 ? "" : "s")")
+        }
+        let base = parts.joined(separator: " ")
+        return workoutState.timerIsPaused ? "\(base) remaining, paused" : "\(base) remaining"
     }
 
     private func formatDuration(_ seconds: Int) -> String {
@@ -2607,7 +2992,7 @@ struct NextSetPreview: View {
                         HStack(spacing: SBSLayout.paddingSmall) {
                             if isAccessory {
                                 Image(systemName: "dumbbell.fill")
-                                    .font(.system(size: compact ? 10 : 12))
+                                    .font(SBSFonts.caption2())
                                     .foregroundStyle(SBSColors.accentSecondaryFallback)
                             }
                             
@@ -2615,6 +3000,7 @@ struct NextSetPreview: View {
                                 .font(compact ? SBSFonts.body() : SBSFonts.bodyBold())
                                 .foregroundStyle(SBSColors.textPrimaryFallback)
                                 .lineLimit(1)
+                                .minimumScaleFactor(0.75)
                         }
                         
                         Text("Set \(setNumber) of \(totalSets)")
@@ -2685,7 +3071,7 @@ struct SupersetAccessoryCard: View {
         VStack(spacing: compact ? 4 : SBSLayout.paddingSmall) {
             HStack(spacing: SBSLayout.paddingSmall) {
                 Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.system(size: compact ? 12 : 14, weight: .semibold))
+                    .font(SBSFonts.captionBold())
                     .foregroundStyle(SBSColors.accentSecondaryFallback)
                 
                 Text("SUPERSET")
@@ -2697,13 +3083,14 @@ struct SupersetAccessoryCard: View {
                 VStack(alignment: .leading, spacing: compact ? 2 : 4) {
                     HStack(spacing: SBSLayout.paddingSmall) {
                         Image(systemName: "dumbbell.fill")
-                            .font(.system(size: compact ? 14 : 16))
+                            .font(SBSFonts.body())
                             .foregroundStyle(SBSColors.accentSecondaryFallback)
                         
                         Text(accessory.name)
                             .font(compact ? SBSFonts.bodyBold() : SBSFonts.title3())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
                             .lineLimit(1)
+                            .minimumScaleFactor(0.75)
                     }
                     
                     // Sets and reps info
@@ -2714,7 +3101,7 @@ struct SupersetAccessoryCard: View {
                     if accessory.lastWasEasy == true {
                         HStack(spacing: 3) {
                             Image(systemName: "hand.thumbsup.fill")
-                                .font(.system(size: compact ? 9 : 10))
+                                .font(SBSFonts.caption2())
                             Text("Last time was easy, go heavier")
                                 .font(SBSFonts.caption())
                         }
@@ -2738,14 +3125,14 @@ struct SupersetAccessoryCard: View {
                                 .foregroundStyle(SBSColors.textTertiaryFallback)
                             
                             Image(systemName: "chevron.right")
-                                .font(.system(size: compact ? 10 : 12, weight: .semibold))
+                                .font(SBSFonts.caption2())
                                 .foregroundStyle(SBSColors.textTertiaryFallback)
                         }
                     } else {
                         // No weight logged - show add indicator
                         HStack(spacing: 4) {
                             Image(systemName: "plus.circle.fill")
-                                .font(.system(size: compact ? 16 : 20))
+                                .font(SBSFonts.title3())
                                 .foregroundStyle(SBSColors.accentSecondaryFallback)
                             
                             Text("Add Weight")
@@ -2847,7 +3234,7 @@ struct WorkoutCompleteView: View {
                 VStack(spacing: SBSLayout.paddingSmall) {
                     if hasPRs {
                         Text("🎉 \(prCount) NEW PR\(prCount > 1 ? "S" : "")! 🎉")
-                            .font(.system(size: 24, weight: .black, design: .rounded))
+                            .font(SBSFonts.title())
                             .foregroundStyle(
                                 LinearGradient(
                                     colors: [.yellow, .orange],
@@ -2903,7 +3290,7 @@ struct WorkoutCompleteView: View {
                     Button(action: onShare) {
                         HStack(spacing: SBSLayout.paddingSmall) {
                             Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(SBSFonts.bodyBold())
                             
                             Text(hasPRs ? "Share Your PR!" : "Share Workout")
                                 .font(SBSFonts.button())
@@ -2952,10 +3339,9 @@ struct WorkoutCompleteView: View {
             }
         }
         .onAppear {
-            // Play celebration haptic
-            let generator = UINotificationFeedbackGenerator()
-            generator.notificationOccurred(.success)
-            
+            // Play celebration haptic (fires on every finish, PR or not)
+            Haptics.success()
+
             // Animate celebration
             withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
                 confettiScale = 1.2
@@ -2988,16 +3374,16 @@ private struct StatBubble: View {
         VStack(spacing: 4) {
             HStack(spacing: 4) {
                 Image(systemName: icon)
-                    .font(.system(size: 12))
+                    .font(SBSFonts.caption())
                     .foregroundStyle(SBSColors.accentFallback)
                 
                 Text(value)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .font(SBSFonts.title3())
                     .foregroundStyle(SBSColors.textPrimaryFallback)
             }
             
             Text(label)
-                .font(.system(size: 11))
+                .font(SBSFonts.caption2())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
         }
         .padding(.horizontal, SBSLayout.paddingMedium)
@@ -3076,7 +3462,7 @@ struct ExercisePickerSheet: View {
                         Section {
                             HStack(spacing: SBSLayout.paddingMedium) {
                                 Image(systemName: "plus.circle")
-                                    .font(.system(size: 20))
+                                    .font(SBSFonts.title3())
                                     .foregroundStyle(SBSColors.accentSecondaryFallback)
 
                                 VStack(alignment: .leading, spacing: 4) {
@@ -3128,7 +3514,7 @@ private struct WorkoutOverviewSummary: View {
         VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
             HStack(alignment: .firstTextBaseline) {
                 Text("\(Int(progress * 100))%")
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .font(SBSFonts.title())
                     .foregroundStyle(SBSColors.accentFallback)
                 Text("complete")
                     .font(SBSFonts.body())
@@ -3237,7 +3623,7 @@ struct ExercisePickerRow: View {
                             .foregroundStyle(SBSColors.success)
                     } else {
                         Text("\(index + 1)")
-                            .font(.system(size: 16, weight: .bold))
+                            .font(SBSFonts.bodyBold())
                             .foregroundStyle(statusColor)
                     }
                 }
@@ -3246,7 +3632,7 @@ struct ExercisePickerRow: View {
                     HStack(spacing: SBSLayout.paddingSmall) {
                         if exercise.isAccessory {
                             Image(systemName: "dumbbell.fill")
-                                .font(.system(size: 12))
+                                .font(SBSFonts.caption())
                                 .foregroundStyle(SBSColors.accentSecondaryFallback)
                         }
 
@@ -3254,6 +3640,7 @@ struct ExercisePickerRow: View {
                             .font(SBSFonts.bodyBold())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
                             .lineLimit(1)
+                            .minimumScaleFactor(0.75)
                     }
 
                     HStack(spacing: SBSLayout.paddingSmall) {
@@ -3281,7 +3668,7 @@ struct ExercisePickerRow: View {
                     if let amrap = amrapResult {
                         HStack(spacing: 4) {
                             Image(systemName: "flame.fill")
-                                .font(.system(size: 10))
+                                .font(SBSFonts.caption2())
                             Text("AMRAP: \(amrap.reps) reps @ \(amrap.weight.formattedWeightShort(useMetric: useMetric))")
                                 .font(SBSFonts.caption())
                         }
@@ -3294,21 +3681,21 @@ struct ExercisePickerRow: View {
                 // Status badge: CURRENT > IN PROGRESS > COMPLETE > nothing
                 if isCurrent {
                     Text("CURRENT")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(SBSFonts.label())
                         .foregroundStyle(SBSColors.accentFallback)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(Capsule().fill(SBSColors.accentFallback.opacity(0.15)))
                 } else if isInProgress {
                     Text("IN PROGRESS")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(SBSFonts.label())
                         .foregroundStyle(SBSColors.warning)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(Capsule().fill(SBSColors.warning.opacity(0.15)))
                 } else if isComplete {
                     Text("DONE")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(SBSFonts.label())
                         .foregroundStyle(SBSColors.success)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
@@ -3316,7 +3703,7 @@ struct ExercisePickerRow: View {
                 }
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(SBSFonts.caption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
             }
             .padding(.vertical, SBSLayout.paddingSmall)
@@ -3345,6 +3732,7 @@ struct RepOutInputSheet: View {
     let liftName: String
     let target: Int
     let structuredContext: StructuredProgressionContext?  // nil = percentage display (SBS style)
+    var prRepsNeeded: Int? = nil
     let onSave: (Int, String) -> Void
     let onCancel: () -> Void
     
@@ -3373,7 +3761,7 @@ struct RepOutInputSheet: View {
                     if showingNoteField || !note.isEmpty {
                         HStack {
                             Image(systemName: "note.text")
-                                .font(.system(size: 14))
+                                .font(SBSFonts.caption())
                                 .foregroundStyle(SBSColors.textTertiaryFallback)
                             
                             TextField("Add a note (optional)", text: $note, axis: .vertical)
@@ -3387,7 +3775,7 @@ struct RepOutInputSheet: View {
                                     note = ""
                                 } label: {
                                     Image(systemName: "xmark.circle.fill")
-                                        .font(.system(size: 16))
+                                        .font(SBSFonts.body())
                                         .foregroundStyle(SBSColors.textTertiaryFallback)
                                 }
                             }
@@ -3410,7 +3798,7 @@ struct RepOutInputSheet: View {
                         } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: "plus.circle")
-                                    .font(.system(size: 14))
+                                    .font(SBSFonts.caption())
                                 Text("Add note")
                                     .font(SBSFonts.caption())
                             }
@@ -3425,6 +3813,7 @@ struct RepOutInputSheet: View {
                     value: $reps,
                     target: target,
                     structuredContext: structuredContext,
+                    prRepsNeeded: prRepsNeeded,
                     onConfirm: {
                         if let r = reps {
                             onSave(r, note)
@@ -3547,7 +3936,7 @@ struct LinearResultSheet: View {
                     Button(action: onSuccess) {
                         HStack(spacing: SBSLayout.paddingSmall) {
                             Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 20))
+                                .font(SBSFonts.title3())
                             
                             Text("Yes - All Reps Completed!")
                                 .font(SBSFonts.button())
@@ -3564,7 +3953,7 @@ struct LinearResultSheet: View {
                     Button(action: onFailure) {
                         HStack(spacing: SBSLayout.paddingSmall) {
                             Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 20))
+                                .font(SBSFonts.title3())
                             
                             Text("No - Missed Some Reps")
                                 .font(SBSFonts.button())

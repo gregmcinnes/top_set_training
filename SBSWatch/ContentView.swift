@@ -88,6 +88,20 @@ struct WorkoutActiveView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 8) {
+                if workoutManager.healthKitError {
+                    // HealthKit auth failed — workout still tracks, just no HR / save.
+                    HStack(spacing: 4) {
+                        Image(systemName: "heart.slash")
+                            .font(.caption2)
+                        Text("Allow Health access on your watch")
+                            .font(.caption2)
+                            .multilineTextAlignment(.leading)
+                    }
+                    .foregroundStyle(.yellow)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+                }
+
                 if state.isRestTimerActive {
                     // Rest Timer View
                     RestTimerView(state: state)
@@ -108,33 +122,53 @@ struct WorkoutActiveView: View {
 
 struct RestTimerView: View {
     let state: WatchWorkoutStateData
-    
+
     var body: some View {
+        // Drive the countdown locally so it keeps ticking even while the phone is
+        // backgrounded/locked. When paused, hold a static value.
+        if state.isPaused {
+            content(at: Date())
+        } else {
+            TimelineView(.periodic(from: .now, by: 0.5)) { context in
+                content(at: context.date)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func content(at now: Date) -> some View {
+        let progress = state.timerProgress(at: now)
         VStack(spacing: 8) {
-            // Rest label
-            Text("REST")
-                .font(.caption2)
-                .fontWeight(.semibold)
-                .foregroundStyle(.orange)
-            
-            // Timer countdown
-            Text(state.formattedTimerRemaining)
+            // Rest label (with paused indicator)
+            HStack(spacing: 4) {
+                if state.isPaused {
+                    Image(systemName: "pause.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
+                Text(state.isPaused ? "PAUSED" : "REST")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.orange)
+            }
+
+            // Timer countdown (computed locally from the end date)
+            Text(state.formattedTimerRemaining(at: now))
                 .font(.system(size: 52, weight: .medium, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(.orange)
-            
+                .foregroundStyle(state.isPaused ? Color.secondary : Color.orange)
+
             // Progress ring
             ZStack {
                 Circle()
                     .stroke(.gray.opacity(0.3), lineWidth: 4)
                 Circle()
-                    .trim(from: 0, to: state.timerProgress)
+                    .trim(from: 0, to: progress)
                     .stroke(.orange, style: StrokeStyle(lineWidth: 4, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                    .animation(.linear(duration: 0.5), value: state.timerProgress)
             }
             .frame(width: 60, height: 60)
-            
+
             // Next set info
             if let nextInfo = state.nextSetInfo {
                 Text(nextInfo)

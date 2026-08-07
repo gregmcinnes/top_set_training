@@ -16,11 +16,16 @@ struct Plate: Identifiable, Equatable {
     }
     
     func displayWeight(useMetric: Bool) -> String {
-        let value = useMetric ? weight * 0.453592 : weight
-        if value.truncatingRemainder(dividingBy: 1) == 0 {
-            return "\(Int(value))"
+        if useMetric {
+            // Metric plates are stored as lb-equivalents; round to plate
+            // granularity (0.25 kg) so labels read clean (20, 15, 2.5, 1.25).
+            let kg = (weight * 0.45359237 / 0.25).rounded() * 0.25
+            return String(format: "%g", kg)
         }
-        return String(format: "%.1f", value)
+        if weight.truncatingRemainder(dividingBy: 1) == 0 {
+            return "\(Int(weight))"
+        }
+        return String(format: "%.1f", weight)
     }
 }
 
@@ -292,12 +297,14 @@ struct BarbellView: View {
     }
     
     private func formatWeight(_ weight: Double) -> String {
-        let value = useMetric ? weight * 0.453592 : weight
-        let unit = useMetric ? "kg" : "lb"
-        if value.truncatingRemainder(dividingBy: 1) == 0 {
-            return "\(Int(value)) \(unit)"
+        if useMetric {
+            let kg = (weight * 0.45359237 / 0.25).rounded() * 0.25
+            return String(format: "%g kg", kg)
         }
-        return String(format: "%.1f \(unit)", value)
+        if weight.truncatingRemainder(dividingBy: 1) == 0 {
+            return "\(Int(weight)) lb"
+        }
+        return String(format: "%.1f lb", weight)
     }
 }
 

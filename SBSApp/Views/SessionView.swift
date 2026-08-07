@@ -7,6 +7,7 @@ struct RepLogData: Identifiable {
     let target: Int
     let currentReps: Int?
     let currentNote: String?
+    var prRepsNeeded: Int? = nil
 }
 
 // Data for nSuns AMRAP log sheet
@@ -16,6 +17,7 @@ struct StructuredLogData: Identifiable {
     let setIndex: Int
     let target: Int
     let currentReps: Int?
+    var prRepsNeeded: Int? = nil
 }
 
 // Data for accessory log sheet
@@ -133,12 +135,21 @@ struct SessionView: View {
                 target: data.target,
                 currentReps: data.currentReps,
                 currentNote: data.currentNote,
+                prRepsNeeded: data.prRepsNeeded,
                 onSave: { reps, note in
+                    // Re-entrancy guard: a second ✓ tap during the sheet's dismiss
+                    // animation would re-run logReps (duplicate history record / a
+                    // second celebration). Once the first save nils the binding,
+                    // drop any further save for this presentation.
+                    guard repLogData != nil else { return }
                     // Log reps and check for PR
                     if let result = appState.logReps(lift: data.lift, week: week, day: day, reps: reps, note: note) {
                         if result.isNewPR {
                             prResult = result
                             repLogData = nil
+                            // Count this PR toward review-request eligibility
+                            // (queued; presented later, never on the celebration).
+                            ReviewRequestManager.shared.recordPRAchieved()
                             // Show PR celebration if enabled in settings
                             if appState.settings.showPRCelebrations {
                                 // Small delay before showing celebration
@@ -171,11 +182,16 @@ struct SessionView: View {
                     weight: result.weight,
                     reps: result.reps,
                     useMetric: appState.settings.useMetric,
+                    week: week,
+                    day: day,
+                    programName: appState.programData?.displayName ?? appState.programData?.name,
                     onDismiss: {
                         showingPRCelebration = false
                         prResult = nil
                     }
                 )
+                // Transparent cover so the celebration dims the session behind it.
+                .presentationBackground(.clear)
             }
         }
         .sheet(item: $accessoryLogData) { data in
@@ -235,8 +251,29 @@ struct SessionView: View {
                     useMetric: appState.settings.useMetric,
                     manualProgression: appState.programState?.manualProgression ?? false
                 ),
+                prRepsNeeded: data.prRepsNeeded,
                 onSave: { reps in
-                    appState.logStructuredReps(lift: data.lift, week: week, day: day, setIndex: data.setIndex, reps: reps)
+                    // Re-entrancy guard: block a duplicate save landing during
+                    // the sheet's dismiss animation.
+                    guard structuredLogData != nil else { return }
+                    // Log reps and check for PR
+                    if let result = appState.logStructuredReps(lift: data.lift, week: week, day: day, setIndex: data.setIndex, reps: reps) {
+                        if result.isNewPR {
+                            prResult = result
+                            structuredLogData = nil
+                            // Count this PR toward review-request eligibility
+                            // (queued; presented later, never on the celebration).
+                            ReviewRequestManager.shared.recordPRAchieved()
+                            // Show PR celebration if enabled in settings
+                            if appState.settings.showPRCelebrations {
+                                // Small delay before showing celebration
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    showingPRCelebration = true
+                                }
+                                return
+                            }
+                        }
+                    }
                     structuredLogData = nil
                 },
                 onClear: {
@@ -269,10 +306,16 @@ struct SessionView: View {
                 logEntry: data.logEntry,
                 useMetric: appState.settings.useMetric,
                 onSuccess: {
+                    // Re-entrancy guard: block a duplicate success landing during
+                    // the sheet's dismiss animation (duplicate log / celebration).
+                    guard linearLogData != nil else { return }
                     if let result = appState.logLinearSuccess(lift: data.lift, week: week, day: day, weight: data.weight, reps: data.reps, sets: data.sets) {
                         if result.isNewPR {
                             prResult = result
                             linearLogData = nil
+                            // Count this PR toward review-request eligibility
+                            // (queued; presented later, never on the celebration).
+                            ReviewRequestManager.shared.recordPRAchieved()
                             // Show PR celebration if enabled in settings
                             if appState.settings.showPRCelebrations {
                                 // Small delay before showing celebration
@@ -354,7 +397,12 @@ struct SessionView: View {
                         lift: lift,
                         target: repOutTarget,
                         currentReps: loggedReps,
-                        currentNote: currentNote
+                        currentNote: currentNote,
+                        prRepsNeeded: E1RM.newPRRepThreshold(
+                            weight: weight,
+                            targetReps: repOutTarget,
+                            bestE1RM: appState.personalRecord(for: lift)?.estimatedOneRM
+                        )
                     )
                 },
                 onWeightTap: {
@@ -389,7 +437,12 @@ struct SessionView: View {
                             lift: lift,
                             setIndex: setIndex,
                             target: setInfo.targetReps,
-                            currentReps: setInfo.loggedReps
+                            currentReps: setInfo.loggedReps,
+                            prRepsNeeded: setInfo.isAMRAP ? E1RM.newPRRepThreshold(
+                                weight: setInfo.weight,
+                                targetReps: setInfo.targetReps,
+                                bestE1RM: appState.personalRecord(for: lift)?.estimatedOneRM
+                            ) : nil
                         )
                     }
                 }
@@ -625,6 +678,7 @@ struct RepLogSheet: View {
     let target: Int
     let currentReps: Int?
     let currentNote: String?
+    var prRepsNeeded: Int? = nil
     let onSave: (Int, String) -> Void
     let onClear: () -> Void
     let onCancel: () -> Void
@@ -671,6 +725,7 @@ struct RepLogSheet: View {
                                         .font(.system(size: 16))
                                         .foregroundStyle(SBSColors.textTertiaryFallback)
                                 }
+                                .accessibilityLabel("Clear note")
                             }
                         }
                         .padding(SBSLayout.paddingMedium)
@@ -706,6 +761,7 @@ struct RepLogSheet: View {
                     value: $reps,
                     target: target,
                     structuredContext: nil,
+                    prRepsNeeded: prRepsNeeded,
                     onConfirm: {
                         if let r = reps {
                             onSave(r, note)
@@ -805,7 +861,7 @@ struct AccessoryLogSheet: View {
                                             .fill(SBSColors.surfaceFallback)
                                     )
                                 
-                                Text(useMetric ? "kg" : "lbs")
+                                Text(useMetric ? "kg" : "lb")
                                     .font(SBSFonts.title2())
                                     .foregroundStyle(SBSColors.textSecondaryFallback)
                                     .frame(width: 50)
@@ -925,6 +981,7 @@ struct AccessoryLogSheet: View {
                                                 .font(.system(size: 16))
                                                 .foregroundStyle(SBSColors.textTertiaryFallback)
                                         }
+                                        .accessibilityLabel("Clear note")
                                     }
                                 }
                                 .padding(SBSLayout.paddingMedium)
@@ -1002,7 +1059,9 @@ struct AccessoryLogSheet: View {
                 reps = log.reps
                 note = log.note
                 showingNoteField = !log.note.isEmpty
-                wasEasy = log.wasEasy ?? false
+                // Deliberately don't pre-fill wasEasy from the previous log:
+                // the toggle describes the session being logged now, and
+                // carrying it forward would re-show the nudge forever.
             } else {
                 sets = defaultSets
                 reps = defaultReps
@@ -1170,7 +1229,7 @@ struct WeightOverrideSheet: View {
                                     )
                             )
 
-                        Text(useMetric ? "kg" : "lbs")
+                        Text(useMetric ? "kg" : "lb")
                             .font(SBSFonts.title2())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                             .frame(width: 50)
@@ -1298,6 +1357,7 @@ struct StructuredRepLogSheet: View {
     let target: Int
     let currentReps: Int?
     let structuredContext: StructuredProgressionContext?  // Pass context for weight-based display
+    var prRepsNeeded: Int? = nil
     let onSave: (Int) -> Void
     let onClear: () -> Void
     let onCancel: () -> Void
@@ -1345,6 +1405,7 @@ struct StructuredRepLogSheet: View {
                     value: $reps,
                     target: target,
                     structuredContext: structuredContext,
+                    prRepsNeeded: prRepsNeeded,
                     onConfirm: {
                         if let r = reps {
                             onSave(r)

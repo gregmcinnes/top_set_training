@@ -23,6 +23,12 @@ struct SBSApp: App {
                 // Clear any delivered rest timer notifications (user is back in app)
                 NotificationManager.shared.clearDeliveredNotifications()
 
+                // Re-check premium entitlements (purchase on another device,
+                // Ask to Buy approval, or a product fetch that failed at launch).
+                Task { @MainActor in
+                    await StoreManager.shared.refreshEntitlements()
+                }
+
                 // End any Live Activity this process isn't tracking. Covers
                 // both the expired-while-backgrounded case (foreground Timer
                 // can't fire handleTimerEnd) and the force-quit case (relaunched

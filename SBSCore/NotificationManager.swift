@@ -3,19 +3,41 @@ import UserNotifications
 
 /// Manages local push notifications for rest timer alerts
 @MainActor
-public final class NotificationManager: ObservableObject {
-    
+public final class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
+
     public static let shared = NotificationManager()
-    
+
     /// Notification identifier for the rest timer
     private let restTimerNotificationId = "rest_timer_complete"
-    
+
     /// Published authorization status for UI binding
     @Published public private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
-    
-    private init() {
+
+    private override init() {
+        super.init()
+        UNUserNotificationCenter.current().delegate = self
         Task {
             await checkAuthorizationStatus()
+        }
+    }
+
+    // MARK: - Foreground Presentation
+
+    /// By default iOS silently drops local notifications while the app is
+    /// foregrounded, so the rest-timer alert never showed when the user was
+    /// on another tab. Present it unless the workout screen is visible —
+    /// there the in-app haptics and chime already handle timer end.
+    nonisolated public func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        guard notification.request.identifier == restTimerNotificationId else {
+            completionHandler([.banner, .sound])
+            return
+        }
+        Task { @MainActor in
+            completionHandler(RestTimerStatus.shared.isWorkoutScreenVisible ? [] : [.banner, .sound])
         }
     }
     

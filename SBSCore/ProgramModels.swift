@@ -576,6 +576,9 @@ public final class ProgramState: Codable {
     /// If true, AMRAP performance doesn't auto-adjust TMs week-to-week (e.g., 5/3/1)
     /// User manually increases TMs at the end of each cycle
     public var manualProgression: Bool
+    /// Whether the user's units are metric; scales structured progression increments to kg-equivalents.
+    /// Optional for backward compatibility with previously persisted state.
+    public var useMetric: Bool?
 
     public init(rounding: Double,
                 initialMaxes: [String: Double],
@@ -588,7 +591,8 @@ public final class ProgramState: Codable {
                 linearLogs: [String: [Int: [Int: LinearLogEntry]]] = [:],
                 linearProgressionConfig: LinearProgressionConfig? = nil,
                 dayVisibility: [Int: [Int]]? = nil,
-                manualProgression: Bool = false) {
+                manualProgression: Bool = false,
+                useMetric: Bool? = nil) {
         self.rounding = rounding
         self.initialMaxes = initialMaxes
         self.singleAt8Percent = singleAt8Percent
@@ -601,6 +605,7 @@ public final class ProgramState: Codable {
         self.linearProgressionConfig = linearProgressionConfig
         self.dayVisibility = dayVisibility
         self.manualProgression = manualProgression
+        self.useMetric = useMetric
     }
 
     public static func fromProgramData(_ data: ProgramData) -> ProgramState {
@@ -651,16 +656,20 @@ public struct StructuredSetInfo: Equatable {
     public let intensity: Double    // e.g., 0.75
     public let targetReps: Int      // target reps for this set
     public let isAMRAP: Bool        // whether this is a "+" set
-    public let weight: Double       // calculated weight for this set
+    public let weight: Double       // weight actually prescribed (includes any manual override)
     public let loggedReps: Int?     // reps logged (for AMRAP sets only)
-    
-    public init(setIndex: Int, intensity: Double, targetReps: Int, isAMRAP: Bool, weight: Double, loggedReps: Int? = nil) {
+    public let calculatedWeight: Double  // TM-based weight before any manual override
+
+    public var isWeightOverridden: Bool { weight != calculatedWeight }
+
+    public init(setIndex: Int, intensity: Double, targetReps: Int, isAMRAP: Bool, weight: Double, loggedReps: Int? = nil, calculatedWeight: Double? = nil) {
         self.setIndex = setIndex
         self.intensity = intensity
         self.targetReps = targetReps
         self.isAMRAP = isAMRAP
         self.weight = weight
         self.loggedReps = loggedReps
+        self.calculatedWeight = calculatedWeight ?? weight
     }
 }
 

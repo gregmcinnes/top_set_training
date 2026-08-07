@@ -138,9 +138,10 @@ public final class ExerciseLibrary {
     }
 
     /// Resolve a lift / accessory name to its library body part.
-    /// Case-insensitive exact match — returns nil for custom or unknown names.
+    /// Case-insensitive exact match on the canonical name — returns nil for
+    /// custom or unknown names.
     public func bodyPart(for name: String) -> BodyPart? {
-        let lowered = name.lowercased()
+        let lowered = Self.canonicalLiftName(name).lowercased()
         return exercises.first { $0.name.lowercased() == lowered }?.bodyPart
     }
     
@@ -156,6 +157,55 @@ public final class ExerciseLibrary {
         )
     }
     
+    /// Short abbreviation for a lift name, for compact UI (chart axes, chips).
+    ///
+    /// Case-insensitive. Superset of the abbreviations that previously lived in
+    /// HistoryView and PastCyclesView. Unknown lifts fall back to the first
+    /// three characters, uppercased — matching the prior default behaviour.
+    public static func shortName(for liftName: String) -> String {
+        switch liftName.lowercased() {
+        case "squat": return "SQ"
+        case "bench", "bench press": return "BP"
+        case "deadlift", "trap bar deadlift": return "DL"
+        case "ohp", "overhead press": return "OHP"
+        case "front squat": return "FSQ"
+        case "paused squat": return "PSQ"
+        case "incline press": return "INC"
+        case "spoto press": return "SPO"
+        case "rack pull": return "RP"
+        case "push press": return "PP"
+        case "row", "barbell row": return "ROW"
+        default:
+            return String(liftName.prefix(3)).uppercased()
+        }
+    }
+
+    /// Canonical name for a lift, collapsing the aliases and singular/plural
+    /// drift that differ across program JSONs and legacy logged data. Matching
+    /// is case-insensitive; unknown names pass through unchanged (preserving
+    /// their original casing). Canonical outputs align with library entry names
+    /// so `bodyPart(for:)` resolves after canonicalization.
+    public static func canonicalLiftName(_ name: String) -> String {
+        let key = name.lowercased().trimmingCharacters(in: .whitespaces)
+        return liftAliases[key] ?? name
+    }
+
+    private static let liftAliases: [String: String] = [
+        "ohp": "Overhead Press",
+        "press": "Overhead Press",
+        "incline bench": "Incline Bench Press",
+        "incline press": "Incline Bench Press",
+        "close-grip bench": "Close Grip Bench Press",
+        "close grip bench": "Close Grip Bench Press",
+        "bench": "Bench Press",
+        "rack pull": "Rack Pulls",
+        "paused squat": "Pause Squats",
+        "pause squat": "Pause Squats",
+        "hang clean": "Hang Cleans",
+        "cable rows": "Cable Row",
+        "ez bar curl": "EZ Bar Curls",
+    ]
+
     private init() {
         self.exercises = Self.buildExerciseLibrary()
     }
@@ -184,6 +234,8 @@ public final class ExerciseLibrary {
             Exercise(name: "Dumbbell Bench Press", bodyPart: .chest, category: .compound, equipment: .dumbbell, isCompound: true),
             Exercise(name: "Incline Dumbbell Press", bodyPart: .chest, category: .compound, equipment: .dumbbell, isCompound: true),
             Exercise(name: "Decline Bench Press", bodyPart: .chest, category: .compound, equipment: .barbell, isCompound: true),
+            Exercise(name: "Spoto Press", bodyPart: .chest, category: .compound, equipment: .barbell, isCompound: true),
+            Exercise(name: "Weighted Dips", bodyPart: .chest, category: .compound, equipment: .bodyweight, isCompound: true),
             Exercise(name: "Dumbbell Flyes", bodyPart: .chest, category: .isolation, equipment: .dumbbell),
             Exercise(name: "Cable Flyes", bodyPart: .chest, category: .isolation, equipment: .cable),
             Exercise(name: "Incline Cable Flyes", bodyPart: .chest, category: .isolation, equipment: .cable),
@@ -208,11 +260,9 @@ public final class ExerciseLibrary {
             Exercise(name: "T-Bar Row", bodyPart: .back, category: .compound, equipment: .barbell, isCompound: true),
             Exercise(name: "Chest Supported Row", bodyPart: .back, category: .compound, equipment: .dumbbell),
             Exercise(name: "Machine Row", bodyPart: .back, category: .compound, equipment: .machine),
-            Exercise(name: "Face Pulls", bodyPart: .back, category: .accessory, equipment: .cable),
             Exercise(name: "Straight Arm Pulldown", bodyPart: .back, category: .isolation, equipment: .cable),
             Exercise(name: "Rack Pulls", bodyPart: .back, category: .compound, equipment: .barbell, isCompound: true),
-            Exercise(name: "Romanian Deadlift", bodyPart: .back, category: .compound, equipment: .barbell, isCompound: true),
-            Exercise(name: "Good Mornings", bodyPart: .back, category: .compound, equipment: .barbell),
+            Exercise(name: "Weighted Pull-Ups", bodyPart: .back, category: .compound, equipment: .bodyweight, isCompound: true),
             Exercise(name: "Hyperextensions", bodyPart: .back, category: .accessory, equipment: .bodyweight),
             Exercise(name: "Reverse Hyperextensions", bodyPart: .back, category: .accessory, equipment: .machine),
             Exercise(name: "Meadows Row", bodyPart: .back, category: .compound, equipment: .barbell),
@@ -270,7 +320,6 @@ public final class ExerciseLibrary {
             Exercise(name: "Dips (Tricep)", bodyPart: .triceps, category: .compound, equipment: .bodyweight, isCompound: true),
             Exercise(name: "Close Grip Push-Ups", bodyPart: .triceps, category: .compound, equipment: .bodyweight),
             Exercise(name: "Tricep Kickbacks", bodyPart: .triceps, category: .isolation, equipment: .dumbbell),
-            Exercise(name: "Cable Kickbacks", bodyPart: .triceps, category: .isolation, equipment: .cable),
             Exercise(name: "Machine Dips", bodyPart: .triceps, category: .compound, equipment: .machine),
             Exercise(name: "Bench Dips", bodyPart: .triceps, category: .compound, equipment: .bodyweight),
             Exercise(name: "Diamond Push-Ups", bodyPart: .triceps, category: .compound, equipment: .bodyweight),
@@ -379,13 +428,34 @@ public final class ExerciseLibrary {
             Exercise(name: "Burpees", bodyPart: .fullBody, category: .compound, equipment: .bodyweight),
             Exercise(name: "Thrusters", bodyPart: .fullBody, category: .compound, equipment: .barbell, isCompound: true),
             Exercise(name: "Man Makers", bodyPart: .fullBody, category: .compound, equipment: .dumbbell),
-            Exercise(name: "Farmer's Walk", bodyPart: .fullBody, category: .compound, equipment: .dumbbell),
             Exercise(name: "Sled Push", bodyPart: .fullBody, category: .compound, equipment: .other),
             Exercise(name: "Sled Pull", bodyPart: .fullBody, category: .compound, equipment: .other),
             Exercise(name: "Battle Ropes", bodyPart: .fullBody, category: .accessory, equipment: .other),
         ])
         
         return exercises
+    }
+}
+
+// MARK: - Canonical lift-keyed dictionary access
+
+public extension Dictionary where Key == String {
+    /// Look up a value by canonical lift name, tolerating alias/legacy key drift
+    /// so old data stored under a non-canonical name still surfaces.
+    func canonicalLiftValue(for lift: String) -> Value? {
+        let canonical = ExerciseLibrary.canonicalLiftName(lift)
+        if let value = self[canonical] { return value }
+        return first { ExerciseLibrary.canonicalLiftName($0.key) == canonical }?.value
+    }
+
+    /// Store a value under the canonical lift name, removing any aliased keys so
+    /// the same lift never lives under two names at once.
+    mutating func setCanonicalLiftValue(_ value: Value, for lift: String) {
+        let canonical = ExerciseLibrary.canonicalLiftName(lift)
+        for key in keys where key != canonical && ExerciseLibrary.canonicalLiftName(key) == canonical {
+            removeValue(forKey: key)
+        }
+        self[canonical] = value
     }
 }
 

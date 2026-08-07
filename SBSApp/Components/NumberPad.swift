@@ -58,6 +58,7 @@ struct NumberPad: View {
     @Binding var value: Int?
     let target: Int
     let structuredContext: StructuredProgressionContext?  // nil = use percentage display
+    var prRepsNeeded: Int? = nil  // reps that would set a new E1RM PR; nil = no hint
     let onConfirm: () -> Void
     let onCancel: () -> Void
     
@@ -102,6 +103,22 @@ struct NumberPad: View {
                     if let v = value {
                         TMImpactPreviewCompact(reps: v, target: target, structuredContext: structuredContext)
                     }
+
+                    if let needed = prRepsNeeded {
+                        if let v = value, v >= needed {
+                            HStack(spacing: 2) {
+                                Image(systemName: "trophy.fill")
+                                    .font(.system(size: 10))
+                                Text("New 1RM!")
+                                    .font(SBSFonts.captionBold())
+                            }
+                            .foregroundStyle(SBSColors.warning)
+                        } else {
+                            Text("\(needed) reps = new 1RM")
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(SBSColors.warning)
+                        }
+                    }
                 }
                 .frame(minWidth: 100)
             }
@@ -130,7 +147,8 @@ struct NumberPad: View {
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
                 .buttonStyle(NumberPadKeyStyle())
-                
+                .accessibilityLabel("Delete")
+
                 // Zero
                 NumberPadKey(digit: 0) {
                     appendDigit(0)
@@ -149,6 +167,7 @@ struct NumberPad: View {
                 }
                 .buttonStyle(NumberPadKeyStyle(isAccent: value != nil))
                 .disabled(value == nil)
+                .accessibilityLabel("Confirm reps")
             }
         }
         .padding(.horizontal, SBSLayout.paddingLarge)

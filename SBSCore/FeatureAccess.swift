@@ -3,7 +3,10 @@ import Foundation
 // MARK: - Premium Features
 
 /// Features that require a premium purchase
-public enum PremiumFeature: String, CaseIterable {
+public enum PremiumFeature: String, CaseIterable, Identifiable {
+    /// Stable identity so a tapped feature can drive `.sheet(item:)`
+    public var id: String { rawValue }
+
     /// Access to all programs (beyond the free ones)
     case allPrograms
     
@@ -102,13 +105,18 @@ extension StoreManager {
     // MARK: - Free Programs
     
     /// Program IDs that are available for free
-    /// Beginner programs + select intermediate options
+    /// Beginner linear-progression programs only; graduating to an intermediate
+    /// program (5/3/1, nSuns, GZCLP, ...) is the premium upgrade moment.
+    ///
+    /// Grandfathering: this set gates *selecting a program and starting a new
+    /// cycle* only. A cycle already in progress on a program that later leaves
+    /// this set keeps working — no mid-cycle flow (workouts, exercise editing,
+    /// history) checks program access. The paywall appears when the user next
+    /// starts a cycle (Quick Repeat or the cycle builder).
     public static let freePrograms: Set<String> = [
         "stronglifts_5x5_12week",
         "starting_strength_12week",
-        "greyskull_lp_12week",
-        "531_bbb_12week",
-        "nsuns_5day_12week"
+        "greyskull_lp_12week"
     ]
     
     /// Check if a premium feature is accessible
@@ -122,8 +130,12 @@ extension StoreManager {
     /// Check if a program is accessible
     /// - Parameter programId: The program ID to check
     /// - Returns: True if the user has access (either premium or program is free)
+    /// Custom templates are always accessible — their limit is enforced at
+    /// creation time via `canCreateTemplate`, not at selection.
     public func canAccessProgram(_ programId: String) -> Bool {
-        return isPremium || Self.freePrograms.contains(programId)
+        return isPremium
+            || Self.freePrograms.contains(programId)
+            || UserData.isCustomTemplate(programId: programId)
     }
     
     /// Check if a program is free

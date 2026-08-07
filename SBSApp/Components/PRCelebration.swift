@@ -9,12 +9,51 @@ struct PRCelebrationView: View {
     let weight: Double
     let reps: Int
     let useMetric: Bool
+    // Optional workout context used to build a richer PR share card.
+    var week: Int = 0
+    var day: Int = 0
+    var programName: String? = nil
     let onDismiss: () -> Void
-    
+
     @State private var showContent = false
     @State private var showConfetti = false
     @State private var trophyScale: CGFloat = 0.3
     @State private var trophyRotation: Double = -30
+    @State private var showingShareSheet = false
+
+    /// A single-PR workout summary for the share card (reuses WorkoutShareCard's
+    /// existing PR styling).
+    private var prShareSummary: WorkoutSummary {
+        WorkoutSummary(
+            date: Date(),
+            dayTitle: "\(liftName) PR",
+            week: week,
+            day: day,
+            programName: programName,
+            exercises: [
+                WorkoutSummary.ExerciseSummary(
+                    name: liftName,
+                    weight: weight,
+                    sets: 1,
+                    reps: "\(reps)",
+                    isAMRAP: true,
+                    estimatedOneRM: newE1RM,
+                    isAccessory: false
+                )
+            ],
+            totalSets: 1,
+            duration: nil,
+            prs: [
+                WorkoutSummary.PRSummary(
+                    liftName: liftName,
+                    weight: weight,
+                    reps: reps,
+                    newE1RM: newE1RM,
+                    previousE1RM: previousE1RM
+                )
+            ]
+        )
+    }
     
     private var improvement: Double? {
         guard let previous = previousE1RM, previous > 0 else { return nil }
@@ -159,28 +198,57 @@ struct PRCelebrationView: View {
                 Spacer().frame(height: SBSLayout.paddingMedium)
                 
                 // Continue button
-                Button(action: dismissWithAnimation) {
-                    Text("Continue")
+                VStack(spacing: SBSLayout.paddingSmall) {
+                    Button(action: dismissWithAnimation) {
+                        Text("Continue")
+                            .font(SBSFonts.button())
+                            .foregroundStyle(.black)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, SBSLayout.paddingMedium)
+                            .background(
+                                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.yellow, Color.orange],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                            )
+                    }
+
+                    // Secondary share CTA — renders the PR as a share card.
+                    Button {
+                        let impact = UIImpactFeedbackGenerator(style: .light)
+                        impact.impactOccurred()
+                        showingShareSheet = true
+                    } label: {
+                        HStack(spacing: SBSLayout.paddingSmall) {
+                            Image(systemName: "square.and.arrow.up")
+                            Text("Share this PR")
+                        }
                         .font(SBSFonts.button())
-                        .foregroundStyle(.black)
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, SBSLayout.paddingMedium)
                         .background(
                             RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color.yellow, Color.orange],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
+                                .strokeBorder(Color.white.opacity(0.3), lineWidth: 1)
                         )
+                    }
                 }
                 .opacity(showContent ? 1 : 0)
                 .padding(.horizontal, SBSLayout.paddingLarge)
             }
             .padding(SBSLayout.paddingLarge)
             .frame(maxWidth: 340)
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            WorkoutShareSheet(
+                summary: prShareSummary,
+                useMetric: useMetric,
+                onDismiss: { showingShareSheet = false }
+            )
         }
         .onAppear {
             // Play haptics

@@ -88,6 +88,30 @@ final class ProgramEngineTests: XCTestCase {
         XCTAssertEqual(tms[4]?["Squat"], 300)
     }
     
+    func testComputeTrainingMaxesUnloggedWeekAppliesNoAdjustment() {
+        // A week with no log must apply a hard 0 adjustment even when the user has configured
+        // a non-zero "hit target" — otherwise skipped weeks silently grow the TM.
+        let state = createTestProgramState()
+        engine.weightAdjustments = WeightAdjustments(
+            belowBy2Plus: -0.10,
+            belowBy1: -0.05,
+            hitTarget: 0.01,
+            beatBy1: 0.02,
+            beatBy2: 0.03,
+            beatBy3: 0.04,
+            beatBy4: 0.05,
+            beatBy5Plus: 0.06
+        )
+
+        let tms = engine.computeTrainingMaxes(state: state, upToWeek: 4)
+
+        // No logs anywhere -> TM stays flat despite hitTarget = +1%.
+        XCTAssertEqual(tms[1]?["Squat"], 300)
+        XCTAssertEqual(tms[2]?["Squat"], 300)
+        XCTAssertEqual(tms[3]?["Squat"], 300)
+        XCTAssertEqual(tms[4]?["Squat"], 300)
+    }
+
     func testComputeTrainingMaxesWithBeatTargetLogs() {
         var state = createTestProgramState()
         

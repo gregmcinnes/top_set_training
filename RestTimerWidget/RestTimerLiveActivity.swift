@@ -32,7 +32,7 @@ struct RestTimerLiveActivity: Widget {
                                 .monospacedDigit()
                                 .foregroundStyle(.yellow)
                         } else {
-                            Text(timerInterval: Date()...context.state.endTime, countsDown: true)
+                            Text(timerInterval: min(Date(), context.state.endTime)...context.state.endTime, countsDown: true)
                                 .font(.title3.bold())
                                 .monospacedDigit()
                                 .foregroundStyle(themeColor)
@@ -77,7 +77,7 @@ struct RestTimerLiveActivity: Widget {
                         .foregroundStyle(.yellow)
                         .frame(width: 35, alignment: .trailing)
                 } else {
-                    Text(timerInterval: Date()...context.state.endTime, countsDown: true)
+                    Text(timerInterval: min(Date(), context.state.endTime)...context.state.endTime, countsDown: true)
                         .font(.caption2.bold())
                         .monospacedDigit()
                         .foregroundStyle(themeColor)
@@ -196,7 +196,7 @@ struct LockScreenView: View {
                 countsDown: true,
                 label: { EmptyView() },
                 currentValueLabel: {
-                    Text(timerInterval: Date()...context.state.endTime, countsDown: true)
+                    Text(timerInterval: min(Date(), context.state.endTime)...context.state.endTime, countsDown: true)
                         .font(.system(size: 14, weight: .bold, design: .monospaced))
                         .foregroundStyle(.white)
                         .monospacedDigit()

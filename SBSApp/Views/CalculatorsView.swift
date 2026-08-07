@@ -4,12 +4,7 @@ import SwiftUI
 
 struct CalculatorsView: View {
     @Bindable var appState: AppState
-    @State private var showingPaywall = false
-    
-    private var canAccessStrengthScores: Bool {
-        StoreManager.shared.canAccess(.e1rmChart)
-    }
-    
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -70,8 +65,7 @@ struct CalculatorsView: View {
                         NavigationLink {
                             StrengthScoresView(
                                 useMetric: appState.settings.useMetric,
-                                appState: appState,
-                                canImportPRs: canAccessStrengthScores
+                                appState: appState
                             )
                         } label: {
                             CalculatorCard(
@@ -92,9 +86,6 @@ struct CalculatorsView: View {
             .sbsBackground()
             .navigationTitle("Calculators")
             .navigationBarTitleDisplayMode(.large)
-            .sheet(isPresented: $showingPaywall) {
-                PaywallView()
-            }
         }
     }
 }
@@ -827,13 +818,20 @@ struct StandalonePlateCalculatorView: View {
     private var targetWeightValue: Double {
         Double(targetWeight) ?? 0
     }
-    
+
+    // PlateCalculator/BarbellView work internally in lb. The text field holds
+    // the user's unit (kg when metric), so convert to lb before computing.
+    private var targetWeightLb: Double {
+        useMetric ? targetWeightValue / 0.45359237 : targetWeightValue
+    }
+
     private var unit: String {
         useMetric ? "kg" : "lb"
     }
-    
+
+    // Bar weights are stored in lb; metric values are lb-equivalents of 20/15/10 kg.
     private var commonBarWeights: [Double] {
-        useMetric ? [20, 15, 10] : [45, 35, 25, 15]
+        useMetric ? [44.0, 33.0, 22.0] : [45, 35, 25, 15]
     }
     
     var body: some View {
@@ -898,24 +896,25 @@ struct StandalonePlateCalculatorView: View {
     
     private var barWeightSection: some View {
         VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
-            Text("Bar Weight: \(formatWeight(barWeight))")
+            Text("Bar Weight: \(formatWeightFromLb(barWeight))")
                 .font(SBSFonts.bodyBold())
                 .foregroundStyle(SBSColors.textPrimaryFallback)
-            
+
             HStack(spacing: 8) {
                 ForEach(commonBarWeights, id: \.self) { weight in
+                    let isSelected = abs(barWeight - weight) < 0.5
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             barWeight = weight
                         }
                     } label: {
-                        Text(formatWeightShort(weight))
+                        Text(formatWeightShortFromLb(weight))
                             .font(SBSFonts.caption())
-                            .foregroundStyle(barWeight == weight ? .white : SBSColors.textPrimaryFallback)
+                            .foregroundStyle(isSelected ? .white : SBSColors.textPrimaryFallback)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 10)
                             .background(
-                                barWeight == weight ? SBSColors.accentFallback : SBSColors.surfaceFallback
+                                isSelected ? SBSColors.accentFallback : SBSColors.surfaceFallback
                             )
                             .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall))
                     }
@@ -932,30 +931,30 @@ struct StandalonePlateCalculatorView: View {
     private var barbellSection: some View {
         VStack(spacing: SBSLayout.paddingMedium) {
             BarbellView(
-                weight: targetWeightValue,
+                weight: targetWeightLb,
                 useMetric: useMetric,
                 barWeight: barWeight,
                 showLabels: true,
                 compact: false
             )
-            
+
             // Plate breakdown
             let result = PlateCalculator(barWeight: barWeight, useMetric: useMetric)
-                .calculate(totalWeight: targetWeightValue)
-            
+                .calculate(totalWeight: targetWeightLb)
+
             if !result.platesPerSide.isEmpty {
                 PlateBreakdownView(result: result, useMetric: useMetric)
-            } else if targetWeightValue <= barWeight {
+            } else if targetWeightLb <= barWeight {
                 Text("Bar only - no plates needed")
                     .font(SBSFonts.body())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
-            
+
             if !result.isExact && result.remainder > 0 {
                 HStack(spacing: 6) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(SBSColors.warning)
-                    Text("Unable to make exact weight. Missing \(formatWeight(result.remainder * 2)) total.")
+                    Text("Unable to make exact weight. Missing \(formatWeightFromLb(result.remainder * 2)) total.")
                         .font(SBSFonts.caption())
                         .foregroundStyle(SBSColors.warning)
                 }
@@ -1005,13 +1004,29 @@ struct StandalonePlateCalculatorView: View {
         .padding(.horizontal)
     }
     
-    private func formatWeight(_ weight: Double) -> String {
-        if weight.truncatingRemainder(dividingBy: 1) == 0 {
-            return "\(Int(weight)) \(unit)"
+    // Converts an internal lb weight (bar, plate remainder) to the display unit.
+    private func formatWeightFromLb(_ lb: Double) -> String {
+        if useMetric {
+            let kg = (lb * 0.45359237 / 0.25).rounded() * 0.25
+            return String(format: "%g kg", kg)
         }
-        return String(format: "%.1f \(unit)", weight)
+        if lb.truncatingRemainder(dividingBy: 1) == 0 {
+            return "\(Int(lb)) lb"
+        }
+        return String(format: "%.1f lb", lb)
     }
-    
+
+    private func formatWeightShortFromLb(_ lb: Double) -> String {
+        if useMetric {
+            let kg = (lb * 0.45359237 / 0.25).rounded() * 0.25
+            return String(format: "%g", kg)
+        }
+        if lb.truncatingRemainder(dividingBy: 1) == 0 {
+            return "\(Int(lb))"
+        }
+        return String(format: "%.1f", lb)
+    }
+
     private func formatWeightShort(_ weight: Double) -> String {
         if weight.truncatingRemainder(dividingBy: 1) == 0 {
             return "\(Int(weight))"
@@ -1549,8 +1564,13 @@ struct LiftPercentileData: Codable {
 struct StrengthScoresView: View {
     let useMetric: Bool
     let appState: AppState?
-    var canImportPRs: Bool = true  // Premium feature: auto-import from PRs
-    
+
+    // Premium feature: auto-import from PRs. Read live from StoreManager
+    // (@Observable) so a purchase made in the paywall sheet unlocks immediately.
+    private var canImportPRs: Bool {
+        StoreManager.shared.canAccess(.e1rmChart)
+    }
+
     enum Gender: String, CaseIterable {
         case male = "Male"
         case female = "Female"
@@ -1577,15 +1597,16 @@ struct StrengthScoresView: View {
     
     // Get PRs from app state
     private var squatPR: Double? {
-        appState?.userData.personalRecords["Squat"]?.estimatedOneRM
+        appState?.userData.personalRecords.canonicalLiftValue(for: "Squat")?.estimatedOneRM
     }
-    
+
     private var benchPR: Double? {
-        appState?.userData.personalRecords["Bench"]?.estimatedOneRM
+        appState?.userData.personalRecords.canonicalLiftValue(for: "Bench Press")?.estimatedOneRM
     }
-    
+
     private var deadliftPR: Double? {
-        appState?.userData.personalRecords["Deadlift"]?.estimatedOneRM
+        let records = appState?.userData.personalRecords
+        return (records?.canonicalLiftValue(for: "Deadlift") ?? records?.canonicalLiftValue(for: "Trap Bar Deadlift"))?.estimatedOneRM
     }
     
     private var hasPRData: Bool {
@@ -1779,6 +1800,12 @@ struct StrengthScoresView: View {
                 inputMode = .fromPRs
             } else {
                 inputMode = .custom
+            }
+        }
+        .onChange(of: canImportPRs) { _, unlocked in
+            // Unlock "From PRs" live when the user purchases in the paywall sheet
+            if unlocked && hasPRData && inputMode == .custom {
+                inputMode = .fromPRs
             }
         }
         .onChange(of: bodyweight) { _, _ in showResults = false }

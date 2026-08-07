@@ -35,148 +35,29 @@ struct ProgramsView: View {
         case templates = "My Templates"
     }
     
-    private let programMetadata: [String: ProgramMeta] = [
-        "stronglifts_5x5_12week": ProgramMeta(
-            family: "Strong Lifts",
-            level: .beginner,
-            focus: .strength,
-            shortDescription: "Classic 5×5. Simple and effective.",
-            isFree: true
-        ),
-        "starting_strength_12week": ProgramMeta(
-            family: "Starting Strength",
-            level: .beginner,
-            focus: .strength,
-            shortDescription: "The foundational barbell program.",
-            isFree: true
-        ),
-        "greyskull_lp_12week": ProgramMeta(
-            family: "Beginner AMRAP",
-            level: .beginner,
-            focus: .balanced,
-            shortDescription: "LP with AMRAP sets for faster progress.",
-            isFree: true
-        ),
-        "gzclp_12week": ProgramMeta(
-            family: "GZCL",
-            level: .intermediate,
-            focus: .balanced,
-            shortDescription: "4-day tiered system: heavy, moderate, light.",
-            isFree: false
-        ),
-        "gzclp_3day_12week": ProgramMeta(
-            family: "GZCL",
-            level: .intermediate,
-            focus: .balanced,
-            shortDescription: "3-day rotating tiered system.",
-            isFree: false
-        ),
-        "531_triumvirate_12week": ProgramMeta(
-            family: "5/3/1",
-            level: .intermediate,
-            focus: .strength,
-            shortDescription: "Simple strength with assistance work.",
-            isFree: false
-        ),
-        "531_bbb_12week": ProgramMeta(
-            family: "5/3/1",
-            level: .intermediate,
-            focus: .balanced,
-            shortDescription: "Strength + 5×10 volume for size.",
-            isFree: true
-        ),
-        "531_fsl_12week": ProgramMeta(
-            family: "5/3/1",
-            level: .intermediate,
-            focus: .strength,
-            shortDescription: "Strength + 5×5 at first set weight.",
-            isFree: false
-        ),
-        "nsuns_4day_12week": ProgramMeta(
-            family: "nSuns",
-            level: .intermediate,
-            focus: .strength,
-            shortDescription: "High volume, 4 days per week.",
-            isFree: false
-        ),
-        "nsuns_5day_12week": ProgramMeta(
-            family: "nSuns",
-            level: .intermediate,
-            focus: .strength,
-            shortDescription: "Maximum volume, 5 days per week.",
-            isFree: true
-        ),
-        "nsuns_6day_squat_12week": ProgramMeta(
-            family: "nSuns",
-            level: .intermediate,
-            focus: .strength,
-            shortDescription: "5-day plus extra squat volume day.",
-            isFree: false
-        ),
-        "nsuns_6day_deadlift_12week": ProgramMeta(
-            family: "nSuns",
-            level: .intermediate,
-            focus: .strength,
-            shortDescription: "5-day plus extra deadlift volume day.",
-            isFree: false
-        ),
-        "phul_12week": ProgramMeta(
-            family: "PHUL",
-            level: .intermediate,
-            focus: .balanced,
-            shortDescription: "4-day power & hypertrophy upper/lower split.",
-            isFree: false
-        ),
-        "reddit_ppl_12week": ProgramMeta(
-            family: "PPL",
-            level: .intermediate,
-            focus: .hypertrophy,
-            shortDescription: "Push/Pull/Legs split, twice per week.",
-            isFree: false
-        ),
-        "basic_ppl_12week": ProgramMeta(
-            family: "PPL",
-            level: .beginner,
-            focus: .hypertrophy,
-            shortDescription: "Simple 3-day Push/Pull/Legs with progression.",
-            isFree: false
-        ),
-        "sbs_program_config": ProgramMeta(
-            family: "SBS",
-            level: .advanced,
-            focus: .hypertrophy,
-            shortDescription: "20-week auto-regulated hypertrophy.",
-            isFree: false
-        )
-    ]
-    
     // MARK: - Computed Properties
-    
+
     private var groupedPrograms: [(family: String, programs: [AppState.AvailableProgramInfo])] {
         var groups: [String: [AppState.AvailableProgramInfo]] = [:]
-        
+
         for program in filteredPrograms {
-            let family = programMetadata[program.id]?.family ?? "Other"
+            let family = ProgramCatalog.metadata[program.id]?.family ?? "Other"
             groups[family, default: []].append(program)
         }
-        
+
         return groups.map { (family: $0.key, programs: $0.value) }
             .sorted { lhs, rhs in
-                // Priority order matching family names in programMetadata
-                let order = ["Strong Lifts", "Starting Strength", "Beginner AMRAP", "GZCL", "5/3/1", "nSuns", "PHUL", "PPL", "SBS"]
-                let lhsIndex = order.firstIndex(of: lhs.family) ?? 99
-                let rhsIndex = order.firstIndex(of: rhs.family) ?? 99
-                return lhsIndex < rhsIndex
+                ProgramCatalog.familySortIndex(lhs.family) < ProgramCatalog.familySortIndex(rhs.family)
             }
     }
-    
+
     private var filteredPrograms: [AppState.AvailableProgramInfo] {
         appState.availablePrograms.filter { program in
             if let daysFilter = selectedDaysFilter {
                 guard program.days == daysFilter else { return false }
             }
             if let levelFilter = selectedLevelFilter {
-                guard programMetadata[program.id]?.level == levelFilter else { return false }
+                guard ProgramCatalog.metadata[program.id]?.level == levelFilter else { return false }
             }
             return true
         }
@@ -414,7 +295,7 @@ struct ProgramsView: View {
                             family: group.family,
                             programs: group.programs,
                             isExpanded: shouldExpandFamily(group.family, programs: group.programs),
-                            metadata: programMetadata,
+                            metadata: ProgramCatalog.metadata,
                             isProgramLocked: isProgramLocked,
                             hasCustomizations: { appState.userData.hasCustomizations(for: $0) },
                             onToggle: { toggleFamily(group.family) },
@@ -765,9 +646,10 @@ struct ProgramCardView: View {
     let onLockedTap: () -> Void
     let onStartCycle: () -> Void
     let onResetCustomizations: () -> Void
-    
+
     @State private var showingDetail = false
-    
+    private let storeManager = StoreManager.shared
+
     private var familyColor: Color {
         meta?.level.color ?? SBSColors.accentFallback
     }
@@ -786,7 +668,7 @@ struct ProgramCardView: View {
                             PremiumBadge(isCompact: true)
                         }
                         
-                        if meta?.isFree == true && !isLocked {
+                        if ProgramCatalog.showsFreeBadge(programId: program.id, isLocked: isLocked, isPremiumUser: storeManager.isPremium) {
                             FreeBadge()
                         }
 

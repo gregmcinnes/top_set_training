@@ -308,12 +308,117 @@ final class ExerciseLibraryTests: XCTestCase {
     }
     
     // MARK: - Singleton Tests
-    
+
     func testLibrarySingleton() {
         let library1 = ExerciseLibrary.shared
         let library2 = ExerciseLibrary.shared
-        
+
         XCTAssertTrue(library1 === library2)
+    }
+
+    // MARK: - Canonical Lift Name Tests
+
+    func testCanonicalLiftNameAliases() {
+        XCTAssertEqual(ExerciseLibrary.canonicalLiftName("OHP"), "Overhead Press")
+        XCTAssertEqual(ExerciseLibrary.canonicalLiftName("Press"), "Overhead Press")
+        XCTAssertEqual(ExerciseLibrary.canonicalLiftName("Incline Bench"), "Incline Bench Press")
+        XCTAssertEqual(ExerciseLibrary.canonicalLiftName("Incline Press"), "Incline Bench Press")
+        XCTAssertEqual(ExerciseLibrary.canonicalLiftName("Close-Grip Bench"), "Close Grip Bench Press")
+        XCTAssertEqual(ExerciseLibrary.canonicalLiftName("Bench"), "Bench Press")
+    }
+
+    func testCanonicalLiftNameSingularPluralDrift() {
+        XCTAssertEqual(ExerciseLibrary.canonicalLiftName("Rack Pull"), "Rack Pulls")
+        XCTAssertEqual(ExerciseLibrary.canonicalLiftName("Paused Squat"), "Pause Squats")
+        XCTAssertEqual(ExerciseLibrary.canonicalLiftName("Hang Clean"), "Hang Cleans")
+        XCTAssertEqual(ExerciseLibrary.canonicalLiftName("Cable Rows"), "Cable Row")
+        XCTAssertEqual(ExerciseLibrary.canonicalLiftName("EZ Bar Curl"), "EZ Bar Curls")
+    }
+
+    func testCanonicalLiftNameCaseInsensitive() {
+        XCTAssertEqual(ExerciseLibrary.canonicalLiftName("ohp"), "Overhead Press")
+        XCTAssertEqual(ExerciseLibrary.canonicalLiftName("Ohp"), "Overhead Press")
+        XCTAssertEqual(ExerciseLibrary.canonicalLiftName("incline bench"), "Incline Bench Press")
+        XCTAssertEqual(ExerciseLibrary.canonicalLiftName("INCLINE BENCH"), "Incline Bench Press")
+        XCTAssertEqual(ExerciseLibrary.canonicalLiftName("close-grip bench"), "Close Grip Bench Press")
+    }
+
+    func testCanonicalLiftNamePassthrough() {
+        XCTAssertEqual(ExerciseLibrary.canonicalLiftName("Squat"), "Squat")
+        XCTAssertEqual(ExerciseLibrary.canonicalLiftName("Deadlift"), "Deadlift")
+        XCTAssertEqual(ExerciseLibrary.canonicalLiftName("Zercher Squat"), "Zercher Squat")
+    }
+
+    func testCanonicalLiftNameIdempotent() {
+        for lift in ["OHP", "Incline Bench", "Bench", "Rack Pull", "Cable Rows", "Squat"] {
+            let once = ExerciseLibrary.canonicalLiftName(lift)
+            let twice = ExerciseLibrary.canonicalLiftName(once)
+            XCTAssertEqual(once, twice, "\(lift) canonicalization should be idempotent")
+        }
+    }
+
+    // MARK: - Body Part Resolution Through Aliases
+
+    func testBodyPartResolvesThroughAliases() {
+        XCTAssertEqual(library.bodyPart(for: "OHP"), .shoulders)
+        XCTAssertEqual(library.bodyPart(for: "Incline Bench"), .chest)
+        XCTAssertEqual(library.bodyPart(for: "Incline Press"), .chest)
+        XCTAssertEqual(library.bodyPart(for: "Close-Grip Bench"), .chest)
+        XCTAssertEqual(library.bodyPart(for: "Rack Pull"), .back)
+        XCTAssertEqual(library.bodyPart(for: "Cable Rows"), .back)
+        XCTAssertEqual(library.bodyPart(for: "Paused Squat"), .quads)
+        XCTAssertEqual(library.bodyPart(for: "Hang Clean"), .fullBody)
+    }
+
+    func testBodyPartForNewlyAddedEntries() {
+        XCTAssertEqual(library.bodyPart(for: "Spoto Press"), .chest)
+        XCTAssertEqual(library.bodyPart(for: "Weighted Dips"), .chest)
+        XCTAssertEqual(library.bodyPart(for: "Weighted Pull-Ups"), .back)
+    }
+
+    func testBodyPartUnknownReturnsNil() {
+        XCTAssertNil(library.bodyPart(for: "Zercher Squat"))
+    }
+
+    // MARK: - Deduplicated Body Part Assignments
+
+    func testDuplicateExerciseNamesRemoved() {
+        let names = library.exercises.map { $0.name }
+        let duplicates = Dictionary(grouping: names, by: { $0 }).filter { $0.value.count > 1 }
+        XCTAssertTrue(duplicates.isEmpty, "Unexpected duplicate exercise names: \(duplicates.keys)")
+    }
+
+    func testDeduplicatedPrimaryBodyParts() {
+        XCTAssertEqual(library.bodyPart(for: "Romanian Deadlift"), .hamstrings)
+        XCTAssertEqual(library.bodyPart(for: "Good Mornings"), .hamstrings)
+        XCTAssertEqual(library.bodyPart(for: "Face Pulls"), .shoulders)
+        XCTAssertEqual(library.bodyPart(for: "Cable Kickbacks"), .glutes)
+        XCTAssertEqual(library.bodyPart(for: "Farmer's Walk"), .forearms)
+    }
+
+    // MARK: - Canonical Dictionary Lookup / Merge
+
+    func testCanonicalLiftValueMergesLegacyKeys() {
+        // Old data persisted under a non-canonical name still surfaces.
+        let tms: [String: Double] = ["Incline Bench": 135, "Squat": 315]
+        XCTAssertEqual(tms.canonicalLiftValue(for: "Incline Bench Press"), 135)
+        XCTAssertEqual(tms.canonicalLiftValue(for: "Incline Press"), 135)
+        XCTAssertEqual(tms.canonicalLiftValue(for: "Squat"), 315)
+        XCTAssertNil(tms.canonicalLiftValue(for: "Deadlift"))
+    }
+
+    func testSetCanonicalLiftValueStoresCanonicalAndRemovesAliases() {
+        var tms: [String: Double] = ["Incline Bench": 135]
+        tms.setCanonicalLiftValue(140, for: "Incline Press")
+        XCTAssertEqual(tms["Incline Bench Press"], 140)
+        XCTAssertNil(tms["Incline Bench"], "aliased key should be removed to avoid double-store")
+        XCTAssertEqual(tms.count, 1)
+    }
+
+    func testCanonicalLiftValueWithPersonalRecords() {
+        let pr = PersonalRecord(estimatedOneRM: 225, weight: 205, reps: 3)
+        let records: [String: PersonalRecord] = ["Bench": pr]
+        XCTAssertEqual(records.canonicalLiftValue(for: "Bench Press")?.estimatedOneRM, 225)
     }
 }
 

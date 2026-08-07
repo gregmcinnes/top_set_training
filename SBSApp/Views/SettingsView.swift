@@ -3,7 +3,7 @@ import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @Bindable var appState: AppState
-    @State private var showingExport = false
+    @State private var exportPayload: ExportPayload?
     @State private var showingResetAlert = false
     @State private var showingTMEditor = false
     @State private var showingExerciseEditor = false
@@ -15,10 +15,9 @@ struct SettingsView: View {
     @State private var showingWeightAdjustments = false
     @State private var showingTemplateList = false
     @State private var carryOverTMs = true
-    @State private var exportData: Data?
     @State private var showingPaywall = false
     @State private var isRestoringPurchases = false
-    @State private var showingProgramInfo = false
+    @State private var programInfoSheet: AppState.AvailableProgramInfo?
     @State private var showingPlateCalculatorInfo = false
     @State private var versionTapCount = 0
     @State private var lastVersionTapTime: Date?
@@ -26,7 +25,48 @@ struct SettingsView: View {
     @State private var showingReviewerUnlockAlert = false
     
     private let storeManager = StoreManager.shared
-    
+
+    private var roundingChoices: [(value: Double, label: String)] {
+        if appState.settings.useMetric {
+            return [
+                (1 * BarWeightOptions.lbPerKg, "1 kg"),
+                (2.5 * BarWeightOptions.lbPerKg, "2.5 kg"),
+                (5 * BarWeightOptions.lbPerKg, "5 kg"),
+            ]
+        } else {
+            return [(2.5, "2.5 lb"), (5.0, "5 lb"), (10.0, "10 lb")]
+        }
+    }
+
+    private var roundingBinding: Binding<Double> {
+        Binding(
+            get: {
+                let current = appState.settings.roundingIncrement
+                return roundingChoices.first { abs($0.value - current) <= 0.3 }?.value ?? current
+            },
+            set: { appState.settings.roundingIncrement = $0 }
+        )
+    }
+
+    private var barWeightChoices: [BarWeightOption] {
+        let base = BarWeightOptions.options(useMetric: appState.settings.useMetric)
+        let current = appState.settings.barWeight
+        if BarWeightOptions.selection(for: current, useMetric: appState.settings.useMetric) == nil {
+            return base + [BarWeightOption(value: current, label: current.formattedWeight(useMetric: appState.settings.useMetric))]
+        }
+        return base
+    }
+
+    private var barWeightBinding: Binding<Double> {
+        Binding(
+            get: {
+                BarWeightOptions.selection(for: appState.settings.barWeight, useMetric: appState.settings.useMetric)
+                    ?? appState.settings.barWeight
+            },
+            set: { appState.settings.barWeight = $0 }
+        )
+    }
+
     private var templateCountText: String {
         let count = appState.userData.customTemplates.count
         if count == 0 {
@@ -94,7 +134,7 @@ struct SettingsView: View {
                 // Current Program
                 Section {
                     Button {
-                        showingProgramInfo = true
+                        programInfoSheet = currentProgramInfo
                     } label: {
                         HStack(spacing: SBSLayout.paddingMedium) {
                             ZStack {
@@ -108,7 +148,7 @@ struct SettingsView: View {
                             }
                             
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(appState.programData?.displayName ?? appState.programData?.name ?? "Program")
+                                Text(appState.programDisplayName)
                                     .font(SBSFonts.bodyBold())
                                     .foregroundStyle(SBSColors.textPrimaryFallback)
                                 
@@ -117,19 +157,22 @@ struct SettingsView: View {
                                         Label("\(programInfo.days)d/wk", systemImage: "calendar")
                                         Label("\(programInfo.weeks)wk", systemImage: "clock")
                                     }
-                                    .font(.system(size: 11))
+                                    .font(SBSFonts.caption2())
                                     .foregroundStyle(SBSColors.textSecondaryFallback)
                                 }
                             }
                             
                             Spacer()
-                            
-                            Image(systemName: "info.circle")
-                                .font(.system(size: 18))
-                                .foregroundStyle(programFamilyColor)
+
+                            if currentProgramInfo != nil {
+                                Image(systemName: "info.circle")
+                                    .font(.system(size: 18))
+                                    .foregroundStyle(programFamilyColor)
+                            }
                         }
                         .padding(.vertical, 4)
                     }
+                    .disabled(currentProgramInfo == nil)
                 } header: {
                     Text("Current Program")
                 }
@@ -141,34 +184,24 @@ struct SettingsView: View {
                             // Set appropriate defaults when switching unit systems
                             if useMetric {
                                 // Metric defaults: 2.5 kg rounding, 20 kg bar
-                                appState.settings.roundingIncrement = 5.5  // 2.5 kg
-                                appState.settings.barWeight = 44.0  // 20 kg
+                                appState.settings.roundingIncrement = 2.5 * BarWeightOptions.lbPerKg
+                                appState.settings.barWeight = 20 * BarWeightOptions.lbPerKg
                             } else {
                                 // Imperial defaults: 5 lb rounding, 45 lb bar
-                                appState.settings.roundingIncrement = 5.0  // 5 lb
-                                appState.settings.barWeight = 45.0  // 45 lb
+                                appState.settings.roundingIncrement = 5.0
+                                appState.settings.barWeight = 45.0
                             }
                         }
-                    
-                    Picker("Rounding", selection: $appState.settings.roundingIncrement) {
-                        if appState.settings.useMetric {
-                            Text("1 kg").tag(2.2)
-                            Text("2.5 kg").tag(5.5)
-                            Text("5 kg").tag(11.0)
-                        } else {
-                            Text("2.5 lb").tag(2.5)
-                            Text("5 lb").tag(5.0)
-                            Text("10 lb").tag(10.0)
+
+                    Picker("Rounding", selection: roundingBinding) {
+                        ForEach(roundingChoices, id: \.value) { choice in
+                            Text(choice.label).tag(choice.value)
                         }
                     }
-                    
-                    Picker("Barbell Weight", selection: $appState.settings.barWeight) {
-                        if appState.settings.useMetric {
-                            Text("15 kg").tag(33.0)
-                            Text("20 kg").tag(44.0)
-                        } else {
-                            Text("35 lb").tag(35.0)
-                            Text("45 lb").tag(45.0)
+
+                    Picker("Barbell Weight", selection: barWeightBinding) {
+                        ForEach(barWeightChoices) { option in
+                            Text(option.label).tag(option.value)
                         }
                     }
                 } header: {
@@ -183,7 +216,7 @@ struct SettingsView: View {
                         Text("Bodyweight")
                         Spacer()
                         TextField(
-                            appState.settings.useMetric ? "kg" : "lbs",
+                            appState.settings.useMetric ? "kg" : "lb",
                             value: Binding(
                                 get: { 
                                     if let bw = appState.settings.bodyweight {
@@ -206,7 +239,7 @@ struct SettingsView: View {
                         .multilineTextAlignment(.trailing)
                         .frame(width: 80)
                         
-                        Text(appState.settings.useMetric ? "kg" : "lbs")
+                        Text(appState.settings.useMetric ? "kg" : "lb")
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                     }
                     
@@ -705,15 +738,14 @@ struct SettingsView: View {
                 } header: {
                     Text("Program Cycle")
                 } footer: {
-                    Text("Start a new 20-week cycle. Your current progress will be archived and you can choose to carry over your training maxes.")
+                    Text("Start a new \(appState.weeks.count)-week cycle. Your current progress will be archived and you can choose to carry over your training maxes.")
                 }
                 
                 // Data
                 Section {
                     Button {
                         if let data = try? appState.exportData() {
-                            exportData = data
-                            showingExport = true
+                            exportPayload = ExportPayload(data: data)
                         }
                     } label: {
                         Label("Export Data", systemImage: "square.and.arrow.up")
@@ -741,7 +773,7 @@ struct SettingsView: View {
                     HStack {
                         Text("Version")
                         Spacer()
-                        Text("1.0.0")
+                        Text(appVersionString)
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                     }
                     .contentShape(Rectangle())
@@ -902,13 +934,8 @@ struct SettingsView: View {
                     }
                 )
             }
-            .sheet(isPresented: $showingExport) {
-                if let data = exportData {
-                    ShareSheet(items: [ExportFile(data: data)])
-                } else {
-                    Text("Unable to export data")
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
-                }
+            .sheet(item: $exportPayload) { payload in
+                ShareSheet(items: [ExportFile(data: payload.data)])
             }
             .alert("Reset All Logs?", isPresented: $showingResetAlert) {
                 Button("Cancel", role: .cancel) {}
@@ -924,8 +951,16 @@ struct SettingsView: View {
                 titleVisibility: .visible
             ) {
                 Button("Quick Repeat") {
-                    // Start new cycle with same program and carried-over TMs
-                    appState.startNewCycle(carryOverTMs: true)
+                    // Repeating re-runs the current program, so it needs program
+                    // access (grandfathered users hit the paywall here; their
+                    // in-progress cycle is unaffected).
+                    if let programId = appState.userData.selectedProgram,
+                       !StoreManager.shared.canAccessProgram(programId) {
+                        showingPaywall = true
+                    } else {
+                        // Start new cycle with same program and carried-over TMs
+                        appState.startNewCycle(carryOverTMs: true)
+                    }
                 }
                 
                 Button("Customize New Cycle") {
@@ -947,15 +982,13 @@ struct SettingsView: View {
             .sheet(isPresented: $showingPaywall) {
                 PaywallView()
             }
-            .sheet(isPresented: $showingProgramInfo) {
-                if let programInfo = currentProgramInfo {
-                    ProgramDetailView(
-                        program: programInfo,
-                        programData: appState.programData,
-                        familyColor: programFamilyColor,
-                        level: programExperienceLevel
-                    )
-                }
+            .sheet(item: $programInfoSheet) { programInfo in
+                ProgramDetailView(
+                    program: programInfo,
+                    programData: appState.programData,
+                    familyColor: programFamilyColor,
+                    level: programExperienceLevel
+                )
             }
             .sheet(isPresented: $showingPlateCalculatorInfo) {
                 PlateCalculatorInfoView(
@@ -989,8 +1022,18 @@ struct SettingsView: View {
         }
     }
     
+    // MARK: - App Version
+
+    private var appVersionString: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
+        guard let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String else {
+            return version
+        }
+        return "\(version) (\(build))"
+    }
+
     // MARK: - Secret Reviewer Unlock
-    
+
     private func handleVersionTap() {
         let now = Date()
         
@@ -1352,12 +1395,17 @@ struct ExerciseEditorView: View {
             VStack(spacing: 0) {
                 // Day picker
                 Picker("Day", selection: $selectedDay) {
-                    ForEach(1...5, id: \.self) { day in
+                    ForEach(appState.allDays, id: \.self) { day in
                         Text("Day \(day)").tag(day)
                     }
                 }
                 .pickerStyle(.segmented)
                 .padding()
+                .onAppear {
+                    if !appState.allDays.contains(selectedDay) {
+                        selectedDay = appState.allDays.first ?? 1
+                    }
+                }
                 
                 List {
                     // Main lifts section
@@ -1445,7 +1493,7 @@ struct ExerciseEditorView: View {
     }
     
     private var mainLifts: [DayItem] {
-        dayItems.filter { $0.type == .tm || $0.type == .volume }
+        dayItems.filter { $0.type == .tm || $0.type == .volume || $0.type == .structured || $0.type == .linear }
     }
     
     private var accessories: [DayItem] {
@@ -1463,9 +1511,18 @@ struct MainLiftRow: View {
     let item: DayItem
     let availableLifts: [String]
     let onSwap: (String) -> Void
-    
+
     @State private var showingPicker = false
-    
+
+    private var liftSubtitle: String? {
+        switch item.type {
+        case .tm: return "Training Max"
+        case .volume: return "Working Sets"
+        case .structured, .linear: return "Main Lift"
+        default: return nil
+        }
+    }
+
     var body: some View {
         Button {
             showingPicker = true
@@ -1476,12 +1533,8 @@ struct MainLiftRow: View {
                         .font(SBSFonts.body())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                     
-                    if item.type == .tm {
-                        Text("Training Max")
-                            .font(SBSFonts.caption())
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
-                    } else if item.type == .volume {
-                        Text("Working Sets")
+                    if let subtitle = liftSubtitle {
+                        Text(subtitle)
                             .font(SBSFonts.caption())
                             .foregroundStyle(SBSColors.textTertiaryFallback)
                     }
@@ -1555,7 +1608,8 @@ struct AccessoryRow: View {
                         .foregroundStyle(SBSColors.accentFallback)
                 }
                 .buttonStyle(.plain)
-                
+                .accessibilityLabel("Rename accessory")
+
                 Button(role: .destructive) {
                     onDelete()
                 } label: {
@@ -1563,12 +1617,21 @@ struct AccessoryRow: View {
                         .foregroundStyle(SBSColors.error)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Delete accessory")
             }
         }
     }
 }
 
 // MARK: - Share Sheet
+
+/// Identifiable wrapper so the data-export sheet is presented via `.sheet(item:)`,
+/// guaranteeing the data exists when the sheet's content is built
+/// (avoids a blank sheet on the first tap).
+struct ExportPayload: Identifiable {
+    let id = UUID()
+    let data: Data
+}
 
 struct ShareSheet: UIViewControllerRepresentable {
     let items: [Any]

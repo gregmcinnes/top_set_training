@@ -90,9 +90,9 @@ struct WorkoutShareCard: View {
             if hasPRs {
                 HStack(spacing: 6) {
                     Image(systemName: "trophy.fill")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(SBSFonts.captionBold())
                     Text("NEW PERSONAL RECORD\(summary.prs.count > 1 ? "S" : "")!")
-                        .font(.system(size: 12, weight: .black, design: .rounded))
+                        .font(SBSFonts.captionBold())
                 }
                 .foregroundStyle(.black)
                 .padding(.horizontal, 16)
@@ -117,7 +117,7 @@ struct WorkoutShareCard: View {
                     .foregroundStyle(hasPRs ? Color.orange : SBSColors.textSecondaryFallback)
                 
                 Text(summary.dayTitle)
-                    .font(.system(size: compact ? 22 : 28, weight: .bold, design: .rounded))
+                    .font(compact ? SBSFonts.title() : SBSFonts.display())
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
                 HStack(spacing: SBSLayout.paddingSmall) {
@@ -178,7 +178,7 @@ struct WorkoutShareCard: View {
                 
                 HStack {
                     Image(systemName: "dumbbell.fill")
-                        .font(.system(size: 12))
+                        .font(SBSFonts.caption())
                         .foregroundStyle(SBSColors.accentSecondaryFallback)
                     
                     Text("\(accessories.count) accessories completed")
@@ -224,11 +224,11 @@ struct WorkoutShareCard: View {
             // App branding
             HStack(spacing: 6) {
                 Image(systemName: "figure.strengthtraining.traditional")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(SBSFonts.captionBold())
                     .foregroundStyle(SBSColors.accentFallback)
-                
+
                 Text("Top Set Training")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(SBSFonts.captionBold())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             
@@ -275,7 +275,7 @@ private struct ShareCardExerciseRow: View {
                     
                     if exercise.isAMRAP {
                         Text("AMRAP")
-                            .font(.system(size: 10, weight: .bold))
+                            .font(SBSFonts.label())
                             .foregroundStyle(SBSColors.success)
                     }
                 }
@@ -290,8 +290,8 @@ private struct ShareCardExerciseRow: View {
                     .foregroundStyle(isPR ? Color.orange : SBSColors.accentFallback)
                 
                 if let e1rm = exercise.estimatedOneRM {
-                    Text("E1RM: \(e1rm.rounded().formattedWeightShort(useMetric: useMetric))")
-                        .font(.system(size: 11, weight: .medium))
+                    Text("Est. 1RM: \(e1rm.rounded().formattedWeightShort(useMetric: useMetric))")
+                        .font(SBSFonts.caption2())
                         .foregroundStyle(isPR ? Color.green : SBSColors.textTertiaryFallback)
                 }
             }
@@ -332,7 +332,7 @@ private struct ShareCardPRRow: View {
                     .frame(width: compact ? 36 : 44, height: compact ? 36 : 44)
                 
                 Image(systemName: "trophy.fill")
-                    .font(.system(size: compact ? 16 : 20))
+                    .font(compact ? SBSFonts.bodyBold() : SBSFonts.title2())
                     .foregroundStyle(
                         LinearGradient(
                             colors: [.yellow, .orange],
@@ -363,11 +363,11 @@ private struct ShareCardPRRow: View {
                 
                 if let improvement = improvement, let percent = improvementPercent {
                     Text("+\(improvement.rounded().formattedWeightShort(useMetric: useMetric)) (\(String(format: "%.1f", percent))%)")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(SBSFonts.label())
                         .foregroundStyle(Color.green)
                 } else {
                     Text("First PR!")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(SBSFonts.caption2())
                         .foregroundStyle(Color.orange)
                 }
             }
@@ -386,6 +386,10 @@ struct ShareableWorkoutCard: View {
     
     var body: some View {
         WorkoutShareCard(summary: summary, useMetric: useMetric)
+            // Rendered off-screen at a fixed pixel width for export — pin to
+            // the default type size so the image is deterministic regardless
+            // of the user's Dynamic Type setting.
+            .dynamicTypeSize(.large)
             .frame(width: 360)
             .padding(.horizontal, SBSLayout.paddingLarge)
             .padding(.top, SBSLayout.paddingLarge)
@@ -415,24 +419,21 @@ struct ShareableWorkoutCard: View {
 // MARK: - Image Renderer
 
 extension View {
+    /// Renders the view to a `UIImage` using `ImageRenderer`.
+    ///
+    /// This replaces the old off-window `UIHostingController` + `drawHierarchy`
+    /// approach, which required a fixed sleep for layout to settle (a race that
+    /// could produce blank images) and always rendered in light mode.
+    ///
+    /// Export is pinned to a fixed color scheme so share cards look identical
+    /// regardless of the user's current appearance — the cards are designed
+    /// against a fixed dark textured export background — and the sizing/layout
+    /// is deterministic without any timing delay.
     @MainActor
-    func snapshot() -> UIImage {
-        let controller = UIHostingController(rootView: self)
-        let view = controller.view
-        
-        // Use sizeThatFits for more accurate sizing that respects the view hierarchy
-        let targetSize = controller.sizeThatFits(in: CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude))
-        view?.bounds = CGRect(origin: .zero, size: targetSize)
-        view?.backgroundColor = .clear
-        
-        // Force layout pass to ensure all subviews are positioned
-        view?.layoutIfNeeded()
-        
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
-        
-        return renderer.image { _ in
-            view?.drawHierarchy(in: controller.view.bounds, afterScreenUpdates: true)
-        }
+    func snapshot(colorScheme: ColorScheme = .dark, scale: CGFloat = 3) -> UIImage {
+        let renderer = ImageRenderer(content: self.environment(\.colorScheme, colorScheme))
+        renderer.scale = scale
+        return renderer.uiImage ?? UIImage()
     }
 }
 
@@ -473,7 +474,7 @@ struct WorkoutShareSheet: View {
                     ) {
                         HStack(spacing: SBSLayout.paddingSmall) {
                             Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(SBSFonts.button())
                             
                             Text("Share Workout")
                                 .font(SBSFonts.button())
@@ -516,9 +517,8 @@ struct WorkoutShareSheet: View {
     
     @MainActor
     private func generateShareImage() async {
-        // Add small delay for view to settle
-        try? await Task.sleep(nanoseconds: 100_000_000)
-        
+        // ImageRenderer lays out synchronously, so no sleep-based settling is
+        // needed — this avoids the previous race that could yield a blank image.
         let shareableView = ShareableWorkoutCard(summary: summary, useMetric: useMetric)
         shareImage = shareableView.snapshot()
         isGenerating = false
@@ -643,9 +643,9 @@ struct ProgressShareCard: View {
             if hasPRs {
                 HStack(spacing: 6) {
                     Image(systemName: "trophy.fill")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(SBSFonts.captionBold())
                     Text("\(summary.personalRecords.count) PR\(summary.personalRecords.count > 1 ? "S" : "") ACHIEVED!")
-                        .font(.system(size: 12, weight: .black, design: .rounded))
+                        .font(SBSFonts.captionBold())
                 }
                 .foregroundStyle(.black)
                 .padding(.horizontal, 16)
@@ -666,7 +666,7 @@ struct ProgressShareCard: View {
             // Program and cycle info
             VStack(spacing: 4) {
                 Text(summary.programName)
-                    .font(.system(size: compact ? 20 : 26, weight: .bold, design: .rounded))
+                    .font(compact ? SBSFonts.title2() : SBSFonts.title())
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
@@ -686,7 +686,7 @@ struct ProgressShareCard: View {
                 
                 // Date range
                 Text("\(dateFormatter.string(from: summary.startDate)) → \(dateFormatter.string(from: summary.currentDate))")
-                    .font(.system(size: 11))
+                    .font(SBSFonts.caption2())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
             }
             .padding(.top, hasPRs ? SBSLayout.paddingSmall : SBSLayout.paddingLarge)
@@ -764,25 +764,25 @@ struct ProgressShareCard: View {
                 VStack(spacing: 2) {
                     HStack(spacing: 2) {
                         Image(systemName: isPositiveProgress ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
-                            .font(.system(size: 16))
+                            .font(SBSFonts.body())
                         Text(String(format: "%.1f%%", summary.averageGainPercent))
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .font(SBSFonts.title3())
                     }
                     .foregroundStyle(isPositiveProgress ? SBSColors.success : SBSColors.error)
-                    
+
                     Text("Avg TM Gain")
-                        .font(.system(size: 10))
+                        .font(SBSFonts.caption2())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                 }
                 
                 // Total weight gained
                 VStack(spacing: 2) {
                     Text(summary.totalWeightGained >= 0 ? "+\(summary.totalWeightGained.formattedWeightShort(useMetric: useMetric))" : summary.totalWeightGained.formattedWeightShort(useMetric: useMetric))
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .font(SBSFonts.title3())
                         .foregroundStyle(SBSColors.accentFallback)
-                    
+
                     Text("Total TM Gained")
-                        .font(.system(size: 10))
+                        .font(SBSFonts.caption2())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                 }
                 
@@ -791,15 +791,15 @@ struct ProgressShareCard: View {
                     VStack(spacing: 2) {
                         HStack(spacing: 2) {
                             Image(systemName: "trophy.fill")
-                                .font(.system(size: 14))
+                                .font(SBSFonts.caption())
                                 .foregroundStyle(.yellow)
                             Text("\(summary.personalRecords.count)")
-                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                                .font(SBSFonts.title3())
                                 .foregroundStyle(SBSColors.textPrimaryFallback)
                         }
-                        
+
                         Text("New PRs")
-                            .font(.system(size: 10))
+                            .font(SBSFonts.caption2())
                             .foregroundStyle(SBSColors.textTertiaryFallback)
                     }
                 }
@@ -827,7 +827,7 @@ struct ProgressShareCard: View {
             
             HStack {
                 Image(systemName: "trophy.fill")
-                    .font(.system(size: 14))
+                    .font(SBSFonts.caption())
                     .foregroundStyle(
                         LinearGradient(colors: [.yellow, .orange], startPoint: .top, endPoint: .bottom)
                     )
@@ -881,11 +881,11 @@ struct ProgressShareCard: View {
         HStack {
             HStack(spacing: 6) {
                 Image(systemName: "figure.strengthtraining.traditional")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(SBSFonts.captionBold())
                     .foregroundStyle(SBSColors.accentFallback)
-                
+
                 Text("Top Set Training")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(SBSFonts.captionBold())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             
@@ -924,8 +924,8 @@ private struct LiftProgressRow: View {
                 }
                 
                 if let e1rm = lift.bestE1RM {
-                    Text("Best E1RM: \(e1rm.formattedWeightShort(useMetric: useMetric))")
-                        .font(.system(size: 10))
+                    Text("Best Est. 1RM: \(e1rm.formattedWeightShort(useMetric: useMetric))")
+                        .font(SBSFonts.caption2())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                 }
             }
@@ -939,9 +939,9 @@ private struct LiftProgressRow: View {
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                 
                 Image(systemName: "arrow.right")
-                    .font(.system(size: 10))
+                    .font(SBSFonts.caption2())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
-                
+
                 Text(lift.currentTM.formattedWeightShort(useMetric: useMetric))
                     .font(compact ? SBSFonts.bodyBold() : SBSFonts.weight())
                     .foregroundStyle(hasPR ? Color.orange : SBSColors.accentFallback)
@@ -950,7 +950,7 @@ private struct LiftProgressRow: View {
             // Gain percentage
             HStack(spacing: 2) {
                 Image(systemName: lift.gain >= 0 ? "arrow.up" : "arrow.down")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(SBSFonts.label())
                 Text(String(format: "%.1f%%", lift.gainPercent))
                     .font(SBSFonts.captionBold())
             }
@@ -972,6 +972,10 @@ struct ShareableProgressCard: View {
     
     var body: some View {
         ProgressShareCard(summary: summary, useMetric: useMetric)
+            // Rendered off-screen at a fixed pixel width for export — pin to
+            // the default type size so the image is deterministic regardless
+            // of the user's Dynamic Type setting.
+            .dynamicTypeSize(.large)
             .frame(width: 380)
             .padding(.horizontal, SBSLayout.paddingLarge)
             .padding(.top, SBSLayout.paddingLarge)
@@ -1031,7 +1035,7 @@ struct ProgressShareSheet: View {
                     ) {
                         HStack(spacing: SBSLayout.paddingSmall) {
                             Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(SBSFonts.button())
                             
                             Text("Share Progress")
                                 .font(SBSFonts.button())
@@ -1074,8 +1078,7 @@ struct ProgressShareSheet: View {
     
     @MainActor
     private func generateShareImage() async {
-        try? await Task.sleep(nanoseconds: 100_000_000)
-        
+        // ImageRenderer lays out synchronously — no settling delay required.
         let shareableView = ShareableProgressCard(summary: summary, useMetric: useMetric)
         shareImage = shareableView.snapshot()
         isGenerating = false
@@ -1171,7 +1174,7 @@ struct ProgressShareSheet: View {
                     .init(name: "Squat", startingTM: 285, currentTM: 315, bestE1RM: 380),
                     .init(name: "Bench Press", startingTM: 185, currentTM: 205, bestE1RM: 245),
                     .init(name: "Deadlift", startingTM: 345, currentTM: 385, bestE1RM: 455),
-                    .init(name: "OHP", startingTM: 115, currentTM: 125, bestE1RM: 150)
+                    .init(name: ExerciseLibrary.shortName(for: "Overhead Press"), startingTM: 115, currentTM: 125, bestE1RM: 150)
                 ],
                 personalRecords: [
                     .init(liftName: "Squat", weight: 315, reps: 8, e1rm: 380, date: Date()),
@@ -1321,9 +1324,9 @@ struct LiftProgressShareCard: View {
             // Progress badge
             HStack(spacing: 6) {
                 Image(systemName: summary.isPositiveProgress ? "arrow.up.right.circle.fill" : "arrow.down.right.circle.fill")
-                    .font(.system(size: 14, weight: .bold))
+                    .font(SBSFonts.captionBold())
                 Text(String(format: "%@%.1f%% PROGRESS", summary.isPositiveProgress ? "+" : "", summary.gainPercent))
-                    .font(.system(size: 12, weight: .black, design: .rounded))
+                    .font(SBSFonts.captionBold())
             }
             .foregroundStyle(summary.isPositiveProgress ? .white : .white)
             .padding(.horizontal, 16)
@@ -1336,7 +1339,7 @@ struct LiftProgressShareCard: View {
             
             // Lift name
             Text(summary.liftName)
-                .font(.system(size: compact ? 22 : 28, weight: .bold, design: .rounded))
+                .font(compact ? SBSFonts.title() : SBSFonts.display())
                 .foregroundStyle(SBSColors.textPrimaryFallback)
             
             // Date range
@@ -1375,7 +1378,7 @@ struct LiftProgressShareCard: View {
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                 
                 Text("\(Int(summary.startE1RM.rounded())) \(summary.unit)")
-                    .font(.system(size: compact ? 18 : 22, weight: .semibold, design: .rounded))
+                    .font(compact ? SBSFonts.title3() : SBSFonts.title2())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             
@@ -1383,7 +1386,7 @@ struct LiftProgressShareCard: View {
             
             // Arrow
             Image(systemName: "arrow.right")
-                .font(.system(size: 20, weight: .bold))
+                .font(SBSFonts.title2())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
             
             Spacer()
@@ -1396,15 +1399,15 @@ struct LiftProgressShareCard: View {
                 
                 HStack(spacing: 6) {
                     Text("\(Int(summary.currentE1RM.rounded())) \(summary.unit)")
-                        .font(.system(size: compact ? 18 : 22, weight: .bold, design: .rounded))
+                        .font(compact ? SBSFonts.title3() : SBSFonts.title())
                         .foregroundStyle(SBSColors.accentFallback)
                     
                     // Gain indicator
                     HStack(spacing: 2) {
                         Image(systemName: summary.isPositiveProgress ? "arrow.up" : "arrow.down")
-                            .font(.system(size: 10, weight: .bold))
+                            .font(SBSFonts.label())
                         Text(String(format: "%@%.0f", summary.isPositiveProgress ? "+" : "", summary.gain))
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .font(SBSFonts.captionBold())
                     }
                     .foregroundStyle(progressColor)
                     .padding(.horizontal, 8)
@@ -1426,11 +1429,11 @@ struct LiftProgressShareCard: View {
         HStack {
             HStack(spacing: 6) {
                 Image(systemName: "figure.strengthtraining.traditional")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(SBSFonts.captionBold())
                     .foregroundStyle(SBSColors.accentFallback)
-                
+
                 Text("Top Set Training")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(SBSFonts.captionBold())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             
@@ -1453,15 +1456,15 @@ struct ShareableLiftProgressCard: View {
     
     var body: some View {
         LiftProgressShareCard(summary: summary)
+            // Rendered off-screen at a fixed pixel width for export — pin to
+            // the default type size so the image is deterministic regardless
+            // of the user's Dynamic Type setting.
+            .dynamicTypeSize(.large)
             .frame(width: 340)
     }
-    
-    @MainActor
-    func snapshot() -> UIImage {
-        let renderer = ImageRenderer(content: self)
-        renderer.scale = 3.0
-        return renderer.uiImage ?? UIImage()
-    }
+
+    // Uses the unified `View.snapshot()` (ImageRenderer, fixed dark scheme,
+    // scale 3) for a deterministic export — see the extension above.
 }
 
 #Preview("Lift Progress Card") {

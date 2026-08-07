@@ -114,12 +114,20 @@ struct CycleRowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
             HStack {
-                Text("Cycle \(cycle.cycleNumber)")
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Cycle \(cycle.cycleNumber)")
+                        .font(SBSFonts.title3())
+                        .foregroundStyle(SBSColors.textPrimaryFallback)
+
+                    if let programName = cycle.programName, !programName.isEmpty {
+                        Text(programName)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                    }
+                }
+
                 Spacer()
-                
+
                 // Average TM gain badge
                 if averageTMGain != 0 {
                     HStack(spacing: 2) {
@@ -153,7 +161,7 @@ struct CycleRowView: View {
                 ForEach(Array(cycle.endingMaxes.keys.sorted().prefix(4)), id: \.self) { lift in
                     if let endTM = cycle.endingMaxes[lift] {
                         VStack(spacing: 2) {
-                            Text(liftAbbreviation(lift))
+                            Text(ExerciseLibrary.shortName(for: lift))
                                 .font(SBSFonts.caption())
                                 .foregroundStyle(SBSColors.textTertiaryFallback)
                             Text(endTM.formattedWeightShort(useMetric: useMetric))
@@ -171,19 +179,6 @@ struct CycleRowView: View {
             }
         }
         .padding(.vertical, SBSLayout.paddingSmall)
-    }
-    
-    private func liftAbbreviation(_ lift: String) -> String {
-        switch lift.lowercased() {
-        case "squat": return "SQ"
-        case "bench": return "BP"
-        case "deadlift": return "DL"
-        case "ohp", "overhead press": return "OHP"
-        case "row", "barbell row": return "ROW"
-        default:
-            // Take first 3 characters
-            return String(lift.prefix(3)).uppercased()
-        }
     }
 }
 
@@ -282,10 +277,27 @@ struct CycleDetailView: View {
     }
     
     private var totalLoggedWorkouts: Int {
+        // Prefer the self-contained workout records (one per logged session) when present.
+        if !cycle.workoutRecords.isEmpty {
+            return cycle.workoutRecords.count
+        }
+
+        // Fall back to counting logged entries across every logging style so structured
+        // (nSuns/5-3-1/GZCLP) and linear (StrongLifts/Starting Strength) cycles aren't shown as "0".
         var count = 0
         for (_, weekLogs) in cycle.logs {
             for (_, dayLogs) in weekLogs {
                 count += dayLogs.values.filter { $0.repsLastSet != nil }.count
+            }
+        }
+        for (_, weekLogs) in cycle.structuredLogs {
+            for (_, dayLogs) in weekLogs {
+                count += dayLogs.values.filter { !$0.amrapReps.isEmpty }.count
+            }
+        }
+        for (_, weekLogs) in cycle.linearLogs {
+            for (_, dayLogs) in weekLogs {
+                count += dayLogs.count
             }
         }
         return count
@@ -310,57 +322,106 @@ struct CycleDetailView: View {
         }
     }
     
+    /// Per-lift weekly performance labels, unified across SBS/structured/linear logging styles.
+    private struct WeeklyLiftPerformance: Identifiable {
+        let lift: String
+        let labelsByWeek: [Int: String]
+        var id: String { lift }
+    }
+
+    /// The number of weeks to render in the weekly grid, derived from the cycle's own data
+    /// (never a hardcoded 20) so a 12-week cycle doesn't show permanently-dashed cells.
+    private var weekCount: Int {
+        var maxWeek = cycle.lastCompletedWeek
+        for (_, weekLogs) in cycle.logs { maxWeek = max(maxWeek, weekLogs.keys.max() ?? 0) }
+        for (_, weekLogs) in cycle.structuredLogs { maxWeek = max(maxWeek, weekLogs.keys.max() ?? 0) }
+        for (_, weekLogs) in cycle.linearLogs { maxWeek = max(maxWeek, weekLogs.keys.max() ?? 0) }
+        for record in cycle.workoutRecords { maxWeek = max(maxWeek, record.week) }
+        return max(maxWeek, 1)
+    }
+
+    private var weeklyLiftPerformances: [WeeklyLiftPerformance] {
+        var labels: [String: [Int: String]] = [:]
+
+        // SBS-style rep-out logs.
+        for (lift, weekLogs) in cycle.logs {
+            for (week, dayLogs) in weekLogs {
+                if let reps = dayLogs.values.compactMap({ $0.repsLastSet }).first {
+                    labels[lift, default: [:]][week] = "\(reps)"
+                }
+            }
+        }
+
+        // Structured logs (nSuns/5-3-1/GZCLP) — show the top AMRAP reps for the week.
+        for (lift, weekLogs) in cycle.structuredLogs {
+            for (week, dayLogs) in weekLogs {
+                if let reps = dayLogs.values.flatMap({ $0.amrapReps.values }).max() {
+                    labels[lift, default: [:]][week] = "\(reps)"
+                }
+            }
+        }
+
+        // Linear logs (StrongLifts/Starting Strength) — no rep-out, mark success/failure.
+        for (lift, weekLogs) in cycle.linearLogs {
+            for (week, dayLogs) in weekLogs where !dayLogs.isEmpty {
+                let completed = dayLogs.values.contains { $0.completed }
+                labels[lift, default: [:]][week] = completed ? "✓" : "✗"
+            }
+        }
+
+        return labels.keys.sorted().map {
+            WeeklyLiftPerformance(lift: $0, labelsByWeek: labels[$0] ?? [:])
+        }
+    }
+
+    @ViewBuilder
     private var weeklyLogsSection: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-            Text("Weekly Rep-Outs")
-                .font(SBSFonts.title3())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
-            
-            let lifts = Array(cycle.logs.keys.sorted())
-            
-            ForEach(lifts, id: \.self) { lift in
-                VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
-                    Text(lift)
-                        .font(SBSFonts.bodyBold())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                    
-                    let weekLogs = cycle.logs[lift] ?? [:]
-                    let sortedWeeks = weekLogs.keys.sorted()
-                    
-                    if sortedWeeks.isEmpty {
-                        Text("No logs recorded")
-                            .font(SBSFonts.caption())
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
-                    } else {
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 10), spacing: 4) {
-                            ForEach(1...20, id: \.self) { week in
-                                // Find any logged reps for this week (from any day)
-                                let reps = weekLogs[week]?.values.compactMap { $0.repsLastSet }.first
-                                if let reps = reps {
-                                    Text("\(reps)")
-                                        .font(SBSFonts.caption())
-                                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                                        .frame(width: 28, height: 28)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 4)
-                                                .fill(SBSColors.accentFallback.opacity(0.2))
-                                        )
-                                } else {
-                                    Text("-")
-                                        .font(SBSFonts.caption())
-                                        .foregroundStyle(SBSColors.textTertiaryFallback)
-                                        .frame(width: 28, height: 28)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 4)
-                                                .fill(SBSColors.surfaceFallback)
-                                        )
+        let performances = weeklyLiftPerformances
+        if !performances.isEmpty {
+            VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
+                Text("Weekly Rep-Outs")
+                    .font(SBSFonts.title3())
+                    .foregroundStyle(SBSColors.textPrimaryFallback)
+
+                ForEach(performances) { performance in
+                    VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                        Text(performance.lift)
+                            .font(SBSFonts.bodyBold())
+                            .foregroundStyle(SBSColors.textPrimaryFallback)
+
+                        if performance.labelsByWeek.isEmpty {
+                            Text("No logs recorded")
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                        } else {
+                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 10), spacing: 4) {
+                                ForEach(1...weekCount, id: \.self) { week in
+                                    if let label = performance.labelsByWeek[week] {
+                                        Text(label)
+                                            .font(SBSFonts.caption())
+                                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                                            .frame(width: 28, height: 28)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 4)
+                                                    .fill(SBSColors.accentFallback.opacity(0.2))
+                                            )
+                                    } else {
+                                        Text("-")
+                                            .font(SBSFonts.caption())
+                                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                                            .frame(width: 28, height: 28)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 4)
+                                                    .fill(SBSColors.surfaceFallback)
+                                            )
+                                    }
                                 }
                             }
                         }
                     }
+                    .padding()
+                    .sbsCard()
                 }
-                .padding()
-                .sbsCard()
             }
         }
     }

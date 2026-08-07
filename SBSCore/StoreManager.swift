@@ -52,8 +52,16 @@ public final class StoreManager {
     /// Set of purchased product IDs (lifetime + active subscriptions)
     private(set) public var purchasedProductIDs: Set<String> = []
 
+    /// Current state of the product fetch (drives the paywall's loading / retry UI)
+    private(set) public var loadState: ProductLoadState = .idle
+
     /// Whether products are currently loading
-    private(set) public var isLoading = false
+    public var isLoading: Bool { loadState == .loading }
+
+    /// Set when a purchase is deferred for approval (e.g. Ask to Buy). The
+    /// paywall observes this to surface a "pending approval" message. Cleared
+    /// via `clearPurchasePending()` once shown.
+    private(set) public var purchasePending = false
 
     /// Last error that occurred
     private(set) public var lastError: Error?
@@ -93,19 +101,11 @@ public final class StoreManager {
         products.first { $0.id == Self.monthlyProductID }
     }
 
-    /// Formatted price string for the premium product
+    /// Localized price string for the lifetime product, or an empty string when
+    /// products haven't loaded yet. Never returns a hardcoded/fabricated price —
+    /// callers that need to gate on availability should check `premiumProduct`.
     public var premiumPriceString: String {
-        premiumProduct?.displayPrice ?? "$14.99"
-    }
-
-    /// Formatted price string for the weekly subscription
-    public var weeklyPriceString: String {
-        weeklyProduct?.displayPrice ?? "$0.99"
-    }
-
-    /// Formatted price string for the monthly subscription
-    public var monthlyPriceString: String {
-        monthlyProduct?.displayPrice ?? "$2.99"
+        premiumProduct?.displayPrice ?? ""
     }
 
     // MARK: - Initialization
@@ -117,10 +117,12 @@ public final class StoreManager {
         // Start listening for transactions immediately
         updateListenerTask = listenForTransactions()
 
-        // Load products and check existing purchases
+        // Check existing purchases FIRST — entitlements are local and must not
+        // wait on the network product fetch, or a paid user launching offline
+        // (or on a slow connection) sees premium features locked.
         Task {
-            await loadProducts()
             await updatePurchasedProducts()
+            await loadProducts()
         }
     }
 
@@ -133,15 +135,15 @@ public final class StoreManager {
     /// Load available products from the App Store
     @MainActor
     public func loadProducts() async {
-        isLoading = true
+        loadState = .loading
         lastError = nil
 
         do {
             products = try await Product.products(for: Self.allProductIDs)
-            isLoading = false
+            loadState = .loaded
         } catch {
             lastError = error
-            isLoading = false
+            loadState = .failed
             Logger.error("Failed to load products: \(error)", category: .store)
         }
     }
@@ -165,6 +167,7 @@ public final class StoreManager {
     /// - Returns: The transaction if successful, nil if cancelled
     @MainActor
     public func purchase(_ product: Product) async throws -> Transaction? {
+        purchasePending = false
         let result = try await product.purchase()
 
         switch result {
@@ -184,7 +187,9 @@ public final class StoreManager {
             return nil
 
         case .pending:
-            // Transaction is pending (e.g., Ask to Buy)
+            // Transaction is deferred (e.g. Ask to Buy) — flag it so the paywall
+            // can tell the user their purchase is awaiting approval.
+            purchasePending = true
             return nil
 
         @unknown default:
@@ -192,16 +197,38 @@ public final class StoreManager {
         }
     }
 
-    /// Restore previous purchases
+    /// Acknowledge and clear a pending-purchase flag once it has been shown.
     @MainActor
-    public func restorePurchases() async {
+    public func clearPurchasePending() {
+        purchasePending = false
+    }
+
+    /// Re-check local entitlements (e.g. on returning to the foreground) and
+    /// retry the product fetch if it failed at launch.
+    @MainActor
+    public func refreshEntitlements() async {
+        await updatePurchasedProducts()
+        if products.isEmpty && !isLoading {
+            await loadProducts()
+        }
+    }
+
+    /// Restore previous purchases.
+    /// - Returns: A `RestoreResult` describing whether an entitlement was found,
+    ///   nothing was there to restore, or the sync failed — so the caller can
+    ///   give the user distinct feedback.
+    @MainActor
+    @discardableResult
+    public func restorePurchases() async -> RestoreResult {
         do {
             // This will trigger the transaction listener for any restored purchases
             try await AppStore.sync()
             await updatePurchasedProducts()
+            return isPremium ? .restored : .nothingToRestore
         } catch {
             lastError = error
             Logger.error("Failed to restore purchases: \(error)", category: .store)
+            return .failed(error)
         }
     }
 
@@ -272,6 +299,29 @@ public final class StoreManager {
             return safe
         }
     }
+}
+
+// MARK: - Product Load State
+
+/// State of the App Store product fetch, so the paywall can show a loading
+/// placeholder, the real prices, or an inline retry affordance.
+public enum ProductLoadState {
+    case idle
+    case loading
+    case loaded
+    case failed
+}
+
+// MARK: - Restore Result
+
+/// Outcome of a restore-purchases attempt, so callers can give distinct feedback.
+public enum RestoreResult {
+    /// Sync succeeded and the user now has a premium entitlement.
+    case restored
+    /// Sync succeeded but there was nothing to restore.
+    case nothingToRestore
+    /// The restore/sync failed.
+    case failed(Error)
 }
 
 // MARK: - Store Errors

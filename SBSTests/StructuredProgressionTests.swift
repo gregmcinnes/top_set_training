@@ -377,7 +377,52 @@ final class StructuredProgressionTests: XCTestCase {
         // Set 2 (1+ set) weight should reflect new TM: 95% of 210 = 199.5 → rounded to 200
         XCTAssertEqual(sets[2].weight, 200, accuracy: 1)
     }
-    
+
+    // MARK: - Weight Override Tests
+
+    // Regression: manually bumping the weight down on a structured exercise must
+    // flow into the plan's per-set weights, otherwise the AMRAP is logged (and its
+    // E1RM/PR computed) against the original TM-based weight.
+    func testWeekPlanStructuredAppliesWeightOverride() throws {
+        var state = createNSunsStyleState(initialMaxes: ["Bench Press": 200])
+
+        // Top set (95% of 200 = 190) manually dropped to 175
+        state.logs["Bench Press"] = [1: [1: LogEntry(weightOverride: 175)]]
+
+        let plan = try engine.weekPlan(state: state, week: 1)
+        guard case let .structured(_, _, _, sets, _) = plan[1]?.first else {
+            XCTFail("Expected structured item")
+            return
+        }
+
+        // Heaviest set takes the override exactly
+        XCTAssertEqual(sets[2].weight, 175, accuracy: 0.01)
+        XCTAssertEqual(sets[2].calculatedWeight, 190, accuracy: 0.01)
+        XCTAssertTrue(sets[2].isWeightOverridden)
+
+        // Remaining sets scale proportionally (175/190) and round to the increment
+        // Set 0: 75% of 200 = 150 → 150 * 0.9211 = 138.2 → 140
+        XCTAssertEqual(sets[0].weight, 140, accuracy: 0.01)
+        XCTAssertEqual(sets[0].calculatedWeight, 150, accuracy: 0.01)
+        // Second AMRAP set: 65% of 200 = 130 → 119.7 → 120
+        XCTAssertEqual(sets[8].weight, 120, accuracy: 0.01)
+    }
+
+    func testWeekPlanStructuredWithoutOverrideKeepsCalculatedWeights() throws {
+        let state = createNSunsStyleState(initialMaxes: ["Bench Press": 200])
+
+        let plan = try engine.weekPlan(state: state, week: 1)
+        guard case let .structured(_, _, _, sets, _) = plan[1]?.first else {
+            XCTFail("Expected structured item")
+            return
+        }
+
+        for set in sets {
+            XCTAssertEqual(set.weight, set.calculatedWeight, accuracy: 0.01)
+            XCTAssertFalse(set.isWeightOverridden)
+        }
+    }
+
     // MARK: - Sets Detail By Week Tests
     
     func testSetsDetailByWeek() throws {
@@ -542,10 +587,133 @@ final class StructuredProgressionTests: XCTestCase {
         )
         
         let liftInfo = engine.gatherStructuredLiftInfo(from: state)
-        
+
         // Should find the 5+ set at index 1 (highest intensity AMRAP)
         XCTAssertEqual(liftInfo["OHP"]?.setIndex, 1)
         XCTAssertEqual(liftInfo["OHP"]?.intensity, 0.80)
+    }
+
+    // MARK: - Missing Initial Max Tests
+    // A structured lift with no initial max must NOT be seeded with a literal 0. Emitting 0
+    // short-circuits AppState.finalTrainingMaxes' fallback chain, which then never consults
+    // userData.trainingMaxes (the user's real TMs). Skipping the lift here lets that fallback engage.
+
+    func testStructuredTMsMissingInitialMaxIsNilNotZero() {
+        // No initial max for the configured structured lifts
+        let state = createNSunsStyleState(initialMaxes: [:])
+
+        let liftInfo = engine.gatherStructuredLiftInfo(from: state)
+        let tms = engine.computeStructuredTrainingMaxes(
+            state: state,
+            upToWeek: 1,
+            structuredLiftInfo: liftInfo
+        )
+
+        // The lift is discovered but has no seed value — it must be absent (nil), not 0.
+        XCTAssertNil(tms[1]?["Bench Press"])
+        XCTAssertNil(tms[1]?["Squat"])
+    }
+
+    func testStructuredTMsMissingInitialMaxStaysNilAcrossWeeks() {
+        var state = createNSunsStyleState(initialMaxes: [:])
+
+        // Even with a logged AMRAP, a lift with no initial max cannot progress from nothing.
+        state.structuredLogs["Bench Press"] = [
+            1: [1: StructuredLogEntry(amrapReps: [2: 3], note: "")]
+        ]
+
+        let liftInfo = engine.gatherStructuredLiftInfo(from: state)
+        let tms = engine.computeStructuredTrainingMaxes(
+            state: state,
+            upToWeek: 2,
+            structuredLiftInfo: liftInfo
+        )
+
+        XCTAssertNil(tms[1]?["Bench Press"])
+        XCTAssertNil(tms[2]?["Bench Press"])
+    }
+
+    func testStructuredTMsMixedInitialMaxSkipsOnlyMissing() {
+        // Bench has an initial max, Squat does not.
+        let state = createNSunsStyleState(initialMaxes: ["Bench Press": 200])
+
+        let liftInfo = engine.gatherStructuredLiftInfo(from: state)
+        let tms = engine.computeStructuredTrainingMaxes(
+            state: state,
+            upToWeek: 1,
+            structuredLiftInfo: liftInfo
+        )
+
+        XCTAssertEqual(tms[1]?["Bench Press"], 200)
+        XCTAssertNil(tms[1]?["Squat"])
+    }
+
+    // MARK: - Progression vs Rounding Increment Tests
+    // The TM delta must never be rounded to the working-weight increment. With 10 lb rounding
+    // a +5 lb structured step used to round up to +10, doubling nSuns progression.
+
+    func testStructuredProgressionDeltaNotRoundedTo10() {
+        // +5 lb step (upper body, 3 reps on the 1+ set) must stay +5 even with 10 lb rounding.
+        let delta = engine.structuredProgression(repsOnOnePlus: 3, targetReps: 1, isUpperBody: true)
+        XCTAssertEqual(delta, 5.0)
+    }
+
+    func testStructuredTMs5lbStepWith10lbRoundingYields5Not10() {
+        var state = createNSunsStyleState(initialMaxes: ["Bench Press": 200])
+        state.rounding = 10
+
+        // 3 reps on the 1+ set = +5 lb
+        state.structuredLogs["Bench Press"] = [
+            1: [1: StructuredLogEntry(amrapReps: [2: 3], note: "")]
+        ]
+
+        let liftInfo = engine.gatherStructuredLiftInfo(from: state)
+        let tms = engine.computeStructuredTrainingMaxes(
+            state: state,
+            upToWeek: 2,
+            structuredLiftInfo: liftInfo
+        )
+
+        // The TM grows by exactly 5, not 10 (which the old roundTo(5, 10) produced).
+        XCTAssertEqual(tms[2]?["Bench Press"], 205)
+    }
+
+    // MARK: - Metric Progression Tests
+    // For metric users the pound-denominated steps scale to clean kg-equivalents:
+    // +5/+10/+15 lb -> +2.5/+5/+7.5 kg, stored back in pounds via the exact conversion.
+
+    func testStructuredProgressionMetricScalesToCleanKg() {
+        let lbPerKg = 0.45359237
+
+        let plus5 = engine.structuredProgression(repsOnOnePlus: 3, targetReps: 1, isUpperBody: true, useMetric: true)
+        let plus10 = engine.structuredProgression(repsOnOnePlus: 5, targetReps: 1, isUpperBody: true, useMetric: true)
+        let plus15 = engine.structuredProgression(repsOnOnePlus: 6, targetReps: 3, isUpperBody: false, useMetric: true)
+
+        // Deltas are pounds, but converting back to kg must yield clean 2.5 / 5 / 7.5 kg.
+        XCTAssertEqual(plus5 * lbPerKg, 2.5, accuracy: 0.0001)
+        XCTAssertEqual(plus10 * lbPerKg, 5.0, accuracy: 0.0001)
+        XCTAssertEqual(plus15 * lbPerKg, 7.5, accuracy: 0.0001)
+    }
+
+    func testStructuredTMsMetricProgressionYieldsCleanKgDelta() {
+        let lbPerKg = 0.45359237
+        var state = createNSunsStyleState(initialMaxes: ["Bench Press": 200])
+        state.useMetric = true
+
+        // 3 reps on the 1+ set = +5 lb -> +2.5 kg for metric users
+        state.structuredLogs["Bench Press"] = [
+            1: [1: StructuredLogEntry(amrapReps: [2: 3], note: "")]
+        ]
+
+        let liftInfo = engine.gatherStructuredLiftInfo(from: state)
+        let tms = engine.computeStructuredTrainingMaxes(
+            state: state,
+            upToWeek: 2,
+            structuredLiftInfo: liftInfo
+        )
+
+        let deltaLb = (tms[2]?["Bench Press"] ?? 0) - 200
+        XCTAssertEqual(deltaLb * lbPerKg, 2.5, accuracy: 0.0001)
     }
 }
 

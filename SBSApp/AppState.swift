@@ -23,7 +23,12 @@ public final class AppState {
     
     // MARK: - UI State
     var selectedWeek: Int {
-        get { settings.currentWeek }
+        get {
+            // Clamp on read: a stale persisted week (e.g. week 15 carried into a
+            // 12-week program) would make weekPlan() throw and views render empty.
+            let maxWeek = programState?.weeks.max() ?? 20
+            return settings.currentWeek.clamped(to: 1...maxWeek)
+        }
         set {
             let maxWeek = programState?.weeks.max() ?? 20
             settings.currentWeek = newValue.clamped(to: 1...maxWeek)
@@ -138,6 +143,9 @@ public final class AppState {
         let loadedSettings = persistence.loadSettings()
         self.engine = ProgramEngine(weightAdjustments: loadedSettings.weightAdjustments)
         self.settings = loadedSettings
+        // If a previous launch preserved an undecodable blob and this build can
+        // now decode it (e.g. a decoding bug was fixed), restore it first.
+        persistence.restoreUserDataBackupIfDecodable()
         self.userData = persistence.loadUserData()
     }
     
@@ -221,12 +229,27 @@ public final class AppState {
         await discoverAvailablePrograms()
         
         // Check if user has a previously selected program
-        if let selectedId = userData.selectedProgram,
-           let program = availablePrograms.first(where: { $0.id == selectedId }) {
-            try await loadFromURL(program.url)
-            return
+        if let selectedId = userData.selectedProgram {
+            if let program = availablePrograms.first(where: { $0.id == selectedId }) {
+                try await loadFromURL(program.url)
+                return
+            }
+            // Custom templates aren't in availablePrograms — load them directly.
+            if UserData.isCustomTemplate(programId: selectedId),
+               let templateId = UserData.templateId(from: selectedId),
+               let template = userData.template(withId: templateId) {
+                let pdata = template.toProgramData()
+                await MainActor.run {
+                    self.applyProgramData(pdata)
+                }
+                return
+            }
+            // Do NOT silently fall through: the selection is kept, but the user
+            // sees the default program until the resolution problem is fixed
+            // (e.g. a program JSON missing from the bundle).
+            Logger.error("Selected program \(selectedId) could not be resolved (\(availablePrograms.count) programs discovered) — falling back to default", category: .program)
         }
-        
+
         // Try loading default (StrongLifts 5x5 - beginner friendly)
         if let program = availablePrograms.first(where: { $0.id == "stronglifts_5x5_12week" }) {
             try await loadFromURL(program.url)
@@ -246,7 +269,24 @@ public final class AppState {
     func loadProgram(_ programId: String) async throws {
         // Check if we're switching to a different program
         let isSwitchingPrograms = userData.selectedProgram != nil && userData.selectedProgram != programId
-        
+
+        // Resolve and decode the target program BEFORE any destructive work below,
+        // so an invalid id or corrupt config can't archive/clear the current cycle.
+        let pdata: ProgramData
+        if UserData.isCustomTemplate(programId: programId) {
+            guard let templateId = UserData.templateId(from: programId),
+                  let template = userData.template(withId: templateId) else {
+                throw AppError.configNotFound
+            }
+            pdata = template.toProgramData()
+        } else {
+            guard let program = availablePrograms.first(where: { $0.id == programId }) else {
+                throw AppError.configNotFound
+            }
+            let data = try Data(contentsOf: program.url)
+            pdata = try JSONDecoder().decode(ProgramData.self, from: data)
+        }
+
         // Archive current cycle BEFORE switching programs (while we still have the old programData)
         if isSwitchingPrograms && hasLoggedData {
             let lastWeek = highestLoggedWeek()
@@ -263,9 +303,9 @@ public final class AppState {
             // This is critical - SBS/structured programs don't update trainingMaxes during the cycle,
             // only linear programs do. So we need to save the final calculated TMs here.
             for (lift, tm) in endingMaxes {
-                userData.trainingMaxes[lift] = tm
+                userData.trainingMaxes.setCanonicalLiftValue(tm, for: lift)
             }
-            
+
             // Save current customizations for the old program before switching
             if let oldProgramId = userData.selectedProgram {
                 userData.saveCustomizations(for: oldProgramId)
@@ -279,68 +319,15 @@ public final class AppState {
             let cycleStartDate = userData.currentCycleStartDate
             userData.workoutRecords.removeAll { $0.date >= cycleStartDate }
             userData.currentCycleStartDate = Date()
+        }
+
+        if isSwitchingPrograms {
+            // Always start a switched program at week 1, day 1 — the previous
+            // position may not exist in the new program at all.
             settings.currentWeek = 1
             settings.currentDay = 1
-        }
-        
-        // Check if this is a custom template
-        if UserData.isCustomTemplate(programId: programId) {
-            guard let templateId = UserData.templateId(from: programId),
-                  let template = userData.template(withId: templateId) else {
-                throw AppError.configNotFound
-            }
-            
+
             // Restore or clear program-specific data when switching programs
-            if isSwitchingPrograms {
-                if !userData.restoreCustomizations(for: programId) {
-                    userData.customDays = [:]
-                    userData.customInitialMaxes = [:]
-                    userData.accessoryLogs = [:]
-                }
-            }
-
-            // Save the selection
-            userData.selectedProgram = programId
-
-            // Convert template to ProgramData and load it
-            let pdata = template.toProgramData()
-            await MainActor.run {
-                self.programData = pdata
-                self.programState = ProgramState.fromProgramData(pdata)
-
-                // Apply user data to program state
-                if let state = self.programState {
-                    state.logs = self.userData.logs
-                    state.structuredLogs = self.userData.structuredLogs
-                    state.linearLogs = self.userData.linearLogs
-
-                    // Apply custom initial maxes
-                    for (lift, max) in self.userData.customInitialMaxes {
-                        state.initialMaxes[lift] = max
-                    }
-
-                    // Apply custom day configurations and copy WeekData for swapped lifts
-                    for (day, items) in self.userData.customDays {
-                        // Copy WeekData for any swapped lifts before applying
-                        let originalItems = pdata.days[String(day)] ?? []
-                        self.copyWeekDataForSwappedLifts(newItems: items, originalItems: originalItems)
-                        state.days[day] = items
-                    }
-
-                    // Apply rounding from settings
-                    state.rounding = self.settings.roundingIncrement
-                }
-            }
-            return
-        }
-        
-        // Standard program loading
-        guard let program = availablePrograms.first(where: { $0.id == programId }) else {
-            throw AppError.configNotFound
-        }
-        
-        // Restore or clear program-specific data when switching programs
-        if isSwitchingPrograms {
             if !userData.restoreCustomizations(for: programId) {
                 userData.customDays = [:]
                 userData.customInitialMaxes = [:]
@@ -351,40 +338,50 @@ public final class AppState {
         // Save the selection
         userData.selectedProgram = programId
 
-        try await loadFromURL(program.url)
+        await MainActor.run {
+            self.applyProgramData(pdata)
+        }
+    }
+
+    /// Install decoded program data as the active program and overlay the user's
+    /// logs and customizations onto the fresh state.
+    @MainActor
+    private func applyProgramData(_ pdata: ProgramData) {
+        self.programData = pdata
+        self.programState = ProgramState.fromProgramData(pdata)
+
+        // Apply user data to program state
+        if let state = self.programState {
+            state.logs = self.userData.logs
+            state.structuredLogs = self.userData.structuredLogs
+            state.linearLogs = self.userData.linearLogs
+
+            // Apply custom initial maxes
+            for (lift, max) in self.userData.customInitialMaxes {
+                state.initialMaxes[lift] = max
+            }
+
+            // Apply custom day configurations and copy WeekData for swapped lifts
+            for (day, items) in self.userData.customDays {
+                // Copy WeekData for any swapped lifts before applying
+                let originalItems = pdata.days[String(day)] ?? []
+                self.copyWeekDataForSwappedLifts(newItems: items, originalItems: originalItems)
+                state.days[day] = items
+            }
+
+            // Apply rounding and units from settings
+            state.rounding = self.settings.roundingIncrement
+            state.useMetric = self.settings.useMetric
+        }
     }
     
     private func loadFromURL(_ url: URL) async throws {
         let data = try Data(contentsOf: url)
         let decoder = JSONDecoder()
         let pdata = try decoder.decode(ProgramData.self, from: data)
-        
+
         await MainActor.run {
-            self.programData = pdata
-            self.programState = ProgramState.fromProgramData(pdata)
-            
-            // Apply user data to program state
-            if let state = self.programState {
-                state.logs = self.userData.logs
-                state.structuredLogs = self.userData.structuredLogs
-                state.linearLogs = self.userData.linearLogs
-                
-                // Apply custom initial maxes
-                for (lift, max) in self.userData.customInitialMaxes {
-                    state.initialMaxes[lift] = max
-                }
-                
-                // Apply custom day configurations and copy WeekData for swapped lifts
-                for (day, items) in self.userData.customDays {
-                    // Copy WeekData for any swapped lifts before applying
-                    let originalItems = pdata.days[String(day)] ?? []
-                    self.copyWeekDataForSwappedLifts(newItems: items, originalItems: originalItems)
-                    state.days[day] = items
-                }
-                
-                // Apply rounding from settings
-                state.rounding = self.settings.roundingIncrement
-            }
+            self.applyProgramData(pdata)
         }
     }
     
@@ -397,13 +394,14 @@ public final class AppState {
         state.structuredLogs = userData.structuredLogs
         state.linearLogs = userData.linearLogs
         state.rounding = settings.roundingIncrement
-        
+        state.useMetric = settings.useMetric
+
         // Sync custom initial maxes (from user onboarding) with program state
         // This ensures structured TM calculations use the correct starting values
         for (lift, max) in userData.customInitialMaxes {
             state.initialMaxes[lift] = max
         }
-        
+
         return try? engine.weekPlan(state: state, week: week, accessoryLogs: userData.accessoryLogs)
     }
     
@@ -420,20 +418,20 @@ public final class AppState {
     /// Get the current training max for a lift (program-agnostic)
     func currentTrainingMax(for lift: String) -> Double? {
         // First check user's lift-based TMs
-        if let tm = userData.trainingMaxes[lift] {
+        if let tm = userData.trainingMaxes.canonicalLiftValue(for: lift) {
             return tm
         }
         // Fall back to custom initial maxes (from cycle setup)
-        if let tm = userData.customInitialMaxes[lift] {
+        if let tm = userData.customInitialMaxes.canonicalLiftValue(for: lift) {
             return tm
         }
         // Fall back to program defaults
-        return programState?.initialMaxes[lift]
+        return programState?.initialMaxes.canonicalLiftValue(for: lift)
     }
-    
+
     /// Set the training max for a lift (program-agnostic)
     func setTrainingMax(for lift: String, value: Double) {
-        userData.trainingMaxes[lift] = value
+        userData.trainingMaxes.setCanonicalLiftValue(value, for: lift)
     }
     
     /// Get all current training maxes
@@ -460,12 +458,15 @@ public final class AppState {
     
     /// Get lift history for a specific lift
     func liftHistory(for lift: String) -> [LiftRecord] {
-        userData.history(for: lift)
+        let canonical = ExerciseLibrary.canonicalLiftName(lift)
+        return userData.liftHistory
+            .filter { ExerciseLibrary.canonicalLiftName($0.liftName) == canonical }
+            .sorted { $0.date < $1.date }
     }
-    
+
     /// Get all-time personal record for a lift
     func personalRecord(for lift: String) -> PersonalRecord? {
-        userData.personalRecords[lift]
+        userData.personalRecords.canonicalLiftValue(for: lift)
     }
     
     /// Get all unique lifts that have been recorded
@@ -475,7 +476,7 @@ public final class AppState {
     
     /// Get E1RM progression data for charting (from unified history)
     func e1rmProgression(for lift: String) -> [(date: Date, e1rm: Double, weight: Double, reps: Int)] {
-        userData.history(for: lift).map { record in
+        liftHistory(for: lift).map { record in
             (record.date, record.estimatedOneRM, record.weight, record.reps)
         }
     }
@@ -895,7 +896,7 @@ public final class AppState {
         
         // Record to unified lift history (program-agnostic)
         let record = LiftRecord(
-            liftName: lift,
+            liftName: ExerciseLibrary.canonicalLiftName(lift),
             weight: weight,
             reps: reps,
             estimatedOneRM: newE1RM,
@@ -903,9 +904,9 @@ public final class AppState {
             week: week,
             setType: "volume"
         )
-        
+
         // Check if this is a new PR (before recording, to get previous value)
-        let previousPR = userData.personalRecords[lift]
+        let previousPR = userData.personalRecords.canonicalLiftValue(for: lift)
         let previousE1RM = previousPR?.estimatedOneRM
         
         // Record to history (this also updates PR if applicable)
@@ -944,7 +945,7 @@ public final class AppState {
     
     /// Calculate estimated 1RM using Epley formula
     private func calculateE1RM(weight: Double, reps: Int) -> Double {
-        return weight * (1.0 + Double(reps) / 30.0)
+        return E1RM.epley(weight: weight, reps: reps)
     }
     
     func getLog(lift: String, week: Int, day: Int) -> LogEntry? {
@@ -1042,6 +1043,14 @@ public final class AppState {
     func getAccessoryLog(name: String) -> AccessoryLog? {
         userData.accessoryLogs[name]
     }
+
+    /// Update only the wasEasy flag on an existing accessory log, preserving
+    /// weight/sets/reps/note and without appending to accessoryHistory.
+    func setAccessoryWasEasy(name: String, wasEasy: Bool?) {
+        guard var log = userData.accessoryLogs[name] else { return }
+        log.wasEasy = wasEasy
+        userData.accessoryLogs[name] = log
+    }
     
     func clearAccessoryLog(name: String) {
         userData.accessoryLogs.removeValue(forKey: name)
@@ -1050,7 +1059,9 @@ public final class AppState {
     // MARK: - Structured Exercise Logging
     
     /// Log reps for a structured exercise AMRAP set
-    func logStructuredReps(lift: String, week: Int, day: Int, setIndex: Int, reps: Int) {
+    /// Log reps for a structured (nSuns/GZCLP) AMRAP set and check for a new PR.
+    @discardableResult
+    func logStructuredReps(lift: String, week: Int, day: Int, setIndex: Int, reps: Int) -> LogRepsResult? {
         // Ensure nested dictionaries exist
         if userData.structuredLogs[lift] == nil {
             userData.structuredLogs[lift] = [:]
@@ -1073,19 +1084,20 @@ public final class AppState {
         programState?.structuredLogs[lift]?[week]?[day] = userData.structuredLogs[lift]?[week]?[day]
         
         // Record to unified lift history for AMRAP sets
-        // Get the weight for this set from the current plan
-        if let dayPlan = currentDayPlan() {
+        // Get the weight for this set from the plan for the logged week/day
+        // (includes any manual weight override, so the E1RM/PR uses what was lifted)
+        if let dayPlan = self.dayPlan(week: week, day: day) {
             for item in dayPlan {
                 if case let .structured(name, itemLift, _, sets, _) = item, itemLift == lift {
                     if let setInfo = sets.first(where: { $0.setIndex == setIndex }) {
                         let weight = setInfo.weight
                         let e1rm = calculateE1RM(weight: weight, reps: reps)
-                        
+
                         // Determine set type based on target reps
                         let setType = setInfo.targetReps == 1 ? "1+" : "\(setInfo.targetReps)+"
-                        
+
                         let record = LiftRecord(
-                            liftName: lift,
+                            liftName: ExerciseLibrary.canonicalLiftName(lift),
                             weight: weight,
                             reps: reps,
                             estimatedOneRM: e1rm,
@@ -1093,8 +1105,12 @@ public final class AppState {
                             week: week,
                             setType: setType
                         )
+
+                        // Check if this is a new PR (before recording, to get previous value)
+                        let previousE1RM = userData.personalRecords.canonicalLiftValue(for: lift)?.estimatedOneRM
+
                         userData.recordLift(record)
-                        
+
                         // Record to WorkoutRecords (new self-contained history system)
                         let currentTM = trainingMax(for: lift, week: week) ?? (userData.customInitialMaxes[lift] ?? 0)
                         recordSetToWorkout(
@@ -1112,11 +1128,23 @@ public final class AppState {
                             intensity: setInfo.intensity,
                             completed: true
                         )
+
+                        let isNewPR = previousE1RM == nil || e1rm > (previousE1RM ?? 0)
+
+                        return LogRepsResult(
+                            isNewPR: isNewPR,
+                            newE1RM: e1rm,
+                            previousE1RM: previousE1RM,
+                            weight: weight,
+                            reps: reps,
+                            liftName: lift
+                        )
                     }
                     break
                 }
             }
         }
+        return nil
     }
     
     /// Get logged reps for a structured exercise AMRAP set
@@ -1197,11 +1225,11 @@ public final class AppState {
         let e1rm = calculateE1RM(weight: weight, reps: reps)
         
         // Check if this is a new PR (before recording)
-        let previousPR = userData.personalRecords[lift]
+        let previousPR = userData.personalRecords.canonicalLiftValue(for: lift)
         let previousE1RM = previousPR?.estimatedOneRM
-        
+
         let record = LiftRecord(
-            liftName: lift,
+            liftName: ExerciseLibrary.canonicalLiftName(lift),
             weight: weight,
             reps: reps,
             estimatedOneRM: e1rm,
@@ -1234,7 +1262,7 @@ public final class AppState {
         // Update training max for linear programs
         // For linear progression, the working weight IS the effective "training max"
         // On success, next session will be higher, so we store current weight as TM
-        userData.trainingMaxes[lift] = weight
+        userData.trainingMaxes.setCanonicalLiftValue(weight, for: lift)
         
         // Check if this is a new PR
         let isNewPR = previousE1RM == nil || e1rm > (previousE1RM ?? 0)
@@ -1288,7 +1316,7 @@ public final class AppState {
         let attemptedReps = max(1, reps - 1) // Assume they got close but missed
         let e1rm = calculateE1RM(weight: weight, reps: attemptedReps)
         let record = LiftRecord(
-            liftName: lift,
+            liftName: ExerciseLibrary.canonicalLiftName(lift),
             weight: weight,
             reps: attemptedReps,
             estimatedOneRM: e1rm,
@@ -1323,10 +1351,10 @@ public final class AppState {
         if willDeload {
             // Calculate deloaded weight
             let deloadedWeight = roundWeight(weight * (1.0 - config.deloadPercentage))
-            userData.trainingMaxes[lift] = deloadedWeight
+            userData.trainingMaxes.setCanonicalLiftValue(deloadedWeight, for: lift)
         } else {
             // No deload, TM stays at current weight
-            userData.trainingMaxes[lift] = weight
+            userData.trainingMaxes.setCanonicalLiftValue(weight, for: lift)
         }
     }
     
@@ -1812,11 +1840,19 @@ public final class AppState {
     // MARK: - Persistence Helpers
     
     private func persistSettings() {
-        try? persistence.saveSettings(settings)
+        do {
+            try persistence.saveSettings(settings)
+        } catch {
+            Logger.error("Failed to persist settings: \(error)", category: .program)
+        }
     }
-    
+
     private func persistUserData() {
-        try? persistence.saveUserData(userData)
+        do {
+            try persistence.saveUserData(userData)
+        } catch {
+            Logger.error("Failed to persist user data: \(error)", category: .program)
+        }
     }
     
     // MARK: - Export/Import
@@ -1872,12 +1908,14 @@ public final class AppState {
         state.logs = userData.logs
         state.structuredLogs = userData.structuredLogs
         state.linearLogs = userData.linearLogs
-        
+        state.rounding = settings.roundingIncrement
+        state.useMetric = settings.useMetric
+
         // Sync custom initial maxes
         for (liftName, max) in userData.customInitialMaxes {
             state.initialMaxes[liftName] = max
         }
-        
+
         var result: [String: Double] = [:]
         
         // The "final" TM after completing week N is actually the TM for week N+1
@@ -1928,8 +1966,10 @@ public final class AppState {
                 continue
             }
             
-            // Fallback to initial max if no logged data yet
-            if let initial = userData.customInitialMaxes[lift] ?? state.initialMaxes[lift] {
+            // Fallback to initial max if no logged data yet. Consult the user's universal
+            // training maxes before the program defaults so structured programs that ship
+            // no initial_maxes fall back to the user's real TMs instead of 0.
+            if let initial = userData.customInitialMaxes.canonicalLiftValue(for: lift) ?? userData.trainingMaxes.canonicalLiftValue(for: lift) ?? state.initialMaxes[lift] {
                 result[lift] = initial
             }
         }
@@ -2120,7 +2160,7 @@ public final class AppState {
                 userData.customInitialMaxes[lift] = tm
                 programState?.initialMaxes[lift] = tm
                 // Also update universal trainingMaxes for cross-program consistency
-                userData.trainingMaxes[lift] = tm
+                userData.trainingMaxes.setCanonicalLiftValue(tm, for: lift)
             }
         }
         
@@ -2146,8 +2186,54 @@ public final class AppState {
         userData.cycleHistory.removeAll { $0.id == id }
     }
     
+    // MARK: - Program Switch Preview (Cycle Builder)
+
+    /// Snapshot taken before the cycle builder starts previewing programs, so
+    /// cancelling the builder restores everything loadProgram may have archived,
+    /// cleared, or switched. UserData is a value type — one copy captures logs,
+    /// records, cycle history, customizations, and the program selection.
+    private struct ProgramPreviewSnapshot {
+        let userData: UserData
+        let currentWeek: Int
+        let currentDay: Int
+    }
+
+    private var programPreviewSnapshot: ProgramPreviewSnapshot?
+
+    /// Call before the cycle builder starts loading candidate programs.
+    func beginProgramPreview() {
+        guard programPreviewSnapshot == nil else { return }
+        programPreviewSnapshot = ProgramPreviewSnapshot(
+            userData: userData,
+            currentWeek: settings.currentWeek,
+            currentDay: settings.currentDay
+        )
+    }
+
+    /// The user committed to the new cycle — drop the rollback snapshot.
+    func commitProgramPreview() {
+        programPreviewSnapshot = nil
+    }
+
+    /// The user cancelled the cycle builder — restore all user data and reload
+    /// the program that was active before previewing started.
+    func cancelProgramPreview() async {
+        guard let snapshot = programPreviewSnapshot else { return }
+        programPreviewSnapshot = nil
+
+        userData = snapshot.userData
+        settings.currentWeek = snapshot.currentWeek
+        settings.currentDay = snapshot.currentDay
+
+        // Reload the original program. selectedProgram was restored with the
+        // snapshot, so this load is a plain re-open, not a destructive switch.
+        if let previousProgram = snapshot.userData.selectedProgram {
+            try? await loadProgram(previousProgram)
+        }
+    }
+
     // MARK: - Onboarding & Cycle Builder
-    
+
     /// Whether the user needs to complete onboarding
     var needsOnboarding: Bool {
         !userData.hasCompletedOnboarding
@@ -2157,10 +2243,27 @@ public final class AppState {
     func completeOnboarding() {
         userData.hasCompletedOnboarding = true
         userData.currentCycleStartDate = Date()
-        
+
         // Ensure we start at week 1, day 1
         settings.currentWeek = 1
         settings.currentDay = 1
+    }
+
+    /// Complete onboarding immediately with a sensible default program, used by
+    /// the "Skip for now" affordance. Preselects a free program (StrongLifts 5x5
+    /// falling back to any free/first program) so the app opens onto a valid
+    /// cycle with program-default training maxes rather than an empty state.
+    func skipOnboardingWithDefault() async {
+        let preferred = "stronglifts_5x5_12week"
+        let programId: String? = availablePrograms.contains(where: { $0.id == preferred })
+            ? preferred
+            : (availablePrograms.first(where: { StoreManager.isProgramFree($0.id) })?.id
+               ?? availablePrograms.first?.id)
+
+        if let programId, userData.selectedProgram != programId {
+            try? await loadProgram(programId)
+        }
+        completeOnboarding()
     }
     
     /// Get all program info for cycle builder
@@ -2168,7 +2271,49 @@ public final class AppState {
         guard let data = programData else { return nil }
         return (data.name, data.weeks.count, data.days.count)
     }
-    
+
+    /// Best user-facing name for the CURRENTLY loaded program.
+    ///
+    /// Resolution order: active custom template's name -> availablePrograms
+    /// display name -> programData.displayName -> programData.name -> generic
+    /// fallback. Never returns a raw program id or a trademarked internal name
+    /// where a generic display name exists.
+    var programDisplayName: String {
+        if let programId = userData.selectedProgram {
+            // Custom template: use the template's own user-chosen name.
+            if UserData.isCustomTemplate(programId: programId),
+               let templateId = UserData.templateId(from: programId),
+               let template = userData.template(withId: templateId) {
+                return template.name
+            }
+            // Bundled program: prefer the generic display name.
+            if let info = availablePrograms.first(where: { $0.id == programId }) {
+                return info.displayName
+            }
+        }
+        if let data = programData {
+            if let display = data.displayName, !display.isEmpty { return display }
+            if !data.name.isEmpty { return data.name }
+        }
+        return "Your Program"
+    }
+
+    /// Best user-facing name for an arbitrary program id.
+    ///
+    /// Resolution order: availablePrograms display name -> custom template name
+    /// (by id) -> generic fallback. Never returns the raw id.
+    func displayName(forProgramId id: String) -> String {
+        if let info = availablePrograms.first(where: { $0.id == id }) {
+            return info.displayName
+        }
+        if UserData.isCustomTemplate(programId: id),
+           let templateId = UserData.templateId(from: id),
+           let template = userData.template(withId: templateId) {
+            return template.name
+        }
+        return "Your Program"
+    }
+
     /// Get lifts used in a specific day (for cycle builder)
     func liftsInDay(_ day: Int) -> [(lift: String, type: DayItem.ItemType)] {
         let items = dayItems(for: day)
@@ -2192,7 +2337,7 @@ public final class AppState {
             updated.customInitialMaxes[lift] = value
             programState?.initialMaxes[lift] = value
             // Also update universal trainingMaxes for cross-program consistency
-            updated.trainingMaxes[lift] = value
+            updated.trainingMaxes.setCanonicalLiftValue(value, for: lift)
         }
         userData = updated
     }
@@ -2266,7 +2411,7 @@ public final class AppState {
                 userData.customInitialMaxes[lift] = tm
                 programState?.initialMaxes[lift] = tm
                 // Also update universal trainingMaxes for cross-program consistency
-                userData.trainingMaxes[lift] = tm
+                userData.trainingMaxes.setCanonicalLiftValue(tm, for: lift)
             }
         }
         

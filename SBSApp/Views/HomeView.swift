@@ -8,8 +8,17 @@ struct HomeView: View {
     @State private var showingNewCycleBuilder = false
     @State private var showingNewCycleWarning = false
     @State private var showingPastCycles = false
-    @State private var showingProgramInfo = false
-    
+    @State private var programInfoSheet: AppState.AvailableProgramInfo?
+    @State private var showingProgramPaywall = false
+
+    /// Repeating a cycle re-runs the current program, so it needs program access.
+    /// A grandfathered user (mid-cycle on a program that left the free tier)
+    /// hits the paywall here — their in-progress cycle is unaffected.
+    private var canRepeatCurrentProgram: Bool {
+        guard let programId = appState.userData.selectedProgram else { return true }
+        return StoreManager.shared.canAccessProgram(programId)
+    }
+
     /// Check if we should show the cycle completion prompt
     private var shouldShowCompletionPrompt: Bool {
         let totalWeeks = appState.weeks.count
@@ -44,6 +53,10 @@ struct HomeView: View {
                         CycleCompletionCard(
                             cycleNumber: appState.currentCycleNumber,
                             onQuickRepeat: {
+                                guard canRepeatCurrentProgram else {
+                                    showingProgramPaywall = true
+                                    return
+                                }
                                 // Record cycle completion for review request
                                 ReviewRequestManager.shared.recordCycleCompleted()
                                 appState.startNewCycle(carryOverTMs: true)
@@ -85,19 +98,21 @@ struct HomeView: View {
                 .padding(.top)
             }
             .sbsBackground()
-            .navigationTitle(appState.programData?.displayName ?? appState.programData?.name ?? "Workout")
+            .navigationTitle(appState.programDisplayName)
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        Button {
-                            showingProgramInfo = true
-                        } label: {
-                            Label("Program Info", systemImage: "info.circle")
+                        if currentProgramInfo != nil {
+                            Button {
+                                programInfoSheet = currentProgramInfo
+                            } label: {
+                                Label("Program Info", systemImage: "info.circle")
+                            }
+
+                            Divider()
                         }
-                        
-                        Divider()
-                        
+
                         Button {
                             if appState.hasLoggedData {
                                 showingNewCycleWarning = true
@@ -119,6 +134,7 @@ struct HomeView: View {
                         Image(systemName: "ellipsis.circle")
                             .font(.system(size: 17))
                     }
+                    .accessibilityLabel("More options")
                 }
             }
             .navigationDestination(isPresented: $showingSession) {
@@ -134,13 +150,17 @@ struct HomeView: View {
                 titleVisibility: .visible
             ) {
                 Button("Quick Repeat") {
-                    appState.startNewCycle(carryOverTMs: true)
+                    if canRepeatCurrentProgram {
+                        appState.startNewCycle(carryOverTMs: true)
+                    } else {
+                        showingProgramPaywall = true
+                    }
                 }
-                
+
                 Button("Customize New Cycle") {
                     showingNewCycleBuilder = true
                 }
-                
+
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("Quick Repeat will start a new cycle with your current program and carry over your training maxes. Choose Customize to change program, exercises, or adjust maxes.")
@@ -174,15 +194,16 @@ struct HomeView: View {
             .sheet(isPresented: $showingPastCycles) {
                 PastCyclesView(appState: appState)
             }
-            .sheet(isPresented: $showingProgramInfo) {
-                if let programInfo = currentProgramInfo {
-                    ProgramDetailView(
-                        program: programInfo,
-                        programData: appState.programData,
-                        familyColor: programFamilyColor,
-                        level: programExperienceLevel
-                    )
-                }
+            .sheet(isPresented: $showingProgramPaywall) {
+                PaywallView(triggeredByFeature: .allPrograms)
+            }
+            .sheet(item: $programInfoSheet) { programInfo in
+                ProgramDetailView(
+                    program: programInfo,
+                    programData: appState.programData,
+                    familyColor: programFamilyColor,
+                    level: programExperienceLevel
+                )
             }
         }
     }

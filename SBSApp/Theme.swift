@@ -3,20 +3,6 @@ import SwiftUI
 // MARK: - Color Theme
 
 enum SBSColors {
-    // Primary palette - Deep slate with warm accents
-    static let background = Color("Background", bundle: nil)
-    static let surface = Color("Surface", bundle: nil)
-    static let surfaceElevated = Color("SurfaceElevated", bundle: nil)
-    
-    // Accent colors
-    static let accent = Color("Accent", bundle: nil)
-    static let accentSecondary = Color("AccentSecondary", bundle: nil)
-    
-    // Text
-    static let textPrimary = Color("TextPrimary", bundle: nil)
-    static let textSecondary = Color("TextSecondary", bundle: nil)
-    static let textTertiary = Color("TextTertiary", bundle: nil)
-    
     // Semantic colors
     static let success = Color.green
     static let warning = Color.orange
@@ -36,58 +22,100 @@ enum SBSColors {
 // MARK: - Typography
 
 enum SBSFonts {
+    // All tokens are relative to a system text style so they scale with the
+    // user's Dynamic Type setting. Each token maps to the nearest text style by
+    // its original point size while preserving its original weight and design.
+    //
+    // Reference (text style -> default point size):
+    // largeTitle 34, title 28, title2 22, title3 20, headline/body 17,
+    // callout 16, subheadline 15, footnote 13, caption 12, caption2 11.
+
     // Large titles
     static func largeTitle() -> Font {
-        .system(size: 34, weight: .bold, design: .rounded)
+        // Was 34pt bold rounded -> .largeTitle
+        .system(.largeTitle, design: .rounded, weight: .bold)
     }
-    
+
     // Section headers
     static func title() -> Font {
-        .system(size: 22, weight: .bold, design: .rounded)
+        // Was 22pt bold rounded -> .title2
+        .system(.title2, design: .rounded, weight: .bold)
     }
-    
+
     static func title2() -> Font {
-        .system(size: 20, weight: .semibold, design: .rounded)
+        // Was 20pt semibold rounded -> .title3
+        .system(.title3, design: .rounded, weight: .semibold)
     }
-    
+
     static func title3() -> Font {
-        .system(size: 18, weight: .semibold, design: .rounded)
+        // Was 18pt semibold rounded -> nearest is .headline (17)
+        .system(.headline, design: .rounded, weight: .semibold)
     }
-    
+
     // Body text
     static func body() -> Font {
-        .system(size: 17, weight: .regular, design: .default)
+        // Was 17pt regular default -> .body
+        .system(.body, design: .default, weight: .regular)
     }
-    
+
     static func bodyBold() -> Font {
-        .system(size: 17, weight: .semibold, design: .default)
+        // Was 17pt semibold default -> .body
+        .system(.body, design: .default, weight: .semibold)
     }
-    
+
     // Weight/number display - monospaced for alignment
     static func weight() -> Font {
-        .system(size: 24, weight: .bold, design: .monospaced)
+        // Was 24pt bold monospaced -> nearest is .title2 (22)
+        .system(.title2, design: .monospaced, weight: .bold)
     }
-    
+
     static func weightLarge() -> Font {
-        .system(size: 32, weight: .bold, design: .monospaced)
+        // Was 32pt bold monospaced -> nearest is .largeTitle (34)
+        .system(.largeTitle, design: .monospaced, weight: .bold)
     }
-    
+
     static func number() -> Font {
-        .system(size: 20, weight: .semibold, design: .monospaced)
+        // Was 20pt semibold monospaced -> .title3
+        .system(.title3, design: .monospaced, weight: .semibold)
     }
-    
+
     // Small text
     static func caption() -> Font {
-        .system(size: 13, weight: .medium, design: .default)
+        // Was 13pt medium default -> .footnote (13)
+        .system(.footnote, design: .default, weight: .medium)
     }
-    
+
     static func captionBold() -> Font {
-        .system(size: 13, weight: .semibold, design: .default)
+        // Was 13pt semibold default -> .footnote (13)
+        .system(.footnote, design: .default, weight: .semibold)
     }
-    
+
+    static func caption2() -> Font {
+        // ~11pt smaller caption -> .caption2 (11)
+        .system(.caption2, design: .default, weight: .medium)
+    }
+
+    static func label() -> Font {
+        // ~10pt smallest UI captions -> relative to .caption2 (no smaller style
+        // exists); semibold to keep tiny labels legible.
+        .system(.caption2, design: .default, weight: .semibold)
+    }
+
+    // Very large numeral displays (timers, weight readouts). No text style is
+    // as large as the original 48-56pt, so these map to .largeTitle and scale
+    // from there with Dynamic Type.
+    static func display() -> Font {
+        .system(.largeTitle, design: .rounded, weight: .bold)
+    }
+
+    static func displayMono() -> Font {
+        .system(.largeTitle, design: .monospaced, weight: .bold)
+    }
+
     // Button text
     static func button() -> Font {
-        .system(size: 17, weight: .semibold, design: .rounded)
+        // Was 17pt semibold rounded -> .body
+        .system(.body, design: .rounded, weight: .semibold)
     }
 }
 
@@ -117,13 +145,23 @@ extension View {
         self
             .background(SBSColors.surfaceFallback)
             .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
+            // Shadows read as elevation in light mode but vanish on dark
+            // surfaces; add a subtle top-edge stroke to convey elevation in dark.
+            .overlay(
+                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                    .strokeBorder(Color(light: .clear, dark: .white.opacity(0.08)), lineWidth: 1)
+            )
             .shadow(color: .black.opacity(0.1), radius: SBSLayout.shadowRadius, x: 0, y: SBSLayout.shadowY)
     }
-    
+
     func sbsCardElevated() -> some View {
         self
             .background(SBSColors.surfaceElevatedFallback)
             .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
+            .overlay(
+                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                    .strokeBorder(Color(light: .clear, dark: .white.opacity(0.10)), lineWidth: 1)
+            )
             .shadow(color: .black.opacity(0.15), radius: SBSLayout.shadowRadius, x: 0, y: SBSLayout.shadowY)
     }
     
@@ -200,23 +238,60 @@ extension Color {
     }
 }
 
+// MARK: - Bar Weight Options
+
+struct BarWeightOption: Identifiable, Hashable {
+    let value: Double   // stored value, always lb
+    let label: String   // display label ("45 lb" or "20 kg")
+    var id: Double { value }
+}
+
+enum BarWeightOptions {
+    static let lbPerKg = 1.0 / 0.45359237
+
+    static func options(useMetric: Bool) -> [BarWeightOption] {
+        if useMetric {
+            return [
+                BarWeightOption(value: 15 * lbPerKg, label: "15 kg"),
+                BarWeightOption(value: 20 * lbPerKg, label: "20 kg"),
+                BarWeightOption(value: 25 * lbPerKg, label: "25 kg"),
+            ]
+        } else {
+            return [
+                BarWeightOption(value: 35, label: "35 lb"),
+                BarWeightOption(value: 45, label: "45 lb"),
+                BarWeightOption(value: 55, label: "55 lb"),
+            ]
+        }
+    }
+
+    /// Nearest option value for a stored weight (within tolerance), else nil.
+    static func selection(for current: Double, useMetric: Bool) -> Double? {
+        options(useMetric: useMetric)
+            .min { abs($0.value - current) < abs($1.value - current) }
+            .flatMap { abs($0.value - current) <= 1.0 ? $0.value : nil }
+    }
+}
+
 // MARK: - Weight Formatting
+
+private let lbToKg = 0.45359237
 
 extension Double {
     func formattedWeight(useMetric: Bool = false) -> String {
-        let value = useMetric ? self * 0.453592 : self
         let unit = useMetric ? "kg" : "lb"
-        
+        let value = useMetric ? (self * lbToKg * 10).rounded() / 10 : self
+
         if value.truncatingRemainder(dividingBy: 1) == 0 {
             return "\(Int(value)) \(unit)"
         } else {
             return String(format: "%.1f \(unit)", value)
         }
     }
-    
+
     func formattedWeightShort(useMetric: Bool = false) -> String {
-        let value = useMetric ? self * 0.453592 : self
-        
+        let value = useMetric ? (self * lbToKg * 10).rounded() / 10 : self
+
         if value.truncatingRemainder(dividingBy: 1) == 0 {
             return "\(Int(value))"
         } else {

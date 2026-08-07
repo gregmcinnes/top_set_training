@@ -59,14 +59,21 @@ enum StrengthScoreFormula: String, CaseIterable {
     }
 }
 
+/// Identifiable wrapper so share sheets can be presented via `.sheet(item:)`,
+/// guaranteeing the image exists when the sheet's content is built
+/// (avoids a blank sheet on the first tap).
+struct ShareImagePayload: Identifiable {
+    let id = UUID()
+    let image: UIImage
+}
+
 struct HistoryView: View {
     @Bindable var appState: AppState
     @State private var selectedLift: String?
     @State private var showingTMProgress = false
     @State private var chartDisplayMode: ChartDisplayMode = .trainingMax // Default to TM for free users
     @State private var showingPaywall = false
-    @State private var showingShareSheet = false
-    @State private var shareImage: UIImage?
+    @State private var sharePayload: ShareImagePayload?
     @State private var ageCategory: AgeCategory = .allAges
     @State private var selectedStrengthFormula: StrengthScoreFormula = .wilks
     @State private var showStrengthScore = true // Show strength score by default
@@ -162,13 +169,14 @@ struct HistoryView: View {
         var stats: [String: (count: Int, lastDate: Date)] = [:]
 
         for record in appState.userData.liftHistory {
-            if let existing = stats[record.liftName] {
-                stats[record.liftName] = (
+            let liftName = ExerciseLibrary.canonicalLiftName(record.liftName)
+            if let existing = stats[liftName] {
+                stats[liftName] = (
                     count: existing.count + 1,
                     lastDate: max(existing.lastDate, record.date)
                 )
             } else {
-                stats[record.liftName] = (count: 1, lastDate: record.date)
+                stats[liftName] = (count: 1, lastDate: record.date)
             }
         }
 
@@ -196,13 +204,14 @@ struct HistoryView: View {
                     }
                     guard count > 0 else { continue }
 
-                    if let existing = stats[lift] {
-                        stats[lift] = (
+                    let liftName = ExerciseLibrary.canonicalLiftName(lift)
+                    if let existing = stats[liftName] {
+                        stats[liftName] = (
                             count: existing.count + count,
                             lastDate: max(existing.lastDate, cycle.endDate)
                         )
                     } else {
-                        stats[lift] = (count: count, lastDate: cycle.endDate)
+                        stats[liftName] = (count: count, lastDate: cycle.endDate)
                     }
                 }
             }
@@ -284,7 +293,7 @@ struct HistoryView: View {
     
     /// Get the best E1RM for a lift from PR data
     private func bestE1RM(for liftName: String) -> Double? {
-        appState.userData.personalRecords[liftName]?.estimatedOneRM
+        appState.userData.personalRecords.canonicalLiftValue(for: liftName)?.estimatedOneRM
     }
     
     /// Get bodyweight in kg for strength score calculations
@@ -363,6 +372,12 @@ struct HistoryView: View {
         }
     }
 
+    /// Whether there's enough data to generate a shareable progress image
+    private var canShareLiftProgress: Bool {
+        guard let lift = selectedLift else { return false }
+        return !allE1RMData(for: lift).isEmpty
+    }
+
     /// Share lift progress button
     private var shareLiftProgressButton: some View {
         Button {
@@ -383,7 +398,8 @@ struct HistoryView: View {
             )
         }
         .buttonStyle(.plain)
-        .disabled(selectedLift == nil || allE1RMData(for: selectedLift ?? "").isEmpty)
+        .disabled(!canShareLiftProgress)
+        .opacity(canShareLiftProgress ? 1 : 0.4)
     }
     
     /// Prompt to set bodyweight for strength standards
@@ -613,10 +629,8 @@ struct HistoryView: View {
             .sheet(isPresented: $showingPaywall) {
                 PaywallView(triggeredByFeature: canAccessE1RM ? .fullHistory : .e1rmChart)
             }
-            .sheet(isPresented: $showingShareSheet) {
-                if let image = shareImage {
-                    ShareSheet(items: [image])
-                }
+            .sheet(item: $sharePayload) { payload in
+                ShareSheet(items: [payload.image])
             }
         }
         .onAppear {
@@ -664,14 +678,10 @@ struct HistoryView: View {
         )
         
         let shareableCard = ShareableLiftProgressCard(summary: summary)
-        
-        // Generate image asynchronously to ensure it's ready before showing sheet
-        Task { @MainActor in
-            // Small delay to ensure view is fully laid out
-            try? await Task.sleep(nanoseconds: 100_000_000)  // 0.1 seconds
-            shareImage = shareableCard.snapshot()
-            showingShareSheet = true
-        }
+
+        // ImageRenderer (via View.snapshot()) lays out synchronously, so the
+        // image is ready immediately — no settling delay or off-window race.
+        sharePayload = ShareImagePayload(image: shareableCard.snapshot())
     }
     
     /// Get only current cycle logs for free users
@@ -1368,15 +1378,18 @@ struct LiftSelector: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(lifts, id: \.self) { lift in
-                    LiftPill(
-                        name: shortName(for: lift),
-                        isSelected: selectedLift == lift
-                    )
-                    .onTapGesture {
+                    Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             selectedLift = lift
                         }
+                    } label: {
+                        LiftPill(
+                            name: shortName(for: lift),
+                            isSelected: selectedLift == lift
+                        )
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(selectedLift == lift ? [.isSelected] : [])
                 }
             }
             .padding(.horizontal, 4)
@@ -1674,12 +1687,12 @@ struct ProgressChart: View {
             if let first = firstValue, let last = latestValue, chartDataPoints.count > 1 {
                 HStack(spacing: SBSLayout.paddingLarge) {
                     StatBox(
-                        label: displayMode == .e1rm ? "First E1RM" : "Start TM",
+                        label: displayMode == .e1rm ? "First Est. 1RM" : "Start TM",
                         value: first.formattedWeight(useMetric: useMetric)
                     )
                     
                     StatBox(
-                        label: displayMode == .e1rm ? "Latest E1RM" : "Current TM",
+                        label: displayMode == .e1rm ? "Latest Est. 1RM" : "Current TM",
                         value: last.formattedWeight(useMetric: useMetric)
                     )
                     
@@ -1899,7 +1912,7 @@ struct LogHistoryRow: View {
                 Spacer()
                 
                 // Estimated 1RM
-                Text("E1RM: \(e1rm.formattedWeight(useMetric: useMetric))")
+                Text("Est. 1RM: \(e1rm.formattedWeight(useMetric: useMetric))")
                     .font(SBSFonts.caption())
                     .foregroundStyle(SBSColors.accentFallback)
             }
@@ -2075,7 +2088,7 @@ struct CurrentCycleTMProgressCard: View {
                                 let gain = current - start
                                 
                                 VStack(spacing: 4) {
-                                    Text(liftAbbreviation(lift))
+                                    Text(ExerciseLibrary.shortName(for: lift))
                                         .font(SBSFonts.caption())
                                         .foregroundStyle(SBSColors.textTertiaryFallback)
                                     
@@ -2119,23 +2132,6 @@ struct CurrentCycleTMProgressCard: View {
             .sbsCard()
         }
         .buttonStyle(.plain)
-    }
-    
-    private func liftAbbreviation(_ lift: String) -> String {
-        switch lift.lowercased() {
-        case "squat": return "SQ"
-        case "bench press": return "BP"
-        case "trap bar deadlift": return "DL"
-        case "ohp", "overhead press": return "OHP"
-        case "front squat": return "FSQ"
-        case "paused squat": return "PSQ"
-        case "incline press": return "INC"
-        case "spoto press": return "SPO"
-        case "rack pull": return "RP"
-        case "push press": return "PP"
-        default:
-            return String(lift.prefix(3)).uppercased()
-        }
     }
 }
 
@@ -2313,7 +2309,7 @@ struct TMProgressDetailView: View {
                     Text("Progress")
                         .font(SBSFonts.caption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
-                    Text("Week \(currentWeek) of 20")
+                    Text("Week \(currentWeek) of \(appState.weeks.max() ?? 20)")
                         .font(SBSFonts.body())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                 }
@@ -2464,7 +2460,7 @@ struct CurrentCycleTMRow: View {
                     Text(gain >= 0 ? "+\(abs(gain).formattedWeightShort(useMetric: useMetric))" : "-\(abs(gain).formattedWeightShort(useMetric: useMetric))")
                         .font(SBSFonts.captionBold())
                     Text(String(format: "%.1f%%", gainPercent))
-                        .font(.system(size: 10))
+                        .font(SBSFonts.caption2())
                 }
             }
             .foregroundStyle(gain >= 0 ? SBSColors.success : SBSColors.error)
@@ -2514,7 +2510,7 @@ struct PRRow: View {
             Spacer()
             
             VStack(alignment: .trailing, spacing: 2) {
-                Text("E1RM")
+                Text("Est. 1RM")
                     .font(SBSFonts.caption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                 

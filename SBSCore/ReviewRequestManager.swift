@@ -30,68 +30,121 @@ public final class ReviewRequestManager {
     private let hasEverRequestedReviewKey = "sbs_has_ever_requested_review"
     
     // MARK: - Initialization
-    
+
     private init() {}
-    
+
+    // MARK: - Deferred Presentation
+
+    /// An eligible review request that has been recorded but not yet presented.
+    ///
+    /// Milestone triggers that fire during a workout-complete celebration or
+    /// mid-session (workout / week / PR) must not present the rating prompt on
+    /// top of that UI. Instead they stash the trigger reason here, and the
+    /// workout views flush it via `presentPendingReviewRequestIfNeeded()` once
+    /// the celebration/summary has been fully dismissed.
+    private var pendingReviewReason: String?
+
+    /// Whether a review request is queued to be presented after dismissal.
+    public var hasPendingReviewRequest: Bool { pendingReviewReason != nil }
+
     // MARK: - Public API
-    
+
     /// Call when a workout is completed
-    /// Increments workout count and may trigger review request
+    /// Increments workout count and may queue a review request (presented later
+    /// via `presentPendingReviewRequestIfNeeded()` once UI has settled)
     public func recordWorkoutCompleted() {
         incrementWorkoutCount()
-        
+
         let count = completedWorkoutsCount
-        
+
         // Check if this is a milestone workout
         if workoutMilestones.contains(count) {
-            requestReviewIfEligible(reason: "workout_milestone_\(count)")
+            requestReviewIfEligible(reason: "workout_milestone_\(count)", deferPresentation: true)
         }
     }
-    
+
     /// Call when a PR is achieved
-    /// May trigger review request after user has achieved enough PRs
+    /// May queue a review request after the user has achieved enough PRs.
+    /// The request is always deferred so it never lands on the PR celebration.
     public func recordPRAchieved() {
         incrementPRCount()
-        
+
         let prCount = totalPRsAchieved
-        
+
         // Only consider showing review after a few PRs (user is engaged and succeeding)
         if prCount >= minimumPRsBeforeReviewEligible {
             // Every 3 PRs after the minimum, consider showing review
             if (prCount - minimumPRsBeforeReviewEligible) % 3 == 0 {
-                requestReviewIfEligible(reason: "pr_achieved_\(prCount)")
+                requestReviewIfEligible(reason: "pr_achieved_\(prCount)", deferPresentation: true)
             }
         }
     }
-    
+
     /// Call when a training cycle is completed
     /// This is a strong positive moment
     public func recordCycleCompleted() {
         requestReviewIfEligible(reason: "cycle_completed")
     }
-    
+
     /// Call when a training week is completed
     /// Consider showing review after completing 2+ full weeks
     public func recordWeekCompleted(weekNumber: Int) {
         // Only trigger on certain weeks to avoid being too aggressive
         if weekNumber == 2 || weekNumber == 4 || weekNumber == 8 {
-            requestReviewIfEligible(reason: "week_\(weekNumber)_completed")
+            requestReviewIfEligible(reason: "week_\(weekNumber)_completed", deferPresentation: true)
         }
     }
-    
+
+    /// Present any queued review request, shortly after the caller has finished
+    /// dismissing its celebration/summary UI so the prompt appears over a clean
+    /// screen rather than on top of the celebration.
+    ///
+    /// Safe to call unconditionally on workout dismissal — it no-ops when
+    /// nothing is queued.
+    public func presentPendingReviewRequestIfNeeded() {
+        guard let reason = pendingReviewReason else { return }
+        pendingReviewReason = nil
+
+        // Re-check eligibility at presentation time (e.g. still outside the
+        // minimum window) before burning the request.
+        guard canRequestReview() else {
+            Logger.debug("Pending review request dropped - no longer eligible. Reason: \(reason)", category: .general)
+            return
+        }
+
+        // Give the dismissing UI time to fully tear down before the system
+        // rating prompt appears.
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            Logger.debug("Presenting deferred app review. Trigger: \(reason)", category: .general)
+            self.recordReviewRequest()
+            self.requestReview()
+        }
+    }
+
     // MARK: - Review Request Logic
-    
-    private func requestReviewIfEligible(reason: String) {
+
+    private func requestReviewIfEligible(reason: String, deferPresentation: Bool = false) {
         guard canRequestReview() else {
             Logger.debug("Review request skipped - not eligible. Reason would have been: \(reason)", category: .general)
             return
         }
-        
+
+        if deferPresentation {
+            // Queue it; the actual prompt is presented once the workout UI is
+            // dismissed via presentPendingReviewRequestIfNeeded(). Do not record
+            // the request yet so the eligibility window isn't burned if the
+            // prompt is never flushed (e.g. app terminated first).
+            Logger.debug("Queuing deferred app review. Trigger: \(reason)", category: .general)
+            pendingReviewReason = reason
+            return
+        }
+
         Logger.debug("Requesting app review. Trigger: \(reason)", category: .general)
-        
+
         // Record that we're making a request
         recordReviewRequest()
-        
+
         // Request the review using modern API
         requestReview()
     }

@@ -68,8 +68,8 @@ public final class ProgramEngine {
                     let diff = reps - target
                     delta = perWeekAdjustment(diffReps: diff)
                 } else {
-                    // No log entry: use hit target (0% adjustment)
-                    delta = weightAdjustments.hitTarget
+                    // No log entry: no progression (a skipped week must not grow the TM)
+                    delta = 0.0
                 }
                 var newTm = (prev[liftName] ?? state.initialMaxes[liftName] ?? 0.0) * (1.0 + delta)
                 
@@ -191,20 +191,38 @@ public final class ProgramEngine {
                     
                     // Get logged AMRAP reps for this lift/week/day
                     let logEntry = state.structuredLogs[lift]?[week]?[day]
-                    
+
+                    // A manual weight override (day-specific) is expressed against the
+                    // heaviest prescribed set; every other set scales proportionally so
+                    // the whole exercise — display, logged history, E1RM/PR — reflects
+                    // what was actually lifted.
+                    let topIntensity = setsDetail.map { $0.intensity }.max() ?? 0
+                    let topCalculated = roundTo(tm * topIntensity, increment: state.rounding)
+                    let structuredOverride = state.logs[lift]?[week]?[day]?.weightOverride
+                    let overrideRatio = (structuredOverride.map { topCalculated > 0 ? $0 / topCalculated : 1.0 }) ?? 1.0
+
                     // Build set info array with calculated weights
                     var setInfos: [StructuredSetInfo] = []
                     for (index, setDetail) in setsDetail.enumerated() {
-                        let weight = roundTo(tm * setDetail.intensity, increment: state.rounding)
+                        let calculated = roundTo(tm * setDetail.intensity, increment: state.rounding)
+                        var weight = calculated
+                        if let structuredOverride {
+                            // The heaviest set takes the override exactly, even if it
+                            // falls off the rounding grid; the rest scale from it.
+                            weight = setDetail.intensity == topIntensity
+                                ? structuredOverride
+                                : roundTo(calculated * overrideRatio, increment: state.rounding)
+                        }
                         let loggedReps = setDetail.isAMRAP ? logEntry?.amrapReps[index] : nil
-                        
+
                         setInfos.append(StructuredSetInfo(
                             setIndex: index,
                             intensity: setDetail.intensity,
                             targetReps: setDetail.reps,
                             isAMRAP: setDetail.isAMRAP,
                             weight: (weight * 100).rounded() / 100,
-                            loggedReps: loggedReps
+                            loggedReps: loggedReps,
+                            calculatedWeight: (calculated * 100).rounded() / 100
                         ))
                     }
                     
@@ -327,7 +345,7 @@ public final class ProgramEngine {
     /// Standard structured (Greyskull, GZCLP):
     ///   Upper body: 0 reps = -5, 1 rep = 0, 2-3 reps = +5, 4+ reps = +10
     ///   Lower body: 0 reps = 0, 1 rep = +5, 2-3 reps = +10, 4+ reps = +15
-    public func structuredProgression(repsOnOnePlus: Int, targetReps: Int = 1, isUpperBody: Bool, rounding: Double = 5.0) -> Double {
+    public func structuredProgression(repsOnOnePlus: Int, targetReps: Int = 1, isUpperBody: Bool, useMetric: Bool = false) -> Double {
         let adjustment: Double
         
         // nSuns-style 1+ sets use different progression rules
@@ -366,8 +384,14 @@ public final class ProgramEngine {
             }
         }
         
-        // Round to the configured increment
-        return roundTo(adjustment, increment: rounding)
+        // The TM delta is never rounded to the working-weight increment (that rounding is
+        // applied to displayed/working weights). For metric users the pound-denominated
+        // constants are scaled to clean kg-equivalents (+5/+10/+15 lb -> +2.5/+5/+7.5 kg),
+        // stored back in pounds via the exact conversion factor.
+        if useMetric {
+            return (adjustment / 2.0) / 0.45359237
+        }
+        return adjustment
     }
     
     /// Compute training maxes for structured lifts
@@ -416,33 +440,38 @@ public final class ProgramEngine {
             return nil
         }
         
-        // Week 1 starts from initial maxes
+        // Week 1 starts from initial maxes. Lifts with no (positive) initial max are skipped
+        // rather than seeded with 0, so callers can fall back to the user's universal
+        // training maxes instead of short-circuiting on a literal 0.
         var current: [String: Double] = [:]
         for lift in structuredLiftInfo.keys {
-            current[lift] = state.initialMaxes[lift] ?? 0
+            if let initial = state.initialMaxes[lift], initial > 0 {
+                current[lift] = initial
+            }
         }
         tms[1] = current
-        
+
         for wk in state.weeks {
             if wk == 1 { continue }
             guard wk <= upToWeek else { break }
-            
+
             let prev = tms[wk - 1] ?? current
             var updated = prev
-            
+
             for (liftName, setInfo) in structuredLiftInfo {
+                guard let prevTm = prev[liftName] else { continue }
                 // Check if there's a logged AMRAP from the previous week (any day)
                 if let reps = findProgressionAMRAPReps(lift: liftName, week: wk - 1, expectedSetIndex: setInfo.setIndex, expectedTargetReps: setInfo.targetReps) {
                     // Apply structured progression
                     let isUpper = isUpperBodyLift(liftName)
-                    let adjustment = structuredProgression(repsOnOnePlus: reps, targetReps: setInfo.targetReps, isUpperBody: isUpper, rounding: state.rounding)
-                    updated[liftName] = (prev[liftName] ?? 0) + adjustment
+                    let adjustment = structuredProgression(repsOnOnePlus: reps, targetReps: setInfo.targetReps, isUpperBody: isUpper, useMetric: state.useMetric ?? false)
+                    updated[liftName] = prevTm + adjustment
                 } else {
                     // No log: keep TM the same
-                    updated[liftName] = prev[liftName] ?? state.initialMaxes[liftName] ?? 0
+                    updated[liftName] = prevTm
                 }
             }
-            
+
             tms[wk] = updated
         }
         

@@ -72,27 +72,32 @@ final class AccessoryWorkoutState {
         timerIsRunning = true
         timerIsPaused = false
         showingTimer = true
-        timerEndDate = Date().addingTimeInterval(TimeInterval(duration))
+        let endDate = Date().addingTimeInterval(TimeInterval(duration))
+        timerEndDate = endDate
         timerPausedRemaining = nil
+        RestTimerStatus.shared.timerStarted(endDate: endDate)
     }
-    
+
     func pauseTimer() {
         timerIsPaused = true
         timerIsRunning = false
         timerPausedRemaining = timerRemaining
         timerEndDate = nil
+        RestTimerStatus.shared.timerPaused(remaining: timerRemaining)
     }
-    
+
     func resumeTimer() {
         timerIsPaused = false
         timerIsRunning = true
         // Restore end date based on remaining time
         if let pausedRemaining = timerPausedRemaining {
-            timerEndDate = Date().addingTimeInterval(TimeInterval(pausedRemaining))
+            let endDate = Date().addingTimeInterval(TimeInterval(pausedRemaining))
+            timerEndDate = endDate
+            RestTimerStatus.shared.timerStarted(endDate: endDate)
         }
         timerPausedRemaining = nil
     }
-    
+
     func skipTimer() {
         timerIsRunning = false
         timerIsPaused = false
@@ -100,6 +105,7 @@ final class AccessoryWorkoutState {
         timerRemaining = 0
         timerEndDate = nil
         timerPausedRemaining = nil
+        RestTimerStatus.shared.timerCleared()
     }
     
     func timerTick() {
@@ -184,13 +190,17 @@ struct AccessoryWorkoutView: View {
                         timerDuration: appState.settings.restTimerDuration,
                         onStartTimer: {
                             workoutState.startTimer(duration: appState.settings.restTimerDuration)
-                            startTimerLoop()
+                            startRestSurfaces()
+                            startTimerTickLoop()
                         },
-                        onTimerEnd: handleTimerEnd,
+                        onTimerEnd: { handleTimerEnd() },
                         onPause: {
                             NotificationManager.shared.cancelRestTimerNotification()
                         },
                         onResume: {
+                            // Pause + tab-switch invalidates the tick Timer, so
+                            // restart it — otherwise the countdown stays frozen.
+                            startTimerTickLoop()
                             if appState.settings.pushNotificationsEnabled {
                                 NotificationManager.shared.scheduleRestTimerNotification(
                                     duration: workoutState.timerRemaining,
@@ -198,7 +208,8 @@ struct AccessoryWorkoutView: View {
                                     nextSetInfo: "Rest Timer"
                                 )
                             }
-                        }
+                        },
+                        onSkip: { handleTimerEnd(playFeedback: false) }
                     )
                 } else if workoutState.isWorkoutComplete {
                     AccessoryCompleteView(onDone: { finishAndDismiss() })
@@ -206,11 +217,14 @@ struct AccessoryWorkoutView: View {
                     AccessoryTimerView(
                         workoutState: workoutState,
                         useMetric: appState.settings.useMetric,
-                        onTimerEnd: handleTimerEnd,
+                        onTimerEnd: { handleTimerEnd() },
                         onPause: {
                             NotificationManager.shared.cancelRestTimerNotification()
                         },
                         onResume: {
+                            // Pause + tab-switch invalidates the tick Timer, so
+                            // restart it — otherwise the countdown stays frozen.
+                            startTimerTickLoop()
                             if appState.settings.pushNotificationsEnabled, let accessory = workoutState.currentAccessory {
                                 NotificationManager.shared.scheduleRestTimerNotification(
                                     duration: workoutState.timerRemaining,
@@ -218,7 +232,8 @@ struct AccessoryWorkoutView: View {
                                     nextSetInfo: "Set \(workoutState.currentSetNumber) of \(accessory.sets)"
                                 )
                             }
-                        }
+                        },
+                        onSkip: { handleTimerEnd(playFeedback: false) }
                     )
                 } else {
                     AccessorySetView(
@@ -248,13 +263,16 @@ struct AccessoryWorkoutView: View {
                             stopTimer()
                             LiveActivityManager.shared.endTimerSync()
                         }
+                        RestTimerStatus.shared.timerCleared()
+                        NotificationManager.shared.cancelRestTimerNotification()
                         dismiss()
                     }
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(SBSFonts.captionBold())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
+                .accessibilityLabel("Close")
             }
             
             if !workoutState.accessories.isEmpty {
@@ -263,8 +281,10 @@ struct AccessoryWorkoutView: View {
                     Menu {
                         ForEach(Array(workoutState.accessories.enumerated()), id: \.element.id) { index, accessory in
                             Button {
-                                workoutState.skipTimer()
-                                stopTimer()
+                                // Switching accessories abandons any running rest —
+                                // cancel every surface (notification / Live Activity)
+                                // so none orphans, not just the local Timer.
+                                cancelRestSurfaces()
                                 workoutState.selectAccessory(at: index)
                             } label: {
                                 let completed = workoutState.completedSets[accessory.id]?.count ?? 0
@@ -280,9 +300,10 @@ struct AccessoryWorkoutView: View {
                         }
                     } label: {
                         Image(systemName: "list.bullet")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(SBSFonts.captionBold())
                             .foregroundStyle(SBSColors.accentFallback)
                     }
+                    .accessibilityLabel("Choose accessory")
                 }
             }
         }
@@ -290,6 +311,8 @@ struct AccessoryWorkoutView: View {
             Button("Cancel", role: .cancel) {}
             Button("Exit", role: .destructive) {
                 stopTimer()
+                RestTimerStatus.shared.timerCleared()
+                NotificationManager.shared.cancelRestTimerNotification()
                 // End Live Activity when exiting workout
                 LiveActivityManager.shared.endTimerSync()
                 dismiss()
@@ -327,17 +350,23 @@ struct AccessoryWorkoutView: View {
             }
         }
         .onAppear {
+            RestTimerStatus.shared.isWorkoutScreenVisible = true
             setupAccessories()
             resumeTimerLoopIfNeeded()
             startHealthKitWorkout()
         }
         .onDisappear {
+            RestTimerStatus.shared.isWorkoutScreenVisible = false
+
             // Only invalidate the Timer object, don't reset timer state
             // This allows the timer to continue when navigating to other tabs
             invalidateTimerOnly()
         }
+        // Cap Dynamic Type on this fixed-layout workout screen so accessibility
+        // sizes don't overflow the timer ring / set indicators.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
-    
+
     private var setInfoText: String {
         guard let accessory = workoutState.currentAccessory else { return "" }
         return "Set \(workoutState.currentSetNumber) of \(accessory.sets)"
@@ -365,6 +394,8 @@ struct AccessoryWorkoutView: View {
     
     private func finishAndDismiss() {
         stopTimer()
+        RestTimerStatus.shared.timerCleared()
+        NotificationManager.shared.cancelRestTimerNotification()
 
         // End Live Activity (lock screen / Dynamic Island) — abort paths do
         // this; the normal-completion path used to skip it and orphan the
@@ -388,9 +419,12 @@ struct AccessoryWorkoutView: View {
             }
         }
         
-        // Record workout completion for review request tracking
+        // Record workout completion for review request tracking. Presentation
+        // is deferred (never mid-session) and flushed once this view dismisses,
+        // so the rating prompt appears ~2s later over a clean screen.
         ReviewRequestManager.shared.recordWorkoutCompleted()
-        
+        ReviewRequestManager.shared.presentPendingReviewRequestIfNeeded()
+
         dismiss()
     }
     
@@ -418,6 +452,14 @@ struct AccessoryWorkoutView: View {
     }
     
     private func setupAccessories() {
+        // Only build the accessory list once. Without this guard, every
+        // onAppear (e.g. returning from another tab) rebuilt AccessoryItems with
+        // fresh UUIDs, orphaning every key in `completedSets` and wiping all
+        // progress. Mirrors setupWorkout() in WorkoutView. A new accessory
+        // session gets a fresh @State workoutState, so `accessories` is empty
+        // again and this rebuilds correctly.
+        guard workoutState.accessories.isEmpty else { return }
+
         guard let plan = appState.dayPlan(week: week, day: day) else { return }
         
         var accessories: [AccessoryItem] = []
@@ -443,20 +485,25 @@ struct AccessoryWorkoutView: View {
         // Don't start timer if workout is complete
         guard !workoutState.isWorkoutComplete else { return }
         
-        // Start rest timer
+        // Start rest timer — surfaces are created exactly once here, when the
+        // rest actually begins; the tick loop can be restarted freely.
         workoutState.startTimer(duration: appState.settings.restTimerDuration)
-        startTimerLoop()
+        startRestSurfaces()
+        startTimerTickLoop()
     }
-    
-    private func startTimerLoop() {
-        stopTimer()
-        
+
+    /// Create the endDate-driven "surfaces" for a freshly started rest timer:
+    /// Live Activity and background notification. Call exactly ONCE when a rest
+    /// actually begins. It must NOT run on resume/reappear — those surfaces are
+    /// still valid, and re-creating them would restart the Dynamic Island / lock
+    /// screen at full duration and fire the rest-complete notification late.
+    private func startRestSurfaces() {
         // Start Live Activity for lock screen / Dynamic Island (Pro only)
         if StoreManager.shared.canAccess(.liveActivity) {
             if let accessory = workoutState.currentAccessory {
                 LiveActivityManager.shared.startTimer(
                     exerciseName: accessory.name,
-                    duration: appState.settings.restTimerDuration,
+                    duration: workoutState.timerDuration,
                     nextSetInfo: "Set \(workoutState.currentSetNumber) of \(accessory.sets)"
                 )
             } else {
@@ -468,12 +515,12 @@ struct AccessoryWorkoutView: View {
                 )
             }
         }
-        
+
         // Schedule push notification for background alert
         if appState.settings.pushNotificationsEnabled {
             if let accessory = workoutState.currentAccessory {
                 NotificationManager.shared.scheduleRestTimerNotification(
-                    duration: appState.settings.restTimerDuration,
+                    duration: workoutState.timerDuration,
                     exerciseName: accessory.name,
                     nextSetInfo: "Set \(workoutState.currentSetNumber) of \(accessory.sets)"
                 )
@@ -485,7 +532,15 @@ struct AccessoryWorkoutView: View {
                 )
             }
         }
-        
+    }
+
+    /// (Re)start the 1s in-app tick loop that drives the countdown UI and the
+    /// per-second Live Activity updates. Safe to call on reappear or on resume —
+    /// it creates no surface and resets nothing; it only reads the existing
+    /// endDate-driven timer state.
+    private func startTimerTickLoop() {
+        stopTimer()
+
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak workoutState] _ in
             Task { @MainActor in
                 guard let workoutState = workoutState else { return }
@@ -519,44 +574,64 @@ struct AccessoryWorkoutView: View {
         timer = nil
         // Don't end Live Activity or reset timer state - timer is still logically running
     }
+
+    /// Fully tear down the rest timer and every surface it drives: the in-app
+    /// tick loop, the timer state + RestTimerStatus mirror, the pending
+    /// rest-complete notification, and the Live Activity. Any path that
+    /// abandons a running rest without ending the workout (picking a different
+    /// accessory) must route through here so no surface outlives the rest.
+    private func cancelRestSurfaces() {
+        stopTimer()
+        workoutState.skipTimer()  // clears timer state + RestTimerStatus mirror
+        NotificationManager.shared.cancelRestTimerNotification()
+        LiveActivityManager.shared.endTimerSync()
+    }
     
     /// Restarts the timer loop if a timer is still running after view reappears
     private func resumeTimerLoopIfNeeded() {
         // Recalculate remaining time from end date
         workoutState.recalculateTimerIfNeeded()
         
-        // If timer is running and has time left, restart the loop
+        // If timer is running and has time left, restart only the tick loop.
+        // The surfaces (Live Activity / notification) are endDate-driven and
+        // still valid — recreating them here would reset them to full duration.
         if workoutState.timerIsRunning && workoutState.timerRemaining > 0 {
-            startTimerLoop()
+            startTimerTickLoop()
         } else if workoutState.timerIsRunning && workoutState.timerRemaining <= 0 {
-            // Timer expired while view was away
-            handleTimerEnd()
+            // Timer expired while the view was away. Only play the end fanfare
+            // if it *just* expired (~2s); a stale expiry already surfaced via
+            // the foreground notification banner, so replaying haptics/chime
+            // minutes late would be jarring.
+            let justExpired = (workoutState.timerEndDate?.timeIntervalSinceNow ?? -100) > -2
+            handleTimerEnd(playFeedback: justExpired)
         }
     }
-    
-    private func handleTimerEnd() {
+
+    private func handleTimerEnd(playFeedback: Bool = true) {
         workoutState.skipTimer()
         stopTimer()
-        
+
         // End Live Activity
         LiveActivityManager.shared.endTimerSync()
-        
+
         // Cancel push notification (app is in foreground, no need for notification)
         NotificationManager.shared.cancelRestTimerNotification()
-        
-        // Play haptics and chime
-        playTimerEndFeedback()
+
+        // Play haptics and chime — suppressed for a stale expiry detected on
+        // reappear (see resumeTimerLoopIfNeeded).
+        if playFeedback {
+            playTimerEndFeedback()
+        }
     }
     
     private func playTimerEndFeedback() {
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.warning)
-        
+        Haptics.warning()
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            generator.notificationOccurred(.warning)
+            Haptics.warning()
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.30) {
-            generator.notificationOccurred(.success)
+            Haptics.success()
         }
         
         // Only play sound if user has sound notifications enabled
@@ -645,12 +720,15 @@ struct AccessorySetView: View {
                     // Exercise name with icon
                     HStack(spacing: SBSLayout.paddingSmall) {
                         Image(systemName: "dumbbell.fill")
-                            .font(.system(size: 24))
+                            .font(SBSFonts.title())
                             .foregroundStyle(SBSColors.accentSecondaryFallback)
-                        
+
                         Text(accessory.name)
                             .font(SBSFonts.title())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.75)
+                            .multilineTextAlignment(.center)
                     }
                     
                     // Weight display - tappable to edit
@@ -659,12 +737,12 @@ struct AccessorySetView: View {
                             // Show logged weight (including 0 for bodyweight exercises)
                             VStack(spacing: 4) {
                                 Text(weight.formattedWeight(useMetric: useMetric))
-                                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                                    .font(SBSFonts.display())
                                     .foregroundStyle(SBSColors.accentSecondaryFallback)
-                                
+
                                 HStack(spacing: 4) {
                                     Image(systemName: "pencil")
-                                        .font(.system(size: 12))
+                                        .font(SBSFonts.caption2())
                                     Text("Tap to edit")
                                         .font(SBSFonts.caption())
                                 }
@@ -679,7 +757,7 @@ struct AccessorySetView: View {
                                         .frame(width: 64, height: 64)
                                     
                                     Image(systemName: "plus")
-                                        .font(.system(size: 24, weight: .semibold))
+                                        .font(SBSFonts.title())
                                         .foregroundStyle(SBSColors.accentSecondaryFallback)
                                 }
                                 
@@ -694,7 +772,7 @@ struct AccessorySetView: View {
                     // Reps
                     HStack(spacing: SBSLayout.paddingSmall) {
                         Text("\(accessory.reps)")
-                            .font(.system(size: 36, weight: .bold, design: .rounded))
+                            .font(SBSFonts.display())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
                         
                         Text("reps")
@@ -709,8 +787,8 @@ struct AccessorySetView: View {
                 Button(action: onComplete) {
                     HStack(spacing: SBSLayout.paddingSmall) {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 24))
-                        
+                            .font(SBSFonts.title2())
+
                         Text("Complete Set")
                             .font(SBSFonts.button())
                     }
@@ -763,7 +841,7 @@ struct AccessorySetIndicator: View {
             
             if isCompleted {
                 Image(systemName: "checkmark")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(SBSFonts.bodyBold())
                     .foregroundStyle(.white)
             } else {
                 Text("\(setNumber)")
@@ -792,7 +870,8 @@ struct AccessoryTimerView: View {
     let onTimerEnd: () -> Void
     var onPause: (() -> Void)?
     var onResume: (() -> Void)?
-    
+    var onSkip: (() -> Void)?
+
     var body: some View {
         VStack(spacing: SBSLayout.paddingLarge) {
             Spacer()
@@ -818,8 +897,10 @@ struct AccessoryTimerView: View {
                 // Timer text
                 VStack(spacing: 4) {
                     Text(timerText)
-                        .font(.system(size: 48, weight: .bold, design: .monospaced))
+                        .font(SBSFonts.displayMono())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .accessibilityLabel("Rest time remaining")
+                        .accessibilityValue(timerText)
 
                     Text("REST")
                         .font(SBSFonts.caption())
@@ -827,7 +908,7 @@ struct AccessoryTimerView: View {
 
                     if workoutState.timerDuration > 0 {
                         Text("of \(formatDuration(workoutState.timerDuration))")
-                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .font(SBSFonts.caption2())
                             .foregroundStyle(SBSColors.textTertiaryFallback)
                     }
                 }
@@ -837,6 +918,7 @@ struct AccessoryTimerView: View {
             HStack(spacing: SBSLayout.paddingXLarge) {
                 // Pause/Resume
                 Button {
+                    Haptics.light()
                     if workoutState.timerIsPaused {
                         workoutState.resumeTimer()
                         onResume?()
@@ -853,7 +935,7 @@ struct AccessoryTimerView: View {
                     }
                 } label: {
                     Image(systemName: workoutState.timerIsPaused ? "play.fill" : "pause.fill")
-                        .font(.system(size: 24))
+                        .font(SBSFonts.title2())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                         .frame(width: 56, height: 56)
                         .background(
@@ -861,13 +943,16 @@ struct AccessoryTimerView: View {
                                 .fill(SBSColors.surfaceFallback)
                         )
                 }
+                .accessibilityLabel(workoutState.timerIsPaused ? "Resume timer" : "Pause timer")
 
-                // Skip
+                // Skip — a manual skip is a light tap only; the full "rest
+                // complete" fanfare is reserved for natural expiry.
                 Button {
-                    onTimerEnd()
+                    Haptics.light()
+                    (onSkip ?? onTimerEnd)()
                 } label: {
                     Image(systemName: "forward.fill")
-                        .font(.system(size: 24))
+                        .font(SBSFonts.title2())
                         .foregroundStyle(.white)
                         .frame(width: 56, height: 56)
                         .background(
@@ -875,6 +960,7 @@ struct AccessoryTimerView: View {
                                 .fill(SBSColors.accentSecondaryFallback)
                         )
                 }
+                .accessibilityLabel("Skip rest")
             }
             
             Spacer()
@@ -891,6 +977,7 @@ struct AccessoryTimerView: View {
                 )
             }
         }
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .onChange(of: workoutState.timerRemaining) { oldValue, newValue in
             // Automatically end timer when it reaches 0
             if oldValue > 0 && newValue <= 0 && workoutState.timerIsRunning {
@@ -898,7 +985,7 @@ struct AccessoryTimerView: View {
             }
         }
     }
-    
+
     private var timerProgress: Double {
         guard workoutState.timerDuration > 0 else { return 0 }
         return Double(workoutState.timerRemaining) / Double(workoutState.timerDuration)
@@ -948,7 +1035,9 @@ struct AccessoryNextSetPreview: View {
                     Text(accessoryName)
                         .font(SBSFonts.bodyBold())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
-                    
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+
                     Text("Set \(setNumber) of \(totalSets)")
                         .font(SBSFonts.caption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
@@ -1037,9 +1126,8 @@ struct AccessoryCompleteView: View {
         }
         .onAppear {
             // Play celebration haptic
-            let generator = UINotificationFeedbackGenerator()
-            generator.notificationOccurred(.success)
-            
+            Haptics.success()
+
             // Animate celebration
             withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
                 confettiScale = 1.2
@@ -1082,7 +1170,10 @@ struct AccessoryWeightSheet: View {
                         Text(accessoryName)
                             .font(SBSFonts.title())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
-                        
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.75)
+                            .multilineTextAlignment(.center)
+
                         Text("Set your weight for this accessory")
                             .font(SBSFonts.caption())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
@@ -1098,7 +1189,7 @@ struct AccessoryWeightSheet: View {
                         HStack {
                             TextField("0", text: $weightText)
                                 .keyboardType(.decimalPad)
-                                .font(.system(size: 32, weight: .bold, design: .rounded))
+                                .font(SBSFonts.display())
                                 .foregroundStyle(SBSColors.textPrimaryFallback)
                                 .multilineTextAlignment(.center)
                                 .frame(maxWidth: .infinity)
@@ -1108,7 +1199,7 @@ struct AccessoryWeightSheet: View {
                                         .fill(SBSColors.surfaceFallback)
                                 )
                             
-                            Text(useMetric ? "kg" : "lbs")
+                            Text(useMetric ? "kg" : "lb")
                                 .font(SBSFonts.title2())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                                 .frame(width: 50)
@@ -1217,7 +1308,8 @@ struct StandaloneTimerView: View {
     let onTimerEnd: () -> Void
     var onPause: (() -> Void)?
     var onResume: (() -> Void)?
-    
+    var onSkip: (() -> Void)?
+
     var body: some View {
         VStack(spacing: SBSLayout.paddingLarge) {
             Spacer()
@@ -1244,8 +1336,10 @@ struct StandaloneTimerView: View {
                     // Timer text
                     VStack(spacing: 4) {
                         Text(timerText)
-                            .font(.system(size: 48, weight: .bold, design: .monospaced))
+                            .font(SBSFonts.displayMono())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .accessibilityLabel("Rest time remaining")
+                            .accessibilityValue(timerText)
 
                         Text("REST")
                             .font(SBSFonts.caption())
@@ -1253,7 +1347,7 @@ struct StandaloneTimerView: View {
 
                         if workoutState.timerDuration > 0 {
                             Text("of \(formatDuration(workoutState.timerDuration))")
-                                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                .font(SBSFonts.caption2())
                                 .foregroundStyle(SBSColors.textTertiaryFallback)
                         }
                     }
@@ -1263,6 +1357,7 @@ struct StandaloneTimerView: View {
                 HStack(spacing: SBSLayout.paddingXLarge) {
                     // Pause/Resume
                     Button {
+                        Haptics.light()
                         if workoutState.timerIsPaused {
                             workoutState.resumeTimer()
                             onResume?()
@@ -1279,7 +1374,7 @@ struct StandaloneTimerView: View {
                         }
                     } label: {
                         Image(systemName: workoutState.timerIsPaused ? "play.fill" : "pause.fill")
-                            .font(.system(size: 24))
+                            .font(SBSFonts.title2())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
                             .frame(width: 56, height: 56)
                             .background(
@@ -1287,13 +1382,16 @@ struct StandaloneTimerView: View {
                                     .fill(SBSColors.surfaceFallback)
                             )
                     }
-                    
-                    // Skip/Reset
+                    .accessibilityLabel(workoutState.timerIsPaused ? "Resume timer" : "Pause timer")
+
+                    // Skip/Reset — a manual skip is a light tap only; the full
+                    // "rest complete" fanfare is reserved for natural expiry.
                     Button {
-                        onTimerEnd()
+                        Haptics.light()
+                        (onSkip ?? onTimerEnd)()
                     } label: {
                         Image(systemName: "forward.fill")
-                            .font(.system(size: 24))
+                            .font(SBSFonts.title2())
                             .foregroundStyle(.white)
                             .frame(width: 56, height: 56)
                             .background(
@@ -1301,6 +1399,7 @@ struct StandaloneTimerView: View {
                                     .fill(SBSColors.accentSecondaryFallback)
                             )
                     }
+                    .accessibilityLabel("Skip rest")
                 }
             } else {
                 // Timer not running - show start button
@@ -1327,7 +1426,7 @@ struct StandaloneTimerView: View {
                             .multilineTextAlignment(.center)
                         
                         Text("\(timerDuration / 60):\(String(format: "%02d", timerDuration % 60))")
-                            .font(.system(size: 32, weight: .bold, design: .monospaced))
+                            .font(SBSFonts.displayMono())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                             .padding(.top, SBSLayout.paddingSmall)
                     }
@@ -1341,8 +1440,8 @@ struct StandaloneTimerView: View {
                 Button(action: onStartTimer) {
                     HStack(spacing: SBSLayout.paddingSmall) {
                         Image(systemName: "play.fill")
-                            .font(.system(size: 18))
-                        
+                            .font(SBSFonts.button())
+
                         Text("Start Timer")
                             .font(SBSFonts.button())
                     }
@@ -1361,8 +1460,8 @@ struct StandaloneTimerView: View {
                 Button(action: onStartTimer) {
                     HStack(spacing: SBSLayout.paddingSmall) {
                         Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 16))
-                        
+                            .font(SBSFonts.button())
+
                         Text("Restart Timer")
                             .font(SBSFonts.button())
                     }
@@ -1378,6 +1477,7 @@ struct StandaloneTimerView: View {
                 .padding(.bottom, SBSLayout.paddingXLarge)
             }
         }
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .onChange(of: workoutState.timerRemaining) { oldValue, newValue in
             // Automatically end timer when it reaches 0
             if oldValue > 0 && newValue <= 0 && workoutState.timerIsRunning {
@@ -1385,7 +1485,7 @@ struct StandaloneTimerView: View {
             }
         }
     }
-    
+
     private var timerProgress: Double {
         guard workoutState.timerDuration > 0 else { return 0 }
         return Double(workoutState.timerRemaining) / Double(workoutState.timerDuration)

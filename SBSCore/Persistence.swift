@@ -352,10 +352,18 @@ public struct UserData: Codable, Equatable {
     }
     
     // MARK: - Lift History Helpers
+
+    /// Number of the cycle in progress. Not count + 1: past cycles can be deleted,
+    /// which would give two cycles the same number.
+    private var currentCycleNumber: Int {
+        (cycleHistory.map(\.cycleNumber).max() ?? 0) + 1
+    }
     
     /// Add a lift record to history and update PR if applicable
-    public mutating func recordLift(_ record: LiftRecord) {
+    /// - Parameter updatesPR: false for records whose reps are assumed, not measured
+    public mutating func recordLift(_ record: LiftRecord, updatesPR: Bool = true) {
         liftHistory.append(record)
+        guard updatesPR, record.estimatedOneRM > 0 else { return }
         
         // Check if this is a new PR
         if let existingPR = personalRecords[record.liftName] {
@@ -365,7 +373,7 @@ public struct UserData: Codable, Equatable {
                     weight: record.weight,
                     reps: record.reps,
                     date: record.date,
-                    cycleNumber: cycleHistory.count + 1,
+                    cycleNumber: currentCycleNumber,
                     week: record.week ?? 0
                 )
             }
@@ -376,12 +384,46 @@ public struct UserData: Codable, Equatable {
                 weight: record.weight,
                 reps: record.reps,
                 date: record.date,
-                cycleNumber: cycleHistory.count + 1,
+                cycleNumber: currentCycleNumber,
                 week: record.week ?? 0
             )
         }
     }
     
+    /// Remove a session's records (optionally one set type) logged since `since`, and
+    /// recompute the PR if a removed record held it. A PR no removed record holds is left
+    /// untouched, since it may predate the history it would be recomputed from.
+    public mutating func removeLiftRecords(liftName: String, programId: String?, week: Int, day: Int, setType: String? = nil, setIndex: Int? = nil, since: Date) {
+        var removedBest: Double = 0
+        liftHistory.removeAll { record in
+            guard record.liftName == liftName, record.programId == programId,
+                  record.week == week, record.day == day, record.date >= since,
+                  setType == nil || record.setType == setType,
+                  setIndex == nil || record.setIndex == setIndex else { return false }
+            removedBest = max(removedBest, record.estimatedOneRM)
+            return true
+        }
+
+        guard let currentPR = personalRecords[liftName],
+              removedBest > 0, removedBest >= currentPR.estimatedOneRM else { return }
+
+        let best = liftHistory
+            .filter { $0.liftName == liftName && !($0.setType?.contains("(failed)") ?? false) }
+            .max { $0.estimatedOneRM < $1.estimatedOneRM }
+        if let best {
+            personalRecords[liftName] = PersonalRecord(
+                estimatedOneRM: best.estimatedOneRM,
+                weight: best.weight,
+                reps: best.reps,
+                date: best.date,
+                cycleNumber: currentCycleNumber,
+                week: best.week ?? 0
+            )
+        } else {
+            personalRecords[liftName] = nil
+        }
+    }
+
     /// Get all records for a specific lift, sorted by date
     public func history(for liftName: String) -> [LiftRecord] {
         liftHistory

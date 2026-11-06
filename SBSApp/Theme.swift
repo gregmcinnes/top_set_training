@@ -249,6 +249,20 @@ struct BarWeightOption: Identifiable, Hashable {
 enum BarWeightOptions {
     static let lbPerKg = 1.0 / 0.45359237
 
+    /// Move rounding and bar weight onto the new unit's grid when the unit changes:
+    /// 2.5 kg rounding and a 20 kg bar, or 5 lb rounding and a 45 lb bar. Values already
+    /// exact for that unit are kept, so restoring saved settings (cancelling the cycle
+    /// builder) doesn't overwrite them.
+    static func applyUnitDefaults(to settings: inout UserSettings, useMetric: Bool) {
+        let roundings = useMetric ? [1, 2.5, 5].map { $0 * lbPerKg } : [2.5, 5, 10]
+        if !roundings.contains(where: { abs($0 - settings.roundingIncrement) < 0.05 }) {
+            settings.roundingIncrement = useMetric ? 2.5 * lbPerKg : 5
+        }
+        if !options(useMetric: useMetric).contains(where: { abs($0.value - settings.barWeight) < 0.05 }) {
+            settings.barWeight = useMetric ? 20 * lbPerKg : 45
+        }
+    }
+
     static func options(useMetric: Bool) -> [BarWeightOption] {
         if useMetric {
             return [

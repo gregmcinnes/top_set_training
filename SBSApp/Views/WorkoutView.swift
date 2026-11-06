@@ -120,7 +120,7 @@ struct WorkoutExercise: Identifiable {
             isLinear: true,
             linearInfo: info,
             intensity: 1.0,  // Linear progression is always at 100% working weight
-            calculatedWeight: info.weight
+            calculatedWeight: info.calculatedWeight ?? info.weight
         )
     }
 }
@@ -169,6 +169,9 @@ final class WorkoutState {
     
     // AMRAP results for exercises (for E1RM calculation in share card)
     var amrapResults: [String: (weight: Double, reps: Int, e1rm: Double)] = [:]  // lift name -> result
+
+    // Reps logged this session on structured AMRAP sets: exercise.id -> set index -> reps
+    var structuredLoggedReps: [UUID: [Int: Int]] = [:]
     
     // Timer state
     var timerRemaining: Int = 0
@@ -228,13 +231,34 @@ final class WorkoutState {
             completedSets[exercise.id] = []
         }
         completedSets[exercise.id]?.insert(currentSetNumber)
-        
-        // Advance to next set or exercise
-        if currentSetNumber < exercise.totalSets {
-            currentSetNumber += 1
-        } else if currentExerciseIndex < exercises.count - 1 {
-            currentExerciseIndex += 1
-            currentSetNumber = 1
+        advanceToNextIncompleteSet()
+    }
+
+    /// First set of an exercise not yet completed, if any
+    private func firstIncompleteSet(of exercise: WorkoutExercise) -> Int? {
+        let completed = completedSets[exercise.id] ?? []
+        return (0..<exercise.totalSets).lazy.map { $0 + 1 }.first { !completed.contains($0) }
+    }
+
+    /// Move to the next set still to do, skipping exercises already finished (the user
+    /// may have jumped around via the exercise list). With nothing left ahead, land on
+    /// the last exercise so `isWorkoutComplete` can trigger.
+    private func advanceToNextIncompleteSet() {
+        guard let exercise = currentExercise else { return }
+        if let nextSet = firstIncompleteSet(of: exercise) {
+            currentSetNumber = nextSet
+            return
+        }
+        for index in exercises.indices where index > currentExerciseIndex {
+            if let nextSet = firstIncompleteSet(of: exercises[index]) {
+                currentExerciseIndex = index
+                currentSetNumber = nextSet
+                return
+            }
+        }
+        if currentExerciseIndex < exercises.count - 1 {
+            currentExerciseIndex = exercises.count - 1
+            currentSetNumber = exercises[currentExerciseIndex].totalSets
         }
     }
     
@@ -262,14 +286,7 @@ final class WorkoutState {
             completedSets[exercise.id] = []
         }
         completedSets[exercise.id]?.insert(currentSetNumber)
-        
-        // Advance to next set or exercise
-        if currentSetNumber < exercise.totalSets {
-            currentSetNumber += 1
-        } else if currentExerciseIndex < exercises.count - 1 {
-            currentExerciseIndex += 1
-            currentSetNumber = 1
-        }
+        advanceToNextIncompleteSet()
     }
     
     /// Check if a linear exercise had any failed sets
@@ -298,21 +315,8 @@ final class WorkoutState {
 
         currentExerciseIndex = index
         
-        // Reset to first incomplete set for this exercise, or set 1 if none completed
-        if let exercise = exercises[safe: index],
-           let completedForExercise = completedSets[exercise.id] {
-            // Find first incomplete set
-            for setNum in 1...exercise.totalSets {
-                if !completedForExercise.contains(setNum) {
-                    currentSetNumber = setNum
-                    return
-                }
-            }
-            // All sets complete, go to set 1
-            currentSetNumber = 1
-        } else {
-            currentSetNumber = 1
-        }
+        // First incomplete set for this exercise; set 1 if all are complete
+        currentSetNumber = exercises[safe: index].flatMap { firstIncompleteSet(of: $0) } ?? 1
     }
     
     /// Check how many sets are completed for a given exercise index
@@ -424,12 +428,13 @@ struct WorkoutView: View {
     @State private var timer: Timer?
     @State private var showingExitConfirm = false
     @State private var showingSaveToFitnessPrompt = false
-    @State private var prResult: AppState.LogRepsResult?
-    @State private var showingPRCelebration = false
+    @State private var celebratingPR: AppState.LogRepsResult?  // Drives the PR cover; set after a short delay
+    @State private var watchSessionStarted = false
     @State private var pendingStructuredSetIndex: Int?  // For structured AMRAP logging
     @State private var showingExercisePicker = false
     @State private var showingLinearResult = false  // For linear progression success/fail dialog
     @State private var pendingLinearExercise: WorkoutExercise?  // Captured before advancing to next exercise
+    @State private var queuedLinearExercises: [WorkoutExercise] = []  // Watch-finished lifts waiting behind the one on screen
     @State private var showingPaywall = false  // For premium features
     @State private var showingShareSheet = false  // For workout summary share
     @State private var showingAccessoryWeightSheet = false  // For editing superset accessory weight
@@ -574,6 +579,9 @@ struct WorkoutView: View {
                     cancelRestSurfaces()
                     workoutState.jumpToExercise(index)
                     showingExercisePicker = false
+                    // Otherwise the Watch keeps showing the old set, and its next
+                    // completion is dropped by the identity guard.
+                    syncWorkoutStateToWatch()
                 }
             )
             .presentationDetents([.medium, .large])
@@ -585,7 +593,7 @@ struct WorkoutView: View {
                 exitWorkoutWithoutSaving()
             }
         } message: {
-            Text("Your progress for this session will be lost.")
+            Text("Results you've already logged are kept, but your place in this session will be lost.")
         }
         .alert("Save to Apple Fitness?", isPresented: $showingSaveToFitnessPrompt) {
             Button("Don't Save", role: .destructive) {
@@ -647,99 +655,17 @@ struct WorkoutView: View {
                     }
                     pendingRepEntry = nil
 
-                    if let lift = workoutState.currentExercise?.lift,
-                       let exercise = workoutState.currentExercise {
-                        // Check if this is a structured (nSuns/GZCLP) set
-                        if let setIndex = pendingStructuredSetIndex {
-                            // Log structured AMRAP - check for PR
-                            let result = appState.logStructuredReps(lift: lift, week: week, day: day, setIndex: setIndex, reps: reps)
+                    let setIndex = pendingStructuredSetIndex
+                    pendingStructuredSetIndex = nil
 
-                            // Track AMRAP result for share card - only for 1+ progression sets (not back-off AMRAPs)
-                            // This ensures we use the heavy 1+ set for e1RM, not the lighter final AMRAP
-                            if exercise.isStructured, let sets = exercise.structuredSetInfo,
-                               let setInfo = sets.first(where: { $0.setIndex == setIndex }),
-                               setInfo.targetReps == 1 {  // Only track 1+ sets
-                                let weight = setInfo.weight
-                                let e1rm = weight * (1.0 + Double(reps) / 30.0)
-                                workoutState.amrapResults[lift] = (weight, reps, e1rm)
-                            }
-
-                            pendingStructuredSetIndex = nil
-
-                            if let result, result.isNewPR {
-                                // Track PR for share card
-                                let prRecord = WorkoutPRRecord(
-                                    liftName: result.liftName,
-                                    weight: result.weight,
-                                    reps: result.reps,
-                                    newE1RM: result.newE1RM,
-                                    previousE1RM: result.previousE1RM
-                                )
-                                workoutState.prsAchieved.append(prRecord)
-
-                                // Count this PR toward review-request eligibility
-                                // (queued only; presented later once the workout
-                                // is dismissed, never on the PR celebration).
-                                ReviewRequestManager.shared.recordPRAchieved()
-
-                                // Show PR celebration if enabled in settings
-                                if appState.settings.showPRCelebrations {
-                                    prResult = result
-                                    showingRepInput = false
-
-                                    // Complete the set and start timer (same as non-PR flow)
-                                    completeSetAndStartTimer()
-
-                                    // Small delay before showing celebration
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                        showingPRCelebration = true
-                                    }
-                                    return
-                                }
-                                // If celebrations are disabled, fall through to normal completion
-                            }
-                        } else {
-                            // Standard volume log - check for PR
-                            if let result = appState.logReps(lift: lift, week: week, day: day, reps: reps, note: note) {
-                                workoutState.repOutLogs[lift] = reps
-                                
-                                // Track AMRAP result for share card
-                                workoutState.amrapResults[lift] = (result.weight, result.reps, result.newE1RM)
-                                
-                                if result.isNewPR {
-                                    // Track PR for share card
-                                    let prRecord = WorkoutPRRecord(
-                                        liftName: result.liftName,
-                                        weight: result.weight,
-                                        reps: result.reps,
-                                        newE1RM: result.newE1RM,
-                                        previousE1RM: result.previousE1RM
-                                    )
-                                    workoutState.prsAchieved.append(prRecord)
-
-                                    // Count this PR toward review-request eligibility
-                                    // (queued only; presented later once the workout
-                                    // is dismissed, never on the PR celebration).
-                                    ReviewRequestManager.shared.recordPRAchieved()
-
-                                    // Show PR celebration if enabled in settings
-                                    if appState.settings.showPRCelebrations {
-                                        prResult = result
-                                        showingRepInput = false
-                                        
-                                        // Complete the set and start timer (same as non-PR flow)
-                                        completeSetAndStartTimer()
-                                        
-                                        // Small delay before showing celebration
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                            showingPRCelebration = true
-                                        }
-                                        return
-                                    }
-                                    // If celebrations are disabled, fall through to normal completion
-                                }
-                            }
-                        }
+                    if let exercise = workoutState.currentExercise,
+                       let result = logAMRAPSet(exercise: exercise, structuredSetIndex: setIndex, reps: reps, note: note),
+                       result.isNewPR, appState.settings.showPRCelebrations {
+                        showingRepInput = false
+                        // Complete the set and start timer (same as non-PR flow)
+                        completeSetAndStartTimer()
+                        presentPRCelebration(result)
+                        return
                     }
                     completeSetAndStartTimer()
                     showingRepInput = false
@@ -753,31 +679,30 @@ struct WorkoutView: View {
             .presentationDetents([.height(420), .medium])
             .presentationDragIndicator(.visible)
         }
-        .fullScreenCover(isPresented: $showingPRCelebration) {
-            if let result = prResult {
-                PRCelebrationView(
-                    liftName: result.liftName,
-                    newE1RM: result.newE1RM,
-                    previousE1RM: result.previousE1RM,
-                    weight: result.weight,
-                    reps: result.reps,
-                    useMetric: appState.settings.useMetric,
-                    week: week,
-                    day: day,
-                    programName: appState.programData?.displayName ?? appState.programData?.name,
-                    onDismiss: {
-                        showingPRCelebration = false
-                        prResult = nil
-                        // Note: completeSetAndStartTimer() is now called before showing the celebration
-                        // to match the non-PR flow and prevent skipping sets
-                    }
-                )
-                // Make the cover itself transparent so the celebration's own
-                // dim scrim composites over the live workout rather than an
-                // opaque system background. (.background(Color.clear) does not
-                // achieve this on a fullScreenCover.)
-                .presentationBackground(.clear)
-            }
+        // item-driven: an isPresented cover reading separate optional state can render
+        // empty, and a clear background makes that an invisible, undismissable screen.
+        .fullScreenCover(item: $celebratingPR) { result in
+            PRCelebrationView(
+                liftName: result.liftName,
+                newE1RM: result.newE1RM,
+                previousE1RM: result.previousE1RM,
+                weight: result.weight,
+                reps: result.reps,
+                useMetric: appState.settings.useMetric,
+                week: week,
+                day: day,
+                programName: appState.programData?.displayName ?? appState.programData?.name,
+                onDismiss: {
+                    celebratingPR = nil
+                    // Note: completeSetAndStartTimer() is now called before showing the celebration
+                    // to match the non-PR flow and prevent skipping sets
+                }
+            )
+            // Make the cover itself transparent so the celebration's own
+            // dim scrim composites over the live workout rather than an
+            // opaque system background. (.background(Color.clear) does not
+            // achieve this on a fullScreenCover.)
+            .presentationBackground(.clear)
         }
         .sheet(isPresented: $showingLinearResult) {
             LinearResultSheet(
@@ -793,16 +718,18 @@ struct WorkoutView: View {
                 onSuccess: {
                     handleLinearSuccess()
                     showingLinearResult = false
-                    pendingLinearExercise = nil
+                    advanceLinearResultQueue()
                 },
                 onFailure: {
                     handleLinearFailure()
                     showingLinearResult = false
-                    pendingLinearExercise = nil
+                    advanceLinearResultQueue()
                 }
             )
             .presentationDetents([.medium])
-            .presentationDragIndicator(.visible)
+            .presentationDragIndicator(.hidden)
+            // Swiping this away would skip logging, so the lift wouldn't progress
+            .interactiveDismissDisabled()
         }
         .sheet(isPresented: $showingPaywall) {
             PaywallView(triggeredByFeature: .plateCalculator)
@@ -855,7 +782,7 @@ struct WorkoutView: View {
         }
         .sheet(isPresented: $showingWeightOverride) {
             if let exercise = workoutState.currentExercise, let lift = exercise.lift {
-                let currentOverride = appState.getWeightOverride(lift: lift, week: week, day: day)
+                let currentOverride = appState.weightOverride(forExercise: exercise.name, lift: lift, week: week, day: day)
                 let baseWeight = exercise.calculatedWeight ?? exercise.weight
                 WeightOverrideSheet(
                     liftName: exercise.name,
@@ -889,6 +816,9 @@ struct WorkoutView: View {
             UIApplication.shared.isIdleTimerDisabled = true
         }
         .onDisappear {
+            // The PR cover sits on top of a workout that's still running
+            guard celebratingPR == nil else { return }
+
             RestTimerStatus.shared.isWorkoutScreenVisible = false
 
             // Only invalidate the Timer object, don't reset timer state
@@ -897,6 +827,13 @@ struct WorkoutView: View {
 
             // Re-enable screen sleep when leaving workout
             UIApplication.shared.isIdleTimerDisabled = false
+        }
+        .onChange(of: watchConnectivity.isWatchReachable) { _, isReachable in
+            // The Watch only learns set details from live messages, so a Watch
+            // that connects mid-workout needs the current state resent.
+            guard isReachable, !workoutState.exercises.isEmpty else { return }
+            syncWorkoutStateToWatch()
+            sendRestTimerStateToWatch()
         }
     }
     
@@ -986,7 +923,9 @@ struct WorkoutView: View {
         
         let mainLiftCount = exercises.count
         
-        if appState.settings.supersetAccessories {
+        // Must match what the timer screen displays (supersetsEnabled), or a lapsed
+        // subscriber's accessories get paired but never shown.
+        if supersetsEnabled {
             // Superset mode: pair accessories with main lifts
             // Any "extra" accessories beyond the number of main lifts get added at the end
             for (index, accessory) in accessories.enumerated() {
@@ -1031,11 +970,21 @@ struct WorkoutView: View {
         let isReachable = WatchConnectivityManager.shared.isWatchReachable
         Logger.debug("🔵 setupWatchSync: isReachable=\(isReachable)", category: .general)
         
-        // Tell the Watch whether it may write its own HealthKit workout. Pass the
-        // same HealthKit setting that gates the phone's HKWorkoutBuilder below so
-        // the two stay in agreement about who owns the HealthKit workout.
-        WatchConnectivityManager.shared.sendWorkoutStarted(healthKitEnabled: appState.settings.healthKitEnabled)
-        Logger.debug("✅ Sent workoutStarted to Watch (healthKitEnabled: \(appState.settings.healthKitEnabled))", category: .general)
+        // Tell the Watch whether it may write its own HealthKit workout, using the
+        // same premium + setting gate as the phone's HKWorkoutBuilder so the two agree
+        // about who owns the workout (and a lapsed subscription can't sync via Watch).
+        // Once per workout: this also runs on every return from another tab.
+        if !watchSessionStarted {
+            watchSessionStarted = true
+            let healthKitEnabled = storeManager.canAccess(.appleFitness) && appState.settings.healthKitEnabled
+            WatchConnectivityManager.shared.sendWorkoutStarted(healthKitEnabled: healthKitEnabled)
+            Logger.debug("✅ Sent workoutStarted to Watch (healthKitEnabled: \(healthKitEnabled))", category: .general)
+        }
+
+        // A cycle or program change pops this screen from outside; clean up then too
+        appState.activeWorkoutTeardown = { [self] in
+            tearDownWorkout(saveWatchWorkout: false)
+        }
         
         // Set up callback for set completion from Watch
         WatchConnectivityManager.shared.onSetCompletedFromWatch = { reps, exerciseIndex, setNumber in
@@ -1049,9 +998,10 @@ struct WorkoutView: View {
     }
     
     /// Notify Watch to end workout session
-    private func syncWorkoutEndedToWatch() {
+    private func syncWorkoutEndedToWatch(saveWorkout: Bool = true) {
         WatchConnectivityManager.shared.onSetCompletedFromWatch = nil
-        WatchConnectivityManager.shared.sendWorkoutEnded()
+        WatchConnectivityManager.shared.sendWorkoutEnded(saveWorkout: saveWorkout)
+        watchSessionStarted = false
     }
     
     /// Handle set completion triggered from Watch
@@ -1090,44 +1040,122 @@ struct WorkoutView: View {
 
         Logger.debug("⌚️ Completing set from Watch: \(exercise.name) set \(currentSet) (reps: \(reps?.description ?? "nil"))", category: .general)
         
-        // Check if current set is a structured AMRAP (nSuns, etc.)
-        let structuredSetInfo: StructuredSetInfo? = {
-            guard exercise.isStructured,
-                  let sets = exercise.structuredSetInfo,
-                  workoutState.currentSetNumber > 0 && workoutState.currentSetNumber <= sets.count else {
-                return nil
-            }
-            return sets[workoutState.currentSetNumber - 1]
-        }()
-        let isStructuredAMRAP = structuredSetInfo?.isAMRAP ?? false
-        
-        // For AMRAP/rep-out sets, log the reps from Watch (or target reps as fallback)
-        if workoutState.isCurrentSetRepOut {
-            // Volume program rep-out set
-            let repsToLog = reps ?? exercise.repOutTarget
-            if let result = appState.logReps(lift: exercise.lift ?? exercise.name, week: week, day: day, reps: repsToLog) {
-                workoutState.repOutLogs[exercise.lift ?? exercise.name] = repsToLog
-                workoutState.amrapResults[exercise.lift ?? exercise.name] = (result.weight, result.reps, result.newE1RM)
-            }
-            Logger.debug("⌚️ Logged AMRAP reps: \(repsToLog)", category: .general)
-        } else if isStructuredAMRAP {
-            // Structured program AMRAP set (nSuns, etc.)
-            if let reps = reps,
-               let setInfo = structuredSetInfo,
-               let lift = exercise.lift {
-                if let result = appState.logStructuredReps(lift: lift, week: week, day: day, setIndex: setInfo.setIndex, reps: reps),
-                   setInfo.targetReps == 1 {  // Only track 1+ progression sets for share card
-                    workoutState.amrapResults[lift] = (result.weight, result.reps, result.newE1RM)
-                }
-                Logger.debug("⌚️ Logged structured AMRAP reps: \(reps) for set \(setInfo.setIndex)", category: .general)
-            }
+        // Same logic as the phone's Complete button, so a set finished on the Watch
+        // progresses, logs and counts toward PRs just the same.
+        if exercise.isLinear && currentSet == exercise.totalSets {
+            beginLinearResult(for: exercise)
+            syncWorkoutStateToWatch()
+            return
         }
-        
-        // Complete the set and start rest timer
+
+        let structuredSetInfo = exercise.structuredSetInfo.flatMap { sets in
+            sets.indices.contains(currentSet - 1) ? sets[currentSet - 1] : nil
+        }
+
+        var celebration: AppState.LogRepsResult?
+        if let setInfo = structuredSetInfo, setInfo.isAMRAP {
+            // Tested first: isCurrentSetRepOut is also true for structured AMRAPs,
+            // and those must not go through the volume logger.
+            celebration = logAMRAPSet(exercise: exercise, structuredSetIndex: setInfo.setIndex, reps: reps ?? setInfo.targetReps)
+        } else if workoutState.isCurrentSetRepOut {
+            celebration = logAMRAPSet(exercise: exercise, structuredSetIndex: nil, reps: reps ?? exercise.repOutTarget)
+        } else {
+            markStructuredCompletedIfFinished(exercise)
+        }
+
         completeSetAndStartTimer()
+
+        if let celebration, celebration.isNewPR, appState.settings.showPRCelebrations {
+            presentPRCelebration(celebration)
+        }
         
         // Sync updated state back to Watch
         syncWorkoutStateToWatch()
+    }
+
+    /// Log reps for an AMRAP set (structured when given a set index, otherwise volume)
+    /// and record any PR for the share card and review-prompt tracking.
+    private func logAMRAPSet(exercise: WorkoutExercise, structuredSetIndex: Int?, reps: Int, note: String = "") -> AppState.LogRepsResult? {
+        guard let lift = exercise.lift else { return nil }
+
+        let result: AppState.LogRepsResult?
+        if let setIndex = structuredSetIndex {
+            result = appState.logStructuredReps(lift: lift, week: week, day: day, setIndex: setIndex, reps: reps, note: note)
+            workoutState.structuredLoggedReps[exercise.id, default: [:]][setIndex] = reps
+        } else {
+            result = appState.logReps(lift: lift, week: week, day: day, reps: reps, note: note)
+            if result != nil {
+                workoutState.repOutLogs[lift] = reps
+            }
+        }
+        guard let result else { return nil }
+
+        // The share card shows each lift's strongest AMRAP result, so a back-off
+        // AMRAP doesn't replace the heavy top set's E1RM.
+        if result.newE1RM > (workoutState.amrapResults[lift]?.e1rm ?? 0) {
+            workoutState.amrapResults[lift] = (result.weight, result.reps, result.newE1RM)
+        }
+
+        if result.isNewPR {
+            workoutState.prsAchieved.append(WorkoutPRRecord(
+                liftName: result.liftName,
+                weight: result.weight,
+                reps: result.reps,
+                newE1RM: result.newE1RM,
+                previousE1RM: result.previousE1RM
+            ))
+            // Count this PR toward review-request eligibility (queued only;
+            // presented later once the workout is dismissed).
+            ReviewRequestManager.shared.recordPRAchieved()
+        }
+        return result
+    }
+
+    /// Show the PR celebration after the sheet underneath has had time to dismiss
+    private func presentPRCelebration(_ result: AppState.LogRepsResult) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            celebratingPR = result
+        }
+    }
+
+    /// Mark a structured exercise with no AMRAP sets (BBB, deload weeks) as done on its
+    /// last set, so the day shows as complete.
+    private func markStructuredCompletedIfFinished(_ exercise: WorkoutExercise) {
+        guard workoutState.currentSetNumber == exercise.totalSets,
+              let lift = exercise.lift,
+              let sets = exercise.structuredSetInfo,
+              !sets.contains(where: { $0.isAMRAP }) else { return }
+        appState.markStructuredCompleted(lift: lift, week: week, day: day)
+    }
+
+    /// Finish a linear exercise's last set, then ask how it went
+    private func beginLinearResult(for exercise: WorkoutExercise) {
+        completeSetAndStartTimer()
+
+        // With the phone in a pocket, several lifts can finish on the Watch before
+        // anyone answers the dialog. Each one still needs its own result.
+        if pendingLinearExercise != nil {
+            queuedLinearExercises.append(exercise)
+            return
+        }
+
+        // Capture the exercise BEFORE advancing to the next one
+        pendingLinearExercise = exercise
+        // Small delay then show the result dialog
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            showingLinearResult = true
+        }
+    }
+
+    /// Move on to the next lift awaiting a result, if any
+    private func advanceLinearResultQueue() {
+        pendingLinearExercise = nil
+        guard !queuedLinearExercises.isEmpty else { return }
+        pendingLinearExercise = queuedLinearExercises.removeFirst()
+        // Let the previous sheet finish dismissing first
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            showingLinearResult = true
+        }
     }
     
     /// Send current workout state to Watch
@@ -1197,33 +1225,39 @@ struct WorkoutView: View {
     
     /// Exit workout without saving to Apple Fitness
     private func exitWorkoutWithoutSaving() {
-        stopTimer()
+        tearDownWorkout(saveWatchWorkout: false)
+        dismiss()
+    }
 
-        // The workout state dies with this view — clear the app-wide timer
-        // mirror and any pending rest-complete notification so neither
-        // outlives the workout.
+    /// End every surface of an abandoned workout. The workout state dies with this
+    /// view, so nothing else would clear the timer mirror, pending notification, Live
+    /// Activity, Watch session or HealthKit builder.
+    private func tearDownWorkout(saveWatchWorkout: Bool) {
+        appState.activeWorkoutTeardown = nil
+        stopTimer()
         RestTimerStatus.shared.timerCleared()
         NotificationManager.shared.cancelRestTimerNotification()
 
         // End Watch workout session
-        syncWorkoutEndedToWatch()
+        syncWorkoutEndedToWatch(saveWorkout: saveWatchWorkout)
 
         // End Live Activity
         LiveActivityManager.shared.endTimerSync()
         
-        // Discard the HealthKit workout (don't save)
-        if storeManager.canAccess(.appleFitness) && appState.settings.healthKitEnabled {
-            HealthKitManager.shared.discardWorkout()
-        }
-        
-        dismiss()
+        // Unconditional: Fitness access may have changed since the builder started,
+        // and a leftover builder would absorb the next workout.
+        HealthKitManager.shared.discardWorkout()
     }
     
     /// Exit workout and save to Apple Fitness
     private func exitWorkoutAndSaveToFitness() {
+        appState.activeWorkoutTeardown = nil
         stopTimer()
         RestTimerStatus.shared.timerCleared()
         NotificationManager.shared.cancelRestTimerNotification()
+
+        // These accessories were trained, so their easy nudge has been seen
+        consumeAccessoryEasyFlags()
 
         // Capture whether the Watch owns the HealthKit workout BEFORE
         // syncWorkoutEndedToWatch() clears the flag (sendWorkoutEnded resets it).
@@ -1256,12 +1290,22 @@ struct WorkoutView: View {
                     }
                 }
             }
+        } else {
+            HealthKitManager.shared.discardWorkout()
         }
 
         dismiss()
     }
     
     private func finishAndDismiss() {
+        // The last set's result sheet is still on its way: Done must not outrun it,
+        // or the lift never gets logged.
+        if pendingLinearExercise != nil {
+            showingLinearResult = true
+            return
+        }
+
+        appState.activeWorkoutTeardown = nil
         stopTimer()
         RestTimerStatus.shared.timerCleared()
         NotificationManager.shared.cancelRestTimerNotification()
@@ -1304,6 +1348,8 @@ struct WorkoutView: View {
                     }
                 }
             }
+        } else {
+            HealthKitManager.shared.discardWorkout()
         }
 
         // Record workout completion for review request tracking. This may
@@ -1347,7 +1393,7 @@ struct WorkoutView: View {
                     let setIndex = setNumber - 1  // Convert 1-indexed to 0-indexed
                     if setIndex >= 0 && setIndex < setInfos.count {
                         let setInfo = setInfos[setIndex]
-                        let reps = setInfo.loggedReps ?? setInfo.targetReps
+                        let reps = workoutState.structuredLoggedReps[exercise.id]?[setInfo.setIndex] ?? setInfo.loggedReps ?? setInfo.targetReps
                         totalReps += reps
                         totalVolume += setInfo.weight * Double(reps)
                     }
@@ -1380,27 +1426,18 @@ struct WorkoutView: View {
         // Tactile confirmation for the app's most-pressed button.
         Haptics.medium()
 
-        // Check if this is a linear progression exercise - on last set, show result dialog
-        if exercise.isLinear && workoutState.currentSetNumber == exercise.totalSets {
-            // Capture the exercise BEFORE advancing to the next one
-            pendingLinearExercise = exercise
-            
-            // On final set - show linear result dialog after marking set complete
-            completeSetAndStartTimer()
-            
-            // Small delay then show the result dialog
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                showingLinearResult = true
-            }
-            return
-        }
-        
-        // Guard: Don't show rep input if current set is already completed
-        // This prevents an endless loop if the user taps Done on an already-logged set
+        // Guard: an already-logged set (reached via the exercise list) just moves on.
+        // No rep input, result dialog or rest timer, which would log it a second time.
         if workoutState.isSetCompleted(workoutState.currentSetNumber) {
             Logger.debug("Set \(workoutState.currentSetNumber) already completed, advancing without rep input", category: .general)
-            // Just advance to next set/exercise
-            completeSetAndStartTimer()
+            workoutState.markSetComplete()
+            syncWorkoutStateToWatch()
+            return
+        }
+
+        // Check if this is a linear progression exercise - on last set, show result dialog
+        if exercise.isLinear && workoutState.currentSetNumber == exercise.totalSets {
+            beginLinearResult(for: exercise)
             return
         }
         
@@ -1420,14 +1457,7 @@ struct WorkoutView: View {
                 return
             }
             
-            // If this is the last set of a structured exercise with no remaining AMRAPs,
-            // mark the exercise as completed so the day shows as complete
-            // (This handles BBB sets and deload weeks that have no AMRAP sets)
-            if workoutState.currentSetNumber == exercise.totalSets,
-               let lift = exercise.lift,
-               !sets.contains(where: { $0.isAMRAP }) {
-                appState.markStructuredCompleted(lift: lift, week: week, day: day)
-            }
+            markStructuredCompletedIfFinished(exercise)
         } else if workoutState.isCurrentSetRepOut {
             // Standard volume AMRAP set
             pendingStructuredSetIndex = nil
@@ -1628,6 +1658,10 @@ struct WorkoutView: View {
     }
 
     private func handleTimerEnd(playFeedback: Bool = true) {
+        // Returning from the background ticks straight to 0, so a rest that ended
+        // minutes ago also lands here. Its notification already alerted the user.
+        let isStaleExpiry = (workoutState.timerEndDate?.timeIntervalSinceNow ?? 0) < -2
+        let playFeedback = playFeedback && !isStaleExpiry
         workoutState.skipTimer()
         stopTimer()
         
@@ -1733,12 +1767,7 @@ struct WorkoutView: View {
 
                 // Show PR celebration if enabled in settings
                 if appState.settings.showPRCelebrations {
-                    prResult = result
-
-                    // Small delay before showing celebration
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        showingPRCelebration = true
-                    }
+                    presentPRCelebration(result)
                 }
             }
         }
@@ -1849,7 +1878,7 @@ struct WorkoutView: View {
             // Show the topmost AMRAP set for context (the "primary" set in nSuns)
             let amrapSets = sets.filter { $0.isAMRAP }
             if let primary = amrapSets.first(where: { $0.targetReps == 1 }) ?? amrapSets.first {
-                return "\(sets.count) sets · \(primary.targetReps)+ AMRAP @ \(Int(primary.intensity * 100))% TM"
+                return "\(sets.count) sets · \(primary.targetReps)+ AMRAP @ \(Int(round(primary.intensity * 100)))% TM"
             }
             return "\(sets.count) sets"
         }
@@ -1869,59 +1898,41 @@ struct WorkoutView: View {
 
     /// Apply a weight override to the current exercise and persist it
     private func applyWeightOverride(newWeight: Double, lift: String) {
-        // Persist the override
-        appState.setWeightOverride(lift: lift, week: week, day: day, weight: newWeight)
-        // Update the live workout state so the display changes immediately
-        let idx = workoutState.currentExerciseIndex
-        guard idx < workoutState.exercises.count else { return }
-        var exercise = workoutState.exercises[idx]
-        let oldWeight = exercise.weight
-        exercise.weight = newWeight
-
-        // For structured exercises, the per-set weight is rendered from structuredSetInfo
-        // (not from exercise.weight), so scale every set proportionally.
-        if exercise.isStructured, let sets = exercise.structuredSetInfo, oldWeight > 0 {
-            let ratio = newWeight / oldWeight
-            exercise.structuredSetInfo = sets.map { set in
-                StructuredSetInfo(
-                    setIndex: set.setIndex,
-                    intensity: set.intensity,
-                    targetReps: set.targetReps,
-                    isAMRAP: set.isAMRAP,
-                    weight: (set.weight * ratio * 100).rounded() / 100,
-                    loggedReps: set.loggedReps,
-                    calculatedWeight: set.calculatedWeight
-                )
-            }
-        }
-        workoutState.exercises[idx] = exercise
+        let exerciseName = workoutState.currentExercise?.name
+        appState.setWeightOverride(lift: lift, week: week, day: day, weight: newWeight, itemName: exerciseName)
+        refreshCurrentExerciseWeights(lift: lift, fallbackWeight: newWeight)
     }
 
     /// Clear a weight override and revert to the calculated weight
     private func clearWeightOverride(lift: String) {
         appState.clearWeightOverride(lift: lift, week: week, day: day)
+        refreshCurrentExerciseWeights(lift: lift, fallbackWeight: workoutState.currentExercise?.calculatedWeight)
+    }
+
+    /// Update the live exercise so the display changes immediately. Structured sets are
+    /// re-read from the plan so they match what gets logged, matching by exercise name
+    /// since a day can list the same lift twice (5/3/1 main + FSL).
+    private func refreshCurrentExerciseWeights(lift: String, fallbackWeight: Double?) {
         let idx = workoutState.currentExerciseIndex
         guard idx < workoutState.exercises.count else { return }
         var exercise = workoutState.exercises[idx]
 
         if exercise.isStructured {
-            // Re-fetch the per-set weights from the day plan now that the override is
-            // cleared, so they revert to the calculated TM-based weights.
-            if let plan = appState.dayPlan(week: week, day: day) {
-                for item in plan {
-                    if case let .structured(_, planLift, _, setInfos, _) = item, planLift == lift {
-                        exercise.structuredSetInfo = setInfos
-                        if let heaviest = setInfos.max(by: { $0.weight < $1.weight }) {
-                            exercise.weight = heaviest.weight
-                        }
-                        break
+            for item in appState.dayPlan(week: week, day: day) ?? [] {
+                if case let .structured(name, planLift, _, setInfos, _) = item,
+                   planLift == lift, name == exercise.name {
+                    exercise.structuredSetInfo = setInfos
+                    if let heaviest = setInfos.max(by: { $0.weight < $1.weight }) {
+                        exercise.weight = heaviest.weight
                     }
+                    break
                 }
             }
-        } else if let calcWeight = exercise.calculatedWeight {
-            exercise.weight = calcWeight
+        } else if let fallbackWeight {
+            exercise.weight = fallbackWeight
         }
         workoutState.exercises[idx] = exercise
+        syncWorkoutStateToWatch()
     }
 
     /// Build workout summary for sharing
@@ -1935,7 +1946,9 @@ struct WorkoutView: View {
             if exercise.isStructured, let sets = exercise.structuredSetInfo {
                 // For structured (nSuns), show varied reps
                 let amrapSets = sets.filter { $0.isAMRAP }
-                if let primary = amrapSets.first {
+                if let result = amrapResult {
+                    repsString = "\(result.reps)"
+                } else if let primary = amrapSets.first {
                     repsString = "\(primary.targetReps)+"
                 } else {
                     repsString = "varied"
@@ -2138,12 +2151,16 @@ struct CurrentSetView: View {
     private var intensityText: String? {
         // For structured exercises, use the per-set intensity
         if let structuredSet = currentStructuredSet {
-            return "\(Int(structuredSet.intensity * 100))% TM"
+            if structuredSet.isWeightOverridden { return "Adjusted" }
+            return "\(Int(round(structuredSet.intensity * 100)))% TM"
         }
         // For volume and linear exercises, use the exercise-level intensity
         if let exercise = workoutState.currentExercise,
            let intensity = exercise.intensity,
            intensity > 0 {
+            if let calculated = exercise.calculatedWeight, calculated != exercise.weight {
+                return "Adjusted"
+            }
             return "\(Int(round(intensity * 100)))% TM"
         }
         return nil

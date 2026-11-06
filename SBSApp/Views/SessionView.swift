@@ -67,8 +67,7 @@ struct SessionView: View {
     @State private var showingAccessoryWorkout = false
     @State private var showingAccessoryEditor = false
     @State private var showingAccessoryPicker = false
-    @State private var prResult: AppState.LogRepsResult?
-    @State private var showingPRCelebration = false
+    @State private var celebratingPR: AppState.LogRepsResult?  // Drives the PR cover; set after a short delay
     
     var body: some View {
         ScrollView {
@@ -145,7 +144,7 @@ struct SessionView: View {
                     // Log reps and check for PR
                     if let result = appState.logReps(lift: data.lift, week: week, day: day, reps: reps, note: note) {
                         if result.isNewPR {
-                            prResult = result
+                            let prResult = result
                             repLogData = nil
                             // Count this PR toward review-request eligibility
                             // (queued; presented later, never on the celebration).
@@ -154,7 +153,7 @@ struct SessionView: View {
                             if appState.settings.showPRCelebrations {
                                 // Small delay before showing celebration
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                    showingPRCelebration = true
+                                    celebratingPR = prResult
                                 }
                                 return
                             }
@@ -173,26 +172,25 @@ struct SessionView: View {
             .presentationDetents([.height(420), .medium])
             .presentationDragIndicator(.visible)
         }
-        .fullScreenCover(isPresented: $showingPRCelebration) {
-            if let result = prResult {
-                PRCelebrationView(
-                    liftName: result.liftName,
-                    newE1RM: result.newE1RM,
-                    previousE1RM: result.previousE1RM,
-                    weight: result.weight,
-                    reps: result.reps,
-                    useMetric: appState.settings.useMetric,
-                    week: week,
-                    day: day,
-                    programName: appState.programData?.displayName ?? appState.programData?.name,
-                    onDismiss: {
-                        showingPRCelebration = false
-                        prResult = nil
-                    }
-                )
-                // Transparent cover so the celebration dims the session behind it.
-                .presentationBackground(.clear)
-            }
+        // item-driven: an isPresented cover reading separate optional state can render
+        // empty, and a clear background makes that an invisible, undismissable screen.
+        .fullScreenCover(item: $celebratingPR) { result in
+            PRCelebrationView(
+                liftName: result.liftName,
+                newE1RM: result.newE1RM,
+                previousE1RM: result.previousE1RM,
+                weight: result.weight,
+                reps: result.reps,
+                useMetric: appState.settings.useMetric,
+                week: week,
+                day: day,
+                programName: appState.programData?.displayName ?? appState.programData?.name,
+                onDismiss: {
+                    celebratingPR = nil
+                }
+            )
+            // Transparent cover so the celebration dims the session behind it.
+            .presentationBackground(.clear)
         }
         .sheet(item: $accessoryLogData) { data in
             AccessoryLogSheet(
@@ -226,7 +224,7 @@ struct SessionView: View {
                 useMetric: appState.settings.useMetric,
                 roundingIncrement: appState.settings.roundingIncrement,
                 onSave: { weight in
-                    appState.setWeightOverride(lift: data.lift, week: week, day: day, weight: weight)
+                    appState.setWeightOverride(lift: data.lift, week: week, day: day, weight: weight, itemName: data.liftName)
                     weightOverrideData = nil
                 },
                 onClear: {
@@ -259,7 +257,7 @@ struct SessionView: View {
                     // Log reps and check for PR
                     if let result = appState.logStructuredReps(lift: data.lift, week: week, day: day, setIndex: data.setIndex, reps: reps) {
                         if result.isNewPR {
-                            prResult = result
+                            let prResult = result
                             structuredLogData = nil
                             // Count this PR toward review-request eligibility
                             // (queued; presented later, never on the celebration).
@@ -268,7 +266,7 @@ struct SessionView: View {
                             if appState.settings.showPRCelebrations {
                                 // Small delay before showing celebration
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                    showingPRCelebration = true
+                                    celebratingPR = prResult
                                 }
                                 return
                             }
@@ -278,13 +276,7 @@ struct SessionView: View {
                 },
                 onClear: {
                     // Clear just this set's reps
-                    if var logEntry = appState.getStructuredLog(lift: data.lift, week: week, day: day) {
-                        logEntry.amrapReps.removeValue(forKey: data.setIndex)
-                        // If empty, clear the whole entry
-                        if logEntry.amrapReps.isEmpty {
-                            appState.clearStructuredLog(lift: data.lift, week: week, day: day)
-                        }
-                    }
+                    appState.clearStructuredSet(lift: data.lift, week: week, day: day, setIndex: data.setIndex)
                     structuredLogData = nil
                 },
                 onCancel: {
@@ -311,7 +303,7 @@ struct SessionView: View {
                     guard linearLogData != nil else { return }
                     if let result = appState.logLinearSuccess(lift: data.lift, week: week, day: day, weight: data.weight, reps: data.reps, sets: data.sets) {
                         if result.isNewPR {
-                            prResult = result
+                            let prResult = result
                             linearLogData = nil
                             // Count this PR toward review-request eligibility
                             // (queued; presented later, never on the celebration).
@@ -320,7 +312,7 @@ struct SessionView: View {
                             if appState.settings.showPRCelebrations {
                                 // Small delay before showing celebration
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                    showingPRCelebration = true
+                                    celebratingPR = prResult
                                 }
                                 return
                             }
@@ -818,7 +810,7 @@ struct AccessoryLogSheet: View {
     @State private var wasEasy: Bool = false
     
     private var weight: Double? {
-        Double(weightText)
+        parseDecimalInput(weightText)?.poundsFromInput(useMetric: useMetric)
     }
     
     private var canSave: Bool {
@@ -874,19 +866,19 @@ struct AccessoryLogSheet: View {
                                         label: "-\(roundingIncrement.formattedWeightShort(useMetric: useMetric))",
                                         weight: lastWeight - roundingIncrement,
                                         useMetric: useMetric,
-                                        onTap: { weightText = String(format: "%.1f", lastWeight - roundingIncrement) }
+                                        onTap: { weightText = (lastWeight - roundingIncrement).weightInputText(useMetric: useMetric) }
                                     )
                                     QuickWeightButton(
                                         label: "Same",
                                         weight: lastWeight,
                                         useMetric: useMetric,
-                                        onTap: { weightText = String(format: "%.1f", lastWeight) }
+                                        onTap: { weightText = (lastWeight).weightInputText(useMetric: useMetric) }
                                     )
                                     QuickWeightButton(
                                         label: "+\(roundingIncrement.formattedWeightShort(useMetric: useMetric))",
                                         weight: lastWeight + roundingIncrement,
                                         useMetric: useMetric,
-                                        onTap: { weightText = String(format: "%.1f", lastWeight + roundingIncrement) }
+                                        onTap: { weightText = (lastWeight + roundingIncrement).weightInputText(useMetric: useMetric) }
                                     )
                                 }
                             }
@@ -1054,7 +1046,7 @@ struct AccessoryLogSheet: View {
         .onAppear {
             // Pre-fill with current values
             if let log = currentLog {
-                weightText = String(format: "%.1f", log.weight)
+                weightText = (log.weight).weightInputText(useMetric: useMetric)
                 sets = log.sets
                 reps = log.reps
                 note = log.note
@@ -1158,12 +1150,13 @@ struct WeightOverrideSheet: View {
     @State private var weightText: String = ""
     
     private var weight: Double? {
-        Double(weightText)
+        parseDecimalInput(weightText)?.poundsFromInput(useMetric: useMetric)
     }
     
     private var canSave: Bool {
         guard let w = weight else { return false }
-        return w > 0 && w != calculatedWeight
+        // Compared loosely: a re-entered kg value converts to a slightly different lb one
+        return w > 0 && abs(w - calculatedWeight) > 0.05
     }
     
     var body: some View {
@@ -1241,14 +1234,14 @@ struct WeightOverrideSheet: View {
                             label: "-\(roundingIncrement.formattedWeightShort(useMetric: useMetric))",
                             onTap: {
                                 let current = weight ?? calculatedWeight
-                                weightText = String(format: "%.1f", max(0, current - roundingIncrement))
+                                weightText = (max(0, current - roundingIncrement)).weightInputText(useMetric: useMetric)
                             }
                         )
 
                         QuickAdjustButton(
                             label: "Reset",
                             onTap: {
-                                weightText = String(format: "%.1f", calculatedWeight)
+                                weightText = (calculatedWeight).weightInputText(useMetric: useMetric)
                             }
                         )
 
@@ -1256,7 +1249,7 @@ struct WeightOverrideSheet: View {
                             label: "+\(roundingIncrement.formattedWeightShort(useMetric: useMetric))",
                             onTap: {
                                 let current = weight ?? calculatedWeight
-                                weightText = String(format: "%.1f", current + roundingIncrement)
+                                weightText = (current + roundingIncrement).weightInputText(useMetric: useMetric)
                             }
                         )
                     }
@@ -1319,9 +1312,9 @@ struct WeightOverrideSheet: View {
         .onAppear {
             // Pre-fill with current override or calculated weight
             if let override = currentOverride {
-                weightText = String(format: "%.1f", override)
+                weightText = (override).weightInputText(useMetric: useMetric)
             } else {
-                weightText = String(format: "%.1f", calculatedWeight)
+                weightText = (calculatedWeight).weightInputText(useMetric: useMetric)
             }
         }
     }

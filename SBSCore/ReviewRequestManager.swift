@@ -81,9 +81,11 @@ public final class ReviewRequestManager {
     }
 
     /// Call when a training cycle is completed
-    /// This is a strong positive moment
+    /// This is a strong positive moment. Deferred like the other triggers: the
+    /// caller is mid-flow (opening the cycle builder), so flush with
+    /// presentPendingReviewRequestIfNeeded() once that UI is out of the way.
     public func recordCycleCompleted() {
-        requestReviewIfEligible(reason: "cycle_completed")
+        requestReviewIfEligible(reason: "cycle_completed", deferPresentation: true)
     }
 
     /// Call when a training week is completed

@@ -10,6 +10,12 @@ struct SBSApp: App {
         Task { @MainActor in
             await LiveActivityManager.shared.endAllActivities()
         }
+
+        // Activate WCSession at launch, not at the first workout: this is what
+        // lets a relaunch tell the Watch that a workout from a killed process is over.
+        Task { @MainActor in
+            _ = WatchConnectivityManager.shared
+        }
     }
     
     var body: some Scene {
@@ -34,8 +40,12 @@ struct SBSApp: App {
                 // can't fire handleTimerEnd) and the force-quit case (relaunched
                 // process has currentActivity=nil so every survivor is orphaned).
                 // A still-active foreground timer is matched and left alone.
+                // Then end a tracked timer that expired, and start the activity for a
+                // rest that began while backgrounded (iOS refused it at the time).
                 Task { @MainActor in
                     await LiveActivityManager.shared.endOrphanedActivities()
+                    await LiveActivityManager.shared.endExpiredActivities()
+                    LiveActivityManager.shared.startDeferredActivityIfNeeded()
                 }
             }
         }

@@ -82,7 +82,25 @@ public final class WatchConnectivityManager: NSObject, ObservableObject {
     /// setting is on. Stored so it can be re-included in every application-context
     /// snapshot (which replaces the whole context each write).
     private var lastHealthKitEnabled = false
-    
+
+    /// Identity of the workout currently running on the phone (nil when idle).
+    /// Set once per workout, so a repeat `sendWorkoutStarted` is a no-op; also sent
+    /// to the Watch so it can tell a new workout from a replay of the current one.
+    private var currentWorkoutId: String?
+
+    /// Latest rest-timer state. `updateApplicationContext` replaces the whole
+    /// context, so every write re-includes this rather than implicitly clearing
+    /// the Watch's running timer.
+    private struct TimerSnapshot {
+        var endDate: Date?
+        var duration: Int
+        var remaining: Int
+        var isPaused: Bool
+        var exerciseName: String
+        var nextSetInfo: String?
+    }
+    private var timerSnapshot: TimerSnapshot?
+
     private override init() {
         super.init()
         setupSession()
@@ -111,9 +129,25 @@ public final class WatchConnectivityManager: NSObject, ObservableObject {
     public func sendWorkoutStarted(healthKitEnabled: Bool = false) {
         lastHealthKitEnabled = healthKitEnabled
 
+        // Idempotent for a running workout: returning to the workout tab must not
+        // restart anything on the Watch or disturb its rest timer.
+        if currentWorkoutId != nil {
+            updateWorkoutContext(workoutActive: true)
+            return
+        }
+
+        currentWorkoutId = UUID().uuidString
+        isWatchWorkoutSessionActive = false
+        timerSnapshot = nil
+        deliverWorkoutStart()
+    }
+
+    /// Push the current workout's start to the Watch. Also runs from activation
+    /// when the workout began before WCSession finished activating.
+    private func deliverWorkoutStart() {
         guard let session = session,
               session.activationState == .activated else {
-            Logger.debug("Watch session not active, cannot send workout start", category: .general)
+            Logger.debug("Watch session not active yet, workout start will send on activation", category: .general)
             return
         }
 
@@ -122,23 +156,33 @@ public final class WatchConnectivityManager: NSObject, ObservableObject {
 
         // Also try to send immediate message if reachable
         if session.isReachable {
-            session.sendMessage(
-                ["type": "workoutStarted", "healthKitEnabled": healthKitEnabled],
-                replyHandler: nil
-            ) { error in
+            var message: [String: Any] = ["type": "workoutStarted", "healthKitEnabled": lastHealthKitEnabled]
+            if let currentWorkoutId = currentWorkoutId {
+                message["workoutId"] = currentWorkoutId
+            }
+            session.sendMessage(message, replyHandler: nil) { error in
                 Logger.error("Failed to send workout start to Watch: \(error.localizedDescription)", category: .general)
             }
-            Logger.debug("Sent workout start to Watch (healthKitEnabled: \(healthKitEnabled))", category: .general)
+            Logger.debug("Sent workout start to Watch (healthKitEnabled: \(lastHealthKitEnabled))", category: .general)
         } else {
             Logger.debug("Watch not reachable, workout start saved to context", category: .general)
         }
     }
     
     /// Notify Watch to end the workout session
-    public func sendWorkoutEnded() {
+    /// - Parameter saveWorkout: `false` means the Watch discards its HealthKit
+    ///   workout instead of saving it (e.g. the user chose "Don't Save").
+    public func sendWorkoutEnded(saveWorkout: Bool = true) {
+        // Who saves is decided here: if the phone never learned the Watch owns the
+        // workout (a lost or late session-state message) it will save its own
+        // builder, so tell the Watch to discard rather than write a duplicate.
+        let phoneWillSave = saveWorkout && !isWatchWorkoutSessionActive && HealthKitManager.shared.isWorkoutActive
+
         // Clear heart rate when workout ends
         currentHeartRate = nil
         isWatchWorkoutSessionActive = false
+        currentWorkoutId = nil
+        timerSnapshot = nil
 
         guard let session = session,
               session.activationState == .activated else {
@@ -147,11 +191,12 @@ public final class WatchConnectivityManager: NSObject, ObservableObject {
         }
 
         // Always update application context (works even when unreachable)
-        updateWorkoutContext(workoutActive: false)
+        updateWorkoutContext(workoutActive: false, saveWorkout: saveWorkout, phoneWillSave: phoneWillSave)
         
         // Also try to send immediate message if reachable
         if session.isReachable {
-            session.sendMessage(["type": "workoutEnded"], replyHandler: nil) { error in
+            let message: [String: Any] = ["type": "workoutEnded", "saveWorkout": saveWorkout, "phoneWillSave": phoneWillSave]
+            session.sendMessage(message, replyHandler: nil) { error in
                 Logger.error("Failed to send workout end to Watch: \(error.localizedDescription)", category: .general)
             }
             Logger.debug("Sent workout end to Watch", category: .general)
@@ -168,33 +213,36 @@ public final class WatchConnectivityManager: NSObject, ObservableObject {
     /// `timerDuration`, so a Watch that wakes minutes later can compute the correct
     /// remaining time locally rather than trusting a stale, un-timestamped count.
     /// `updateApplicationContext` replaces the whole context each call, so every
-    /// call re-includes `healthKitEnabled` from `lastHealthKitEnabled`.
+    /// call re-includes `healthKitEnabled` and the current `timerSnapshot`.
     private func updateWorkoutContext(
         workoutActive: Bool,
-        timerActive: Bool = false,
-        timerEndDate: Date? = nil,
-        timerDuration: Int = 0,
-        timerRemaining: Int = 0,
-        timerPaused: Bool = false,
-        exerciseName: String = "",
-        nextSetInfo: String? = nil
+        saveWorkout: Bool = true,
+        phoneWillSave: Bool = false,
+        abandoned: Bool = false
     ) {
         guard let session = session else { return }
 
+        let timer = timerSnapshot
         var context: [String: Any] = [
             "workoutActive": workoutActive,
             "healthKitEnabled": lastHealthKitEnabled,
-            "timerActive": timerActive,
-            "timerDuration": timerDuration,
+            "saveWorkout": saveWorkout,
+            "phoneWillSave": phoneWillSave,
+            "abandoned": abandoned,
+            "timerActive": timer != nil,
+            "timerDuration": timer?.duration ?? 0,
             // Legacy fallback for a Watch build that doesn't understand endDate yet.
-            "timerRemaining": timerRemaining,
-            "timerPaused": timerPaused,
-            "timerExerciseName": exerciseName
+            "timerRemaining": timer?.remaining ?? 0,
+            "timerPaused": timer?.isPaused ?? false,
+            "timerExerciseName": timer?.exerciseName ?? ""
         ]
-        if let timerEndDate = timerEndDate {
+        if let currentWorkoutId = currentWorkoutId {
+            context["workoutId"] = currentWorkoutId
+        }
+        if let timerEndDate = timer?.endDate {
             context["timerEndDate"] = timerEndDate.timeIntervalSince1970
         }
-        if let nextSetInfo = nextSetInfo {
+        if let nextSetInfo = timer?.nextSetInfo {
             context["timerNextSetInfo"] = nextSetInfo
         }
 
@@ -253,22 +301,22 @@ public final class WatchConnectivityManager: NSObject, ObservableObject {
         exerciseName: String,
         nextSetInfo: String? = nil
     ) {
+        timerSnapshot = TimerSnapshot(
+            endDate: endDate,
+            duration: duration,
+            remaining: remaining,
+            isPaused: isPaused,
+            exerciseName: exerciseName,
+            nextSetInfo: nextSetInfo
+        )
+
         guard let session = session,
               session.activationState == .activated else {
             return
         }
 
         // Always persist a self-describing snapshot (survives Watch sleep / unreachable).
-        updateWorkoutContext(
-            workoutActive: true,
-            timerActive: true,
-            timerEndDate: endDate,
-            timerDuration: duration,
-            timerRemaining: remaining,
-            timerPaused: isPaused,
-            exerciseName: exerciseName,
-            nextSetInfo: nextSetInfo
-        )
+        updateWorkoutContext(workoutActive: true)
 
         // Send an immediate live message if reachable.
         if session.isReachable {
@@ -300,23 +348,25 @@ public final class WatchConnectivityManager: NSObject, ObservableObject {
     /// hammering `updateApplicationContext`. Once the views adopt
     /// `sendRestTimerState`, remove the tick-loop calls to this method entirely.
     public func sendRestTimerUpdate(remaining: Int, duration: Int, exerciseName: String) {
+        // Derive an endDate so the snapshot stays endDate-based.
+        timerSnapshot = TimerSnapshot(
+            endDate: remaining > 0 ? Date().addingTimeInterval(TimeInterval(remaining)) : nil,
+            duration: duration,
+            remaining: remaining,
+            isPaused: false,
+            exerciseName: exerciseName,
+            nextSetInfo: nil
+        )
+
         guard let session = session,
               session.activationState == .activated else {
             return
         }
 
         // Refresh the self-describing snapshot periodically so a waking Watch can
-        // still recover. Derive an endDate so the snapshot stays endDate-based.
+        // still recover.
         if remaining % 5 == 0 || remaining <= 5 {
-            updateWorkoutContext(
-                workoutActive: true,
-                timerActive: true,
-                timerEndDate: remaining > 0 ? Date().addingTimeInterval(TimeInterval(remaining)) : nil,
-                timerDuration: duration,
-                timerRemaining: remaining,
-                timerPaused: false,
-                exerciseName: exerciseName
-            )
+            updateWorkoutContext(workoutActive: true)
         }
 
         // Send an immediate legacy message if reachable.
@@ -334,13 +384,15 @@ public final class WatchConnectivityManager: NSObject, ObservableObject {
 
     /// Send rest timer ended / cancelled notification to Watch
     public func sendRestTimerEnded() {
+        timerSnapshot = nil
+
         guard let session = session,
               session.activationState == .activated else {
             return
         }
 
         // Always update application context (works even when unreachable)
-        updateWorkoutContext(workoutActive: true, timerActive: false)
+        updateWorkoutContext(workoutActive: true)
 
         // Also try to send immediate message if reachable
         if session.isReachable {
@@ -362,8 +414,33 @@ extension WatchConnectivityManager: WCSessionDelegate {
                 Logger.debug("Watch session activated: \(activationState.rawValue)", category: .general)
                 self.isWatchReachable = session.isReachable
                 self.isWatchAppInstalled = session.isWatchAppInstalled
+                self.reconcileAfterActivation(session)
             }
         }
+    }
+
+    /// Runs once WCSession is usable. Sends a start that was requested before
+    /// activation; otherwise, if the persisted context still says a workout is
+    /// running, this process has none (the app was killed mid-workout) — tell the
+    /// Watch so its session doesn't run on with nothing to stop it.
+    private func reconcileAfterActivation(_ session: WCSession) {
+        if currentWorkoutId != nil {
+            deliverWorkoutStart()
+        } else if session.applicationContext["workoutActive"] as? Bool == true {
+            Logger.debug("Clearing stale active workout left in Watch context", category: .general)
+            updateWorkoutContext(workoutActive: false, abandoned: true)
+        }
+    }
+
+    /// Apply the Watch's report of whether it owns the HealthKit workout.
+    /// A report for another workout (or none running) is stale and ignored; older
+    /// Watch builds send no id. `watchSaved` means the Watch was ended from its own
+    /// End button and already saved, so it stays the owner and the phone must not
+    /// write a second, overlapping workout.
+    private func applyWatchSessionState(active: Bool, watchSaved: Bool, workoutId: String?) {
+        guard currentWorkoutId != nil else { return }
+        if let workoutId = workoutId, workoutId != currentWorkoutId { return }
+        isWatchWorkoutSessionActive = active || watchSaved
     }
     
     nonisolated public func sessionDidBecomeInactive(_ session: WCSession) {
@@ -396,7 +473,11 @@ extension WatchConnectivityManager: WCSessionDelegate {
                 // The Watch reports whether it is running its own HealthKit-saving
                 // workout, so the phone can skip writing a duplicate HK workout.
                 if let active = message["active"] as? Bool {
-                    self.isWatchWorkoutSessionActive = active
+                    self.applyWatchSessionState(
+                        active: active,
+                        watchSaved: message["watchSaved"] as? Bool ?? false,
+                        workoutId: message["workoutId"] as? String
+                    )
                 }
             case "setCompleted":
                 // Watch requested set completion - notify listener.
@@ -410,6 +491,19 @@ extension WatchConnectivityManager: WCSessionDelegate {
             default:
                 break
             }
+        }
+    }
+
+    // Same state as the "watchWorkoutSession" message, but delivered even when the
+    // Watch and phone aren't mutually reachable at that moment.
+    nonisolated public func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
+        Task { @MainActor in
+            guard let active = applicationContext["watchSessionActive"] as? Bool else { return }
+            self.applyWatchSessionState(
+                active: active,
+                watchSaved: applicationContext["watchSaved"] as? Bool ?? false,
+                workoutId: applicationContext["workoutId"] as? String
+            )
         }
     }
 }

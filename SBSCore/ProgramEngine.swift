@@ -32,20 +32,16 @@ public final class ProgramEngine {
         var current: [String: Double] = state.initialMaxes.filter { sbsLiftNames.contains($0.key) }
         tms[1] = current
         
-        // Helper to find any log entry for a lift/week (from any day)
-        func findLogEntry(lift: String, week: Int) -> LogEntry? {
-            guard let dayLogs = state.logs[lift]?[week] else { return nil }
-            // Return the first entry found from any day
-            for (_, entry) in dayLogs {
-                return entry
-            }
-            return nil
+        // Entries for a lift/week in day order. Dictionary iteration order changes
+        // between launches, so never let it decide which day's log counts.
+        func logEntries(lift: String, week: Int) -> [LogEntry] {
+            guard let dayLogs = state.logs[lift]?[week] else { return [] }
+            return dayLogs.keys.sorted().compactMap { dayLogs[$0] }
         }
         
         // Check if week 1 has any weight overrides - if so, back-calculate the effective TM
         for liftName in state.lifts.keys.sorted() {
-            if let logEntry = findLogEntry(lift: liftName, week: 1),
-               let weightOverride = logEntry.weightOverride,
+            if let weightOverride = logEntries(lift: liftName, week: 1).compactMap(\.weightOverride).first,
                let wkData = state.lifts[liftName]?[1],
                wkData.intensity > 0 {
                 // Back-calculate TM from the override: TM = weight / intensity
@@ -55,15 +51,15 @@ public final class ProgramEngine {
         }
         tms[1] = current
         
-        for wk in state.weeks {
+        for wk in progressionWeeks(state: state, upToWeek: upToWeek) {
             if wk == 1 { continue }
             guard wk <= upToWeek else { break }
             let prev = tms[wk - 1] ?? current
             var updated = prev
             for liftName in state.lifts.keys.sorted() {
-                let logEntry = findLogEntry(lift: liftName, week: wk - 1)
+                let loggedReps = logEntries(lift: liftName, week: wk - 1).compactMap(\.repsLastSet).first
                 let delta: Double
-                if let reps = logEntry?.repsLastSet, let wkDataPrev = state.lifts[liftName]?[wk - 1] {
+                if let reps = loggedReps, let wkDataPrev = state.lifts[liftName]?[wk - 1] {
                     let target = wkDataPrev.repOutTarget
                     let diff = reps - target
                     delta = perWeekAdjustment(diffReps: diff)
@@ -75,8 +71,7 @@ public final class ProgramEngine {
                 
                 // If the current week has a weight override, use that to derive the effective TM
                 // This cascades to subsequent weeks
-                if let currentLogEntry = findLogEntry(lift: liftName, week: wk),
-                   let weightOverride = currentLogEntry.weightOverride,
+                if let weightOverride = logEntries(lift: liftName, week: wk).compactMap(\.weightOverride).first,
                    let wkData = state.lifts[liftName]?[wk],
                    wkData.intensity > 0 {
                     // Back-calculate TM from the override: TM = weight / intensity
@@ -88,6 +83,35 @@ public final class ProgramEngine {
             tms[wk] = updated
         }
         return tms
+    }
+
+    /// The program's weeks in order, plus one week past the end when the caller asks
+    /// for it: the TM "after" the final week is what carries into the next cycle, and
+    /// stopping at the last program week would drop that week's progression.
+    private func progressionWeeks(state: ProgramState, upToWeek: Int) -> [Int] {
+        let weeks = state.weeks.sorted()
+        guard let last = weeks.last, upToWeek > last else { return weeks }
+        return weeks + [last + 1]
+    }
+
+    /// Name of the structured item on a day that a lift's weight override applies to.
+    /// A day can list the same lift twice (5/3/1 FSL: main work and FSL back-off), and
+    /// logs are keyed by lift, so the override records which exercise it was set on.
+    /// Overrides saved before that was recorded fall back to the heaviest item.
+    private func overrideTargetItemName(lift: String, items: [DayItem], week: Int, preferred: String?) -> String? {
+        let candidates = items.filter { $0.type == .structured && $0.lift == lift }
+        if let preferred, candidates.contains(where: { $0.name == preferred }) {
+            return preferred
+        }
+        var best: (name: String, intensity: Double)?
+        for item in candidates {
+            let sets = item.setsDetailByWeek?[String(week)] ?? item.setsDetail ?? []
+            let top = sets.map(\.intensity).max() ?? 0
+            if best == nil || top > best!.intensity {
+                best = (item.name, top)
+            }
+        }
+        return best?.name
     }
 
     public func weekPlan(state: ProgramState, week: Int, accessoryLogs: [String: AccessoryLog] = [:]) throws -> [Int: [PlanItem]] {
@@ -198,7 +222,11 @@ public final class ProgramEngine {
                     // what was actually lifted.
                     let topIntensity = setsDetail.map { $0.intensity }.max() ?? 0
                     let topCalculated = roundTo(tm * topIntensity, increment: state.rounding)
-                    let structuredOverride = state.logs[lift]?[week]?[day]?.weightOverride
+                    let liftLog = state.logs[lift]?[week]?[day]
+                    let structuredOverride = liftLog?.weightOverride.flatMap { override -> Double? in
+                        let target = overrideTargetItemName(lift: lift, items: items, week: week, preferred: liftLog?.overrideItemName)
+                        return target == it.name ? override : nil
+                    }
                     let overrideRatio = (structuredOverride.map { topCalculated > 0 ? $0 / topCalculated : 1.0 }) ?? 1.0
 
                     // Build set info array with calculated weights
@@ -250,18 +278,19 @@ public final class ProgramEngine {
                     
                     // Get increment and deload info from config
                     let config = state.linearProgressionConfig ?? LinearProgressionConfig()
-                    let increment = config.increment(for: lift)
                     let isDeloadPending = consecutiveFailures >= (config.failuresBeforeDeload - 1)
-                    
+                    let calculated = roundTo(weight, increment: state.rounding)
+
                     let info = LinearExerciseInfo(
                         lift: lift,
-                        weight: roundTo(weight, increment: state.rounding),
+                        weight: state.logs[lift]?[week]?[day]?.weightOverride ?? calculated,
                         sets: it.sets ?? 5,
                         reps: it.reps ?? 5,
                         consecutiveFailures: consecutiveFailures,
-                        increment: increment,
+                        increment: linearIncrement(config: config, lift: lift, state: state),
                         isDeloadPending: isDeloadPending,
-                        logEntry: logEntry
+                        logEntry: logEntry,
+                        calculatedWeight: calculated
                     )
                     
                     dayItems.append(.linear(name: it.name, info: info))
@@ -277,59 +306,52 @@ public final class ProgramEngine {
     /// Gather info about all structured lifts and their primary (1+) AMRAP sets from program state
     /// For programs like GZCLP with multiple exercises for the same lift (T1, T2), we use the one with highest intensity
     public func gatherStructuredLiftInfo(from state: ProgramState) -> [String: (setIndex: Int, intensity: Double, targetReps: Int)] {
-        var liftInfo: [String: (setIndex: Int, intensity: Double, targetReps: Int)] = [:]
-        // Track all candidates per lift to pick the best one (highest intensity)
-        var allCandidates: [String: [(setIndex: Int, intensity: Double, targetReps: Int)]] = [:]
-        
-        for (_, items) in state.days {
-            for item in items {
+        var best: [String: (setIndex: Int, intensity: Double, targetReps: Int)] = [:]
+
+        // Days in order: Dictionary iteration order changes between launches, and ties
+        // must not let that decide which set drives progression.
+        for day in state.days.keys.sorted() {
+            for item in state.days[day] ?? [] {
                 guard item.type == .structured,
                       let lift = item.lift else { continue }
-                
+
                 // Get sets_detail - prefer static, or use week 1 from week-based
                 // Note: Must use explicit ["1"] key, not .values.first, because dictionaries are unordered
                 // Using .values.first could return week 4 (deload) which has no AMRAP sets
-                let setsDetail: [SetDetail]
-                if let staticSets = item.setsDetail {
-                    setsDetail = staticSets
-                } else if let weekBasedSets = item.setsDetailByWeek?["1"] {
-                    setsDetail = weekBasedSets
-                } else {
+                guard let setsDetail = item.setsDetail ?? item.setsDetailByWeek?["1"] else { continue }
+
+                // This item's progression set: its 1+ set, otherwise its heaviest AMRAP
+                let amrapSets = setsDetail.enumerated().filter { $0.element.isAMRAP }
+                let primary = amrapSets.first { $0.element.reps == 1 }
+                    ?? amrapSets.max { $0.element.intensity < $1.element.intensity }
+                guard let primary else { continue }
+
+                // Across items a 1+ set wins, then the highest intensity (T1 over T2)
+                let candidate = (setIndex: primary.offset, intensity: primary.element.intensity, targetReps: primary.element.reps)
+                guard let current = best[lift] else {
+                    best[lift] = candidate
                     continue
                 }
-                
-                if allCandidates[lift] == nil {
-                    allCandidates[lift] = []
-                }
-                
-                // Find the 1+ set (AMRAP with target of 1 rep) - this is the ideal progression set
-                for (index, setDetail) in setsDetail.enumerated() {
-                    if setDetail.isAMRAP && setDetail.reps == 1 {
-                        allCandidates[lift]?.append((index, setDetail.intensity, setDetail.reps))
-                        break
-                    }
-                }
-                
-                // Fallback: find any AMRAP set
-                if allCandidates[lift]?.isEmpty ?? true {
-                    let amrapSets = setsDetail.enumerated().filter { $0.element.isAMRAP }
-                    if let primary = amrapSets.max(by: { $0.element.intensity < $1.element.intensity }) {
-                        allCandidates[lift]?.append((primary.offset, primary.element.intensity, primary.element.reps))
-                    }
+                let candidateIsOnePlus = candidate.targetReps == 1
+                let currentIsOnePlus = current.targetReps == 1
+                if candidateIsOnePlus != currentIsOnePlus {
+                    if candidateIsOnePlus { best[lift] = candidate }
+                } else if candidate.intensity > current.intensity {
+                    best[lift] = candidate
                 }
             }
         }
-        
-        // For each lift, pick the AMRAP set with highest intensity (this ensures T1 is chosen over T2)
-        for (lift, candidates) in allCandidates {
-            if let best = candidates.max(by: { $0.intensity < $1.intensity }) {
-                liftInfo[lift] = best
-            }
-        }
-        
-        return liftInfo
+
+        return best
     }
     
+    /// What a manual-progression program (5/3/1) adds to a TM after a finished cycle, in
+    /// stored pounds: +5 lb upper, +10 lb lower (+2.5/+5 kg for metric users).
+    public func manualCycleIncrement(lift: String, useMetric: Bool) -> Double {
+        let pounds = isUpperBodyLift(lift) ? 5.0 : 10.0
+        return useMetric ? (pounds / 2.0) / 0.45359237 : pounds
+    }
+
     /// Determine if a lift is upper body based on its name
     public func isUpperBodyLift(_ liftName: String) -> Bool {
         let lowerBodyKeywords = ["squat", "deadlift", "leg", "lunge", "hip"]
@@ -403,40 +425,52 @@ public final class ProgramEngine {
     ) -> [Int: [String: Double]] {
         var tms: [Int: [String: Double]] = [:]
         
-        // Helper to find the progression AMRAP reps for a lift/week
-        // For programs like Reddit PPL where the same lift appears on multiple days with different set structures,
-        // we need to find any logged AMRAP that matches our progression criteria
-        func findProgressionAMRAPReps(lift: String, week: Int, expectedSetIndex: Int, expectedTargetReps: Int) -> Int? {
+        // Find the logged AMRAP that drives progression for a lift/week, and the rep
+        // target to score it against. The same lift can appear on several days with
+        // different set structures (Reddit PPL: Bench 5x5+ on Day 1, 3x10+ on Day 4;
+        // nSuns: heavy and light days), so match on the set's definition, heaviest
+        // first, rather than on whichever day's log a Dictionary yields first.
+        func findProgressionResult(lift: String, week: Int, expectedSetIndex: Int, expectedTargetReps: Int) -> (reps: Int, targetReps: Int)? {
             guard let dayLogs = state.structuredLogs[lift]?[week] else { return nil }
-            
-            // First, try to find the exact set index we're looking for
-            for (_, entry) in dayLogs {
-                if let reps = entry.amrapReps[expectedSetIndex] {
-                    return reps
-                }
-            }
-            
-            // Fallback: For programs where the same lift has different AMRAP positions on different days,
-            // look for any logged AMRAP that matches the target reps (e.g., 5+ set vs 10+ set)
-            // This handles Reddit PPL where Bench is 5x5+ on Day 1 but 3x10+ on Day 4
-            for (day, entry) in dayLogs {
-                // Find the exercise definition for this day to check target reps
-                if let dayItems = state.days[day] {
-                    for item in dayItems {
-                        guard item.type == .structured, item.lift == lift else { continue }
-                        
-                        let setsDetail = item.setsDetail ?? item.setsDetailByWeek?[String(week)] ?? []
-                        for (index, setDetail) in setsDetail.enumerated() {
-                            // Only match if it's an AMRAP set with the same target reps
-                            if setDetail.isAMRAP && setDetail.reps == expectedTargetReps,
-                               let reps = entry.amrapReps[index] {
-                                return reps
+            let loggedDays = dayLogs.keys.sorted()
+
+            var sameTarget: (reps: Int, intensity: Double)?
+            var weekSpecific: (reps: Int, targetReps: Int, intensity: Double)?
+            var hasDefinition = false
+
+            for day in loggedDays {
+                guard let entry = dayLogs[day] else { continue }
+                for item in state.days[day] ?? [] where item.type == .structured && item.lift == lift {
+                    hasDefinition = true
+                    let weekSets = item.setsDetailByWeek?[String(week)]
+                    let sets = weekSets ?? item.setsDetail ?? []
+                    for (index, set) in sets.enumerated() where set.isAMRAP {
+                        guard let reps = entry.amrapReps[index] else { continue }
+                        if set.reps == expectedTargetReps {
+                            if sameTarget == nil || set.intensity > sameTarget!.intensity {
+                                sameTarget = (reps, set.intensity)
                             }
+                        } else if weekSets != nil,
+                                  weekSpecific == nil || set.intensity > weekSpecific!.intensity {
+                            // A week-based scheme changes its target each week, so a
+                            // different target is expected and scored on its own terms.
+                            weekSpecific = (reps, set.reps, set.intensity)
                         }
                     }
                 }
             }
-            
+
+            if let sameTarget { return (sameTarget.reps, expectedTargetReps) }
+            if let weekSpecific { return (weekSpecific.reps, weekSpecific.targetReps) }
+
+            // The day no longer defines this lift (e.g. it was swapped out after logging)
+            if !hasDefinition {
+                for day in loggedDays {
+                    if let reps = dayLogs[day]?.amrapReps[expectedSetIndex] {
+                        return (reps, expectedTargetReps)
+                    }
+                }
+            }
             return nil
         }
         
@@ -451,9 +485,16 @@ public final class ProgramEngine {
         }
         tms[1] = current
 
-        for wk in state.weeks {
+        for wk in progressionWeeks(state: state, upToWeek: upToWeek) {
             if wk == 1 { continue }
             guard wk <= upToWeek else { break }
+
+            // Manual-progression programs (5/3/1) hold TMs constant through the cycle;
+            // the user raises them between cycles. AMRAP reps are only recorded.
+            if state.manualProgression {
+                tms[wk] = current
+                continue
+            }
 
             let prev = tms[wk - 1] ?? current
             var updated = prev
@@ -461,10 +502,10 @@ public final class ProgramEngine {
             for (liftName, setInfo) in structuredLiftInfo {
                 guard let prevTm = prev[liftName] else { continue }
                 // Check if there's a logged AMRAP from the previous week (any day)
-                if let reps = findProgressionAMRAPReps(lift: liftName, week: wk - 1, expectedSetIndex: setInfo.setIndex, expectedTargetReps: setInfo.targetReps) {
+                if let result = findProgressionResult(lift: liftName, week: wk - 1, expectedSetIndex: setInfo.setIndex, expectedTargetReps: setInfo.targetReps) {
                     // Apply structured progression
                     let isUpper = isUpperBodyLift(liftName)
-                    let adjustment = structuredProgression(repsOnOnePlus: reps, targetReps: setInfo.targetReps, isUpperBody: isUpper, useMetric: state.useMetric ?? false)
+                    let adjustment = structuredProgression(repsOnOnePlus: result.reps, targetReps: result.targetReps, isUpperBody: isUpper, useMetric: state.useMetric ?? false)
                     updated[liftName] = prevTm + adjustment
                 } else {
                     // No log: keep TM the same
@@ -493,6 +534,14 @@ public final class ProgramEngine {
         return lifts
     }
     
+    /// The per-session increment in stored pounds. Config values are pound-denominated;
+    /// metric users get the clean kg equivalent (+5/+10 lb -> +2.5/+5 kg), matching
+    /// structuredProgression.
+    private func linearIncrement(config: LinearProgressionConfig, lift: String, state: ProgramState) -> Double {
+        let increment = config.increment(for: lift)
+        return (state.useMetric ?? false) ? (increment / 2.0) / 0.45359237 : increment
+    }
+
     /// Compute the working weight and failure count for a linear progression lift at a specific session
     /// Session-based progression: finds the most recent logged session for this lift and calculates weight
     ///
@@ -510,7 +559,7 @@ public final class ProgramEngine {
     ) -> (weight: Double, consecutiveFailures: Int) {
         let config = state.linearProgressionConfig ?? LinearProgressionConfig()
         let initialWeight = state.initialMaxes[lift] ?? 0
-        let increment = config.increment(for: lift)
+        let increment = linearIncrement(config: config, lift: lift, state: state)
         
         // Gather all logged sessions for this lift, sorted chronologically
         var allSessions: [(week: Int, day: Int, entry: LinearLogEntry)] = []
@@ -539,10 +588,25 @@ public final class ProgramEngine {
         var currentWeight = initialWeight
         var consecutiveFailures = 0
         
+        // The running weight stays unrounded and only the result is rounded. Rounding on
+        // every step would stall (+2.5 kg on a 5 kg grid rounds back down each session)
+        // or double progress (+5 lb on a 10 lb grid rounds up each session).
         for session in previousSessions {
+            // Logs saved before unrounded replay existed follow the old rounded path, so
+            // anchor them to what was really lifted. Otherwise updating the app would
+            // move a mid-cycle lifter's weights by up to 5 lb/2.5 kg per past session.
+            if session.entry.usesUnroundedReplay != true, session.entry.weight > 0 {
+                currentWeight = session.entry.weight
+            }
+
+            // A manual override on that session is what was actually lifted
+            if let override = state.logs[lift]?[session.week]?[session.day]?.weightOverride {
+                currentWeight = override
+            }
+
             if session.entry.completed {
                 // Success! Add weight and reset failure count
-                currentWeight = roundTo(currentWeight + increment, increment: state.rounding)
+                currentWeight += increment
                 consecutiveFailures = 0
             } else {
                 // Failure
@@ -550,14 +614,14 @@ public final class ProgramEngine {
                 
                 if consecutiveFailures >= config.failuresBeforeDeload {
                     // Deload! Reduce weight by deload percentage, reset failures
-                    currentWeight = roundTo(currentWeight * (1.0 - config.deloadPercentage), increment: state.rounding)
+                    currentWeight *= (1.0 - config.deloadPercentage)
                     consecutiveFailures = 0
                 }
                 // If not enough failures for deload, weight stays the same
             }
         }
         
-        return (currentWeight, consecutiveFailures)
+        return (roundTo(currentWeight, increment: state.rounding), consecutiveFailures)
     }
     
     /// Compute working weights for linear progression lifts (legacy week-based)

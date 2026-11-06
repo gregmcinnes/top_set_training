@@ -72,6 +72,7 @@ struct CycleBuilderView: View {
     @State private var lastLoadedProgram: String? = nil
     @State private var showingProgramQuiz: Bool = false
     @State private var showingTemplateBuilder: Bool = false
+    @State private var showingTemplatePaywall: Bool = false
     
     /// Get the actual configured lifts, taking into account any exercise customizations
     /// This should be used instead of appState.allConfiguredLifts during cycle setup
@@ -158,7 +159,14 @@ struct CycleBuilderView: View {
                         onBack: { goToStep(.welcome) },
                         onContinue: { loadSelectedProgramAndContinue() },
                         onTakeQuiz: { showingProgramQuiz = true },
-                        onBuildTemplate: { showingTemplateBuilder = true }
+                        onBuildTemplate: {
+                            // Same limit as the other template entry points
+                            if StoreManager.shared.canCreateTemplate(currentTemplateCount: appState.userData.customTemplates.count) {
+                                showingTemplateBuilder = true
+                            } else {
+                                showingTemplatePaywall = true
+                            }
+                        }
                     )
                     .tag(BuilderStep.program)
                     
@@ -321,6 +329,9 @@ struct CycleBuilderView: View {
         .sheet(isPresented: $showingLockedProgramPaywall) {
             PaywallView(triggeredByFeature: .allPrograms)
         }
+        .sheet(isPresented: $showingTemplatePaywall) {
+            PaywallView(triggeredByFeature: .unlimitedTemplates)
+        }
     }
 
     private func goToStep(_ step: BuilderStep) {
@@ -336,8 +347,9 @@ struct CycleBuilderView: View {
         
         if needsLoad {
             isLoadingProgram = true
-            // Clear exercise customizations when switching programs
+            // Clear exercise customizations and entered maxes when switching programs
             exerciseCustomizations = [:]
+            trainingMaxes = [:]
             
             Task {
                 do {
@@ -366,7 +378,9 @@ struct CycleBuilderView: View {
         let lifts = actualConfiguredLifts
         // Drop stale entries for lifts no longer configured (e.g., after a swap)
         trainingMaxes = trainingMaxes.filter { lifts.contains($0.key) }
-        for lift in lifts {
+        // Keep values already here: coming back through this step must not discard what
+        // the user entered, so only lifts without a value get a default.
+        for lift in lifts where trainingMaxes[lift] == nil {
             if !isOnboarding && carryOverTMs {
                 // For new cycles, use current TMs with multiple fallbacks
                 let lastWeek = appState.highestLoggedWeek()
@@ -377,7 +391,7 @@ struct CycleBuilderView: View {
                     trainingMaxes[lift] = calculatedTM
                 } else if let customMax = appState.userData.customInitialMaxes[lift], customMax > 0 {
                     trainingMaxes[lift] = customMax
-                } else if let universalTM = appState.userData.trainingMaxes[lift], universalTM > 0 {
+                } else if let universalTM = appState.userData.trainingMaxes.canonicalLiftValue(for: lift), universalTM > 0 {
                     trainingMaxes[lift] = universalTM
                 } else {
                     trainingMaxes[lift] = appState.initialMax(for: lift)
@@ -807,6 +821,12 @@ struct ProgramSelectionStepView: View {
             }
         }
         .onAppear {
+            // Keep a selection that's already valid (quiz result, restored draft, or a
+            // template just built). Only fall back when there's nothing usable.
+            let isKnownSelection = appState.availablePrograms.contains { $0.id == selectedProgram }
+                || (UserData.templateId(from: selectedProgram).flatMap { appState.userData.template(withId: $0) } != nil)
+            guard !isKnownSelection else { return }
+
             // Set initial selection to currently loaded program or first free program
             if let currentProgramId = appState.userData.selectedProgram {
                 selectedProgram = currentProgramId
@@ -1030,30 +1050,32 @@ struct ExerciseReviewStepView: View {
     }
     
     private func swapLift(from oldLift: String, to newLift: String) {
-        var items = currentDayItems
-        
-        for i in items.indices {
-            if items[i].lift == oldLift {
-                let newName = items[i].type == .tm ? "\(newLift) TM" : newLift
-                items[i].lift = newLift
-                items[i].name = newName
+        // Days sharing a title are the same workout (Greyskull "Workout A"), and some of
+        // them may have no tab this week, so a swap applies to all of them.
+        for day in appState.daysWithSameVariant(as: selectedDay) {
+            var items = exerciseCustomizations[day] ?? appState.dayItems(for: day)
+            for i in items.indices {
+                if items[i].lift == oldLift {
+                    let newName = items[i].type == .tm ? "\(newLift) TM" : newLift
+                    items[i].lift = newLift
+                    items[i].name = newName
+                }
             }
+            exerciseCustomizations[day] = items
         }
-        
-        exerciseCustomizations[selectedDay] = items
     }
     
     private func addAccessory(name: String) {
         var items = currentDayItems
         items.append(DayItem(type: .accessory, lift: nil, name: name, defaultSets: 4, defaultReps: 10))
-        exerciseCustomizations[selectedDay] = items
+        saveItemsForSelectedDay(items)
     }
     
     private func removeAccessory(at index: Int) {
         var items = currentDayItems
         guard index < items.count else { return }
         items.remove(at: index)
-        exerciseCustomizations[selectedDay] = items
+        saveItemsForSelectedDay(items)
     }
     
     private func updateAccessorySetsReps(at index: Int, sets: Int, reps: Int) {
@@ -1061,7 +1083,19 @@ struct ExerciseReviewStepView: View {
         guard index < items.count, items[index].type == .accessory else { return }
         let item = items[index]
         items[index] = DayItem(type: .accessory, lift: nil, name: item.name, defaultSets: sets, defaultReps: reps)
+        saveItemsForSelectedDay(items)
+    }
+
+    /// Store this day's items and keep accessories in step on same-workout days already
+    /// customized here. Otherwise their stale list could win when setDayItems syncs
+    /// accessories across those days on commit.
+    private func saveItemsForSelectedDay(_ items: [DayItem]) {
         exerciseCustomizations[selectedDay] = items
+        let accessories = items.filter { $0.type == .accessory }
+        for day in appState.daysWithSameVariant(as: selectedDay) where day != selectedDay {
+            guard let other = exerciseCustomizations[day] else { continue }
+            exerciseCustomizations[day] = other.filter { $0.type != .accessory } + accessories
+        }
     }
 }
 
@@ -1431,7 +1465,9 @@ struct TrainingMaxesStepView: View {
                 onContinue: {
                     focusedLift = nil  // Dismiss keyboard before advancing
                     onContinue()
-                }
+                },
+                // A training max of 0 would produce 0 lb working weights
+                continueDisabled: configuredLifts.contains { (trainingMaxes[$0] ?? 100) <= 0 }
             )
         }
     }
@@ -1462,9 +1498,10 @@ struct TMInputRow: View {
                         if focused { onFocus() }
                     }
                     .onChange(of: inputText) { _, newValue in
-                        if let parsed = parseInput(newValue) {
-                            value = parsed
-                        }
+                        // Only the user's own typing edits the value. Formatting it for
+                        // display must not write the rounded number back.
+                        guard isTextFieldFocused, let parsed = parseInput(newValue) else { return }
+                        value = parsed
                     }
                 
                 Text(useMetric ? "kg" : "lb")
@@ -1527,13 +1564,13 @@ struct TMInputRow: View {
     private func formatValue(_ value: Double) -> String {
         let displayValue = useMetric ? value * 0.453592 : value
         if displayValue.truncatingRemainder(dividingBy: 1) == 0 {
-            return String(Int(displayValue))
+            return String(format: "%.0f", displayValue)
         }
         return String(format: "%.1f", displayValue)
     }
     
     private func parseInput(_ text: String) -> Double? {
-        guard let parsed = Double(text) else { return nil }
+        guard let parsed = parseDecimalInput(text) else { return nil }
         return useMetric ? parsed / 0.453592 : parsed
     }
     
@@ -1556,6 +1593,28 @@ struct WorkoutSettingsStepView: View {
     /// feature rather than a single hard-coded one.
     @State private var paywallFeature: PremiumFeature?
     private let storeManager = StoreManager.shared
+
+    // Same exact kg equivalents as Settings, so a value set in either place shows in both.
+    private var roundingChoices: [(value: Double, label: String)] {
+        if appState.settings.useMetric {
+            return [
+                (1 * BarWeightOptions.lbPerKg, "1 kg"),
+                (2.5 * BarWeightOptions.lbPerKg, "2.5 kg"),
+                (5 * BarWeightOptions.lbPerKg, "5 kg"),
+            ]
+        }
+        return [(2.5, "2.5 lb"), (5.0, "5 lb"), (10.0, "10 lb")]
+    }
+
+    private var roundingBinding: Binding<Double> {
+        Binding(
+            get: {
+                let current = appState.settings.roundingIncrement
+                return roundingChoices.first { abs($0.value - current) <= 0.3 }?.value ?? current
+            },
+            set: { appState.settings.roundingIncrement = $0 }
+        )
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -1669,6 +1728,9 @@ struct WorkoutSettingsStepView: View {
                                         .foregroundStyle(SBSColors.textSecondaryFallback)
                                 }
                             }
+                            .onChange(of: appState.settings.useMetric) { _, useMetric in
+                                BarWeightOptions.applyUnitDefaults(to: &appState.settings, useMetric: useMetric)
+                            }
                             
                             Divider()
                             
@@ -1684,15 +1746,9 @@ struct WorkoutSettingsStepView: View {
                                 
                                 Spacer()
                                 
-                                Picker("Rounding", selection: $appState.settings.roundingIncrement) {
-                                    if appState.settings.useMetric {
-                                        Text("1 kg").tag(2.2)
-                                        Text("2.5 kg").tag(5.5)
-                                        Text("5 kg").tag(11.0)
-                                    } else {
-                                        Text("2.5 lb").tag(2.5)
-                                        Text("5 lb").tag(5.0)
-                                        Text("10 lb").tag(10.0)
+                                Picker("Rounding", selection: roundingBinding) {
+                                    ForEach(roundingChoices, id: \.value) { choice in
+                                        Text(choice.label).tag(choice.value)
                                     }
                                 }
                                 .pickerStyle(.menu)
@@ -2148,6 +2204,7 @@ struct NavigationButtons: View {
     let continueTitle: String
     let onBack: () -> Void
     let onContinue: () -> Void
+    var continueDisabled: Bool = false
     
     var body: some View {
         HStack(spacing: SBSLayout.paddingMedium) {
@@ -2185,6 +2242,8 @@ struct NavigationButtons: View {
                         .fill(SBSColors.accentFallback)
                 )
             }
+            .disabled(continueDisabled)
+            .opacity(continueDisabled ? 0.5 : 1)
         }
         .padding(.horizontal, SBSLayout.paddingLarge)
         .padding(.vertical, SBSLayout.paddingMedium)

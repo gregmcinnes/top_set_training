@@ -132,8 +132,8 @@ public final class HealthKitManager: ObservableObject {
             }
         }
         
-        // Don't start a new workout if one is already active
-        guard !isWorkoutActive else {
+        // Don't start a new workout if one is already active or still starting
+        guard !isWorkoutActive, workoutBuilder == nil else {
             Logger.debug("⚠️ Workout already active, not starting new one", category: .healthKit)
             return
         }
@@ -144,22 +144,29 @@ public final class HealthKitManager: ObservableObject {
         configuration.locationType = .indoor
         
         // Create the workout builder
-        workoutBuilder = HKWorkoutBuilder(
+        let builder = HKWorkoutBuilder(
             healthStore: healthStore,
             configuration: configuration,
             device: .local()
         )
+        workoutBuilder = builder
         
         // Begin data collection
-        workoutStartDate = Date()
+        let startDate = Date()
+        workoutStartDate = startDate
         
         do {
-            try await workoutBuilder?.beginCollection(at: workoutStartDate!)
+            try await builder.beginCollection(at: startDate)
+            // Discarded while beginCollection was in flight: don't mark it active,
+            // or every later start would bail on a workout that no longer exists.
+            guard workoutBuilder === builder else { return }
             isWorkoutActive = true
             Logger.debug("🏋️ HealthKit workout started: \(name ?? "Strength Training")", category: .healthKit)
         } catch {
-            workoutBuilder = nil
-            workoutStartDate = nil
+            if workoutBuilder === builder {
+                workoutBuilder = nil
+                workoutStartDate = nil
+            }
             Logger.error("❌ Failed to start HealthKit workout: \(error)", category: .healthKit)
             throw HealthKitError.workoutStartFailed(error)
         }
@@ -177,6 +184,12 @@ public final class HealthKitManager: ObservableObject {
             Logger.debug("⚠️ No active workout to end", category: .healthKit)
             return nil
         }
+
+        // Release ownership up front: this method suspends, and a double finish or
+        // a new workout started meanwhile must not touch this builder.
+        workoutBuilder = nil
+        workoutStartDate = nil
+        isWorkoutActive = false
         
         let endDate = Date()
         let duration = endDate.timeIntervalSince(startDate)
@@ -189,7 +202,21 @@ public final class HealthKitManager: ObservableObject {
             // Calculate calories burned
             let caloriesBurned = estimateCaloriesBurned(durationMinutes: durationMinutes, bodyWeightKg: bodyWeight)
             
-            // End data collection first
+            // Add energy through the builder so it's part of the saved workout. A
+            // failure here costs the calorie figure, never the workout itself.
+            let energySample = HKQuantitySample(
+                type: HKQuantityType(.activeEnergyBurned),
+                quantity: HKQuantity(unit: .kilocalorie(), doubleValue: caloriesBurned),
+                start: startDate,
+                end: endDate
+            )
+            do {
+                try await builder.addSamples([energySample])
+            } catch {
+                Logger.error("Failed to add energy sample to HealthKit workout: \(error)", category: .healthKit)
+            }
+            
+            // End data collection
             try await builder.endCollection(at: endDate)
             
             // Build metadata
@@ -221,42 +248,12 @@ public final class HealthKitManager: ObservableObject {
             // Finish and save the workout
             let workout = try await builder.finishWorkout()
             
-            // Save energy sample directly to HealthStore, associated with the workout
-            // This ensures the Fitness app properly displays calories burned
-            if let workout = workout {
-                let energyType = HKQuantityType(.activeEnergyBurned)
-                let energyQuantity = HKQuantity(unit: .kilocalorie(), doubleValue: caloriesBurned)
-                let energySample = HKQuantitySample(
-                    type: energyType,
-                    quantity: energyQuantity,
-                    start: startDate,
-                    end: endDate,
-                    device: .local(),
-                    metadata: [HKMetadataKeyExternalUUID: workout.uuid.uuidString]
-                )
-                
-                try await healthStore.save(energySample)
-                
-                // Also add the sample to the workout for proper association
-                try await healthStore.addSamples([energySample], to: workout)
-            }
-            
-            // Clean up
-            workoutBuilder = nil
-            workoutStartDate = nil
-            isWorkoutActive = false
-            
             let minutes = Int(durationMinutes)
             let calories = Int(caloriesBurned)
             Logger.debug("✅ HealthKit workout saved: \(minutes) min, \(calories) kcal, \(setCount ?? 0) sets", category: .healthKit)
             
             return workout
         } catch {
-            // Clean up even on failure
-            workoutBuilder = nil
-            workoutStartDate = nil
-            isWorkoutActive = false
-            
             Logger.error("❌ Failed to save HealthKit workout: \(error)", category: .healthKit)
             throw HealthKitError.workoutSaveFailed(error)
         }

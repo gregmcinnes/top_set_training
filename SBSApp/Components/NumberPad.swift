@@ -21,36 +21,15 @@ struct StructuredProgressionContext {
         return !lowerBodyKeywords.contains { lowercased.contains($0) }
     }
     
-    /// Calculate weight adjustment based on reps performed vs target
-    /// Matches the structuredProgression function in ProgramEngine
+    /// The change the engine will apply, in the user's unit. Calls the engine so the
+    /// preview can't drift from what progression actually does.
     func weightAdjustment(reps: Int, target: Int) -> Double {
-        // nSuns-style 1+ sets use different progression rules
-        // Requires minimum 2 reps to progress, same for all lifts
-        if target == 1 {
-            if reps <= 1 { return 0.0 }    // 0-1 reps = stall
-            if reps <= 4 { return 5.0 }    // 2-4 reps = +5 lbs
-            return 10.0                     // 5+ reps = +10 lbs
-        }
-        
-        // Standard structured progression (Greyskull, GZCLP)
-        let diff = reps - target
-        
-        if isUpperBody {
-            switch diff {
-            case ...(-1): return -5.0  // Miss target = -5 lbs
-            case 0: return 0.0         // Hit exact = no change
-            case 1, 2: return 5.0      // 1-2 over = +5 lbs
-            default: return 10.0       // 3+ over = +10 lbs
-            }
-        } else {
-            // Lower body - more aggressive progression
-            switch diff {
-            case ...(-1): return 0.0   // Miss = stall (no reduction for lower)
-            case 0: return 5.0         // Hit exact = +5 lbs
-            case 1, 2: return 10.0     // 1-2 over = +10 lbs
-            default: return 15.0       // 3+ over = +15 lbs
-            }
-        }
+        let pounds = ProgramEngine().structuredProgression(
+            repsOnOnePlus: reps,
+            targetReps: target,
+            isUpperBody: isUpperBody
+        )
+        return useMetric ? pounds / 2.0 : pounds  // Metric: +5/+10/+15 lb becomes +2.5/+5/+7.5 kg
     }
 }
 
@@ -313,9 +292,9 @@ struct TMImpactPreviewCompact: View {
             // Structured progression - show weight change
             let unit = context.useMetric ? "kg" : "lb"
             if deltaWeight > 0 {
-                return "+\(Int(deltaWeight)) \(unit)"
+                return "+\(String(format: "%g", deltaWeight)) \(unit)"
             } else if deltaWeight < 0 {
-                return "\(Int(deltaWeight)) \(unit)"
+                return "\(String(format: "%g", deltaWeight)) \(unit)"
             } else {
                 return "No Δ"
             }
@@ -430,9 +409,9 @@ struct TMImpactPreview: View {
             // Structured progression - show weight change
             let unit = context.useMetric ? "kg" : "lb"
             if deltaWeight > 0 {
-                return "Next: +\(Int(deltaWeight)) \(unit)"
+                return "Next: +\(String(format: "%g", deltaWeight)) \(unit)"
             } else if deltaWeight < 0 {
-                return "Next: \(Int(deltaWeight)) \(unit)"
+                return "Next: \(String(format: "%g", deltaWeight)) \(unit)"
             } else {
                 return "Next: No change"
             }

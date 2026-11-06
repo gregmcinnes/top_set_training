@@ -163,7 +163,9 @@ final class CustomTemplateTests: XCTestCase {
         XCTAssertTrue(template.isValid)
     }
     
-    func testDuplicateProgressionSetsInvalid() {
+    func testDuplicateProgressionSetsDoNotBlockSaving() {
+        // The builder assigns a progression set to every autoregulated exercise, so
+        // treating duplicates as invalid made a lift on two days unsaveable.
         let template = CustomTemplate(
             name: "Duplicate Progression",
             daysPerWeek: 2,
@@ -173,9 +175,9 @@ final class CustomTemplateTests: XCTestCase {
                 "2": [DayItem(type: .structured, lift: "Squat", name: "Squat Again", progressionSetIndex: 2)]
             ]
         )
-        
+
         XCTAssertTrue(template.duplicateProgressionSetLifts.contains("Squat"))
-        XCTAssertFalse(template.isValid)
+        XCTAssertTrue(template.isValid)
     }
     
     func testNoProgressionSetIndexIsOk() {

@@ -50,6 +50,8 @@ struct IdleView: View {
 // MARK: - Workout Connecting View
 
 struct WorkoutConnectingView: View {
+    @EnvironmentObject var sessionManager: WatchSessionManager
+
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
@@ -65,6 +67,12 @@ struct WorkoutConnectingView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+
+                // Way out if the start never completes (phone gone, session failed).
+                Button("Cancel", role: .cancel) {
+                    sessionManager.endWorkoutFromWatch(save: false)
+                }
+                .padding(.top, 4)
             }
             .padding()
         }
@@ -112,8 +120,42 @@ struct WorkoutActiveView: View {
                     // Fallback - basic workout tracking (no state from iPhone yet)
                     BasicWorkoutView(workoutManager: workoutManager)
                 }
+
+                EndWorkoutButton()
+                    .padding(.top, 8)
             }
             .padding(.horizontal, 4)
+        }
+    }
+}
+
+// MARK: - End Workout Button
+
+/// Ends the workout on the Watch. Normally the phone does this; without it, a
+/// session outlives a killed or out-of-range phone with no way to stop it.
+struct EndWorkoutButton: View {
+    @EnvironmentObject var workoutManager: WatchWorkoutManager
+    @EnvironmentObject var sessionManager: WatchSessionManager
+    @State private var showingConfirmation = false
+
+    var body: some View {
+        Button("End Workout", role: .destructive) {
+            showingConfirmation = true
+        }
+        .confirmationDialog("End workout on Watch?", isPresented: $showingConfirmation) {
+            if workoutManager.isSavingToHealthKit {
+                Button("Save Workout") {
+                    sessionManager.endWorkoutFromWatch(save: true)
+                }
+                Button("Discard", role: .destructive) {
+                    sessionManager.endWorkoutFromWatch(save: false)
+                }
+            } else {
+                Button("End Workout", role: .destructive) {
+                    sessionManager.endWorkoutFromWatch(save: false)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
         }
     }
 }

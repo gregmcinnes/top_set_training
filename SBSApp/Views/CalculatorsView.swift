@@ -235,7 +235,7 @@ struct OneRepMaxCalculatorView: View {
     }
     
     private var weightValue: Double? {
-        Double(weight)
+        parseDecimalInput(weight)
     }
     
     private var repsValue: Int? {
@@ -253,7 +253,7 @@ struct OneRepMaxCalculatorView: View {
         
         let repsDouble = Double(r)
         
-        return [
+        let estimates: [(name: String, value: Double, description: String)] = [
             ("Epley", w * (1 + repsDouble / 30.0), "Most common formula"),
             ("Brzycki", w * (36.0 / (37.0 - repsDouble)), "Popular for lower reps"),
             ("Lombardi", w * pow(repsDouble, 0.10), "Simple power formula"),
@@ -261,6 +261,12 @@ struct OneRepMaxCalculatorView: View {
             ("O'Conner", w * (1 + 0.025 * repsDouble), "Conservative estimate"),
             ("Wathan", w * (100.0 / (48.8 + 53.8 * exp(-0.075 * repsDouble))), "Football-based")
         ]
+        // A single rep already is a 1RM, whatever each formula predicts for it.
+        if r == 1 {
+            return estimates.map { ($0.name, w, $0.description) }
+        }
+        // Brzycki divides by (37 - reps), so it goes infinite or negative at high reps.
+        return estimates.filter { $0.value.isFinite && $0.value > 0 }
     }
     
     private var averageE1RM: Double? {
@@ -497,7 +503,7 @@ struct OneRepMaxCalculatorView: View {
     
     private func formatWeight(_ weight: Double) -> String {
         if weight.truncatingRemainder(dividingBy: 1) == 0 {
-            return "\(Int(weight)) \(unit)"
+            return String(format: "%.0f \(unit)", weight)
         }
         return String(format: "%.1f \(unit)", weight)
     }
@@ -514,7 +520,7 @@ struct RPECalculatorView: View {
     @FocusState private var isE1RMFocused: Bool
     
     private var e1rmValue: Double? {
-        Double(e1rm)
+        parseDecimalInput(e1rm)
     }
     
     private var unit: String {
@@ -709,7 +715,7 @@ struct RPECalculatorView: View {
                 .foregroundStyle(SBSColors.accentFallback)
             
             let percentage = percentageFor(reps: targetReps, rpe: selectedRPE)
-            Text("\(Int(percentage * 100))% of E1RM for \(targetReps) reps @ RPE \(String(format: "%.1f", selectedRPE))")
+            Text("\(Int((percentage * 100).rounded()))% of E1RM for \(targetReps) reps @ RPE \(String(format: "%.1f", selectedRPE))")
                 .font(SBSFonts.caption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
         }
@@ -793,7 +799,7 @@ struct RPECalculatorView: View {
     
     private func formatWeight(_ weight: Double) -> String {
         if weight.truncatingRemainder(dividingBy: 1) == 0 {
-            return "\(Int(weight)) \(unit)"
+            return String(format: "%.0f \(unit)", weight)
         }
         return String(format: "%.1f \(unit)", weight)
     }
@@ -816,7 +822,7 @@ struct StandalonePlateCalculatorView: View {
     }
     
     private var targetWeightValue: Double {
-        Double(targetWeight) ?? 0
+        parseDecimalInput(targetWeight) ?? 0
     }
 
     // PlateCalculator/BarbellView work internally in lb. The text field holds
@@ -1011,7 +1017,7 @@ struct StandalonePlateCalculatorView: View {
             return String(format: "%g kg", kg)
         }
         if lb.truncatingRemainder(dividingBy: 1) == 0 {
-            return "\(Int(lb)) lb"
+            return String(format: "%.0f lb", lb)
         }
         return String(format: "%.1f lb", lb)
     }
@@ -1022,14 +1028,14 @@ struct StandalonePlateCalculatorView: View {
             return String(format: "%g", kg)
         }
         if lb.truncatingRemainder(dividingBy: 1) == 0 {
-            return "\(Int(lb))"
+            return String(format: "%.0f", lb)
         }
         return String(format: "%.1f", lb)
     }
 
     private func formatWeightShort(_ weight: Double) -> String {
         if weight.truncatingRemainder(dividingBy: 1) == 0 {
-            return "\(Int(weight))"
+            return String(format: "%.0f", weight)
         }
         return String(format: "%.1f", weight)
     }
@@ -1086,7 +1092,7 @@ struct TrainingMaxCalculatorView: View {
     @FocusState private var isMaxFocused: Bool
     
     private var actualMaxValue: Double? {
-        Double(actualMax)
+        parseDecimalInput(actualMax)
     }
     
     private var trainingMax: Double? {
@@ -1177,7 +1183,7 @@ struct TrainingMaxCalculatorView: View {
     private var tmPercentageSection: some View {
         VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
             HStack {
-                Text("TM Percentage: \(Int(tmPercentage))%")
+                Text("TM Percentage: \(String(format: "%g", tmPercentage))%")
                     .font(SBSFonts.bodyBold())
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
@@ -1196,7 +1202,7 @@ struct TrainingMaxCalculatorView: View {
                             tmPercentage = preset.value
                         }
                     } label: {
-                        Text("\(Int(preset.value))%")
+                        Text("\(String(format: "%g", preset.value))%")
                             .font(SBSFonts.caption())
                             .foregroundStyle(tmPercentage == preset.value ? .white : SBSColors.textPrimaryFallback)
                             .padding(.horizontal, 12)
@@ -1233,7 +1239,7 @@ struct TrainingMaxCalculatorView: View {
                 .foregroundStyle(SBSColors.accentFallback)
             
             if let max = actualMaxValue {
-                Text("\(Int(tmPercentage))% of \(formatWeight(max))")
+                Text("\(String(format: "%g", tmPercentage))% of \(formatWeight(max))")
                     .font(SBSFonts.caption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
             }
@@ -1351,7 +1357,7 @@ struct TrainingMaxCalculatorView: View {
         let rounded = (weight / roundingIncrement).rounded() * roundingIncrement
         
         if rounded.truncatingRemainder(dividingBy: 1) == 0 {
-            return "\(Int(rounded)) \(unit)"
+            return String(format: "%.0f \(unit)", rounded)
         }
         return String(format: "%.1f \(unit)", rounded)
     }
@@ -1618,25 +1624,25 @@ struct StrengthScoresView: View {
         if inputMode == .fromPRs, let pr = squatPR {
             return useMetric ? pr * 0.453592 : pr
         }
-        return Double(squatInput) ?? 0
+        return parseDecimalInput(squatInput) ?? 0
     }
     
     private var bench: Double {
         if inputMode == .fromPRs, let pr = benchPR {
             return useMetric ? pr * 0.453592 : pr
         }
-        return Double(benchInput) ?? 0
+        return parseDecimalInput(benchInput) ?? 0
     }
     
     private var deadlift: Double {
         if inputMode == .fromPRs, let pr = deadliftPR {
             return useMetric ? pr * 0.453592 : pr
         }
-        return Double(deadliftInput) ?? 0
+        return parseDecimalInput(deadliftInput) ?? 0
     }
     
     private var bodyweightKg: Double {
-        guard let bw = Double(bodyweight), bw > 0 else { return 0 }
+        guard let bw = parseDecimalInput(bodyweight), bw > 0 else { return 0 }
         return useMetric ? bw : bw * 0.453592
     }
     
@@ -1656,7 +1662,7 @@ struct StrengthScoresView: View {
         useMetric ? "kg" : "lb"
     }
     
-    // WILKS Calculation (2020 coefficients)
+    // WILKS Calculation (classic 1994 coefficients, 500 numerator)
     private var wilksScore: Double? {
         guard bodyweightKg > 0 && total > 0 else { return nil }
         
@@ -1665,19 +1671,19 @@ struct StrengthScoresView: View {
         let (a, b, c, d, e, f): (Double, Double, Double, Double, Double, Double)
         
         if gender == .male {
-            a = 47.46178854
-            b = 8.472061379
-            c = 0.07369410346
-            d = -0.001395833811
-            e = 7.07665973070743e-6
-            f = -1.20804336482315e-8
+            a = -216.0475144
+            b = 16.2606339
+            c = -0.002388645
+            d = -0.00113732
+            e = 7.01863e-6
+            f = -1.291e-8
         } else {
-            a = -125.4255398
-            b = 13.71219419
-            c = -0.03307250631
-            d = -0.001050400051
-            e = 9.38773881462799e-6
-            f = -2.3334613884954e-8
+            a = 594.31747775582
+            b = -27.23842536447
+            c = 0.82112226871
+            d = -0.00930733913
+            e = 4.731582e-5
+            f = -9.054e-8
         }
         
         let denominator = a + b*x + c*pow(x,2) + d*pow(x,3) + e*pow(x,4) + f*pow(x,5)
@@ -2063,7 +2069,7 @@ struct StrengthScoresView: View {
         guard let pr = pr else { return nil }
         let value = useMetric ? pr * 0.453592 : pr
         if value.truncatingRemainder(dividingBy: 1) == 0 {
-            return "\(Int(value))"
+            return String(format: "%.0f", value)
         } else {
             return String(format: "%.1f", value)
         }
@@ -2260,7 +2266,7 @@ struct StrengthScoresView: View {
     
     private func formatWeight(_ weight: Double) -> String {
         if weight.truncatingRemainder(dividingBy: 1) == 0 {
-            return "\(Int(weight))"
+            return String(format: "%.0f", weight)
         } else {
             return String(format: "%.1f", weight)
         }

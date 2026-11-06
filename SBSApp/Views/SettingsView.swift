@@ -16,6 +16,7 @@ struct SettingsView: View {
     @State private var showingTemplateList = false
     @State private var carryOverTMs = true
     @State private var showingPaywall = false
+    @State private var showingManageSubscription = false
     @State private var isRestoringPurchases = false
     @State private var programInfoSheet: AppState.AvailableProgramInfo?
     @State private var showingPlateCalculatorInfo = false
@@ -23,6 +24,12 @@ struct SettingsView: View {
     @State private var lastVersionTapTime: Date?
     @State private var showingReviewerLogin = false
     @State private var showingReviewerUnlockAlert = false
+    @State private var showingImporter = false
+    @State private var pendingImportData: Data?
+    @State private var showingImportConfirm = false
+    @State private var showingDataAlert = false
+    @State private var dataAlertTitle = ""
+    @State private var dataAlertMessage = ""
     
     private let storeManager = StoreManager.shared
 
@@ -65,6 +72,55 @@ struct SettingsView: View {
             },
             set: { appState.settings.barWeight = $0 }
         )
+    }
+
+    /// A standard load for the plate preview, on the plate grid of the user's unit.
+    private var platePreviewWeight: Double {
+        appState.settings.useMetric ? 100 * BarWeightOptions.lbPerKg : 225
+    }
+
+    private var platePreviewLabel: String {
+        appState.settings.useMetric ? "Preview (100 kg)" : "Preview (225 lb)"
+    }
+
+    private func showDataAlert(title: String, message: String) {
+        dataAlertTitle = title
+        dataAlertMessage = message
+        showingDataAlert = true
+    }
+
+    /// Read a chosen backup and ask for confirmation before anything is overwritten.
+    /// UserData decodes leniently (every field is optional), so an unrelated JSON file
+    /// would "succeed" as empty data; require keys a real export always contains.
+    private func handleImportSelection(_ result: Result<URL, Error>) {
+        do {
+            let url = try result.get()
+            let hasAccess = url.startAccessingSecurityScopedResource()
+            defer { if hasAccess { url.stopAccessingSecurityScopedResource() } }
+            let data = try Data(contentsOf: url)
+            guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  object["logs"] != nil, object["cycleHistory"] != nil else {
+                showDataAlert(title: "Couldn't Restore", message: "That file isn't a Top Set Training backup. Nothing was changed.")
+                return
+            }
+            pendingImportData = data
+            showingImportConfirm = true
+        } catch {
+            showDataAlert(title: "Couldn't Restore", message: "The file couldn't be read. Nothing was changed.")
+        }
+    }
+
+    private func restorePendingImport() {
+        guard let data = pendingImportData else { return }
+        pendingImportData = nil
+        do {
+            try appState.importData(data)
+            // The active program may have changed with the restored selection.
+            Task { try? await appState.loadProgramConfig() }
+            showDataAlert(title: "Backup Restored", message: "Your data was restored from the backup.")
+        } catch {
+            showDataAlert(title: "Couldn't Restore", message: "The backup couldn't be read. Nothing was changed.")
+        }
     }
 
     private var templateCountText: String {
@@ -181,16 +237,7 @@ struct SettingsView: View {
                 Section {
                     Toggle("Use Metric (kg)", isOn: $appState.settings.useMetric)
                         .onChange(of: appState.settings.useMetric) { _, useMetric in
-                            // Set appropriate defaults when switching unit systems
-                            if useMetric {
-                                // Metric defaults: 2.5 kg rounding, 20 kg bar
-                                appState.settings.roundingIncrement = 2.5 * BarWeightOptions.lbPerKg
-                                appState.settings.barWeight = 20 * BarWeightOptions.lbPerKg
-                            } else {
-                                // Imperial defaults: 5 lb rounding, 45 lb bar
-                                appState.settings.roundingIncrement = 5.0
-                                appState.settings.barWeight = 45.0
-                            }
+                            BarWeightOptions.applyUnitDefaults(to: &appState.settings, useMetric: useMetric)
                         }
 
                     Picker("Rounding", selection: roundingBinding) {
@@ -243,6 +290,12 @@ struct SettingsView: View {
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                     }
                     
+                    // Scoring formulas use different coefficients for men and women
+                    Picker("Scoring Category", selection: $appState.settings.isMale) {
+                        Text("Men").tag(true)
+                        Text("Women").tag(false)
+                    }
+
                     // Fetch from HealthKit button
                     if HealthKitManager.shared.isHealthKitAvailable {
                         Button {
@@ -297,12 +350,12 @@ struct SettingsView: View {
                         if appState.settings.showPlateCalculator {
                             // Preview of current barbell
                             VStack(alignment: .leading, spacing: 8) {
-                                Text("Preview (225 lb)")
+                                Text(platePreviewLabel)
                                     .font(SBSFonts.caption())
                                     .foregroundStyle(SBSColors.textTertiaryFallback)
                                 
                                 BarbellView(
-                                    weight: 225,
+                                    weight: platePreviewWeight,
                                     useMetric: appState.settings.useMetric,
                                     barWeight: appState.settings.barWeight,
                                     showLabels: true,
@@ -337,12 +390,12 @@ struct SettingsView: View {
                             } label: {
                                 ZStack {
                                     VStack(alignment: .leading, spacing: 8) {
-                                        Text("Preview (225 lb)")
+                                        Text(platePreviewLabel)
                                             .font(SBSFonts.caption())
                                             .foregroundStyle(SBSColors.textTertiaryFallback)
                                         
                                         BarbellView(
-                                            weight: 225,
+                                            weight: platePreviewWeight,
                                             useMetric: appState.settings.useMetric,
                                             barWeight: appState.settings.barWeight,
                                             showLabels: true,
@@ -697,11 +750,18 @@ struct SettingsView: View {
                     
                     // Past cycles
                     Button {
-                        showingPastCycles = true
+                        if storeManager.canAccess(.fullHistory) {
+                            showingPastCycles = true
+                        } else {
+                            showingPaywall = true
+                        }
                     } label: {
                         HStack {
                             Text("Past Cycles")
                             Spacer()
+                            if !storeManager.canAccess(.fullHistory) {
+                                PremiumBadge(isCompact: true)
+                            }
                             if !appState.cycleHistory.isEmpty {
                                 Text("\(appState.cycleHistory.count)")
                                     .font(SBSFonts.caption())
@@ -744,14 +804,24 @@ struct SettingsView: View {
                 // Data
                 Section {
                     Button {
-                        if let data = try? appState.exportData() {
-                            exportPayload = ExportPayload(data: data)
+                        do {
+                            exportPayload = ExportPayload(data: try appState.exportData())
+                        } catch {
+                            showDataAlert(title: "Export Failed", message: "Your data couldn't be exported. Please try again.")
                         }
                     } label: {
                         Label("Export Data", systemImage: "square.and.arrow.up")
                     }
+
+                    Button {
+                        showingImporter = true
+                    } label: {
+                        Label("Restore from Backup", systemImage: "square.and.arrow.down")
+                    }
                 } header: {
                     Text("Data")
+                } footer: {
+                    Text("Backups include your logs, history, PRs, and templates. Settings such as units aren't included.")
                 }
                 
                 // Danger Zone
@@ -764,7 +834,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Reset")
                 } footer: {
-                    Text("This will clear all your logged reps. Training max settings will be preserved.")
+                    Text("Clears the current cycle's logged sets and your saved accessory weights, and returns to Week 1, Day 1. Past cycles, PRs, lift history, and training maxes are kept.")
                 }
                 
                 // About
@@ -798,6 +868,13 @@ struct SettingsView: View {
                         }
                     }
                     
+                    // Subscribers need a way to cancel, e.g. after buying Lifetime
+                    if storeManager.isSubscribed {
+                        Button("Manage Subscription") {
+                            showingManageSubscription = true
+                        }
+                    }
+
                     // Restore Purchases button
                     Button {
                         Task {
@@ -906,6 +983,7 @@ struct SettingsView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Settings")
+            .manageSubscriptionsSheet(isPresented: $showingManageSubscription)
             .navigationBarTitleDisplayMode(.large)
             .sheet(isPresented: $showingTMEditor) {
                 TMEditorView(appState: appState)
@@ -943,7 +1021,25 @@ struct SettingsView: View {
                     appState.resetLogs()
                 }
             } message: {
-                Text("This will permanently delete all your logged reps. This cannot be undone.")
+                Text("This permanently clears the current cycle's logged sets and your saved accessory weights, and returns to Week 1, Day 1. Past cycles, PRs, lift history, and training maxes are kept. This cannot be undone.")
+            }
+            .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.json]) { result in
+                handleImportSelection(result)
+            }
+            .alert("Replace All Data?", isPresented: $showingImportConfirm) {
+                Button("Cancel", role: .cancel) {
+                    pendingImportData = nil
+                }
+                Button("Restore", role: .destructive) {
+                    restorePendingImport()
+                }
+            } message: {
+                Text("Everything currently in the app, including logs, history, PRs, and templates, will be replaced by this backup. This cannot be undone.")
+            }
+            .alert(dataAlertTitle, isPresented: $showingDataAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(dataAlertMessage)
             }
             .confirmationDialog(
                 "Start New Cycle",
@@ -1065,6 +1161,8 @@ struct SettingsView: View {
             // Convert kg to lbs for internal storage
             let weightLbs = weightKg / 0.453592
             appState.settings.bodyweight = weightLbs
+        } else {
+            showDataAlert(title: "No Bodyweight Found", message: "Apple Health has no bodyweight we can read. Add one in the Health app, or check that Top Set Training has permission to read it.")
         }
     }
     
@@ -1156,6 +1254,7 @@ struct TMEditRow: View {
     let onReset: () -> Void
     
     @State private var inputText: String = ""
+    @State private var suppressNextCommit = false
     @FocusState private var isFocused: Bool
     
     var body: some View {
@@ -1169,7 +1268,10 @@ struct TMEditRow: View {
                 if currentValue != defaultValue {
                     Button("Reset") {
                         onReset()
-                        inputText = formatValue(defaultValue)
+                        let resetText = formatValue(defaultValue)
+                        // Don't let this programmatic text change be saved back as a user edit
+                        suppressNextCommit = inputText != resetText
+                        inputText = resetText
                     }
                     .font(SBSFonts.caption())
                     .foregroundStyle(SBSColors.accentFallback)
@@ -1182,9 +1284,14 @@ struct TMEditRow: View {
                     .font(SBSFonts.number())
                     .focused($isFocused)
                     .onChange(of: inputText) { _, newValue in
-                        if let value = parseInput(newValue) {
-                            onChange(value)
+                        if suppressNextCommit {
+                            suppressNextCommit = false
+                            return
                         }
+                        // Only the user's own typing saves. Populating the field on
+                        // appear must not write a rounded, or zero, value back.
+                        guard isFocused, let value = parseInput(newValue), value > 0 else { return }
+                        onChange(value)
                     }
                 
                 Text(useMetric ? "kg" : "lb")
@@ -1205,13 +1312,13 @@ struct TMEditRow: View {
     private func formatValue(_ value: Double) -> String {
         let displayValue = useMetric ? value * 0.453592 : value
         if displayValue.truncatingRemainder(dividingBy: 1) == 0 {
-            return String(Int(displayValue))
+            return String(format: "%.0f", displayValue)
         }
         return String(format: "%.1f", displayValue)
     }
     
     private func parseInput(_ text: String) -> Double? {
-        guard let value = Double(text) else { return nil }
+        guard let value = parseDecimalInput(text) else { return nil }
         // Convert back to lb if using metric
         return useMetric ? value / 0.453592 : value
     }
@@ -1329,15 +1436,15 @@ struct AdjustmentRow: View {
             
             HStack(spacing: 4) {
                 TextField("0", text: $inputText)
-                    .keyboardType(.decimalPad)
+                    // Not .decimalPad: it has no minus key, and these values can be negative
+                    .keyboardType(.numbersAndPunctuation)
                     .font(SBSFonts.number())
                     .multilineTextAlignment(.trailing)
                     .frame(width: 60)
                     .focused($isFocused)
                     .onChange(of: inputText) { _, newValue in
-                        if let parsed = parseInput(newValue) {
-                            value = parsed
-                        }
+                        guard isFocused, let parsed = parseInput(newValue) else { return }
+                        value = parsed
                     }
                 
                 Text("%")
@@ -1377,7 +1484,7 @@ struct AdjustmentRow: View {
     private func parseInput(_ text: String) -> Double? {
         // Remove any leading + sign for parsing
         let cleanText = text.replacingOccurrences(of: "+", with: "")
-        guard let percent = Double(cleanText) else { return nil }
+        guard let percent = parseDecimalInput(cleanText) else { return nil }
         return percent / 100.0
     }
 }
@@ -1429,15 +1536,15 @@ struct ExerciseEditorView: View {
                     
                     // Accessories section
                     Section {
-                        ForEach(Array(accessories.enumerated()), id: \.offset) { index, item in
+                        // Real indices: accessories aren't always contiguous, so "first
+                        // accessory + offset" could rename or delete a main lift.
+                        ForEach(accessoryIndices, id: \.self) { actualIndex in
                             AccessoryRow(
-                                name: item.name,
+                                name: dayItems[actualIndex].name,
                                 onRename: { newName in
-                                    let actualIndex = accessoryStartIndex + index
                                     appState.updateAccessory(day: selectedDay, at: actualIndex, newName: newName)
                                 },
                                 onDelete: {
-                                    let actualIndex = accessoryStartIndex + index
                                     appState.removeItem(from: selectedDay, at: actualIndex)
                                 }
                             )
@@ -1496,12 +1603,8 @@ struct ExerciseEditorView: View {
         dayItems.filter { $0.type == .tm || $0.type == .volume || $0.type == .structured || $0.type == .linear }
     }
     
-    private var accessories: [DayItem] {
-        dayItems.filter { $0.type == .accessory }
-    }
-    
-    private var accessoryStartIndex: Int {
-        dayItems.firstIndex { $0.type == .accessory } ?? dayItems.count
+    private var accessoryIndices: [Int] {
+        dayItems.indices.filter { dayItems[$0].type == .accessory }
     }
 }
 

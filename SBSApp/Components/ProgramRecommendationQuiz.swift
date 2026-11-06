@@ -248,6 +248,7 @@ struct QuestionView: View {
     let onAnswer: () -> Void
     
     @State private var animateOptions = false
+    @State private var isAdvancing = false
     
     private func isSelected(_ optionId: String) -> Bool {
         switch question.id {
@@ -261,6 +262,10 @@ struct QuestionView: View {
     }
     
     private func selectOption(_ option: QuizOption) {
+        // A second tap during the short advance delay would skip the next question
+        guard !isAdvancing else { return }
+        isAdvancing = true
+
         // Haptic feedback
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.impactOccurred()
@@ -278,6 +283,7 @@ struct QuestionView: View {
         
         // Small delay before advancing for visual feedback
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            isAdvancing = false
             onAnswer()
         }
     }
@@ -1012,6 +1018,51 @@ struct ProgramScorer {
             sessionTime: "medium",
             complexity: "simple",
             tags: ["Beginner", "3 Days", "PPL Split", "Hypertrophy"]
+        ),
+        "phul_12week": ProgramMetadata(
+            id: "phul_12week",
+            experienceLevel: 2,
+            days: 4,
+            goalFocus: "both",
+            sessionTime: "medium",
+            complexity: "moderate",
+            tags: ["Intermediate", "4 Days", "Upper/Lower", "Power + Size"]
+        ),
+        "531_fsl_12week": ProgramMetadata(
+            id: "531_fsl_12week",
+            experienceLevel: 2,
+            days: 4,
+            goalFocus: "both",
+            sessionTime: "medium",
+            complexity: "moderate",
+            tags: ["Intermediate", "4 Days", "Wave Loading", "Lower Volume"]
+        ),
+        "back_friendly_hypertrophy_12week": ProgramMetadata(
+            id: "back_friendly_hypertrophy_12week",
+            experienceLevel: 2,
+            days: 5,
+            goalFocus: "size",
+            sessionTime: "long",
+            complexity: "moderate",
+            tags: ["Intermediate", "5 Days", "Low Spinal Load", "Hypertrophy"]
+        ),
+        "nsuns_6day_squat_12week": ProgramMetadata(
+            id: "nsuns_6day_squat_12week",
+            experienceLevel: 2,
+            days: 6,
+            goalFocus: "strength",
+            sessionTime: "long",
+            complexity: "detailed",
+            tags: ["Intermediate", "6 Days", "High Volume", "Extra Squats"]
+        ),
+        "nsuns_6day_deadlift_12week": ProgramMetadata(
+            id: "nsuns_6day_deadlift_12week",
+            experienceLevel: 2,
+            days: 6,
+            goalFocus: "strength",
+            sessionTime: "long",
+            complexity: "detailed",
+            tags: ["Intermediate", "6 Days", "High Volume", "Extra Deadlifts"]
         )
     ]
     

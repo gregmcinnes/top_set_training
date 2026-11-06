@@ -168,6 +168,11 @@ public final class AppState {
     private(set) var availablePrograms: [AvailableProgramInfo] = []
     
     /// Discover all available program JSON files in the bundle
+    /// Set while a workout screen is open. Called when a cycle or program change pops
+    /// that screen from outside, since a pop looks the same as a tab switch to the view.
+    /// Not persisted or observed: it only bridges to the live workout view.
+    @ObservationIgnored var activeWorkoutTeardown: (() -> Void)?
+
     func discoverAvailablePrograms() async {
         // Known program files to check
         let programFiles = [
@@ -243,6 +248,14 @@ public final class AppState {
                     self.applyProgramData(pdata)
                 }
                 return
+            }
+            // A selected template that no longer exists can never resolve. Drop its day
+            // overlays so they aren't applied on top of the default program below. The
+            // selection stays: loadProgram needs it to archive these logs on the next
+            // switch, rather than merging them into the new program.
+            if UserData.isCustomTemplate(programId: selectedId) {
+                Logger.error("Selected template \(selectedId) no longer exists — clearing its day overlays", category: .program)
+                userData.customDays = [:]
             }
             // Do NOT silently fall through: the selection is kept, but the user
             // sees the default program until the resolution problem is fixed
@@ -537,10 +550,9 @@ public final class AppState {
             
             if let liftLogs = userData.linearLogs[lift] {
                 for (week, dayLogs) in liftLogs.sorted(by: { $0.key < $1.key }) {
-                    // Get the weight from any logged day in this week
-                    for (_, entry) in dayLogs {
-                        result.append((week, entry.weight))
-                        break // Only take one entry per week for the chart
+                    // Use the week's last session: dictionary order is random per launch
+                    if let entry = dayLogs.max(by: { $0.key < $1.key })?.value {
+                        result.append((week, entry.weight)) // One entry per week for the chart
                     }
                 }
             }
@@ -585,57 +597,7 @@ public final class AppState {
     /// For programs like GZCLP with multiple exercises for the same lift (T1, T2), we use the one with highest intensity
     private func getAllStructuredLiftInfo() -> [String: (setIndex: Int, intensity: Double, targetReps: Int)] {
         guard let state = programState else { return [:] }
-        var liftInfo: [String: (setIndex: Int, intensity: Double, targetReps: Int)] = [:]
-        // Track all candidates per lift to pick the best one (highest intensity)
-        var allCandidates: [String: [(setIndex: Int, intensity: Double, targetReps: Int)]] = [:]
-        
-        for (_, items) in state.days {
-            for item in items {
-                guard item.type == .structured,
-                      let lift = item.lift else { continue }
-                
-                // Get sets_detail - prefer static, or use week 1 from week-based
-                // Note: Must use explicit ["1"] key, not .values.first, because dictionaries are unordered
-                // Using .values.first could return week 4 (deload) which has no AMRAP sets
-                let setsDetail: [SetDetail]
-                if let staticSets = item.setsDetail {
-                    setsDetail = staticSets
-                } else if let weekBasedSets = item.setsDetailByWeek?["1"] {
-                    setsDetail = weekBasedSets
-                } else {
-                    continue
-                }
-                
-                if allCandidates[lift] == nil {
-                    allCandidates[lift] = []
-                }
-                
-                // Find the 1+ set (AMRAP with target of 1 rep) - this is the ideal progression set
-                for (index, setDetail) in setsDetail.enumerated() {
-                    if setDetail.isAMRAP && setDetail.reps == 1 {
-                        allCandidates[lift]?.append((index, setDetail.intensity, setDetail.reps))
-                        break
-                    }
-                }
-                
-                // Fallback: find any AMRAP set
-                if allCandidates[lift]?.isEmpty ?? true {
-                    let amrapSets = setsDetail.enumerated().filter { $0.element.isAMRAP }
-                    if let primary = amrapSets.max(by: { $0.element.intensity < $1.element.intensity }) {
-                        allCandidates[lift]?.append((primary.offset, primary.element.intensity, primary.element.reps))
-                    }
-                }
-            }
-        }
-        
-        // For each lift, pick the AMRAP set with highest intensity (this ensures T1 is chosen over T2)
-        for (lift, candidates) in allCandidates {
-            if let best = candidates.max(by: { $0.intensity < $1.intensity }) {
-                liftInfo[lift] = best
-            }
-        }
-        
-        return liftInfo
+        return engine.gatherStructuredLiftInfo(from: state)
     }
     
     /// Calculate estimated 1RM for completed weeks only
@@ -665,14 +627,14 @@ public final class AppState {
             
             if let liftLogs = userData.linearLogs[lift] {
                 for (week, dayLogs) in liftLogs.sorted(by: { $0.key < $1.key }) {
-                    for (_, entry) in dayLogs {
+                    // Use the week's last session: dictionary order is random per launch
+                    if let entry = dayLogs.max(by: { $0.key < $1.key })?.value {
                         // Find the default reps for this lift
                         let defaultReps = state.days.values.flatMap { $0 }
                             .first { $0.type == .linear && $0.lift == lift }?.reps ?? 5
                         let reps = entry.completed ? defaultReps : max(1, defaultReps - 1)
                         let e1rm = calculateE1RM(weight: entry.weight, reps: reps)
-                        result.append((week, e1rm, entry.weight, reps))
-                        break // Only take one entry per week
+                        result.append((week, e1rm, entry.weight, reps)) // One entry per week
                     }
                 }
             }
@@ -858,7 +820,8 @@ public final class AppState {
     // MARK: - Logging
     
     /// Result of logging reps - includes PR information
-    struct LogRepsResult {
+    struct LogRepsResult: Identifiable {
+        let id = UUID()
         let isNewPR: Bool
         let newE1RM: Double
         let previousE1RM: Double?
@@ -879,8 +842,14 @@ public final class AppState {
             userData.logs[lift]?[week] = [:]
         }
         // Preserve existing weight override if any
-        let existingOverride = userData.logs[lift]?[week]?[day]?.weightOverride
-        userData.logs[lift]?[week]?[day] = LogEntry(repsLastSet: reps, note: note, weightOverride: existingOverride)
+        let existingEntry = userData.logs[lift]?[week]?[day]
+        let existingOverride = existingEntry?.weightOverride
+        userData.logs[lift]?[week]?[day] = LogEntry(
+            repsLastSet: reps,
+            note: note,
+            weightOverride: existingOverride,
+            overrideItemName: existingEntry?.overrideItemName
+        )
         
         // Calculate E1RM for this set
         guard let state = programState,
@@ -902,8 +871,12 @@ public final class AppState {
             estimatedOneRM: newE1RM,
             programId: userData.selectedProgram,
             week: week,
-            setType: "volume"
+            setType: "volume",
+            day: day
         )
+
+        // A re-log replaces the earlier entry, including any PR it set
+        removeLiftRecords(lift: lift, week: week, day: day, setType: "volume")
 
         // Check if this is a new PR (before recording, to get previous value)
         let previousPR = userData.personalRecords.canonicalLiftValue(for: lift)
@@ -931,7 +904,7 @@ public final class AppState {
             note: note.isEmpty ? nil : note
         )
         
-        let isNewPR = previousE1RM == nil || newE1RM > (previousE1RM ?? 0)
+        let isNewPR = newE1RM > 0 && (previousE1RM == nil || newE1RM > (previousE1RM ?? 0))
         
         return LogRepsResult(
             isNewPR: isNewPR,
@@ -954,13 +927,51 @@ public final class AppState {
     
     func clearLog(lift: String, week: Int, day: Int) {
         userData.logs[lift]?[week]?[day] = nil
+        removeLiftRecords(lift: lift, week: week, day: day)
+        removeWorkoutSets(lift: lift, week: week, day: day)
+    }
+
+    /// Remove this cycle's history records for a session, recomputing the PR if one of
+    /// them held it. Otherwise a mistyped rep count would stay the PR permanently.
+    /// Records saved before `LiftRecord.day` existed can't be matched and are left alone.
+    private func removeLiftRecords(lift: String, week: Int, day: Int, setType: String? = nil, setIndex: Int? = nil) {
+        userData.removeLiftRecords(
+            liftName: ExerciseLibrary.canonicalLiftName(lift),
+            programId: userData.selectedProgram,
+            week: week,
+            day: day,
+            setType: setType,
+            setIndex: setIndex,
+            since: userData.currentCycleStartDate
+        )
+    }
+
+    /// Remove this cycle's workout-history sets for a session (nil setNumber: all of them)
+    private func removeWorkoutSets(lift: String, week: Int, day: Int, setNumber: Int? = nil) {
+        let cycleStart = userData.currentCycleStartDate
+        let programId = userData.selectedProgram
+        for index in userData.workoutRecords.indices {
+            let record = userData.workoutRecords[index]
+            guard record.date >= cycleStart, record.week == week, record.day == day,
+                  record.programId == programId else { continue }
+            for exerciseIndex in record.exercises.indices where record.exercises[exerciseIndex].lift == lift {
+                if let setNumber {
+                    userData.workoutRecords[index].exercises[exerciseIndex].sets.removeAll { $0.setNumber == setNumber }
+                } else {
+                    userData.workoutRecords[index].exercises[exerciseIndex].sets = []
+                }
+            }
+            userData.workoutRecords[index].exercises.removeAll { $0.sets.isEmpty }
+        }
+        userData.workoutRecords.removeAll { $0.exercises.isEmpty && $0.date >= cycleStart && $0.week == week && $0.day == day && $0.programId == programId }
     }
     
     // MARK: - Weight Overrides
     
     /// Set a weight override for a lift on a specific week/day
     /// This will cascade to subsequent weeks by affecting the effective TM calculation
-    func setWeightOverride(lift: String, week: Int, day: Int, weight: Double) {
+    /// `itemName` is the exercise it was set on, for days that list a lift twice (5/3/1 FSL)
+    func setWeightOverride(lift: String, week: Int, day: Int, weight: Double, itemName: String? = nil) {
         if userData.logs[lift] == nil {
             userData.logs[lift] = [:]
         }
@@ -971,6 +982,7 @@ public final class AppState {
         // Get existing log entry or create a new one
         var logEntry = userData.logs[lift]?[week]?[day] ?? LogEntry()
         logEntry.weightOverride = weight
+        logEntry.overrideItemName = itemName
         userData.logs[lift]?[week]?[day] = logEntry
     }
     
@@ -978,6 +990,7 @@ public final class AppState {
     func clearWeightOverride(lift: String, week: Int, day: Int) {
         guard var logEntry = userData.logs[lift]?[week]?[day] else { return }
         logEntry.weightOverride = nil
+        logEntry.overrideItemName = nil
         
         // If the log entry is now empty (no reps, no note, no override), remove it
         if logEntry.repsLastSet == nil && logEntry.note.isEmpty && logEntry.weightOverride == nil {
@@ -992,6 +1005,18 @@ public final class AppState {
         userData.logs[lift]?[week]?[day]?.weightOverride
     }
     
+    /// The override affecting one exercise. A day listing a lift twice shares one log
+    /// entry, so an override on the main work must not read as set on the FSL back-off.
+    func weightOverride(forExercise name: String, lift: String, week: Int, day: Int) -> Double? {
+        guard let override = getWeightOverride(lift: lift, week: week, day: day) else { return nil }
+        for item in dayPlan(week: week, day: day) ?? [] {
+            if case let .structured(itemName, itemLift, _, sets, _) = item, itemLift == lift, itemName == name {
+                return sets.contains { $0.weight != $0.calculatedWeight } ? override : nil
+            }
+        }
+        return override
+    }
+
     /// Get the calculated (recommended) weight for a lift on a specific week
     func calculatedWeight(for lift: String, week: Int) -> Double? {
         // Use visible days for the specific week
@@ -1061,7 +1086,7 @@ public final class AppState {
     /// Log reps for a structured exercise AMRAP set
     /// Log reps for a structured (nSuns/GZCLP) AMRAP set and check for a new PR.
     @discardableResult
-    func logStructuredReps(lift: String, week: Int, day: Int, setIndex: Int, reps: Int) -> LogRepsResult? {
+    func logStructuredReps(lift: String, week: Int, day: Int, setIndex: Int, reps: Int, note: String = "") -> LogRepsResult? {
         // Ensure nested dictionaries exist
         if userData.structuredLogs[lift] == nil {
             userData.structuredLogs[lift] = [:]
@@ -1073,6 +1098,9 @@ public final class AppState {
             userData.structuredLogs[lift]?[week]?[day] = StructuredLogEntry()
         }
         userData.structuredLogs[lift]?[week]?[day]?.amrapReps[setIndex] = reps
+        if !note.isEmpty {
+            userData.structuredLogs[lift]?[week]?[day]?.note = note
+        }
         
         // Also update program state
         if programState?.structuredLogs[lift] == nil {
@@ -1089,7 +1117,9 @@ public final class AppState {
         if let dayPlan = self.dayPlan(week: week, day: day) {
             for item in dayPlan {
                 if case let .structured(name, itemLift, _, sets, _) = item, itemLift == lift {
-                    if let setInfo = sets.first(where: { $0.setIndex == setIndex }) {
+                    // A day can list the lift twice (5/3/1 main + FSL): the AMRAP set
+                    // belongs to whichever item actually defines one at this index.
+                    if let setInfo = sets.first(where: { $0.setIndex == setIndex && $0.isAMRAP }) {
                         let weight = setInfo.weight
                         let e1rm = calculateE1RM(weight: weight, reps: reps)
 
@@ -1103,8 +1133,13 @@ public final class AppState {
                             estimatedOneRM: e1rm,
                             programId: userData.selectedProgram,
                             week: week,
-                            setType: setType
+                            setType: setType,
+                            day: day,
+                            setIndex: setIndex
                         )
+
+                        // A re-log replaces this set's earlier entry, including any PR it set
+                        removeLiftRecords(lift: lift, week: week, day: day, setIndex: setIndex)
 
                         // Check if this is a new PR (before recording, to get previous value)
                         let previousE1RM = userData.personalRecords.canonicalLiftValue(for: lift)?.estimatedOneRM
@@ -1126,10 +1161,11 @@ public final class AppState {
                             trainingMax: currentTM,
                             exerciseType: .structured,
                             intensity: setInfo.intensity,
-                            completed: true
+                            completed: true,
+                            note: note.isEmpty ? nil : note
                         )
 
-                        let isNewPR = previousE1RM == nil || e1rm > (previousE1RM ?? 0)
+                        let isNewPR = e1rm > 0 && (previousE1RM == nil || e1rm > (previousE1RM ?? 0))
 
                         return LogRepsResult(
                             isNewPR: isNewPR,
@@ -1140,7 +1176,6 @@ public final class AppState {
                             liftName: lift
                         )
                     }
-                    break
                 }
             }
         }
@@ -1161,6 +1196,23 @@ public final class AppState {
     func clearStructuredLog(lift: String, week: Int, day: Int) {
         userData.structuredLogs[lift]?[week]?[day] = nil
         programState?.structuredLogs[lift]?[week]?[day] = nil
+        removeLiftRecords(lift: lift, week: week, day: day)
+        removeWorkoutSets(lift: lift, week: week, day: day)
+    }
+
+    /// Clear one AMRAP set's reps, leaving the day's other logged sets in place
+    func clearStructuredSet(lift: String, week: Int, day: Int, setIndex: Int) {
+        guard var entry = userData.structuredLogs[lift]?[week]?[day] else { return }
+        entry.amrapReps[setIndex] = nil
+        if entry.amrapReps.isEmpty {
+            clearStructuredLog(lift: lift, week: week, day: day)
+            return
+        }
+        userData.structuredLogs[lift]?[week]?[day] = entry
+        programState?.structuredLogs[lift]?[week]?[day] = entry
+
+        removeLiftRecords(lift: lift, week: week, day: day, setIndex: setIndex)
+        removeWorkoutSets(lift: lift, week: week, day: day, setNumber: setIndex)
     }
     
     /// Mark a structured exercise as completed (for exercises without AMRAP sets like BBB or deload weeks)
@@ -1214,11 +1266,15 @@ public final class AppState {
             consecutiveFailures: 0,
             deloadApplied: false,
             weight: weight,
-            note: note
+            note: note,
+            usesUnroundedReplay: true
         )
         
         userData.linearLogs[lift]?[week]?[day] = entry
         programState?.linearLogs[lift]?[week]?[day] = entry
+
+        // A re-log replaces the earlier result, including any PR it set
+        removeLiftRecords(lift: lift, week: week, day: day)
         
         // Record to unified lift history for progress tracking
         // Calculate E1RM using Epley formula: weight × (1 + reps/30)
@@ -1235,7 +1291,8 @@ public final class AppState {
             estimatedOneRM: e1rm,
             programId: userData.selectedProgram,
             week: week,
-            setType: "\(sets)×\(reps)"
+            setType: "\(sets)×\(reps)",
+            day: day
         )
         userData.recordLift(record)
         
@@ -1265,7 +1322,7 @@ public final class AppState {
         userData.trainingMaxes.setCanonicalLiftValue(weight, for: lift)
         
         // Check if this is a new PR
-        let isNewPR = previousE1RM == nil || e1rm > (previousE1RM ?? 0)
+        let isNewPR = e1rm > 0 && (previousE1RM == nil || e1rm > (previousE1RM ?? 0))
         
         return LogRepsResult(
             isNewPR: isNewPR,
@@ -1304,11 +1361,15 @@ public final class AppState {
             consecutiveFailures: newFailures,
             deloadApplied: willDeload,
             weight: weight,
-            note: note
+            note: note,
+            usesUnroundedReplay: true
         )
         
         userData.linearLogs[lift]?[week]?[day] = entry
         programState?.linearLogs[lift]?[week]?[day] = entry
+
+        // A re-log replaces the earlier result, including any PR it set
+        removeLiftRecords(lift: lift, week: week, day: day)
         
         // Still record to lift history even on failure (shows attempted weight)
         // Use a reduced rep count to indicate it was a failed attempt
@@ -1322,9 +1383,11 @@ public final class AppState {
             estimatedOneRM: e1rm,
             programId: userData.selectedProgram,
             week: week,
-            setType: "\(sets)×\(reps) (failed)"
+            setType: "\(sets)×\(reps) (failed)",
+            day: day
         )
-        userData.recordLift(record)
+        // The rep count here is assumed, not measured, so it can't set a PR
+        userData.recordLift(record, updatesPR: false)
         
         // Record to WorkoutRecords (new self-contained history system)
         // For failed attempts, mark as not fully completed
@@ -1378,8 +1441,8 @@ public final class AppState {
         
         // Get most recent log
         if let mostRecent = allLogs.first {
-            if mostRecent.entry.completed {
-                return 0  // Success resets the count
+            if mostRecent.entry.completed || mostRecent.entry.deloadApplied {
+                return 0  // Success or a deload resets the count
             } else {
                 return mostRecent.entry.consecutiveFailures
             }
@@ -1397,6 +1460,8 @@ public final class AppState {
     func clearLinearLog(lift: String, week: Int, day: Int) {
         userData.linearLogs[lift]?[week]?[day] = nil
         programState?.linearLogs[lift]?[week]?[day] = nil
+        removeLiftRecords(lift: lift, week: week, day: day)
+        removeWorkoutSets(lift: lift, week: week, day: day)
     }
     
     /// Check if a linear lift is at risk of deload (consecutive failures approaching threshold)
@@ -1651,8 +1716,8 @@ public final class AppState {
                 // Already has customizations - keep main lifts, replace accessories
                 dayItems = customItems.filter { $0.type != .accessory }
             } else {
-                // Use default items
-                dayItems = programData?.days[String(variantDay)] ?? []
+                // Use default main lifts; accessories come from the synced list below
+                dayItems = (programData?.days[String(variantDay)] ?? []).filter { $0.type != .accessory }
             }
             
             // Add the synced accessories
@@ -1804,9 +1869,11 @@ public final class AppState {
         // Find and replace both TM and volume items for this lift
         for i in items.indices {
             if items[i].lift == oldLift {
-                let type = items[i].type
-                let newName = type == .tm ? "\(newLift) TM" : newLift
-                items[i] = DayItem(type: type, lift: newLift, name: newName)
+                // Mutate in place: rebuilding the item would drop its set scheme
+                // (setsDetail, sets, reps), which removes structured lifts from the
+                // workout and turns Starting Strength's 3x5 into the default 5x5.
+                items[i].lift = newLift
+                items[i].name = items[i].type == .tm ? "\(newLift) TM" : newLift
             }
         }
         
@@ -1864,6 +1931,13 @@ public final class AppState {
     func importData(_ data: Data) throws {
         try persistence.importUserDataJSON(data)
         self.userData = persistence.loadUserData()
+
+        // The training position lives in settings, which a backup doesn't include.
+        // Resume at the backup's latest logged week, on its first day not yet logged.
+        let week = highestLoggedWeek()
+        let days = visibleDays(forWeek: week)
+        settings.currentWeek = week
+        settings.currentDay = days.first { !isDayLogged(week: week, day: $0) } ?? days.first ?? 1
     }
     
     // MARK: - Reset
@@ -1873,7 +1947,6 @@ public final class AppState {
         userData.structuredLogs = [:]
         userData.linearLogs = [:]
         userData.accessoryLogs = [:]
-        userData.cycleHistory = []
         userData.currentCycleStartDate = Date()
         settings.currentWeek = 1
         settings.currentDay = 1
@@ -1889,7 +1962,9 @@ public final class AppState {
     
     /// Get the current cycle number (1-indexed)
     var currentCycleNumber: Int {
-        userData.cycleHistory.count + 1
+        // max + 1, not count + 1: after deleting an archived cycle, count + 1 would
+        // reuse a number that a remaining cycle already has.
+        (userData.cycleHistory.map(\.cycleNumber).max() ?? 0) + 1
     }
     
     /// Get cycle history sorted by most recent first
@@ -1921,8 +1996,15 @@ public final class AppState {
         // The "final" TM after completing week N is actually the TM for week N+1
         // because progression from AMRAP performance is applied to the next week
         let targetWeek = week + 1
+
+        // Only this program's lifts: liftNames also includes every lift in history,
+        // whose stale or alias-spelled values must not overwrite universal TMs.
+        var programLifts = Set(state.lifts.keys)
+        for items in state.days.values {
+            programLifts.formUnion(items.compactMap(\.lift))
+        }
         
-        for lift in liftNames {
+        for lift in programLifts.sorted() {
             // Check if this is a structured lift
             let structuredLiftInfo = getAllStructuredLiftInfo()
             if structuredLiftInfo[lift] != nil {
@@ -1946,11 +2028,10 @@ public final class AppState {
                 // For linear lifts, get the most recent logged weight
                 if let liftLogs = userData.linearLogs[lift] {
                     let sortedLogs = liftLogs.sorted(by: { $0.key < $1.key })
-                    if let lastLog = sortedLogs.filter({ $0.key <= week }).last {
-                        for (_, entry) in lastLog.value {
-                            result[lift] = entry.weight
-                            break
-                        }
+                    if let lastLog = sortedLogs.filter({ $0.key <= week }).last,
+                       let lastSession = lastLog.value.max(by: { $0.key < $1.key }) {
+                        // The week's latest session, not whichever a Dictionary yields
+                        result[lift] = lastSession.value.weight
                         continue
                     }
                 }
@@ -2004,10 +2085,9 @@ public final class AppState {
         // Check structured logs (for nSuns-style programs) [lift][week][day]
         for (_, weekLogs) in userData.structuredLogs {
             for (week, dayLogs) in weekLogs {
-                for (_, entry) in dayLogs {
-                    if !entry.amrapReps.isEmpty && week > maxWeek {
-                        maxWeek = week
-                    }
+                // Any entry counts: sets without AMRAPs log an empty one (markStructuredCompleted)
+                if !dayLogs.isEmpty && week > maxWeek {
+                    maxWeek = week
                 }
             }
         }
@@ -2040,10 +2120,9 @@ public final class AppState {
         // Check structured logs (for nSuns-style programs) [lift][week][day]
         for (_, weekLogs) in userData.structuredLogs {
             for (_, dayLogs) in weekLogs {
-                for (_, entry) in dayLogs {
-                    if !entry.amrapReps.isEmpty {
-                        return true
-                    }
+                // Any entry counts: sets without AMRAPs log an empty one (markStructuredCompleted)
+                if !dayLogs.isEmpty {
+                    return true
                 }
             }
         }
@@ -2156,7 +2235,20 @@ public final class AppState {
         
         // Set new starting maxes if carrying over TMs
         if carryOverTMs && !endingMaxes.isEmpty {
-            for (lift, tm) in endingMaxes {
+            var carriedMaxes = endingMaxes
+
+            // Manual-progression programs (5/3/1) hold TMs through the cycle, so a
+            // finished cycle is the one point they rise. Without this a one-tap repeat
+            // would run the same weights forever. Partial cycles carry over unchanged.
+            if let state = programState, state.manualProgression,
+               let finalWeek = state.weeks.max(), lastWeek >= finalWeek {
+                for lift in getAllStructuredLiftInfo().keys {
+                    guard let tm = carriedMaxes[lift], tm > 0 else { continue }
+                    carriedMaxes[lift] = tm + engine.manualCycleIncrement(lift: lift, useMetric: settings.useMetric)
+                }
+            }
+
+            for (lift, tm) in carriedMaxes where tm > 0 {
                 userData.customInitialMaxes[lift] = tm
                 programState?.initialMaxes[lift] = tm
                 // Also update universal trainingMaxes for cross-program consistency
@@ -2191,11 +2283,11 @@ public final class AppState {
     /// Snapshot taken before the cycle builder starts previewing programs, so
     /// cancelling the builder restores everything loadProgram may have archived,
     /// cleared, or switched. UserData is a value type — one copy captures logs,
-    /// records, cycle history, customizations, and the program selection.
+    /// records, cycle history, customizations, and the program selection. Settings
+    /// are captured too, since the builder's settings step edits them directly.
     private struct ProgramPreviewSnapshot {
         let userData: UserData
-        let currentWeek: Int
-        let currentDay: Int
+        let settings: UserSettings
     }
 
     private var programPreviewSnapshot: ProgramPreviewSnapshot?
@@ -2205,8 +2297,7 @@ public final class AppState {
         guard programPreviewSnapshot == nil else { return }
         programPreviewSnapshot = ProgramPreviewSnapshot(
             userData: userData,
-            currentWeek: settings.currentWeek,
-            currentDay: settings.currentDay
+            settings: settings
         )
     }
 
@@ -2221,9 +2312,12 @@ public final class AppState {
         guard let snapshot = programPreviewSnapshot else { return }
         programPreviewSnapshot = nil
 
-        userData = snapshot.userData
-        settings.currentWeek = snapshot.currentWeek
-        settings.currentDay = snapshot.currentDay
+        // A template saved inside the builder is deliberate work, not a preview
+        // side effect, so it survives the cancel.
+        var restored = snapshot.userData
+        restored.customTemplates = userData.customTemplates
+        userData = restored
+        settings = snapshot.settings
 
         // Reload the original program. selectedProgram was restored with the
         // snapshot, so this load is a plain re-open, not a destructive switch.
@@ -2263,9 +2357,26 @@ public final class AppState {
         if let programId, userData.selectedProgram != programId {
             try? await loadProgram(programId)
         }
+        seedStarterWeightsForUnsetLifts()
         completeOnboarding()
     }
     
+    /// Programs ship no starting weights, so a user who skipped setup would otherwise
+    /// open every lift at 0. Start them on the empty bar, a safe linear-progression
+    /// starting point they can raise from Settings.
+    private func seedStarterWeightsForUnsetLifts() {
+        guard let state = programState else { return }
+        var lifts = Set(state.lifts.keys)
+        for items in state.days.values {
+            lifts.formUnion(items.filter { $0.type != .accessory }.compactMap(\.lift))
+        }
+        for lift in lifts where (userData.customInitialMaxes[lift] ?? 0) <= 0 {
+            let starter = userData.trainingMaxes.canonicalLiftValue(for: lift).flatMap { $0 > 0 ? $0 : nil } ?? settings.barWeight
+            userData.customInitialMaxes[lift] = starter
+            state.initialMaxes[lift] = starter
+        }
+    }
+
     /// Get all program info for cycle builder
     var programInfo: (name: String, weeks: Int, days: Int)? {
         guard let data = programData else { return nil }
@@ -2393,21 +2504,14 @@ public final class AppState {
         userData.structuredLogs = [:]
         userData.linearLogs = [:]
 
-        // Clear old customDays and restore program defaults before applying new customizations
-        userData.customDays = [:]
-        if let pdata = programData {
-            for (dayStr, items) in pdata.days {
-                if let dayNum = Int(dayStr) {
-                    programState?.days[dayNum] = items
-                }
-            }
-        }
-        
+        // Existing customDays stay: the builder's review step showed them, and only
+        // days the user edited there arrive in exerciseCustomizations (applied below).
+
         // Apply new maxes from builder, or carry over
         if let newMaxes = newMaxes {
             setInitialMaxes(newMaxes)
         } else if carryOverTMs && !endingMaxes.isEmpty {
-            for (lift, tm) in endingMaxes {
+            for (lift, tm) in endingMaxes where tm > 0 {
                 userData.customInitialMaxes[lift] = tm
                 programState?.initialMaxes[lift] = tm
                 // Also update universal trainingMaxes for cross-program consistency

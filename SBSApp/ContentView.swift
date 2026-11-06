@@ -93,49 +93,58 @@ struct MainTabView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             HomeView(appState: appState)
+                .safeAreaInset(edge: .bottom, spacing: 0) { restTimerPill }
                 .tag(ContentView.Tab.home)
                 .tabItem {
                     Label("Workout", systemImage: "figure.strengthtraining.traditional")
                 }
             
             ProgramsView(appState: appState, selectedTab: $selectedTab)
+                .safeAreaInset(edge: .bottom, spacing: 0) { restTimerPill }
                 .tag(ContentView.Tab.programs)
                 .tabItem {
                     Label("Programs", systemImage: "book.pages")
                 }
             
             HistoryView(appState: appState)
+                .safeAreaInset(edge: .bottom, spacing: 0) { restTimerPill }
                 .tag(ContentView.Tab.history)
                 .tabItem {
                     Label("History", systemImage: "chart.line.uptrend.xyaxis")
                 }
             
             CalculatorsView(appState: appState)
+                .safeAreaInset(edge: .bottom, spacing: 0) { restTimerPill }
                 .tag(ContentView.Tab.calculators)
                 .tabItem {
                     Label("Calculators", systemImage: "function")
                 }
             
             SettingsView(appState: appState)
+                .safeAreaInset(edge: .bottom, spacing: 0) { restTimerPill }
                 .tag(ContentView.Tab.settings)
                 .tabItem {
                     Label("Settings", systemImage: "gearshape")
                 }
         }
         .tint(SBSColors.accentFallback)
-        .overlay(alignment: .bottom) {
-            // Keep the rest timer visible while the user is on another tab
-            // mid-workout. The workout lives in the Home tab's stack, so
-            // tapping the pill lands back on it.
-            if restTimerStatus.isActive && !restTimerStatus.isWorkoutScreenVisible {
-                RestTimerPill(status: restTimerStatus) {
-                    selectedTab = .home
-                }
-                .padding(.bottom, 58)  // clear the tab bar
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
         .animation(.spring(duration: 0.3), value: restTimerStatus.isActive && !restTimerStatus.isWorkoutScreenVisible)
+    }
+
+    /// Keeps the rest timer visible while the user is on another tab mid-workout.
+    /// The workout lives in the Home tab's stack, so tapping the pill lands back
+    /// on it. A per-tab safe-area inset sits above the tab bar whatever its height
+    /// and keeps the pill from covering the end of a scrolled list.
+    @ViewBuilder
+    private var restTimerPill: some View {
+        if restTimerStatus.isActive && !restTimerStatus.isWorkoutScreenVisible {
+            RestTimerPill(status: restTimerStatus) {
+                selectedTab = .home
+            }
+            .padding(.bottom, 8)
+            .frame(maxWidth: .infinity)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
     }
 }
 

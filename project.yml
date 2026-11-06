@@ -46,6 +46,7 @@ targets:
       path: SBSApp/SBSApp.entitlements
       properties:
         com.apple.developer.healthkit: true
+        com.apple.developer.usernotifications.time-sensitive: true
     info:
       path: SBSApp/Info.plist
       properties:
@@ -56,12 +57,15 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         NSSupportsLiveActivities: true
         UILaunchScreen: {}
+        # Portrait-only on iPad needs this, or upload validation rejects the build
+        # for not supporting all iPad orientations (ITMS-90474).
+        UIRequiresFullScreen: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         UISupportedInterfaceOrientations~ipad:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationPortraitUpsideDown
-        NSHealthShareUsageDescription: Top Set Training uses HealthKit to read your workout history and heart rate data during workouts.
+        NSHealthShareUsageDescription: Top Set Training reads your body weight from HealthKit to estimate calories burned and calculate your strength scores.
         NSHealthUpdateUsageDescription: Top Set Training uses HealthKit to automatically log your strength training workouts to Apple Fitness, tracking duration and workout completion.
 
   RestTimerWidget:
@@ -83,6 +87,8 @@ targets:
     info:
       path: RestTimerWidget/Info.plist
       properties:
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
         NSSupportsLiveActivities: true
@@ -117,6 +123,9 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         WKApplication: true
         WKCompanionAppBundleIdentifier: com.gregorymcinnes.topsettraining
+        # Keeps the app running through the wrist-down rest periods of a workout.
+        WKBackgroundModes:
+          - workout-processing
         NSHealthShareUsageDescription: Top Set Training uses HealthKit to track your heart rate during workouts.
         NSHealthUpdateUsageDescription: Top Set Training uses HealthKit to automatically log your strength training workouts.
 

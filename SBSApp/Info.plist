@@ -21,13 +21,15 @@
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Top Set Training uses HealthKit to read your workout history and heart rate data during workouts.</string>
+	<string>Top Set Training reads your body weight from HealthKit to estimate calories burned and calculate your strength scores.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Top Set Training uses HealthKit to automatically log your strength training workouts to Apple Fitness, tracking duration and workout completion.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>UILaunchScreen</key>
 	<dict/>
+	<key>UIRequiresFullScreen</key>
+	<true/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

@@ -68,6 +68,8 @@ public struct LiftRecord: Codable, Identifiable, Equatable {
     public let programId: String?       // "sbs_program_config", "nsuns_5day_12week", etc.
     public let week: Int?               // Which week in that program
     public let setType: String?         // "volume", "1+", "5+", etc.
+    public let day: Int?                // Which day in that week. Nil on older records.
+    public let setIndex: Int?           // Which set, for structured AMRAPs. Nil otherwise.
     
     public init(
         id: UUID = UUID(),
@@ -78,10 +80,14 @@ public struct LiftRecord: Codable, Identifiable, Equatable {
         estimatedOneRM: Double? = nil,
         programId: String? = nil,
         week: Int? = nil,
-        setType: String? = nil
+        setType: String? = nil,
+        day: Int? = nil,
+        setIndex: Int? = nil
     ) {
         self.id = id
         self.date = date
+        self.day = day
+        self.setIndex = setIndex
         self.liftName = liftName
         self.weight = weight
         self.reps = reps
@@ -168,11 +174,15 @@ public struct LogEntry: Codable, Equatable {
     public var note: String
     /// Optional weight override - if set, this weight was used instead of the calculated weight
     public var weightOverride: Double?
+    /// Which exercise the override was set on, for days listing a lift twice
+    /// (5/3/1 FSL). Nil on entries saved before this existed.
+    public var overrideItemName: String?
     
-    public init(repsLastSet: Int? = nil, note: String = "", weightOverride: Double? = nil) {
+    public init(repsLastSet: Int? = nil, note: String = "", weightOverride: Double? = nil, overrideItemName: String? = nil) {
         self.repsLastSet = repsLastSet
         self.note = note
         self.weightOverride = weightOverride
+        self.overrideItemName = overrideItemName
     }
 }
 
@@ -209,14 +219,19 @@ public struct LinearLogEntry: Codable, Equatable {
     public var weight: Double
     /// Optional note
     public var note: String
+    /// True for logs replayed from an unrounded running weight. Nil on older logs, whose
+    /// next weight is anchored to `weight` so they don't shift when the app updates.
+    public var usesUnroundedReplay: Bool?
     
     public init(
         completed: Bool,
         consecutiveFailures: Int = 0,
         deloadApplied: Bool = false,
         weight: Double = 0,
-        note: String = ""
+        note: String = "",
+        usesUnroundedReplay: Bool? = nil
     ) {
+        self.usesUnroundedReplay = usesUnroundedReplay
         self.completed = completed
         self.consecutiveFailures = consecutiveFailures
         self.deloadApplied = deloadApplied
@@ -683,6 +698,7 @@ public struct LinearExerciseInfo: Equatable {
     public let increment: Double        // Weight to add on success
     public let isDeloadPending: Bool    // Will deload if failed again
     public let logEntry: LinearLogEntry? // Previous log if exists
+    public let calculatedWeight: Double? // Prescribed weight before any manual override
     
     public init(
         lift: String,
@@ -692,8 +708,10 @@ public struct LinearExerciseInfo: Equatable {
         consecutiveFailures: Int,
         increment: Double,
         isDeloadPending: Bool,
-        logEntry: LinearLogEntry?
+        logEntry: LinearLogEntry?,
+        calculatedWeight: Double? = nil
     ) {
+        self.calculatedWeight = calculatedWeight
         self.lift = lift
         self.weight = weight
         self.sets = sets
@@ -838,10 +856,33 @@ public struct CustomTemplate: Codable, Identifiable, Equatable {
             singleAt8Percent: singleAt8Percent.isEmpty ? defaultSingleAt8() : singleAt8Percent,
             initialMaxes: initialMaxes,
             lifts: lifts ?? [:],
-            days: days,
+            days: daysWithEngineSetCounts,
             weeks: weeks,
             linearProgressionConfig: linearProgressionConfig
         )
+    }
+
+    /// The builder records sets in `setsDetail`, but the engine reads accessories from
+    /// `defaultSets`/`defaultReps` and linear lifts from `sets`/`reps`. Fill those in so
+    /// templates (including ones saved before the builder wrote them) run as designed.
+    private var daysWithEngineSetCounts: [String: [DayItem]] {
+        days.mapValues { items in
+            items.map { item in
+                guard let detail = item.setsDetail, let first = detail.first else { return item }
+                var updated = item
+                switch item.type {
+                case .accessory:
+                    updated.defaultSets = item.defaultSets ?? detail.count
+                    updated.defaultReps = item.defaultReps ?? first.reps
+                case .linear:
+                    updated.sets = item.sets ?? detail.count
+                    updated.reps = item.reps ?? first.reps
+                default:
+                    break
+                }
+                return updated
+            }
+        }
     }
     
     /// Generate default single@8 percentages for all tracked lifts
@@ -881,10 +922,9 @@ public struct CustomTemplate: Codable, Identifiable, Equatable {
         }
         
         // Note: Training maxes are NOT required in the template - users set them when starting a cycle
-        
-        // Check no duplicate progression sets per lift
-        guard duplicateProgressionSetLifts.isEmpty else { return false }
-        
+        // Note: Duplicate progression sets are allowed. A lift can appear on several days,
+        // and the engine does not read progressionSetIndex.
+
         return true
     }
     
@@ -914,7 +954,14 @@ public struct CustomTemplate: Codable, Identifiable, Equatable {
     /// Get all validation warnings for the template
     public var validationWarnings: [String] {
         var warnings: [String] = []
-        
+
+        // Empty days block saving, so name them
+        if daysPerWeek > 0 && daysPerWeek <= 7 {
+            for dayNum in 1...daysPerWeek where days[String(dayNum)]?.isEmpty ?? true {
+                warnings.append("Day \(dayNum) has no exercises. Add at least one, or reduce the days per week.")
+            }
+        }
+
         // Check for duplicate progression sets
         for lift in duplicateProgressionSetLifts {
             warnings.append("\(lift) has multiple progression sets. Each lift should only have one progression set per week.")

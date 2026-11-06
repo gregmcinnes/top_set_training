@@ -10,6 +10,21 @@ public final class LiveActivityManager: ObservableObject {
     
     private var currentActivity: Activity<RestTimerAttributes>?
     private var timerEndTime: Date?
+    /// Ends the activity shortly after its timer expires while the app is running,
+    /// e.g. the user is on another tab where nothing else observes the expiry.
+    private var expiryCleanupTask: Task<Void, Never>?
+
+    /// A rest that could not get an activity because iOS refuses to start one while
+    /// the app is backgrounded (a rest begun from the Watch with the phone locked).
+    /// Retried on foreground while that rest is still running.
+    private struct DeferredActivity {
+        var exerciseName: String
+        var duration: Int
+        var nextSetInfo: String
+        var endTime: Date
+        var isPaused: Bool
+    }
+    private var deferredActivity: DeferredActivity?
     
     private init() {
         // Clean up any stale activities on init
@@ -34,6 +49,9 @@ public final class LiveActivityManager: ObservableObject {
 
         currentActivity = nil
         timerEndTime = nil
+        deferredActivity = nil
+        expiryCleanupTask?.cancel()
+        expiryCleanupTask = nil
 
         let remaining = Activity<RestTimerAttributes>.activities.count
         Logger.debug("   - Remaining activities: \(remaining)", category: .liveActivity)
@@ -117,8 +135,8 @@ public final class LiveActivityManager: ObservableObject {
         }
     }
 
-    private func createNewActivity(exerciseName: String, duration: Int, nextSetInfo: String) {
-        let endTime = Date().addingTimeInterval(TimeInterval(duration))
+    private func createNewActivity(exerciseName: String, duration: Int, nextSetInfo: String, endTime: Date? = nil) {
+        let endTime = endTime ?? Date().addingTimeInterval(TimeInterval(duration))
         timerEndTime = endTime
         
         let attributes = RestTimerAttributes(
@@ -128,7 +146,7 @@ public final class LiveActivityManager: ObservableObject {
         )
         
         let contentState = RestTimerAttributes.ContentState(
-            secondsRemaining: duration,
+            secondsRemaining: max(0, Int(ceil(endTime.timeIntervalSinceNow))),
             isPaused: false,
             endTime: endTime
         )
@@ -149,9 +167,44 @@ public final class LiveActivityManager: ObservableObject {
                 content: content,
                 pushType: nil
             )
+            deferredActivity = nil
+            scheduleExpiryCleanup(at: endTime)
             Logger.info("✅ Started Live Activity for rest timer - ID: \(currentActivity?.id ?? "unknown")", category: .liveActivity)
         } catch {
+            deferredActivity = DeferredActivity(
+                exerciseName: exerciseName,
+                duration: duration,
+                nextSetInfo: nextSetInfo,
+                endTime: endTime,
+                isPaused: false
+            )
             Logger.error("Failed to start Live Activity: \(error)", category: .liveActivity)
+        }
+    }
+
+    /// Start the activity for a rest whose request failed while backgrounded.
+    /// Call on app foreground; a no-op unless such a rest is still running.
+    public func startDeferredActivityIfNeeded() {
+        guard currentActivity == nil, let deferred = deferredActivity, !deferred.isPaused else { return }
+        guard deferred.endTime > Date() else {
+            deferredActivity = nil
+            return
+        }
+        createNewActivity(
+            exerciseName: deferred.exerciseName,
+            duration: deferred.duration,
+            nextSetInfo: deferred.nextSetInfo,
+            endTime: deferred.endTime
+        )
+    }
+
+    private func scheduleExpiryCleanup(at endTime: Date) {
+        expiryCleanupTask?.cancel()
+        let delay = max(0, endTime.timeIntervalSinceNow) + 1
+        expiryCleanupTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            await self?.endExpiredActivities()
         }
     }
     
@@ -160,7 +213,21 @@ public final class LiveActivityManager: ObservableObject {
     ///   - secondsRemaining: Current seconds remaining
     ///   - isPaused: Whether the timer is paused
     public func updateTimer(secondsRemaining: Int, isPaused: Bool) {
-        guard let activity = currentActivity else { return }
+        guard let activity = currentActivity else {
+            if deferredActivity != nil {
+                deferredActivity?.endTime = Date().addingTimeInterval(TimeInterval(secondsRemaining))
+                deferredActivity?.isPaused = isPaused
+            }
+            return
+        }
+
+        // A once-a-second tick from a running timer carries no new information.
+        // Rewriting endTime from a rounded-up count only makes the countdown jitter
+        // and can leave it up to a second late, so only real changes get through.
+        if !isPaused, !activity.content.state.isPaused, let existing = timerEndTime,
+           abs(existing.timeIntervalSinceNow - TimeInterval(secondsRemaining)) < 1.5 {
+            return
+        }
         
         let endTime: Date
         if isPaused {
@@ -170,6 +237,12 @@ public final class LiveActivityManager: ObservableObject {
             endTime = Date().addingTimeInterval(TimeInterval(secondsRemaining))
         }
         timerEndTime = endTime
+        if isPaused {
+            expiryCleanupTask?.cancel()
+            expiryCleanupTask = nil
+        } else {
+            scheduleExpiryCleanup(at: endTime)
+        }
         
         let contentState = RestTimerAttributes.ContentState(
             secondsRemaining: secondsRemaining,
@@ -202,6 +275,9 @@ public final class LiveActivityManager: ObservableObject {
 
         currentActivity = nil
         timerEndTime = nil
+        deferredActivity = nil
+        expiryCleanupTask?.cancel()
+        expiryCleanupTask = nil
         Logger.info("✅ All Live Activities ended", category: .liveActivity)
     }
     

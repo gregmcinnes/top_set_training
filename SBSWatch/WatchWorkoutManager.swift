@@ -28,6 +28,15 @@ class WatchWorkoutManager: NSObject, ObservableObject {
     
     // Callback for heart rate updates (to send to iPhone)
     var onHeartRateUpdate: ((Double) -> Void)?
+
+    /// Called when a running HealthKit session fails, so the phone can take over
+    /// saving instead of assuming the Watch still owns the workout.
+    var onHealthKitSessionFailed: (() -> Void)?
+
+    /// A session older than this wasn't a real workout: the phone was killed and
+    /// nothing stopped the session until it relaunched. Saving would write a
+    /// many-hour workout with an equally inflated calorie estimate.
+    private let maxSaveableWorkoutDuration: TimeInterval = 4 * 60 * 60
     
     // Timer for duration updates
     private var durationTimer: Timer?
@@ -159,6 +168,7 @@ class WatchWorkoutManager: NSObject, ObservableObject {
             // back to non-HealthKit tracking so the workout UI is still usable, and
             // surface a hint.
             Logger.error("Watch HealthKit workout start failed, tracking without HealthKit: \(error)", category: .healthKit)
+            session?.end()
             session = nil
             builder = nil
             healthKitError = true
@@ -232,28 +242,48 @@ class WatchWorkoutManager: NSObject, ObservableObject {
         }
     }
     
-    func endWorkout() async throws {
+    /// End the current workout.
+    /// - Parameter save: `false` discards the HealthKit workout instead of saving it.
+    /// - Parameter abandoned: nobody ended this on purpose (the phone app was killed), so a
+    ///   session past the duration cap has likely run on idle and isn't saved. A workout
+    ///   ended normally always saves, since the phone has discarded its own copy.
+    /// - Returns: whether a workout was written to HealthKit.
+    @discardableResult
+    func endWorkout(save: Bool = true, abandoned: Bool = false) async throws -> Bool {
+        // Always leave a clean slate, including when HealthKit throws: a leftover
+        // session blocks every later start and makes isSavingToHealthKit lie.
+        defer {
+            stopDurationTimer()
+            self.isWorkoutActive = false
+            self.currentHeartRate = nil
+            self.workoutDuration = 0
+            self.workoutStartDate = nil
+        }
+
         // Only check if session exists - don't check isWorkoutActive since forceInactive() may have cleared it
-        guard let session = session, let builder = builder else { return }
+        guard let session = session, let builder = builder else { return false }
+
+        // Clear these up front so a start that follows can't reuse a session that's
+        // still finishing (the caller sequences it after this call).
+        self.session = nil
+        self.builder = nil
         
         let endDate = Date()
+        let duration = workoutStartDate.map { endDate.timeIntervalSince($0) } ?? 0
         
         // Stop heart rate monitoring
         stopHeartRateQuery()
         
         session.end()
+
+        guard save, !abandoned || duration <= maxSaveableWorkoutDuration else {
+            builder.discardWorkout()
+            return false
+        }
         
         try await builder.endCollection(at: endDate)
         try await builder.finishWorkout()
-        
-        stopDurationTimer()
-        
-        self.session = nil
-        self.builder = nil
-        self.isWorkoutActive = false
-        self.currentHeartRate = nil
-        self.workoutDuration = 0
-        self.workoutStartDate = nil
+        return true
     }
     
     func pauseWorkout() {
@@ -298,6 +328,8 @@ class WatchWorkoutManager: NSObject, ObservableObject {
 extension WatchWorkoutManager: HKWorkoutSessionDelegate {
     nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didChangeTo toState: HKWorkoutSessionState, from fromState: HKWorkoutSessionState, date: Date) {
         Task { @MainActor in
+            // A session already ended or abandoned must not flip the current state.
+            guard workoutSession === session else { return }
             switch toState {
             case .running:
                 isWorkoutActive = true
@@ -313,10 +345,17 @@ extension WatchWorkoutManager: HKWorkoutSessionDelegate {
     
     nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
         Task { @MainActor in
+            // A session that's already been handed off to endWorkout isn't current.
+            guard workoutSession === session else { return }
+            Logger.error("Watch workout session failed: \(error)", category: .healthKit)
             stopHeartRateQuery()
-            isWorkoutActive = false
             session = nil
             builder = nil
+            // Keep the workout going without HealthKit rather than stranding the UI,
+            // and let the phone save it.
+            healthKitError = true
+            startWorkoutWithoutHealthKit()
+            onHealthKitSessionFailed?()
         }
     }
 }

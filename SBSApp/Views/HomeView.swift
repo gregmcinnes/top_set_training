@@ -60,6 +60,7 @@ struct HomeView: View {
                                 // Record cycle completion for review request
                                 ReviewRequestManager.shared.recordCycleCompleted()
                                 appState.startNewCycle(carryOverTMs: true)
+                                ReviewRequestManager.shared.presentPendingReviewRequestIfNeeded()
                             },
                             onCustomize: {
                                 // Record cycle completion for review request
@@ -181,14 +182,18 @@ struct HomeView: View {
                         showingNewCycleBuilder = false
                         // Reset navigation to ensure views are recreated with new week/day values
                         showingSession = false
+                        ReviewRequestManager.shared.presentPendingReviewRequestIfNeeded()
                     },
                     onCancel: {
                         showingNewCycleBuilder = false
+                        ReviewRequestManager.shared.presentPendingReviewRequestIfNeeded()
                     }
                 )
             }
             // Reset navigation when a new cycle starts (settings.currentWeek resets to 1)
             .onChange(of: appState.userData.currentCycleStartDate) { _, _ in
+                appState.activeWorkoutTeardown?()
+                appState.activeWorkoutTeardown = nil
                 showingSession = false
             }
             .sheet(isPresented: $showingPastCycles) {

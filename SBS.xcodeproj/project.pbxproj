@@ -41,6 +41,7 @@
 		492134728DF91F5F8AF9D4AD /* 531_beach_body.json in Resources */ = {isa = PBXBuildFile; fileRef = E40A0F8FBA52D963552453D5 /* 531_beach_body.json */; };
 		496A053AF877A020E60538FB /* nsuns_4day_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = 87CFB04697D24F25F499FACD /* nsuns_4day_12week.json */; };
 		4A6A0C6E75998DD14E19FC27 /* WatchSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69588B822D822F985FF35908 /* WatchSessionManager.swift */; };
+		4B2AB206B41BD6EC68945FAA /* DecimalInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E480F2A4555F1B64797E89B /* DecimalInput.swift */; };
 		4BD8C06973F5597C2725E34D /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E447E30E086ECB138DCFE49E /* SettingsView.swift */; };
 		4E50210762F35404C8BF17EE /* AccessoryWorkoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0997624B4C3F0EEA5A14AF6A /* AccessoryWorkoutView.swift */; };
 		510FD60D80A21E7397255E40 /* RestTimerWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1BB622DD1DFE2A390D3C7F2D /* RestTimerWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -57,9 +58,11 @@
 		6875DBE709BEC73645EE71E4 /* ProgramSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72A3DF6AF8A50DF81D357E06 /* ProgramSelector.swift */; };
 		6D655224C7AE2DA1ADCE8D0F /* AccessoryExercisePickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7FC400A9D0A7572464FE65F /* AccessoryExercisePickerSheet.swift */; };
 		6E64E54020D28224001DC3DC /* ProgramEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91DF1A5B71423856D17F1DD0 /* ProgramEngine.swift */; };
+		70F28EA2B6F8E6AA139A68C2 /* DecimalInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E480F2A4555F1B64797E89B /* DecimalInput.swift */; };
 		732F612F98679DD0352EB64D /* SBSWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8995E84D765FB3DB9A59630 /* SBSWatchApp.swift */; };
 		75B4433AA5840C7E8F875BE8 /* stronglifts_5x5_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = C24F72D3FE4F8A71B48E169A /* stronglifts_5x5_12week.json */; };
 		77954402A6BF1B7BCA4CE696 /* 531_bbb_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = 22CA44A9A4E57D6B74FE2308 /* 531_bbb_12week.json */; };
+		7DD92EA24D487C97FB669014 /* ProgressionRegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 536256FA5E39D354CF0EAB64 /* ProgressionRegressionTests.swift */; };
 		7F71628AEEAB2F97DB8D8092 /* SBSWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 8601994FB8E8FEAFF532C7C5 /* SBSWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		8103BA15A5BD3B71338DA9A9 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D4D5D49D4F3AC3DE5541B46 /* Logger.swift */; };
 		838645D48109C3110090D039 /* starting_strength_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = 60921EA1490EA8A05A1CE2C6 /* starting_strength_12week.json */; };
@@ -208,6 +211,7 @@
 		4FF651AB59AF24B9D4661B2D /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		507743FA10DCA341DE3131E9 /* CSVExporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVExporterTests.swift; sourceTree = "<group>"; };
 		51AD74D4BDAD2C088FDA03D1 /* ExerciseLibraryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseLibraryTests.swift; sourceTree = "<group>"; };
+		536256FA5E39D354CF0EAB64 /* ProgressionRegressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressionRegressionTests.swift; sourceTree = "<group>"; };
 		55CF21B65455AB29BA6F687C /* ExerciseCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseCard.swift; sourceTree = "<group>"; };
 		567E5D6902D77282F346DD95 /* ProgramModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgramModelsTests.swift; sourceTree = "<group>"; };
 		57D560BC6CF20D520FACEE8E /* SBSApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SBSApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -240,6 +244,7 @@
 		9BEDB65E56215B04BED66354 /* CustomTemplateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomTemplateTests.swift; sourceTree = "<group>"; };
 		9CD117F57E8268A63E1BC43D /* ReviewRequestManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewRequestManager.swift; sourceTree = "<group>"; };
 		9D899E1F8F0B1A007BB8A0EA /* RestTimerLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTimerLiveActivity.swift; sourceTree = "<group>"; };
+		9E480F2A4555F1B64797E89B /* DecimalInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecimalInput.swift; sourceTree = "<group>"; };
 		9E53C666BFF136063AFC58CC /* RestTimerActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTimerActivity.swift; sourceTree = "<group>"; };
 		A8AB56C3F8708C7C25E43EF9 /* ProgramModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgramModels.swift; sourceTree = "<group>"; };
 		AC26A6FA73A5663D0BDA9A04 /* PRCelebration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PRCelebration.swift; sourceTree = "<group>"; };
@@ -361,6 +366,7 @@
 				74D0D96DB99C12AAC1476EA8 /* PersistenceTests.swift */,
 				254602AE106A03E05E294353 /* ProgramEngineTests.swift */,
 				567E5D6902D77282F346DD95 /* ProgramModelsTests.swift */,
+				536256FA5E39D354CF0EAB64 /* ProgressionRegressionTests.swift */,
 				E7F3C994C725013B14E2B28C /* StructuredProgressionTests.swift */,
 				C84D332BEE6622A721A02D62 /* WeightAdjustmentTests.swift */,
 			);
@@ -399,6 +405,7 @@
 			isa = PBXGroup;
 			children = (
 				C8846CF0A9BBAA916E9D62D8 /* CSVExporter.swift */,
+				9E480F2A4555F1B64797E89B /* DecimalInput.swift */,
 				C23A537BFC32E2B9E6E25653 /* E1RM.swift */,
 				11556BC802D4F07815AC83A0 /* ExerciseLibrary.swift */,
 				3BB92ABD28DE86330AC9CEA7 /* FeatureAccess.swift */,
@@ -659,6 +666,7 @@
 				93EE84F29D76EDF66219642B /* CSVExporter.swift in Sources */,
 				E493E607C61E197989924BEE /* CSVExporterTests.swift in Sources */,
 				5C2D9DA5DF6F1D841DDA2C47 /* CustomTemplateTests.swift in Sources */,
+				70F28EA2B6F8E6AA139A68C2 /* DecimalInput.swift in Sources */,
 				EC2F356898409E2EE8092D2C /* E1RM.swift in Sources */,
 				958A71861EFA98A2076E5853 /* E1RMTests.swift in Sources */,
 				29012DA2A80A1BA709606E56 /* ExerciseLibrary.swift in Sources */,
@@ -677,6 +685,7 @@
 				DFE49684F2FE46DFB663C4E8 /* ProgramEngineTests.swift in Sources */,
 				3AFC8160897F1CB44F970C02 /* ProgramModels.swift in Sources */,
 				378F3DBCE47299C7AE8735D6 /* ProgramModelsTests.swift in Sources */,
+				7DD92EA24D487C97FB669014 /* ProgressionRegressionTests.swift in Sources */,
 				F6AC092BD7B2DF733A04BAE5 /* RestTimerActivity.swift in Sources */,
 				E564AA86163D72798D3B79E5 /* RestTimerStatus.swift in Sources */,
 				D38007C12F243CDCD5B13DFC /* ReviewRequestManager.swift in Sources */,
@@ -699,6 +708,7 @@
 				FE69ADB4F22587C82B92A33F /* ContentView.swift in Sources */,
 				D20B42024436A54A33228A86 /* CycleBuilderView.swift in Sources */,
 				24161F0239F6F94D5D85E0E9 /* DayCard.swift in Sources */,
+				4B2AB206B41BD6EC68945FAA /* DecimalInput.swift in Sources */,
 				B40515F9E0D4CF10853CB962 /* E1RM.swift in Sources */,
 				22A0D0E88FACE468F908A84A /* ExerciseCard.swift in Sources */,
 				87BA376D9FE91B42BC2B9824 /* ExerciseLibrary.swift in Sources */,

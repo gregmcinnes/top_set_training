@@ -609,9 +609,11 @@ struct HistoryView: View {
                         .padding(.horizontal)
                     } else {
                         ContentUnavailableView(
-                            "Select a Lift",
+                            orderedLifts.isEmpty ? "No Lifts Yet" : "Select a Lift",
                             systemImage: "chart.line.uptrend.xyaxis",
-                            description: Text("Choose a lift above to see your progress.")
+                            description: Text(orderedLifts.isEmpty
+                                ? "Log your first workout and your progress will show up here."
+                                : "Choose a lift above to see your progress.")
                         )
                         .padding(.top, 60)
                     }
@@ -701,6 +703,13 @@ struct HistoryView: View {
         }
     }
     
+    /// The lift pills use canonical names, but program data is keyed by the program's
+    /// own spelling ("Close-Grip Bench"), so program lookups need that spelling back.
+    private func programLiftName(for lift: String) -> String {
+        let canonical = ExerciseLibrary.canonicalLiftName(lift)
+        return appState.allConfiguredLifts.first { ExerciseLibrary.canonicalLiftName($0) == canonical } ?? lift
+    }
+
     /// Get all e1RM data from unified lift history (program-agnostic)
     /// Prioritizes WorkoutRecords (new system), falls back to unified history and legacy reconstruction
     private func allE1RMData(for lift: String) -> [(date: Date, e1rm: Double, weight: Double, reps: Int)] {
@@ -715,7 +724,7 @@ struct HistoryView: View {
             // PRIORITY 1: Use WorkoutRecords (new self-contained system)
             if !cycle.workoutRecords.isEmpty {
                 for workout in cycle.workoutRecords {
-                    for exercise in workout.exercises where exercise.lift == lift {
+                    for exercise in workout.exercises where ExerciseLibrary.canonicalLiftName(exercise.lift) == ExerciseLibrary.canonicalLiftName(lift) {
                         // Use the computed E1RM from the exercise record
                         if let e1rm = exercise.estimatedOneRM {
                             // Get the best set for weight/reps data
@@ -729,7 +738,7 @@ struct HistoryView: View {
             }
             
             // PRIORITY 2: Use liftData (pre-calculated, legacy)
-            if !foundData, let liftDataForLift = cycle.liftData[lift], !liftDataForLift.isEmpty {
+            if !foundData, let liftDataForLift = cycle.liftData.canonicalLiftValue(for: lift), !liftDataForLift.isEmpty {
                 for (week, weekData) in liftDataForLift.sorted(by: { $0.key < $1.key }) {
                     let date = Calendar.current.date(byAdding: .weekOfYear, value: week - 1, to: cycle.startDate) ?? cycle.startDate
                     allData.append((date, weekData.e1rm, weekData.weight, weekData.reps))
@@ -738,7 +747,7 @@ struct HistoryView: View {
             }
             
             // FALLBACK: calculate from logs + current program state (may not work if program changed)
-            if !foundData, let liftLogs = cycle.logs[lift] {
+            if !foundData, let liftLogs = cycle.logs.canonicalLiftValue(for: lift) {
                 for week in 1...cycle.lastCompletedWeek {
                     guard let dayLogs = liftLogs[week] else { continue }
                     // Find any entry with logged reps from any day
@@ -764,7 +773,7 @@ struct HistoryView: View {
         // PRIORITY 1: Use current cycle WorkoutRecords
         var currentE1RMFound = false
         for workout in currentCycleWorkouts {
-            for exercise in workout.exercises where exercise.lift == lift {
+            for exercise in workout.exercises where ExerciseLibrary.canonicalLiftName(exercise.lift) == ExerciseLibrary.canonicalLiftName(lift) {
                 if let e1rm = exercise.estimatedOneRM {
                     if let bestSet = exercise.sets.filter({ $0.actualReps != nil }).max(by: { ($0.actualReps ?? 0) < ($1.actualReps ?? 0) }) {
                         allData.append((workout.date, e1rm, bestSet.weight, bestSet.actualReps ?? 0))
@@ -804,7 +813,7 @@ struct HistoryView: View {
                 var weeklyTM: [Int: (date: Date, tm: Double)] = [:]
                 
                 for workout in cycle.workoutRecords {
-                    for exercise in workout.exercises where exercise.lift == lift {
+                    for exercise in workout.exercises where ExerciseLibrary.canonicalLiftName(exercise.lift) == ExerciseLibrary.canonicalLiftName(lift) {
                         guard exercise.trainingMax > 0 else { continue }
                         // Keep latest TM for each week
                         if weeklyTM[workout.week] == nil || workout.date > weeklyTM[workout.week]!.date {
@@ -822,7 +831,7 @@ struct HistoryView: View {
             }
             
             // PRIORITY 2: Use tmHistory (pre-calculated, legacy)
-            if !foundData, let tmHistoryForLift = cycle.tmHistory[lift], !tmHistoryForLift.isEmpty {
+            if !foundData, let tmHistoryForLift = cycle.tmHistory.canonicalLiftValue(for: lift), !tmHistoryForLift.isEmpty {
                 foundData = true
                 for (week, tm) in tmHistoryForLift.sorted(by: { $0.key < $1.key }) {
                     guard tm > 0 else { continue }  // Skip zero TMs
@@ -832,9 +841,9 @@ struct HistoryView: View {
             }
             
             // FALLBACK 1: check SBS-style logs (for legacy cycles without tmHistory)
-            if !foundData, let liftLogs = cycle.logs[lift] {
-                let startTM = cycle.startingMaxes[lift] ?? 0
-                let endTM = cycle.endingMaxes[lift] ?? startTM
+            if !foundData, let liftLogs = cycle.logs.canonicalLiftValue(for: lift) {
+                let startTM = cycle.startingMaxes.canonicalLiftValue(for: lift) ?? 0
+                let endTM = cycle.endingMaxes.canonicalLiftValue(for: lift) ?? startTM
                 
                 guard startTM > 0 else { continue }
                 
@@ -851,9 +860,9 @@ struct HistoryView: View {
             }
             
             // FALLBACK 2: check structuredLogs (for structured programs)
-            if !foundData, let structuredLiftLogs = cycle.structuredLogs[lift] {
-                let startTM = cycle.startingMaxes[lift] ?? 0
-                let endTM = cycle.endingMaxes[lift] ?? startTM
+            if !foundData, let structuredLiftLogs = cycle.structuredLogs.canonicalLiftValue(for: lift) {
+                let startTM = cycle.startingMaxes.canonicalLiftValue(for: lift) ?? 0
+                let endTM = cycle.endingMaxes.canonicalLiftValue(for: lift) ?? startTM
                 
                 guard startTM > 0 else { continue }
                 
@@ -870,7 +879,7 @@ struct HistoryView: View {
             }
             
             // FALLBACK 3: check linearLogs (for linear programs)
-            if !foundData, let linearLiftLogs = cycle.linearLogs[lift] {
+            if !foundData, let linearLiftLogs = cycle.linearLogs.canonicalLiftValue(for: lift) {
                 for (week, dayLogs) in linearLiftLogs.sorted(by: { $0.key < $1.key }) {
                     for (_, entry) in dayLogs {
                         guard entry.weight > 0 else { continue }
@@ -890,7 +899,7 @@ struct HistoryView: View {
         // PRIORITY 1: Use current cycle WorkoutRecords
         var currentWeeklyTM: [Int: (date: Date, tm: Double)] = [:]
         for workout in currentCycleWorkouts {
-            for exercise in workout.exercises where exercise.lift == lift {
+            for exercise in workout.exercises where ExerciseLibrary.canonicalLiftName(exercise.lift) == ExerciseLibrary.canonicalLiftName(lift) {
                 guard exercise.trainingMax > 0 else { continue }
                 if currentWeeklyTM[workout.week] == nil || workout.date > currentWeeklyTM[workout.week]!.date {
                     currentWeeklyTM[workout.week] = (workout.date, exercise.trainingMax)
@@ -904,10 +913,10 @@ struct HistoryView: View {
             }
         } else {
             // FALLBACK: Use legacy TM calculation
-            let currentTMData = appState.allTrainingMaxes(for: lift)
+            let currentTMData = appState.allTrainingMaxes(for: programLiftName(for: lift))
             
             // Get the starting max for this cycle (for the chart's starting point)
-            let startingMax = appState.currentCycleStartingMaxes()[lift] ?? 0
+            let startingMax = appState.currentCycleStartingMaxes().canonicalLiftValue(for: lift) ?? 0
             
             // If we have no TM data yet but have a valid starting max, add it as the first point
             if currentTMData.isEmpty && startingMax > 0 && allData.isEmpty {
@@ -918,9 +927,9 @@ struct HistoryView: View {
             for item in currentTMData {
                 guard item.tm > 0 else { continue }  // Skip zero TMs
                 
-                let hasSBSLog = appState.userData.logs[lift]?[item.week]?.values.contains { $0.repsLastSet != nil } == true
-                let hasStructuredLog = appState.userData.structuredLogs[lift]?[item.week]?.values.contains { !$0.amrapReps.isEmpty } == true
-                let hasLinearLog = appState.userData.linearLogs[lift]?[item.week] != nil
+                let hasSBSLog = appState.userData.logs.canonicalLiftValue(for: lift)?[item.week]?.values.contains { $0.repsLastSet != nil } == true
+                let hasStructuredLog = appState.userData.structuredLogs.canonicalLiftValue(for: lift)?[item.week]?.values.contains { !$0.amrapReps.isEmpty } == true
+                let hasLinearLog = appState.userData.linearLogs.canonicalLiftValue(for: lift)?[item.week] != nil
                 
                 if hasSBSLog || hasStructuredLog || hasLinearLog {
                     var date = Calendar.current.date(byAdding: .weekOfYear, value: item.week - 1, to: currentCycleStart) ?? currentCycleStart
@@ -943,9 +952,9 @@ struct HistoryView: View {
     /// Uses linear interpolation between starting and ending TM for simplicity
     private func calculateWeight(cycle: CompletedCycle, week: Int, lift: String) -> Double {
         guard let state = appState.programState,
-              let weekData = state.lifts[lift]?[week],
-              let startTM = cycle.startingMaxes[lift],
-              let endTM = cycle.endingMaxes[lift] else { return 0 }
+              let weekData = state.lifts.canonicalLiftValue(for: lift)?[week],
+              let startTM = cycle.startingMaxes.canonicalLiftValue(for: lift),
+              let endTM = cycle.endingMaxes.canonicalLiftValue(for: lift) else { return 0 }
         
         // Linear interpolation of TM across the cycle
         let progress = Double(week - 1) / Double(max(cycle.lastCompletedWeek - 1, 1))
@@ -985,7 +994,7 @@ struct HistoryView: View {
                 var weeklyBest: [Int: (reps: Int, target: Int, weight: Double, e1rm: Double, note: String?, date: Date)] = [:]
                 
                 for workout in cycle.workoutRecords {
-                    for exercise in workout.exercises where exercise.lift == lift {
+                    for exercise in workout.exercises where ExerciseLibrary.canonicalLiftName(exercise.lift) == ExerciseLibrary.canonicalLiftName(lift) {
                         for set in exercise.sets where set.actualReps != nil {
                             let reps = set.actualReps!
                             let e1rm = set.weight * (1.0 + Double(reps) / 30.0)
@@ -1035,11 +1044,11 @@ struct HistoryView: View {
             }
             
             // PRIORITY 2: Use liftData (pre-calculated, legacy)
-            if !foundData, let liftDataForLift = cycle.liftData[lift], !liftDataForLift.isEmpty {
+            if !foundData, let liftDataForLift = cycle.liftData.canonicalLiftValue(for: lift), !liftDataForLift.isEmpty {
                 foundData = true
                 for (week, weekData) in liftDataForLift.sorted(by: { $0.key < $1.key }) {
                     // Get note from any day in this week (check all log types)
-                    let note = cycle.logs[lift]?[week]?.values.first(where: { !$0.note.isEmpty })?.note
+                    let note = cycle.logs.canonicalLiftValue(for: lift)?[week]?.values.first(where: { !$0.note.isEmpty })?.note
                     allLogs.append(HistoryLogEntry(
                         cycleNumber: cycle.cycleNumber,
                         week: week,
@@ -1055,7 +1064,7 @@ struct HistoryView: View {
             }
             
             // FALLBACK 1: check SBS-style logs (for legacy cycles without liftData)
-            if !foundData, let liftLogs = cycle.logs[lift] {
+            if !foundData, let liftLogs = cycle.logs.canonicalLiftValue(for: lift) {
                 for week in 1...cycle.lastCompletedWeek {
                     guard let dayLogs = liftLogs[week] else { continue }
                     for (_, entry) in dayLogs {
@@ -1063,7 +1072,7 @@ struct HistoryView: View {
                         let weight = calculateWeight(cycle: cycle, week: week, lift: lift)
                         guard weight > 0 else { continue }
                         let e1rm = weight * (1.0 + Double(reps) / 30.0)
-                        let targetReps = appState.programState?.lifts[lift]?[week]?.repOutTarget ?? 5
+                        let targetReps = appState.programState?.lifts.canonicalLiftValue(for: lift)?[week]?.repOutTarget ?? 5
                         let note = entry.note.isEmpty ? nil : entry.note
                         
                         allLogs.append(HistoryLogEntry(
@@ -1083,14 +1092,14 @@ struct HistoryView: View {
             }
             
             // FALLBACK 2: check structuredLogs (for structured programs like 531, nSuns, Greyskull)
-            if !foundData, let structuredLiftLogs = cycle.structuredLogs[lift] {
+            if !foundData, let structuredLiftLogs = cycle.structuredLogs.canonicalLiftValue(for: lift) {
                 for (week, dayLogs) in structuredLiftLogs.sorted(by: { $0.key < $1.key }) {
                     for (_, entry) in dayLogs {
                         guard !entry.amrapReps.isEmpty else { continue }
                         // Get the AMRAP reps (use the first one available)
                         guard let reps = entry.amrapReps.values.first else { continue }
                         // Get TM from archived tmHistory, or fall back to starting maxes
-                        let tm = cycle.tmHistory[lift]?[week] ?? cycle.startingMaxes[lift] ?? 0
+                        let tm = cycle.tmHistory.canonicalLiftValue(for: lift)?[week] ?? cycle.startingMaxes.canonicalLiftValue(for: lift) ?? 0
                         guard tm > 0 else { continue }
                         // Weight is approximately TM (structured programs often work at 100% or close)
                         let weight = tm
@@ -1115,7 +1124,7 @@ struct HistoryView: View {
             }
             
             // FALLBACK 3: check linearLogs (for linear programs like Starting Strength, StrongLifts)
-            if !foundData, let linearLiftLogs = cycle.linearLogs[lift] {
+            if !foundData, let linearLiftLogs = cycle.linearLogs.canonicalLiftValue(for: lift) {
                 for (week, dayLogs) in linearLiftLogs.sorted(by: { $0.key < $1.key }) {
                     for (_, entry) in dayLogs {
                         let reps = entry.completed ? 5 : 4  // Approximate reps based on success/failure
@@ -1168,7 +1177,7 @@ struct HistoryView: View {
         let currentCycleWorkouts = appState.userData.workoutRecords.filter { $0.date >= currentCycleStart }
         
         for workout in currentCycleWorkouts {
-            for exercise in workout.exercises where exercise.lift == lift {
+            for exercise in workout.exercises where ExerciseLibrary.canonicalLiftName(exercise.lift) == ExerciseLibrary.canonicalLiftName(lift) {
                 for set in exercise.sets where set.actualReps != nil {
                     let reps = set.actualReps!
                     let e1rm = set.weight * (1.0 + Double(reps) / 30.0)
@@ -1663,7 +1672,7 @@ struct ProgressChart: View {
                     
                     if let single = chartDataPoints.first {
                         if displayMode == .e1rm, let weight = single.weight, let reps = single.reps {
-                            Text("\(single.date, format: .dateTime.month(.abbreviated).day()): \(Int(weight)) × \(reps) reps")
+                            Text("\(single.date, format: .dateTime.month(.abbreviated).day()): \(weight.formattedWeight(useMetric: useMetric)) × \(reps) reps")
                                 .font(SBSFonts.body())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                         } else {
@@ -2011,8 +2020,9 @@ struct CurrentCycleTMProgressCard: View {
     
     private var totalWeightGained: Double {
         var total = 0.0
-        for lift in startingMaxes.keys {
-            guard let start = startingMaxes[lift],
+        let configured = appState.allConfiguredLifts
+        for lift in startingMaxes.keys where configured.contains(lift) {
+            guard let start = startingMaxes[lift], start > 0,
                   let current = currentMaxes[lift] else { continue }
             total += (current - start)
         }
@@ -2156,8 +2166,11 @@ struct TMProgressDetailView: View {
     
     private var totalGain: Double {
         var total = 0.0
-        for lift in startingMaxes.keys {
-            guard let start = startingMaxes[lift],
+        // Only lifts in the current program with a real starting max: a lift left over
+        // from an old program would otherwise count its whole TM as "gained".
+        let configured = appState.allConfiguredLifts
+        for lift in startingMaxes.keys where configured.contains(lift) {
+            guard let start = startingMaxes[lift], start > 0,
                   let current = currentMaxes[lift] else { continue }
             total += (current - start)
         }
@@ -2362,7 +2375,7 @@ struct TMProgressDetailView: View {
                 .foregroundStyle(SBSColors.textPrimaryFallback)
             
             VStack(spacing: SBSLayout.paddingSmall) {
-                ForEach(appState.liftNames, id: \.self) { lift in
+                ForEach(appState.liftNames.filter { appState.allConfiguredLifts.contains($0) }, id: \.self) { lift in
                     CurrentCycleTMRow(
                         liftName: lift,
                         startTM: startingMaxes[lift] ?? 0,
@@ -2569,6 +2582,10 @@ struct StrengthScoreCard: View {
     private var totalDisplay: Double {
         squatDisplay + benchDisplay + deadliftDisplay
     }
+
+    private var isPartialTotal: Bool {
+        squatE1RM == nil || benchE1RM == nil || deadliftE1RM == nil
+    }
     
     private var score: Double? {
         guard bodyweightKg > 0 && totalKg > 0 else { return nil }
@@ -2589,19 +2606,19 @@ struct StrengthScoreCard: View {
         let (a, b, c, d, e, f): (Double, Double, Double, Double, Double, Double)
         
         if isMale {
-            a = 47.46178854
-            b = 8.472061379
-            c = 0.07369410346
-            d = -0.001395833811
-            e = 7.07665973070743e-6
-            f = -1.20804336482315e-8
+            a = -216.0475144
+            b = 16.2606339
+            c = -0.002388645
+            d = -0.00113732
+            e = 7.01863e-6
+            f = -1.291e-8
         } else {
-            a = -125.4255398
-            b = 13.71219419
-            c = -0.03307250631
-            d = -0.001050400051
-            e = 9.38773881462799e-6
-            f = -2.3334613884954e-8
+            a = 594.31747775582
+            b = -27.23842536447
+            c = 0.82112226871
+            d = -0.00930733913
+            e = 4.731582e-5
+            f = -9.054e-8
         }
         
         let denominator = a + b*x + c*pow(x,2) + d*pow(x,3) + e*pow(x,4) + f*pow(x,5)
@@ -2704,12 +2721,13 @@ struct StrengthScoreCard: View {
                             .font(.system(size: 28, weight: .bold, design: .rounded))
                             .foregroundStyle(formula.color)
                         
-                        Text(rating.text)
+                        // A rating is only meaningful for a full squat/bench/deadlift total
+                        Text(isPartialTotal ? "Partial total" : rating.text)
                             .font(SBSFonts.captionBold())
                             .foregroundStyle(.white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 2)
-                            .background(rating.color)
+                            .background(isPartialTotal ? SBSColors.textTertiaryFallback : rating.color)
                             .clipShape(Capsule())
                     }
                 }

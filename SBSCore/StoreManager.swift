@@ -271,16 +271,11 @@ public final class StoreManager {
             do {
                 let transaction = try checkVerified(result)
 
+                // currentEntitlements already excludes expired subscriptions and
+                // includes ones in Billing Grace Period, whose expirationDate has
+                // passed; a date check here would lock paying users out during grace.
                 if transaction.revocationDate == nil {
-                    // For subscriptions, also check expiration
-                    if let expirationDate = transaction.expirationDate {
-                        if expirationDate > Date() {
-                            purchased.insert(transaction.productID)
-                        }
-                    } else {
-                        // Non-consumable (lifetime) — no expiration
-                        purchased.insert(transaction.productID)
-                    }
+                    purchased.insert(transaction.productID)
                 }
             } catch {
                 Logger.error("Failed to verify transaction: \(error)", category: .store)

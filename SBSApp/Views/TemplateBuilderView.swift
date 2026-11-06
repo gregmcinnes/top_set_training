@@ -427,6 +427,13 @@ struct DaysStepView: View {
                 template: $template,
                 day: selectedDay
             )
+            .onChange(of: template.daysPerWeek) { _, newCount in
+                // Reducing days per week must not leave the list on a day with no tab
+                selectedDay = min(selectedDay, newCount)
+            }
+            .onAppear {
+                selectedDay = min(selectedDay, template.daysPerWeek)
+            }
             
             // Navigation
             HStack(spacing: SBSLayout.paddingMedium) {
@@ -1073,6 +1080,8 @@ struct TemplateExercisePickerSheet: View {
                 type: .accessory,
                 lift: nil,
                 name: exercise.name,
+                defaultSets: setsToUse.count,
+                defaultReps: setsToUse.first?.reps,
                 setsDetail: setsToUse
             )
         case .linear:
@@ -1081,6 +1090,8 @@ struct TemplateExercisePickerSheet: View {
                 lift: exercise.name,
                 name: exercise.name,
                 setsDetail: setsToUse,
+                sets: setsToUse.count,
+                reps: setsToUse.first?.reps,
                 progressionSetIndex: setsToUse.count - 1  // Last set determines progression
             )
         case .structured:
@@ -1390,6 +1401,8 @@ struct ExerciseEditorSheet: View {
                 type: .accessory,
                 lift: item.lift,
                 name: item.name,
+                defaultSets: setsToUse.count,
+                defaultReps: setsToUse.first?.reps,
                 setsDetail: setsToUse
             )
         case .linear:
@@ -1398,6 +1411,8 @@ struct ExerciseEditorSheet: View {
                 lift: item.lift ?? item.name,
                 name: item.name,
                 setsDetail: setsToUse,
+                sets: setsToUse.count,
+                reps: setsToUse.first?.reps,
                 progressionSetIndex: setsToUse.count - 1
             )
         case .structured, .volume:

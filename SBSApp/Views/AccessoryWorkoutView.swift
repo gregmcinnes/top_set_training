@@ -167,7 +167,6 @@ struct AccessoryWorkoutView: View {
     @State private var workoutState = AccessoryWorkoutState()
     @State private var timer: Timer?
     @State private var showingExitConfirm = false
-    @State private var showingWeightSheet = false
     @State private var editingAccessoryIndex: Int?
     @Environment(\.dismiss) private var dismiss
     
@@ -242,7 +241,6 @@ struct AccessoryWorkoutView: View {
                         onComplete: handleSetComplete,
                         onEditWeight: {
                             editingAccessoryIndex = workoutState.currentAccessoryIndex
-                            showingWeightSheet = true
                         }
                     )
                 }
@@ -258,13 +256,7 @@ struct AccessoryWorkoutView: View {
                     if workoutState.progress > 0 && !workoutState.accessories.isEmpty {
                         showingExitConfirm = true
                     } else {
-                        // End any running timer
-                        if workoutState.timerIsRunning {
-                            stopTimer()
-                            LiveActivityManager.shared.endTimerSync()
-                        }
-                        RestTimerStatus.shared.timerCleared()
-                        NotificationManager.shared.cancelRestTimerNotification()
+                        tearDownWorkout()
                         dismiss()
                     }
                 } label: {
@@ -310,18 +302,19 @@ struct AccessoryWorkoutView: View {
         .alert("Exit Workout?", isPresented: $showingExitConfirm) {
             Button("Cancel", role: .cancel) {}
             Button("Exit", role: .destructive) {
-                stopTimer()
-                RestTimerStatus.shared.timerCleared()
-                NotificationManager.shared.cancelRestTimerNotification()
-                // End Live Activity when exiting workout
-                LiveActivityManager.shared.endTimerSync()
+                tearDownWorkout()
                 dismiss()
             }
         } message: {
             Text("Your accessory workout progress will not be saved.")
         }
-        .sheet(isPresented: $showingWeightSheet) {
-            if let index = editingAccessoryIndex, index < workoutState.accessories.count {
+        // item-driven: isPresented with separate optional state can open blank on first tap
+        .sheet(item: Binding(
+            get: { editingAccessoryIndex.map(EditingAccessory.init) },
+            set: { editingAccessoryIndex = $0?.id }
+        )) { editing in
+            let index = editing.id
+            if index < workoutState.accessories.count {
                 let accessory = workoutState.accessories[index]
                 AccessoryWeightSheet(
                     accessoryName: accessory.name,
@@ -340,10 +333,10 @@ struct AccessoryWorkoutView: View {
                             reps: accessory.reps,
                             lastLogWeight: weight
                         )
-                        showingWeightSheet = false
+                        editingAccessoryIndex = nil
                     },
                     onCancel: {
-                        showingWeightSheet = false
+                        editingAccessoryIndex = nil
                     }
                 )
                 .presentationDetents([.medium])
@@ -354,9 +347,14 @@ struct AccessoryWorkoutView: View {
             setupAccessories()
             resumeTimerLoopIfNeeded()
             startHealthKitWorkout()
+            // A cycle or program change pops this screen from outside; clean up then too
+            appState.activeWorkoutTeardown = { [self] in tearDownWorkout() }
+            // Keep the screen awake through rests, like the main workout
+            UIApplication.shared.isIdleTimerDisabled = true
         }
         .onDisappear {
             RestTimerStatus.shared.isWorkoutScreenVisible = false
+            UIApplication.shared.isIdleTimerDisabled = false
 
             // Only invalidate the Timer object, don't reset timer state
             // This allows the timer to continue when navigating to other tabs
@@ -365,6 +363,18 @@ struct AccessoryWorkoutView: View {
         // Cap Dynamic Type on this fixed-layout workout screen so accessibility
         // sizes don't overflow the timer ring / set indicators.
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+    }
+
+    /// End every surface of this workout. Unconditional: a paused timer still has a Live
+    /// Activity, and a leftover HealthKit builder would absorb the next workout, saving
+    /// it with this one's start date.
+    private func tearDownWorkout() {
+        appState.activeWorkoutTeardown = nil
+        stopTimer()
+        RestTimerStatus.shared.timerCleared()
+        NotificationManager.shared.cancelRestTimerNotification()
+        LiveActivityManager.shared.endTimerSync()
+        HealthKitManager.shared.discardWorkout()
     }
 
     private var setInfoText: String {
@@ -1139,6 +1149,11 @@ struct AccessoryCompleteView: View {
 
 // MARK: - Accessory Weight Sheet
 
+/// Identifies the accessory whose weight sheet is open
+private struct EditingAccessory: Identifiable {
+    let id: Int
+}
+
 struct AccessoryWeightSheet: View {
     let accessoryName: String
     let currentWeight: Double?
@@ -1154,7 +1169,7 @@ struct AccessoryWeightSheet: View {
     @State private var reps: Int = 10
     
     private var weight: Double? {
-        Double(weightText)
+        parseDecimalInput(weightText)?.poundsFromInput(useMetric: useMetric)
     }
     
     private var canSave: Bool {
@@ -1209,7 +1224,7 @@ struct AccessoryWeightSheet: View {
                         if let lastWeight = currentWeight, lastWeight > 0 {
                             HStack(spacing: SBSLayout.paddingSmall) {
                                 Button {
-                                    weightText = String(format: "%.1f", lastWeight - roundingIncrement)
+                                    weightText = (lastWeight - roundingIncrement).weightInputText(useMetric: useMetric)
                                 } label: {
                                     Text("-\(roundingIncrement.formattedWeightShort(useMetric: useMetric))")
                                         .font(SBSFonts.captionBold())
@@ -1223,7 +1238,7 @@ struct AccessoryWeightSheet: View {
                                 }
                                 
                                 Button {
-                                    weightText = String(format: "%.1f", lastWeight)
+                                    weightText = (lastWeight).weightInputText(useMetric: useMetric)
                                 } label: {
                                     Text("Same")
                                         .font(SBSFonts.captionBold())
@@ -1237,7 +1252,7 @@ struct AccessoryWeightSheet: View {
                                 }
                                 
                                 Button {
-                                    weightText = String(format: "%.1f", lastWeight + roundingIncrement)
+                                    weightText = (lastWeight + roundingIncrement).weightInputText(useMetric: useMetric)
                                 } label: {
                                     Text("+\(roundingIncrement.formattedWeightShort(useMetric: useMetric))")
                                         .font(SBSFonts.captionBold())
@@ -1293,7 +1308,7 @@ struct AccessoryWeightSheet: View {
             sets = defaultSets
             reps = defaultReps
             if let w = currentWeight, w > 0 {
-                weightText = String(format: "%.1f", w)
+                weightText = (w).weightInputText(useMetric: useMetric)
             }
         }
     }

@@ -130,6 +130,19 @@ class WatchSessionManager: NSObject, ObservableObject {
     private var lastHeartRateSent: Double = 0
     private var pendingWorkoutStart = false  // Track if we received a start before manager was connected
     private var pendingHealthKitEnabled = false  // HealthKit flag captured with a pending start
+    private var pendingWorkoutId: String?  // Workout id captured with a pending start
+
+    /// Phone-assigned id of the workout running here (nil on older phone builds).
+    private var currentWorkoutId: String?
+    /// In-flight end of the previous workout; a following start waits for it.
+    private var endWorkoutTask: Task<Void, Never>?
+
+    /// Id of a workout the user ended from the Watch. The phone's context keeps
+    /// saying that workout is active, and it replays on every wake, so this stops
+    /// it from restarting. Persisted because the context outlives this process.
+    private static let endedWorkoutIdKey = "watch.endedWorkoutId"
+    /// Stands in for the id when an older phone build doesn't send one.
+    private static let unidentifiedWorkoutId = "unidentified"
 
     /// Local task that fires the rest-timer completion haptic at the timer's end
     /// date, so the buzz arrives even when the phone is backgrounded/asleep.
@@ -142,10 +155,13 @@ class WatchSessionManager: NSObject, ObservableObject {
     var workoutManager: WatchWorkoutManager? {
         didSet {
             setupHeartRateCallback()
+            workoutManager?.onHealthKitSessionFailed = { [weak self] in
+                self?.sendWatchWorkoutSessionState(active: false, watchSaved: false, workoutId: self?.currentWorkoutId)
+            }
             // Process any pending workout start that arrived before connection
             if pendingWorkoutStart {
                 pendingWorkoutStart = false
-                startWorkoutFromPhone(healthKitEnabled: pendingHealthKitEnabled)
+                startWorkoutFromPhone(healthKitEnabled: pendingHealthKitEnabled, workoutId: pendingWorkoutId)
             }
         }
     }
@@ -220,55 +236,128 @@ class WatchSessionManager: NSObject, ObservableObject {
         WKInterfaceDevice.current().play(.click)
     }
     
-    private func startWorkoutFromPhone(healthKitEnabled: Bool) {
+    /// Route a "workout is running" signal from the phone, from either the live
+    /// message or the context (which also replays on wake). Starts the workout if
+    /// it's new here; a repeat for the running workout changes nothing.
+    private func handleWorkoutActive(healthKitEnabled: Bool, workoutId: String?) {
+        if isWorkoutActive {
+            // A different id means this one's end never reached us (the phone was
+            // killed and relaunched, or the context coalesced). Don't merge them.
+            guard let workoutId, let currentWorkoutId, workoutId != currentWorkoutId else { return }
+            finishLocalWorkout(save: true, reportWatchSaved: false)
+        }
+
+        if UserDefaults.standard.string(forKey: Self.endedWorkoutIdKey) == (workoutId ?? Self.unidentifiedWorkoutId) {
+            return  // The user already ended this one from the Watch.
+        }
+
+        if workoutManager != nil {
+            startWorkoutFromPhone(healthKitEnabled: healthKitEnabled, workoutId: workoutId)
+        } else {
+            // Manager not connected yet, queue the start for when it connects
+            pendingWorkoutStart = true
+            pendingHealthKitEnabled = healthKitEnabled
+            pendingWorkoutId = workoutId
+        }
+    }
+
+    private func startWorkoutFromPhone(healthKitEnabled: Bool, workoutId: String?) {
         isWorkoutActive = true
+        currentWorkoutId = workoutId
+        let previousEnd = endWorkoutTask
         Task {
+            // The manager refuses to start while the previous session is finishing.
+            await previousEnd?.value
+
             // startWorkout(saveToHealthKit:) handles its own errors and always
             // leaves the workout usable (falling back to non-HealthKit tracking if
             // HealthKit auth fails), so the UI never gets stuck "Connecting…".
             await workoutManager?.startWorkout(saveToHealthKit: healthKitEnabled)
+
+            // Ended while HealthKit was starting: nothing else will stop this session.
+            guard isWorkoutActive else {
+                _ = try? await workoutManager?.endWorkout(save: false)
+                return
+            }
             WKInterfaceDevice.current().play(.start)
 
             // Tell the phone whether the Watch is saving its own HealthKit workout,
             // so the phone can skip writing a duplicate.
             let saving = (workoutManager?.isSavingToHealthKit ?? false)
-            sendWatchWorkoutSessionState(active: saving)
+            sendWatchWorkoutSessionState(active: saving, watchSaved: false, workoutId: workoutId)
         }
     }
 
-    /// Report to the phone whether the Watch is running its own HealthKit-saving
-    /// workout session (best-effort).
-    private func sendWatchWorkoutSessionState(active: Bool) {
+    /// Report to the phone whether the Watch owns the HealthKit workout. Uses the
+    /// application context as well as a live message: the phone deciding who saves
+    /// depends on this, so it can't rest on one message that needs reachability.
+    private func sendWatchWorkoutSessionState(active: Bool, watchSaved: Bool, workoutId: String?) {
         guard let session = session,
-              session.activationState == .activated,
-              session.isReachable else { return }
-        session.sendMessage(
-            ["type": "watchWorkoutSession", "active": active],
-            replyHandler: nil
-        ) { _ in
-            // Best-effort.
+              session.activationState == .activated else { return }
+
+        var context: [String: Any] = ["watchSessionActive": active, "watchSaved": watchSaved]
+        var message: [String: Any] = ["type": "watchWorkoutSession", "active": active, "watchSaved": watchSaved]
+        if let workoutId = workoutId {
+            context["workoutId"] = workoutId
+            message["workoutId"] = workoutId
+        }
+
+        do {
+            try session.updateApplicationContext(context)
+        } catch {
+            Logger.error("Failed to update Watch session context: \(error)", category: .general)
+        }
+
+        if session.isReachable {
+            session.sendMessage(message, replyHandler: nil) { _ in
+                // The context above still delivers it.
+            }
         }
     }
 
-    private func endWorkoutFromPhone() {
+    /// The phone ended the workout.
+    /// - Parameters:
+    ///   - saveWorkout: false when the user chose not to save it.
+    ///   - phoneWillSave: the phone is saving its own copy, so saving here too
+    ///     would write a duplicate.
+    ///   - abandoned: the phone app was killed mid-workout and only noticed on relaunch,
+    ///     so the session may have run on for hours with nobody training.
+    private func endWorkoutFromPhone(saveWorkout: Bool = true, phoneWillSave: Bool = false, abandoned: Bool = false) {
+        finishLocalWorkout(save: saveWorkout && !phoneWillSave, reportWatchSaved: false, abandoned: abandoned)
+    }
+
+    /// End Workout button on the Watch: the only way out when the phone is gone,
+    /// or for a session the phone has lost track of.
+    func endWorkoutFromWatch(save: Bool) {
+        UserDefaults.standard.set(currentWorkoutId ?? Self.unidentifiedWorkoutId, forKey: Self.endedWorkoutIdKey)
+        finishLocalWorkout(save: save, reportWatchSaved: true)
+    }
+
+    private func finishLocalWorkout(save: Bool, reportWatchSaved: Bool, abandoned: Bool = false) {
+        let workoutId = currentWorkoutId
         isWorkoutActive = false
+        currentWorkoutId = nil
         cancelRestEndHaptic()
-        sendWatchWorkoutSessionState(active: false)
         workoutState = WatchWorkoutStateData()  // Reset workout state
-        
+
         // Also immediately tell the workout manager to mark itself inactive
         // (in case the async endWorkout() takes time or fails)
         workoutManager?.forceInactive()
-        
-        Task {
+
+        let previousEnd = endWorkoutTask
+        endWorkoutTask = Task {
+            await previousEnd?.value
+            var saved = false
             do {
-                try await workoutManager?.endWorkout()
-                WKInterfaceDevice.current().play(.success)
+                saved = try await workoutManager?.endWorkout(save: save, abandoned: abandoned) ?? false
             } catch {
                 Logger.error("Failed to end workout: \(error)", category: .healthKit)
-                // Still play a sound even if HealthKit fails
-                WKInterfaceDevice.current().play(.success)
             }
+            // Report only once the outcome is known: the phone discards its own copy
+            // on watchSaved, so claiming a save that then failed would lose the workout.
+            sendWatchWorkoutSessionState(active: false, watchSaved: reportWatchSaved && saved, workoutId: workoutId)
+            // Still play a sound even if HealthKit fails
+            WKInterfaceDevice.current().play(.success)
         }
     }
     
@@ -278,8 +367,22 @@ class WatchSessionManager: NSObject, ObservableObject {
         // (those are owned by the restTimerState messages). Preserve the locally
         // tracked endDate/paused while the timer is active so the local countdown
         // and scheduled haptic aren't clobbered by an interleaved state sync.
-        let preservedEndDate = isRestTimerActive ? workoutState.restTimerEndDate : nil
+        var preservedEndDate = isRestTimerActive ? workoutState.restTimerEndDate : nil
         let preservedPaused = isRestTimerActive ? workoutState.isPaused : false
+        let remainingFromPhone = dict["restTimerRemaining"] as? Int ?? 0
+
+        // The phone reports a paused timer as not running in this message. Only the
+        // restTimerState / restTimerEnded messages may clear a pause.
+        let keepPausedTimer = !isRestTimerActive && workoutState.isRestTimerActive && workoutState.isPaused
+        let pausedRemaining = workoutState.restTimerRemaining
+
+        // Running on the phone but no end date here (this Watch joined mid-rest, or
+        // the restTimerState message was missed): derive one so the countdown runs
+        // rather than sitting frozen on the phone's number.
+        let derivedEndDate = isRestTimerActive && !preservedPaused && preservedEndDate == nil && remainingFromPhone > 0
+        if derivedEndDate {
+            preservedEndDate = Date().addingTimeInterval(TimeInterval(remainingFromPhone))
+        }
 
         // Replace the entire struct to ensure SwiftUI detects the change
         workoutState = WatchWorkoutStateData(
@@ -288,11 +391,11 @@ class WatchSessionManager: NSObject, ObservableObject {
             totalSets: dict["totalSets"] as? Int ?? 0,
             weight: dict["weight"] as? Double ?? 0,
             targetReps: dict["targetReps"] as? Int ?? 0,
-            isRestTimerActive: isRestTimerActive,
-            restTimerRemaining: dict["restTimerRemaining"] as? Int ?? 0,
+            isRestTimerActive: isRestTimerActive || keepPausedTimer,
+            restTimerRemaining: keepPausedTimer ? pausedRemaining : remainingFromPhone,
             restTimerDuration: dict["restTimerDuration"] as? Int ?? 0,
             restTimerEndDate: preservedEndDate,
-            isPaused: preservedPaused,
+            isPaused: preservedPaused || keepPausedTimer,
             useMetric: dict["useMetric"] as? Bool ?? false,
             nextSetInfo: dict["nextSetInfo"] as? String,
             isRepOutSet: dict["isRepOutSet"] as? Bool ?? false,
@@ -301,6 +404,8 @@ class WatchSessionManager: NSObject, ObservableObject {
         )
         if !isRestTimerActive {
             cancelRestEndHaptic()
+        } else if derivedEndDate, let endDate = preservedEndDate {
+            scheduleRestEndHaptic(at: endDate)
         }
     }
     
@@ -412,20 +517,28 @@ class WatchSessionManager: NSObject, ObservableObject {
     private func handleApplicationContext(_ context: [String: Any]) {
         // Handle workout state
         if let workoutActive = context["workoutActive"] as? Bool {
-            if workoutActive && !isWorkoutActive {
+            if workoutActive {
                 // Workout started while we were unreachable - start now
-                let healthKitEnabled = context["healthKitEnabled"] as? Bool ?? false
-                if workoutManager != nil {
-                    startWorkoutFromPhone(healthKitEnabled: healthKitEnabled)
-                } else {
-                    pendingWorkoutStart = true
-                    pendingHealthKitEnabled = healthKitEnabled
+                handleWorkoutActive(
+                    healthKitEnabled: context["healthKitEnabled"] as? Bool ?? false,
+                    workoutId: context["workoutId"] as? String
+                )
+            } else {
+                pendingWorkoutStart = false  // Cancel any pending start
+                UserDefaults.standard.removeObject(forKey: Self.endedWorkoutIdKey)
+                if isWorkoutActive {
+                    // Workout ended while we were unreachable - end now
+                    endWorkoutFromPhone(
+                        saveWorkout: context["saveWorkout"] as? Bool ?? true,
+                        phoneWillSave: context["phoneWillSave"] as? Bool ?? false,
+                        abandoned: context["abandoned"] as? Bool ?? false
+                    )
                 }
-            } else if !workoutActive && isWorkoutActive {
-                // Workout ended while we were unreachable - end now
-                endWorkoutFromPhone()
             }
         }
+
+        // A workout the user ended from the Watch: its timer is no longer shown here.
+        guard isWorkoutActive || pendingWorkoutStart else { return }
 
         // Handle timer state (sync when Watch wakes up). The snapshot is
         // self-describing: an absolute `timerEndDate` lets the Watch compute the
@@ -443,6 +556,18 @@ class WatchSessionManager: NSObject, ObservableObject {
                 let remaining = context["timerRemaining"] as? Int ?? 0
                 let exerciseName = context["timerExerciseName"] as? String ?? workoutState.exerciseName
                 let nextSetInfo = context["timerNextSetInfo"] as? String ?? workoutState.nextSetInfo
+
+                // This context replays every time the app wakes. A rest that already
+                // finished gets cleared quietly: buzzing here would repeat on each
+                // wake, and the local haptic has had its chance to fire on time.
+                if !isPaused, let endDate = endDate, endDate <= Date() {
+                    cancelRestEndHaptic()
+                    workoutState.isRestTimerActive = false
+                    workoutState.isPaused = false
+                    workoutState.restTimerRemaining = 0
+                    workoutState.restTimerEndDate = nil
+                    return
+                }
 
                 // applyRestTimerState mutates workoutState in place, so the other
                 // displayed fields (isRepOutSet / isAMRAPSet / set counts) survive.
@@ -503,19 +628,22 @@ extension WatchSessionManager: WCSessionDelegate {
         switch type {
         case "workoutStarted":
             // Start workout session on Watch for heart rate collection
-            let healthKitEnabled = message["healthKitEnabled"] as? Bool ?? false
-            if workoutManager != nil {
-                startWorkoutFromPhone(healthKitEnabled: healthKitEnabled)
-            } else {
-                // Manager not connected yet, queue the start for when it connects
-                pendingWorkoutStart = true
-                pendingHealthKitEnabled = healthKitEnabled
-            }
+            handleWorkoutActive(
+                healthKitEnabled: message["healthKitEnabled"] as? Bool ?? false,
+                workoutId: message["workoutId"] as? String
+            )
 
         case "workoutEnded":
             // End workout session on Watch
             pendingWorkoutStart = false  // Cancel any pending start
-            endWorkoutFromPhone()
+            UserDefaults.standard.removeObject(forKey: Self.endedWorkoutIdKey)
+            // The context carries the same signal, so this can arrive second.
+            if isWorkoutActive {
+                endWorkoutFromPhone(
+                    saveWorkout: message["saveWorkout"] as? Bool ?? true,
+                    phoneWillSave: message["phoneWillSave"] as? Bool ?? false
+                )
+            }
 
         case "workoutState":
             // Update workout state from iPhone

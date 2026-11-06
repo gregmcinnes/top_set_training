@@ -44,13 +44,15 @@ enum StandardPlates {
     
     // Metric plates (kg) with competition colors
     static let metricPlates: [Plate] = [
-        Plate(weight: 55, color: Color(red: 0.85, green: 0.2, blue: 0.2), height: 1.0),     // Red - 25kg (55lb)
-        Plate(weight: 44, color: Color(red: 0.2, green: 0.4, blue: 0.8), height: 0.95),     // Blue - 20kg (44lb)
-        Plate(weight: 33, color: Color(red: 0.9, green: 0.75, blue: 0.1), height: 0.85),    // Yellow - 15kg (33lb)
-        Plate(weight: 22, color: Color(red: 0.2, green: 0.7, blue: 0.3), height: 0.75),     // Green - 10kg (22lb)
-        Plate(weight: 11, color: Color(red: 0.95, green: 0.95, blue: 0.95), height: 0.6),   // White - 5kg (11lb)
-        Plate(weight: 5.5, color: Color(red: 0.85, green: 0.2, blue: 0.2), height: 0.5),    // Red small - 2.5kg
-        Plate(weight: 2.75, color: Color(red: 0.6, green: 0.6, blue: 0.65), height: 0.4),   // Silver - 1.25kg
+        // Exact lb equivalents: the calculator works in lb, and rounded values here
+        // would leave a false "missing weight" remainder on every kg target.
+        Plate(weight: 25 * BarWeightOptions.lbPerKg, color: Color(red: 0.85, green: 0.2, blue: 0.2), height: 1.0),     // Red - 25kg
+        Plate(weight: 20 * BarWeightOptions.lbPerKg, color: Color(red: 0.2, green: 0.4, blue: 0.8), height: 0.95),     // Blue - 20kg
+        Plate(weight: 15 * BarWeightOptions.lbPerKg, color: Color(red: 0.9, green: 0.75, blue: 0.1), height: 0.85),    // Yellow - 15kg
+        Plate(weight: 10 * BarWeightOptions.lbPerKg, color: Color(red: 0.2, green: 0.7, blue: 0.3), height: 0.75),     // Green - 10kg
+        Plate(weight: 5 * BarWeightOptions.lbPerKg, color: Color(red: 0.95, green: 0.95, blue: 0.95), height: 0.6),    // White - 5kg
+        Plate(weight: 2.5 * BarWeightOptions.lbPerKg, color: Color(red: 0.85, green: 0.2, blue: 0.2), height: 0.5),    // Red small - 2.5kg
+        Plate(weight: 1.25 * BarWeightOptions.lbPerKg, color: Color(red: 0.6, green: 0.6, blue: 0.65), height: 0.4),   // Silver - 1.25kg
     ]
 }
 
@@ -91,14 +93,15 @@ struct PlateCalculator {
         // This naturally produces plates sorted largest-to-smallest,
         // which matches how they should be loaded (heaviest closest to collar)
         for plate in availablePlates.sorted(by: { $0.weight > $1.weight }) {
-            while weightPerSide >= plate.weight {
+            // Small tolerance so floating-point drift can't skip a plate that fits exactly
+            while weightPerSide >= plate.weight - 0.01 {
                 plates.append(plate)
-                weightPerSide -= plate.weight
+                weightPerSide = max(0, weightPerSide - plate.weight)
             }
         }
         
         // Round remainder to avoid floating point issues
-        let remainder = (weightPerSide * 10).rounded() / 10
+        let remainder = weightPerSide < 0.05 ? 0 : (weightPerSide * 10).rounded() / 10
         
         return PlateCalculatorResult(
             platesPerSide: plates,
@@ -276,7 +279,7 @@ struct BarbellView: View {
                 Text("Each side")
                     .font(SBSFonts.caption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
-                Text(formatWeight((weight - barWeight) / 2))
+                Text(formatWeight(max(0, weight - barWeight) / 2))
                     .font(SBSFonts.captionBold())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
@@ -289,7 +292,7 @@ struct BarbellView: View {
                 Text("Total")
                     .font(SBSFonts.caption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
-                Text(formatWeight(weight))
+                Text(formatWeight(max(weight, barWeight)))
                     .font(SBSFonts.captionBold())
                     .foregroundStyle(SBSColors.accentFallback)
             }

@@ -74,6 +74,11 @@ struct ProgramsView: View {
     private var canCreateTemplate: Bool {
         storeManager.canCreateTemplate(currentTemplateCount: templates.count)
     }
+
+    private var isDeletingActiveTemplate: Bool {
+        guard let template = templateToDelete else { return false }
+        return appState.userData.selectedProgram == UserData.programId(for: template.id)
+    }
     
     private func isProgramLocked(_ programId: String) -> Bool {
         !storeManager.canAccessProgram(programId)
@@ -150,27 +155,42 @@ struct ProgramsView: View {
                     onSave: { updatedTemplate in
                         appState.userData.updateTemplate(updatedTemplate)
                         templateToEdit = nil
+                        // Editing the active template must take effect now, not at next launch
+                        let programId = UserData.programId(for: updatedTemplate.id)
+                        if appState.userData.selectedProgram == programId {
+                            Task { try? await appState.loadProgram(programId) }
+                        }
                     },
                     onCancel: {
                         templateToEdit = nil
                     }
                 )
             }
-            .alert("Delete Template?", isPresented: $showingDeleteConfirmation) {
-                Button("Cancel", role: .cancel) {
-                    templateToDelete = nil
-                }
-                Button("Delete", role: .destructive) {
-                    if let template = templateToDelete {
-                        withAnimation {
-                            appState.userData.deleteTemplate(id: template.id)
-                        }
+            .alert(isDeletingActiveTemplate ? "Template In Use" : "Delete Template?", isPresented: $showingDeleteConfirmation) {
+                if isDeletingActiveTemplate {
+                    Button("OK", role: .cancel) {
+                        templateToDelete = nil
                     }
-                    templateToDelete = nil
+                } else {
+                    Button("Cancel", role: .cancel) {
+                        templateToDelete = nil
+                    }
+                    Button("Delete", role: .destructive) {
+                        if let template = templateToDelete {
+                            withAnimation {
+                                appState.userData.deleteTemplate(id: template.id)
+                            }
+                        }
+                        templateToDelete = nil
+                    }
                 }
             } message: {
                 if let template = templateToDelete {
-                    Text("Are you sure you want to delete \"\(template.name)\"? This cannot be undone.")
+                    if isDeletingActiveTemplate {
+                        Text("\"\(template.name)\" is your current program. Switch to another program before deleting it.")
+                    } else {
+                        Text("Are you sure you want to delete \"\(template.name)\"? This cannot be undone.")
+                    }
                 }
             }
             .alert("Start New Cycle?", isPresented: $showingNewCycleWarning) {

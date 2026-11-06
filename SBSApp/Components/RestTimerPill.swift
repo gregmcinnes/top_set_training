@@ -8,7 +8,7 @@ struct RestTimerPill: View {
     let onTap: () -> Void
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { _ in
+        TimelineView(.periodic(from: tickAnchor, by: 1)) { _ in
             Button(action: onTap) {
                 HStack(spacing: 6) {
                     Image(systemName: iconName)
@@ -33,6 +33,14 @@ struct RestTimerPill: View {
             .buttonStyle(.plain)
         }
         .accessibilityLabel(accessibilityText)
+    }
+
+    /// A past date on the same fractional second as the timer's end, so each tick
+    /// lands on the moment the displayed number changes rather than up to a second
+    /// after it, and the pill stays in step with the Live Activity.
+    private var tickAnchor: Date {
+        guard let endDate = status.endDate else { return .now }
+        return endDate.addingTimeInterval(-(ceil(endDate.timeIntervalSinceNow) + 1))
     }
 
     private var iconName: String {

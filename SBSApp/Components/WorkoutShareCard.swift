@@ -13,6 +13,8 @@ struct WorkoutSummary: Equatable {
     let totalSets: Int
     let duration: TimeInterval?  // Optional workout duration
     let prs: [PRSummary]  // PRs achieved during this workout
+    /// For the plate strip under the top set
+    var barWeight: Double = 45
     
     struct ExerciseSummary: Equatable, Identifiable {
         let id = UUID()
@@ -37,211 +39,236 @@ struct WorkoutSummary: Equatable {
 
 // MARK: - Workout Share Card View
 
+/// The workout as an image to share. Rendered off-screen by `snapshot(colorScheme:)`, so
+/// every colour is a token that resolves for the scheme it's rendered in: no literal
+/// colours, no shadow (an image has nothing to cast one on), hairline edges only.
 struct WorkoutShareCard: View {
     let summary: WorkoutSummary
     let useMetric: Bool
     var compact: Bool = false
-    
+
     private var hasPRs: Bool {
         !summary.prs.isEmpty
     }
-    
+
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, MMM d"
         return formatter
     }
-    
+
+    private var eyebrowText: String {
+        var parts = ["Week \(summary.week)", "Day \(summary.day)"]
+        if let programName = summary.programName, !programName.isEmpty { parts.append(programName) }
+        return parts.joined(separator: " · ")
+    }
+
+    private var mainExercises: [WorkoutSummary.ExerciseSummary] {
+        summary.exercises.filter { !$0.isAccessory }
+    }
+
+    /// The set the card leads with: a PR's set, else the first main lift's
+    private var topSet: (name: String, weight: Double, reps: String)? {
+        if let pr = summary.prs.first {
+            return (pr.liftName, pr.weight, "\(pr.reps)")
+        }
+        guard let lift = mainExercises.first(where: { $0.weight > 0 }) else { return nil }
+        return (lift.name, lift.weight, lift.reps)
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
-            // Header with gradient
+        VStack(alignment: .leading, spacing: 0) {
             headerSection
-            
-            // Exercises list
-            exercisesSection
-            
-            // PRs section (if any)
+
+            if let topSet {
+                ShareCardDivider()
+                ShareCardTopSet(
+                    name: topSet.name,
+                    weight: topSet.weight,
+                    reps: topSet.reps,
+                    barWeight: summary.barWeight,
+                    useMetric: useMetric,
+                    isPR: hasPRs
+                )
+            }
+
+            if !mainExercises.isEmpty || summary.exercises.contains(where: \.isAccessory) {
+                ShareCardDivider()
+                exercisesSection
+            }
+
             if hasPRs {
+                ShareCardDivider()
                 prsSection
             }
-            
-            // Footer with branding
-            footerSection
+
+            ShareCardDivider()
+            ShareCardFooter(detail: "\(summary.totalSets) sets")
         }
-        .background(Color.bg)
-        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
-        .overlay(
-            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                .strokeBorder(
-                    hasPRs
-                        ? LinearGradient(colors: [.yellow, .orange], startPoint: .topLeading, endPoint: .bottomTrailing)
-                        : LinearGradient(colors: [SBSColors.accentFallback.opacity(0.3)], startPoint: .top, endPoint: .bottom),
-                    lineWidth: hasPRs ? 2 : 1
-                )
-        )
-        .shadow(color: hasPRs ? Color.orange.opacity(0.3) : Color.black.opacity(0.2), radius: 20, x: 0, y: 10)
+        .shareCardFrame()
     }
-    
+
     // MARK: - Header Section
-    
+
     private var headerSection: some View {
-        VStack(spacing: SBSLayout.space2) {
-            // Celebration banner for PRs
-            if hasPRs {
-                HStack(spacing: 6) {
-                    Image(systemName: "trophy.fill")
-                        .font(SBSFonts.caption().weight(.semibold))
-                    Text("NEW PERSONAL RECORD\(summary.prs.count > 1 ? "S" : "")!")
-                        .font(SBSFonts.caption().weight(.semibold))
-                }
-                .foregroundStyle(.black)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [.yellow, .orange],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                )
-                .padding(.top, SBSLayout.space4)
-            }
-            
-            // Date and workout info
-            VStack(spacing: 4) {
-                Text(dateFormatter.string(from: summary.date))
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(hasPRs ? Color.orange : Color.inkSecondary)
-                
-                Text(summary.dayTitle)
-                    .font(compact ? SBSFonts.title() : SBSFonts.display())
-                    .foregroundStyle(Color.ink)
-                
-                HStack(spacing: SBSLayout.space2) {
-                    Text("Week \(summary.week)")
-                        .font(SBSFonts.caption().weight(.semibold))
-                        .foregroundStyle(Color.inkSecondary)
-                    
-                    if let programName = summary.programName {
-                        Text("•")
-                            .foregroundStyle(Color.inkSecondary)
-                        Text(programName)
-                            .font(SBSFonts.caption())
-                            .foregroundStyle(Color.inkSecondary)
-                            .lineLimit(1)
-                    }
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            HStack(alignment: .top) {
+                SBSEyebrow(eyebrowText)
+                    .foregroundStyle(Color.inkSecondary)
+                    .lineLimit(2)
+
+                Spacer(minLength: SBSLayout.space2)
+
+                if hasPRs {
+                    SBSBadge(text: summary.prs.count > 1 ? "\(summary.prs.count) PRs" : "PR", variant: .pr)
                 }
             }
-            .padding(.top, hasPRs ? SBSLayout.space2 : SBSLayout.space6)
-            .padding(.bottom, SBSLayout.space4)
+
+            Text(summary.dayTitle)
+                .font(compact ? SBSFonts.heading() : SBSFonts.title())
+                .foregroundStyle(Color.ink)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(dateFormatter.string(from: summary.date))
+                .font(SBSFonts.numberSmall())
+                .foregroundStyle(Color.inkSecondary)
         }
-        .frame(maxWidth: .infinity)
-        .background(
-            hasPRs
-                ? AnyView(
-                    LinearGradient(
-                        colors: [Color.orange.opacity(0.15), Color.clear],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                : AnyView(
-                    LinearGradient(
-                        colors: [Color.orangeSoft, Color.clear],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-        )
+        .padding(SBSLayout.space6)
     }
-    
+
     // MARK: - Exercises Section
-    
+
     private var exercisesSection: some View {
-        VStack(spacing: SBSLayout.space2) {
-            // Main lifts
-            let mainExercises = summary.exercises.filter { !$0.isAccessory }
-            
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            SBSEyebrow("Lifts")
+                .foregroundStyle(Color.inkSecondary)
+
             ForEach(mainExercises) { exercise in
                 ShareCardExerciseRow(exercise: exercise, useMetric: useMetric, compact: compact, isPR: summary.prs.contains { $0.liftName == exercise.name })
             }
-            
-            // Accessories summary (if any)
+
             let accessories = summary.exercises.filter { $0.isAccessory }
             if !accessories.isEmpty {
-                Divider()
-                    .background(Color.inkTertiary.opacity(0.3))
-                    .padding(.vertical, SBSLayout.space2)
-                
-                HStack {
-                    Image(systemName: "dumbbell.fill")
+                HStack(spacing: SBSLayout.space2) {
+                    Image(systemName: "dumbbell")
                         .font(SBSFonts.caption())
-                        .foregroundStyle(SBSColors.accentSecondaryFallback)
-                    
-                    Text("\(accessories.count) accessories completed")
+                    Text(accessories.count == 1 ? "1 accessory" : "\(accessories.count) accessories")
                         .font(SBSFonts.caption())
-                        .foregroundStyle(Color.inkSecondary)
-                    
-                    Spacer()
                 }
+                .foregroundStyle(Color.inkSecondary)
+                .padding(.top, SBSLayout.space1)
             }
         }
         .padding(.horizontal, SBSLayout.space6)
         .padding(.vertical, SBSLayout.space4)
     }
-    
-    // MARK: - PRs Section
-    
-    private var prsSection: some View {
-        VStack(spacing: SBSLayout.space4) {
-            Divider()
-                .background(Color.orange.opacity(0.3))
-            
-            VStack(spacing: SBSLayout.space2) {
-                ForEach(summary.prs) { pr in
-                    ShareCardPRRow(pr: pr, useMetric: useMetric, compact: compact)
-                }
-            }
-            .padding(.horizontal, SBSLayout.space6)
-            .padding(.bottom, SBSLayout.space4)
-        }
-        .background(
-            LinearGradient(
-                colors: [Color.orange.opacity(0.05), Color.clear],
-                startPoint: .bottom,
-                endPoint: .top
-            )
-        )
-    }
-    
-    // MARK: - Footer Section
-    
-    private var footerSection: some View {
-        HStack {
-            // App branding
-            HStack(spacing: 6) {
-                Image(systemName: "figure.strengthtraining.traditional")
-                    .font(SBSFonts.caption().weight(.semibold))
-                    .foregroundStyle(Color.orangeText)
 
-                Text("Top Set Training")
-                    .font(SBSFonts.caption().weight(.semibold))
+    // MARK: - PRs Section
+
+    private var prsSection: some View {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            SBSEyebrow(summary.prs.count > 1 ? "Personal records" : "Personal record")
+                .foregroundStyle(Color.inkSecondary)
+
+            ForEach(summary.prs) { pr in
+                ShareCardPRRow(pr: pr, useMetric: useMetric, compact: compact)
+            }
+        }
+        .padding(.horizontal, SBSLayout.space6)
+        .padding(.vertical, SBSLayout.space4)
+    }
+}
+
+// MARK: - Share Card Pieces
+
+private extension View {
+    /// Every share card: surface, a 1px ink edge so it holds its shape on a feed,
+    /// radius-sm, no shadow.
+    func shareCardFrame() -> some View {
+        background(Color.surface)
+            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+            .overlay(
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .strokeBorder(Color.ink, lineWidth: SBSLayout.strokeHairline)
+            )
+    }
+}
+
+private struct ShareCardDivider: View {
+    var body: some View {
+        Rectangle()
+            .fill(Color.hairline)
+            .frame(height: SBSLayout.strokeHairline)
+    }
+}
+
+/// The working weight in display type with its plates: the brand's hero numeral.
+private struct ShareCardTopSet: View {
+    let name: String
+    let weight: Double
+    let reps: String
+    let barWeight: Double
+    let useMetric: Bool
+    let isPR: Bool
+
+    private var result: PlateCalculatorResult {
+        PlateCalculator(barWeight: barWeight, useMetric: useMetric).calculate(totalWeight: weight)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            SBSEyebrow(isPR ? "PR set · \(name)" : "Top set · \(name)")
+                .foregroundStyle(Color.inkSecondary)
+                .lineLimit(1)
+
+            HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space2) {
+                Text(weight.formattedWeightShort(useMetric: useMetric))
+                    .font(SBSFonts.workingWeight())
+                    .foregroundStyle(Color.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+
+                Text(useMetric ? "kg" : "lb")
+                    .font(SBSFonts.numberUnit())
+                    .foregroundStyle(Color.inkSecondary)
+
+                Text("× \(reps)")
+                    .font(SBSFonts.number())
+                    .foregroundStyle(Color.ink)
+                    .padding(.leading, SBSLayout.space2)
+            }
+
+            if weight > barWeight {
+                PlateStrip(plates: result.platesPerSide)
+                Text(PlateText.perSide(result, useMetric: useMetric))
+                    .font(SBSFonts.numberSmall())
                     .foregroundStyle(Color.inkSecondary)
             }
-            
+        }
+        .padding(.horizontal, SBSLayout.space6)
+        .padding(.vertical, SBSLayout.space4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// "TOP SET TRAINING" on the left, a detail in number-small on the right.
+private struct ShareCardFooter: View {
+    let detail: String
+
+    var body: some View {
+        HStack {
+            SBSEyebrow("Top Set Training")
+                .foregroundStyle(Color.ink)
+
             Spacer()
-            
-            // Total sets
-            Text("\(summary.totalSets) sets completed")
-                .font(SBSFonts.caption())
+
+            Text(detail)
+                .font(SBSFonts.numberSmall())
                 .foregroundStyle(Color.inkSecondary)
         }
         .padding(.horizontal, SBSLayout.space6)
         .padding(.vertical, SBSLayout.space4)
-        .background(Color.surface.opacity(0.5))
+        .background(Color.bg)
     }
 }
 
@@ -252,51 +279,40 @@ private struct ShareCardExerciseRow: View {
     let useMetric: Bool
     var compact: Bool = false
     var isPR: Bool = false
-    
+
     var body: some View {
-        HStack(alignment: .center, spacing: SBSLayout.space4) {
-            // Exercise info
+        HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space3) {
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
+                HStack(spacing: SBSLayout.space2) {
                     Text(exercise.name)
-                        .font(compact ? SBSFonts.bodyStrong() : SBSFonts.heading())
+                        .font(SBSFonts.bodyStrong())
                         .foregroundStyle(Color.ink)
-                    
+
                     if isPR {
                         PRBadge(small: true)
                     }
                 }
-                
-                // Sets x Reps info
-                HStack(spacing: 4) {
-                    Text("\(exercise.sets) × \(exercise.reps)")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(Color.inkSecondary)
-                    
-                    if exercise.isAMRAP {
-                        Text("AMRAP")
-                            .font(SBSFonts.caption().weight(.semibold))
-                            .foregroundStyle(Color.success)
-                    }
-                }
+
+                Text("\(exercise.sets) × \(exercise.reps)\(exercise.isAMRAP ? " · AMRAP" : "")")
+                    .font(SBSFonts.numberSmall())
+                    .foregroundStyle(Color.inkSecondary)
             }
-            
-            Spacer()
-            
-            // Weight and E1RM
+
+            Spacer(minLength: SBSLayout.space2)
+
             VStack(alignment: .trailing, spacing: 2) {
                 Text(exercise.weight.formattedWeight(useMetric: useMetric))
-                    .font(compact ? SBSFonts.bodyStrong() : SBSFonts.number())
-                    .foregroundStyle(isPR ? Color.orange : Color.orangeText)
-                
+                    .font(compact ? SBSFonts.numberSmall() : SBSFonts.number())
+                    .foregroundStyle(Color.ink)
+
                 if let e1rm = exercise.estimatedOneRM {
-                    Text("Est. 1RM: \(e1rm.rounded().formattedWeightShort(useMetric: useMetric))")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(isPR ? Color.green : Color.inkSecondary)
+                    Text("e1RM \(e1rm.rounded().formattedWeightShort(useMetric: useMetric))")
+                        .font(SBSFonts.numberSmall())
+                        .foregroundStyle(Color.inkSecondary)
                 }
             }
         }
-        .padding(.vertical, compact ? 4 : 6)
+        .padding(.vertical, compact ? 2 : 4)
     }
 }
 
@@ -306,69 +322,45 @@ private struct ShareCardPRRow: View {
     let pr: WorkoutSummary.PRSummary
     let useMetric: Bool
     var compact: Bool = false
-    
+
     private var improvement: Double? {
         guard let previous = pr.previousE1RM, previous > 0 else { return nil }
         return pr.newE1RM - previous
     }
-    
+
     private var improvementPercent: Double? {
         guard let previous = pr.previousE1RM, previous > 0 else { return nil }
         return ((pr.newE1RM - previous) / previous) * 100
     }
-    
+
     var body: some View {
-        HStack(spacing: SBSLayout.space4) {
-            // Trophy icon
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.yellow.opacity(0.3), Color.orange.opacity(0.3)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: compact ? 36 : 44, height: compact ? 36 : 44)
-                
-                Image(systemName: "trophy.fill")
-                    .font(compact ? SBSFonts.bodyStrong() : SBSFonts.heading())
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.yellow, .orange],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-            }
-            
-            // PR info
+        HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space3) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(pr.liftName)
-                    .font(compact ? SBSFonts.bodyStrong() : SBSFonts.heading())
+                    .font(SBSFonts.bodyStrong())
                     .foregroundStyle(Color.ink)
-                
-                Text("\(pr.weight.formattedWeightShort(useMetric: useMetric)) × \(pr.reps) reps")
-                    .font(SBSFonts.caption())
+
+                Text("\(pr.weight.formattedWeightShort(useMetric: useMetric)) × \(pr.reps)")
+                    .font(SBSFonts.numberSmall())
                     .foregroundStyle(Color.inkSecondary)
             }
-            
-            Spacer()
-            
-            // E1RM and improvement
+
+            Spacer(minLength: SBSLayout.space2)
+
             VStack(alignment: .trailing, spacing: 2) {
-                Text(pr.newE1RM.rounded().formattedWeight(useMetric: useMetric))
-                    .font(compact ? SBSFonts.bodyStrong() : SBSFonts.number())
-                    .foregroundStyle(Color.green)
-                
-                if let improvement = improvement, let percent = improvementPercent {
-                    Text("+\(improvement.rounded().formattedWeightShort(useMetric: useMetric)) (\(String(format: "%.1f", percent))%)")
-                        .font(SBSFonts.caption().weight(.semibold))
-                        .foregroundStyle(Color.green)
+                Text("e1RM \(pr.newE1RM.rounded().formattedWeight(useMetric: useMetric))")
+                    .font(compact ? SBSFonts.numberSmall() : SBSFonts.number())
+                    .foregroundStyle(Color.ink)
+
+                if let improvement, let percent = improvementPercent {
+                    SBSChangeLabel(
+                        text: "\(improvement.rounded().formattedWeightShort(useMetric: useMetric)) (\(String(format: "%.1f", percent))%)",
+                        isUp: improvement >= 0
+                    )
                 } else {
-                    Text("First PR!")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(Color.orange)
+                    Text("First PR")
+                        .font(SBSFonts.caption().weight(.semibold))
+                        .foregroundStyle(Color.orangeText)
                 }
             }
         }
@@ -377,42 +369,31 @@ private struct ShareCardPRRow: View {
 
 // MARK: - Share Card Wrapper (for screenshot/export)
 
-struct ShareableWorkoutCard: View {
-    let summary: WorkoutSummary
-    let useMetric: Bool
-    
-    // Extra padding to account for shadow (radius + y offset)
-    private let shadowPadding: CGFloat = 32
-    
+/// The card on a plain bg margin, at a fixed width and type size for export.
+private struct ShareCardCanvas<Card: View>: View {
+    let width: CGFloat
+    @ViewBuilder var card: Card
+
     var body: some View {
-        WorkoutShareCard(summary: summary, useMetric: useMetric)
+        card
             // Rendered off-screen at a fixed pixel width for export — pin to
             // the default type size so the image is deterministic regardless
             // of the user's Dynamic Type setting.
             .dynamicTypeSize(.large)
-            .frame(width: 360)
-            .padding(.horizontal, SBSLayout.space6)
-            .padding(.top, SBSLayout.space6)
-            .padding(.bottom, SBSLayout.space6 + shadowPadding)
-            .background(
-                // Dark textured background for the share image
-                ZStack {
-                    Color(light: .init(white: 0.95), dark: .init(white: 0.05))
-                    
-                    // Subtle pattern
-                    GeometryReader { geo in
-                        Path { path in
-                            let spacing: CGFloat = 20
-                            for x in stride(from: 0, to: geo.size.width, by: spacing) {
-                                for y in stride(from: 0, to: geo.size.height, by: spacing) {
-                                    path.addEllipse(in: CGRect(x: x, y: y, width: 1, height: 1))
-                                }
-                            }
-                        }
-                        .fill(Color.white.opacity(0.03))
-                    }
-                }
-            )
+            .frame(width: width)
+            .padding(SBSLayout.space6)
+            .background(Color.bg)
+    }
+}
+
+struct ShareableWorkoutCard: View {
+    let summary: WorkoutSummary
+    let useMetric: Bool
+
+    var body: some View {
+        ShareCardCanvas(width: 360) {
+            WorkoutShareCard(summary: summary, useMetric: useMetric)
+        }
     }
 }
 
@@ -425,10 +406,9 @@ extension View {
     /// approach, which required a fixed sleep for layout to settle (a race that
     /// could produce blank images) and always rendered in light mode.
     ///
-    /// Export is pinned to a fixed color scheme so share cards look identical
-    /// regardless of the user's current appearance — the cards are designed
-    /// against a fixed dark textured export background — and the sizing/layout
-    /// is deterministic without any timing delay.
+    /// The colour scheme is set in the environment, so the asset-catalogue tokens
+    /// the cards use resolve for it whatever the app's own appearance. The share
+    /// sheets pass the scheme they're shown in, so the image matches the preview.
     @MainActor
     func snapshot(colorScheme: ColorScheme = .dark, scale: CGFloat = 3) -> UIImage {
         let renderer = ImageRenderer(content: self.environment(\.colorScheme, colorScheme))
@@ -439,14 +419,40 @@ extension View {
 
 // MARK: - Share Sheet Helper
 
+/// The share sheet's one action: a primary ShareLink.
+private struct ShareImageButton: View {
+    let title: String
+    let image: UIImage
+    let previewTitle: String
+
+    var body: some View {
+        ShareLink(
+            item: Image(uiImage: image),
+            preview: SharePreview(previewTitle, image: Image(uiImage: image))
+        ) {
+            HStack(spacing: SBSLayout.space2) {
+                Image(systemName: "square.and.arrow.up")
+                    .accessibilityHidden(true)
+                SBSButtonTitle(title)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(SBSPrimaryButtonStyle())
+        .padding(.horizontal, SBSLayout.space6)
+        .padding(.trailing, SBSLayout.hardShadowOffset)
+        .padding(.bottom, SBSLayout.hardShadowOffset)
+    }
+}
+
 struct WorkoutShareSheet: View {
     let summary: WorkoutSummary
     let useMetric: Bool
     let onDismiss: () -> Void
-    
+
+    @Environment(\.colorScheme) private var colorScheme
     @State private var shareImage: UIImage?
     @State private var isGenerating = true
-    
+
     var body: some View {
         NavigationStack {
             VStack(spacing: SBSLayout.space6) {
@@ -460,42 +466,15 @@ struct WorkoutShareSheet: View {
                             .padding(.horizontal)
                     }
                 }
-                
+
                 Spacer()
-                
-                // Share button
+
                 if let image = shareImage {
-                    ShareLink(
-                        item: Image(uiImage: image),
-                        preview: SharePreview(
-                            "Workout Complete - \(summary.dayTitle)",
-                            image: Image(uiImage: image)
-                        )
-                    ) {
-                        HStack(spacing: SBSLayout.space2) {
-                            Image(systemName: "square.and.arrow.up")
-                                .font(SBSFonts.bodyStrong())
-                            
-                            Text("Share Workout")
-                                .font(SBSFonts.bodyStrong())
-                        }
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, SBSLayout.space4)
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                .fill(
-                                    LinearGradient(
-                                        colors: summary.prs.isEmpty 
-                                            ? [SBSColors.accentFallback, SBSColors.accentFallback]
-                                            : [.yellow, .orange],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                        )
-                    }
-                    .padding(.horizontal, SBSLayout.space6)
+                    ShareImageButton(
+                        title: "Share Workout",
+                        image: image,
+                        previewTitle: "Workout Complete - \(summary.dayTitle)"
+                    )
                 }
             }
             .padding(.vertical)
@@ -514,13 +493,13 @@ struct WorkoutShareSheet: View {
             await generateShareImage()
         }
     }
-    
+
     @MainActor
     private func generateShareImage() async {
         // ImageRenderer lays out synchronously, so no sleep-based settling is
         // needed — this avoids the previous race that could yield a blank image.
         let shareableView = ShareableWorkoutCard(summary: summary, useMetric: useMetric)
-        shareImage = shareableView.snapshot()
+        shareImage = shareableView.snapshot(colorScheme: colorScheme)
         isGenerating = false
     }
 }
@@ -587,317 +566,180 @@ struct ProgressShareCard: View {
     let summary: ProgressSummary
     let useMetric: Bool
     var compact: Bool = false
-    
+
     private var hasPRs: Bool {
         !summary.personalRecords.isEmpty
     }
-    
+
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d, yyyy"
         return formatter
     }
-    
+
     private var isPositiveProgress: Bool {
         summary.averageGainPercent >= 0
     }
-    
+
     var body: some View {
-        VStack(spacing: 0) {
-            // Header with celebration for PRs
+        VStack(alignment: .leading, spacing: 0) {
             headerSection
-            
-            // Progress bar
+            ShareCardDivider()
             progressBarSection
-            
-            // Lifts summary
+            ShareCardDivider()
             liftsSection
-            
-            // PRs section (if any)
+
             if hasPRs {
+                ShareCardDivider()
                 prsSection
             }
-            
-            // Footer
-            footerSection
+
+            ShareCardDivider()
+            ShareCardFooter(detail: summary.weeksCompleted == 1 ? "1 week" : "\(summary.weeksCompleted) weeks")
         }
-        .background(Color.bg)
-        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
-        .overlay(
-            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                .strokeBorder(
-                    hasPRs
-                        ? LinearGradient(colors: [.yellow, .orange], startPoint: .topLeading, endPoint: .bottomTrailing)
-                        : LinearGradient(colors: [isPositiveProgress ? Color.success.opacity(0.4) : SBSColors.accentFallback.opacity(0.3)], startPoint: .top, endPoint: .bottom),
-                    lineWidth: hasPRs ? 2 : 1
-                )
-        )
-        .shadow(color: hasPRs ? Color.orange.opacity(0.25) : Color.black.opacity(0.15), radius: 16, x: 0, y: 8)
+        .shareCardFrame()
     }
-    
+
     // MARK: - Header Section
-    
+
     private var headerSection: some View {
-        VStack(spacing: SBSLayout.space2) {
-            // Achievement badge for PRs
-            if hasPRs {
-                HStack(spacing: 6) {
-                    Image(systemName: "trophy.fill")
-                        .font(SBSFonts.caption().weight(.semibold))
-                    Text("\(summary.personalRecords.count) PR\(summary.personalRecords.count > 1 ? "S" : "") ACHIEVED!")
-                        .font(SBSFonts.caption().weight(.semibold))
-                }
-                .foregroundStyle(.black)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [.yellow, .orange],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                )
-                .padding(.top, SBSLayout.space4)
-            }
-            
-            // Program and cycle info
-            VStack(spacing: 4) {
-                Text(summary.programName)
-                    .font(compact ? SBSFonts.heading() : SBSFonts.title())
-                    .foregroundStyle(Color.ink)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                
-                HStack(spacing: SBSLayout.space2) {
-                    Text("Cycle \(summary.cycleNumber)")
-                        .font(SBSFonts.caption().weight(.semibold))
-                        .foregroundStyle(Color.orangeText)
-                    
-                    Text("•")
-                        .foregroundStyle(Color.inkSecondary)
-                    
-                    Text(summary.isComplete ? "Completed" : "In Progress")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(summary.isComplete ? Color.success : Color.inkSecondary)
-                }
-                
-                // Date range
-                Text("\(dateFormatter.string(from: summary.startDate)) → \(dateFormatter.string(from: summary.currentDate))")
-                    .font(SBSFonts.caption())
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            HStack(alignment: .top) {
+                SBSEyebrow("Cycle \(summary.cycleNumber) · \(summary.isComplete ? "Complete" : "In progress")")
                     .foregroundStyle(Color.inkSecondary)
+
+                Spacer(minLength: SBSLayout.space2)
+
+                if hasPRs {
+                    SBSBadge(text: summary.personalRecords.count > 1 ? "\(summary.personalRecords.count) PRs" : "PR", variant: .pr)
+                } else if summary.isComplete {
+                    SBSBadge(text: "Done", variant: .status(.success), systemImage: "checkmark")
+                }
             }
-            .padding(.top, hasPRs ? SBSLayout.space2 : SBSLayout.space6)
-            .padding(.bottom, SBSLayout.space4)
+
+            Text(summary.programName)
+                .font(compact ? SBSFonts.heading() : SBSFonts.title())
+                .foregroundStyle(Color.ink)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text("\(dateFormatter.string(from: summary.startDate)) → \(dateFormatter.string(from: summary.currentDate))")
+                .font(SBSFonts.numberSmall())
+                .foregroundStyle(Color.inkSecondary)
         }
-        .frame(maxWidth: .infinity)
-        .background(
-            hasPRs
-                ? AnyView(
-                    LinearGradient(
-                        colors: [Color.orange.opacity(0.12), Color.clear],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                : AnyView(
-                    LinearGradient(
-                        colors: [Color.orangeSoft, Color.clear],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-        )
+        .padding(SBSLayout.space6)
     }
-    
+
     // MARK: - Progress Bar Section
-    
+
     private var progressBarSection: some View {
-        VStack(spacing: SBSLayout.space2) {
-            // Week progress bar
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            // Week progress: an orange fill on a hairline track, square ends
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.surface)
-                    
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(
-                            LinearGradient(
-                                colors: [SBSColors.accentFallback, Color.success],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
+                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                        .fill(Color.bg)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                                .strokeBorder(Color.hairline, lineWidth: SBSLayout.strokeHairline)
                         )
-                        .frame(width: geo.size.width * CGFloat(summary.progressPercent / 100))
+
+                    Rectangle()
+                        .fill(Color.orangeFill)
+                        .frame(width: geo.size.width * CGFloat(min(1, max(0, summary.progressPercent / 100))))
                 }
             }
             .frame(height: 8)
-            .padding(.horizontal, SBSLayout.space6)
-            
-            // Week labels
+
             HStack {
                 Text("Week \(summary.currentWeek) of \(summary.totalWeeks)")
-                    .font(SBSFonts.caption().weight(.semibold))
-                    .foregroundStyle(Color.inkSecondary)
-                
+                    .font(SBSFonts.numberSmall())
+                    .foregroundStyle(Color.ink)
+
                 Spacer()
-                
-                Text(String(format: "%.0f%% complete", summary.progressPercent))
-                    .font(SBSFonts.caption())
+
+                Text(String(format: "%.0f%%", summary.progressPercent))
+                    .font(SBSFonts.numberSmall())
                     .foregroundStyle(Color.inkSecondary)
             }
-            .padding(.horizontal, SBSLayout.space6)
         }
+        .padding(.horizontal, SBSLayout.space6)
         .padding(.vertical, SBSLayout.space4)
-        .background(Color.surface.opacity(0.3))
     }
-    
+
     // MARK: - Lifts Section
-    
+
     private var liftsSection: some View {
-        VStack(spacing: SBSLayout.space2) {
+        VStack(alignment: .leading, spacing: SBSLayout.space3) {
             // Overall summary stats
-            HStack(spacing: SBSLayout.space6) {
-                // Average gain
-                VStack(spacing: 2) {
-                    HStack(spacing: 2) {
-                        Image(systemName: isPositiveProgress ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
-                            .font(SBSFonts.body())
-                        Text(String(format: "%.1f%%", summary.averageGainPercent))
-                            .font(SBSFonts.heading())
-                    }
-                    .foregroundStyle(isPositiveProgress ? Color.success : Color.danger)
-
-                    Text("Avg Gain")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(Color.inkSecondary)
+            HStack(alignment: .top, spacing: SBSLayout.space6) {
+                stat("Avg gain") {
+                    SBSChangeLabel(text: String(format: "%.1f%%", abs(summary.averageGainPercent)), isUp: isPositiveProgress)
+                        .font(SBSFonts.number())
                 }
-                
-                // Total weight gained
-                VStack(spacing: 2) {
+
+                stat("TM gained") {
                     Text(summary.totalWeightGained >= 0 ? "+\(summary.totalWeightGained.formattedWeightShort(useMetric: useMetric))" : summary.totalWeightGained.formattedWeightShort(useMetric: useMetric))
-                        .font(SBSFonts.heading())
-                        .foregroundStyle(Color.orangeText)
-
-                    Text("Total Gained")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(Color.inkSecondary)
+                        .font(SBSFonts.number())
+                        .foregroundStyle(Color.ink)
                 }
-                
-                // PRs count
-                if hasPRs {
-                    VStack(spacing: 2) {
-                        HStack(spacing: 2) {
-                            Image(systemName: "trophy.fill")
-                                .font(SBSFonts.caption())
-                                .foregroundStyle(.yellow)
-                            Text("\(summary.personalRecords.count)")
-                                .font(SBSFonts.heading())
-                                .foregroundStyle(Color.ink)
-                        }
 
-                        Text("New PRs")
-                            .font(SBSFonts.caption())
-                            .foregroundStyle(Color.inkSecondary)
+                if hasPRs {
+                    stat("New PRs") {
+                        Text("\(summary.personalRecords.count)")
+                            .font(SBSFonts.number())
+                            .foregroundStyle(Color.ink)
                     }
                 }
             }
-            .padding(.vertical, SBSLayout.space4)
-            
-            Divider()
-                .background(Color.inkTertiary.opacity(0.2))
-            
-            // Individual lifts
+
+            SBSEyebrow("Training maxes")
+                .foregroundStyle(Color.inkSecondary)
+                .padding(.top, SBSLayout.space2)
+
             ForEach(summary.lifts) { lift in
                 LiftProgressRow(lift: lift, useMetric: useMetric, compact: compact, hasPR: summary.personalRecords.contains { $0.liftName == lift.name })
             }
         }
         .padding(.horizontal, SBSLayout.space6)
-        .padding(.vertical, SBSLayout.space2)
+        .padding(.vertical, SBSLayout.space4)
     }
-    
+
+    private func stat<Value: View>(_ label: String, @ViewBuilder value: () -> Value) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            value()
+            SBSEyebrow(label)
+                .foregroundStyle(Color.inkSecondary)
+        }
+    }
+
     // MARK: - PRs Section
-    
+
     private var prsSection: some View {
-        VStack(spacing: SBSLayout.space2) {
-            Divider()
-                .background(Color.orange.opacity(0.3))
-            
-            HStack {
-                Image(systemName: "trophy.fill")
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(
-                        LinearGradient(colors: [.yellow, .orange], startPoint: .top, endPoint: .bottom)
-                    )
-                
-                Text("Personal Records")
-                    .font(SBSFonts.caption().weight(.semibold))
-                    .foregroundStyle(Color.ink)
-                
-                Spacer()
-            }
-            .padding(.horizontal, SBSLayout.space6)
-            .padding(.top, SBSLayout.space2)
-            
-            VStack(spacing: 6) {
-                ForEach(summary.personalRecords) { pr in
-                    HStack {
-                        Text(pr.liftName)
-                            .font(SBSFonts.body())
-                            .foregroundStyle(Color.ink)
-                        
-                        Spacer()
-                        
-                        Text("\(pr.weight.formattedWeightShort(useMetric: useMetric)) × \(pr.reps)")
-                            .font(SBSFonts.caption())
-                            .foregroundStyle(Color.inkSecondary)
-                        
-                        Text("→")
-                            .foregroundStyle(Color.inkSecondary)
-                        
-                        Text(pr.e1rm.rounded().formattedWeight(useMetric: useMetric))
-                            .font(SBSFonts.bodyStrong())
-                            .foregroundStyle(Color.success)
-                    }
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            SBSEyebrow("Personal records")
+                .foregroundStyle(Color.inkSecondary)
+
+            ForEach(summary.personalRecords) { pr in
+                HStack(alignment: .firstTextBaseline) {
+                    Text(pr.liftName)
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.ink)
+
+                    Spacer(minLength: SBSLayout.space2)
+
+                    Text("\(pr.weight.formattedWeightShort(useMetric: useMetric)) × \(pr.reps)")
+                        .font(SBSFonts.numberSmall())
+                        .foregroundStyle(Color.inkSecondary)
+
+                    Text("e1RM \(pr.e1rm.rounded().formattedWeight(useMetric: useMetric))")
+                        .font(SBSFonts.numberSmall().weight(.semibold))
+                        .foregroundStyle(Color.ink)
                 }
             }
-            .padding(.horizontal, SBSLayout.space6)
-            .padding(.bottom, SBSLayout.space4)
-        }
-        .background(
-            LinearGradient(
-                colors: [Color.orange.opacity(0.05), Color.clear],
-                startPoint: .bottom,
-                endPoint: .top
-            )
-        )
-    }
-    
-    // MARK: - Footer Section
-    
-    private var footerSection: some View {
-        HStack {
-            HStack(spacing: 6) {
-                Image(systemName: "figure.strengthtraining.traditional")
-                    .font(SBSFonts.caption().weight(.semibold))
-                    .foregroundStyle(Color.orangeText)
-
-                Text("Top Set Training")
-                    .font(SBSFonts.caption().weight(.semibold))
-                    .foregroundStyle(Color.inkSecondary)
-            }
-            
-            Spacer()
-            
-            Text("\(summary.weeksCompleted) weeks of gains")
-                .font(SBSFonts.caption())
-                .foregroundStyle(Color.inkSecondary)
         }
         .padding(.horizontal, SBSLayout.space6)
         .padding(.vertical, SBSLayout.space4)
-        .background(Color.surface.opacity(0.5))
     }
 }
 
@@ -908,56 +750,48 @@ private struct LiftProgressRow: View {
     let useMetric: Bool
     var compact: Bool = false
     var hasPR: Bool = false
-    
+
     var body: some View {
-        HStack(spacing: SBSLayout.space4) {
-            // Lift name
+        HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space3) {
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
+                HStack(spacing: SBSLayout.space2) {
                     Text(lift.name)
-                        .font(compact ? SBSFonts.body() : SBSFonts.bodyStrong())
+                        .font(SBSFonts.bodyStrong())
                         .foregroundStyle(Color.ink)
-                    
+
                     if hasPR {
                         PRBadge(small: true)
                     }
                 }
-                
+
                 if let e1rm = lift.bestE1RM {
-                    Text("Best Est. 1RM: \(e1rm.formattedWeightShort(useMetric: useMetric))")
-                        .font(SBSFonts.caption())
+                    Text("Best e1RM \(e1rm.formattedWeightShort(useMetric: useMetric))")
+                        .font(SBSFonts.numberSmall())
                         .foregroundStyle(Color.inkSecondary)
                 }
             }
-            
-            Spacer()
-            
-            // TM progression
-            HStack(spacing: 6) {
-                Text(lift.startingTM.formattedWeightShort(useMetric: useMetric))
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(Color.inkSecondary)
-                
-                Image(systemName: "arrow.right")
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(Color.inkSecondary)
 
-                Text(lift.currentTM.formattedWeightShort(useMetric: useMetric))
-                    .font(compact ? SBSFonts.bodyStrong() : SBSFonts.number())
-                    .foregroundStyle(hasPR ? Color.orange : Color.orangeText)
+            Spacer(minLength: SBSLayout.space2)
+
+            VStack(alignment: .trailing, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space1) {
+                    Text(lift.startingTM.formattedWeightShort(useMetric: useMetric))
+                        .font(SBSFonts.numberSmall())
+                        .foregroundStyle(Color.inkSecondary)
+
+                    Text("→")
+                        .font(SBSFonts.numberSmall())
+                        .foregroundStyle(Color.inkSecondary)
+
+                    Text(lift.currentTM.formattedWeightShort(useMetric: useMetric))
+                        .font(compact ? SBSFonts.numberSmall() : SBSFonts.number())
+                        .foregroundStyle(Color.ink)
+                }
+
+                SBSChangeLabel(text: String(format: "%.1f%%", abs(lift.gainPercent)), isUp: lift.gain >= 0)
             }
-            
-            // Gain percentage
-            HStack(spacing: 2) {
-                Image(systemName: lift.gain >= 0 ? "arrow.up" : "arrow.down")
-                    .font(SBSFonts.caption().weight(.semibold))
-                Text(String(format: "%.1f%%", lift.gainPercent))
-                    .font(SBSFonts.caption().weight(.semibold))
-            }
-            .foregroundStyle(lift.gain >= 0 ? Color.success : Color.danger)
-            .frame(width: 55, alignment: .trailing)
         }
-        .padding(.vertical, compact ? 4 : 6)
+        .padding(.vertical, compact ? 2 : 4)
     }
 }
 
@@ -966,37 +800,11 @@ private struct LiftProgressRow: View {
 struct ShareableProgressCard: View {
     let summary: ProgressSummary
     let useMetric: Bool
-    
-    // Extra padding to account for shadow (radius + y offset)
-    private let shadowPadding: CGFloat = 28
-    
+
     var body: some View {
-        ProgressShareCard(summary: summary, useMetric: useMetric)
-            // Rendered off-screen at a fixed pixel width for export — pin to
-            // the default type size so the image is deterministic regardless
-            // of the user's Dynamic Type setting.
-            .dynamicTypeSize(.large)
-            .frame(width: 380)
-            .padding(.horizontal, SBSLayout.space6)
-            .padding(.top, SBSLayout.space6)
-            .padding(.bottom, SBSLayout.space6 + shadowPadding)
-            .background(
-                ZStack {
-                    Color(light: .init(white: 0.95), dark: .init(white: 0.05))
-                    
-                    GeometryReader { geo in
-                        Path { path in
-                            let spacing: CGFloat = 20
-                            for x in stride(from: 0, to: geo.size.width, by: spacing) {
-                                for y in stride(from: 0, to: geo.size.height, by: spacing) {
-                                    path.addEllipse(in: CGRect(x: x, y: y, width: 1, height: 1))
-                                }
-                            }
-                        }
-                        .fill(Color.white.opacity(0.03))
-                    }
-                }
-            )
+        ShareCardCanvas(width: 380) {
+            ProgressShareCard(summary: summary, useMetric: useMetric)
+        }
     }
 }
 
@@ -1006,10 +814,11 @@ struct ProgressShareSheet: View {
     let summary: ProgressSummary
     let useMetric: Bool
     let onDismiss: () -> Void
-    
+
+    @Environment(\.colorScheme) private var colorScheme
     @State private var shareImage: UIImage?
     @State private var isGenerating = true
-    
+
     var body: some View {
         NavigationStack {
             VStack(spacing: SBSLayout.space6) {
@@ -1022,41 +831,15 @@ struct ProgressShareSheet: View {
                             .padding(.horizontal)
                     }
                 }
-                
+
                 Spacer()
-                
+
                 if let image = shareImage {
-                    ShareLink(
-                        item: Image(uiImage: image),
-                        preview: SharePreview(
-                            "\(summary.programName) - Cycle \(summary.cycleNumber) Progress",
-                            image: Image(uiImage: image)
-                        )
-                    ) {
-                        HStack(spacing: SBSLayout.space2) {
-                            Image(systemName: "square.and.arrow.up")
-                                .font(SBSFonts.bodyStrong())
-                            
-                            Text("Share Progress")
-                                .font(SBSFonts.bodyStrong())
-                        }
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, SBSLayout.space4)
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                .fill(
-                                    LinearGradient(
-                                        colors: summary.personalRecords.isEmpty 
-                                            ? [SBSColors.accentFallback, SBSColors.accentFallback]
-                                            : [.yellow, .orange],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                        )
-                    }
-                    .padding(.horizontal, SBSLayout.space6)
+                    ShareImageButton(
+                        title: "Share Progress",
+                        image: image,
+                        previewTitle: "\(summary.programName) - Cycle \(summary.cycleNumber) Progress"
+                    )
                 }
             }
             .padding(.vertical)
@@ -1075,12 +858,12 @@ struct ProgressShareSheet: View {
             await generateShareImage()
         }
     }
-    
+
     @MainActor
     private func generateShareImage() async {
         // ImageRenderer lays out synchronously — no settling delay required.
         let shareableView = ShareableProgressCard(summary: summary, useMetric: useMetric)
-        shareImage = shareableView.snapshot()
+        shareImage = shareableView.snapshot(colorScheme: colorScheme)
         isGenerating = false
     }
 }
@@ -1279,173 +1062,92 @@ struct LiftProgressSummary: Equatable {
 struct LiftProgressShareCard: View {
     let summary: LiftProgressSummary
     var compact: Bool = false
-    
-    private var progressColor: Color {
-        summary.isPositiveProgress ? Color.success : Color.danger
-    }
-    
+
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d, yyyy"
         return formatter
     }
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            headerSection
-            
-            // Main progress row
-            progressRow
-            
-            // Footer
-            footerSection
-        }
-        .background(Color.bg)
-        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
-        .overlay(
-            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [progressColor.opacity(0.4), progressColor.opacity(0.2)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
-        )
-        .shadow(color: Color.black.opacity(0.15), radius: 16, x: 0, y: 8)
-    }
-    
-    // MARK: - Header Section
-    
-    private var headerSection: some View {
-        VStack(spacing: SBSLayout.space2) {
-            // Progress badge
-            HStack(spacing: 6) {
-                Image(systemName: summary.isPositiveProgress ? "arrow.up.right.circle.fill" : "arrow.down.right.circle.fill")
-                    .font(SBSFonts.caption().weight(.semibold))
-                Text(String(format: "%@%.1f%% PROGRESS", summary.isPositiveProgress ? "+" : "", summary.gainPercent))
-                    .font(SBSFonts.caption().weight(.semibold))
-            }
-            .foregroundStyle(summary.isPositiveProgress ? .white : .white)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(
-                Capsule()
-                    .fill(progressColor)
-            )
-            .padding(.top, SBSLayout.space4)
-            
-            // Lift name
-            Text(summary.liftName)
-                .font(compact ? SBSFonts.title() : SBSFonts.display())
-                .foregroundStyle(Color.ink)
-            
-            // Date range
-            HStack(spacing: SBSLayout.space2) {
-                Text(dateFormatter.string(from: summary.startDate))
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(Color.inkSecondary)
-                
-                Text("→")
-                    .foregroundStyle(Color.inkSecondary)
-                
-                Text(dateFormatter.string(from: summary.currentDate))
-                    .font(SBSFonts.caption().weight(.semibold))
-                    .foregroundStyle(Color.inkSecondary)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.bottom, SBSLayout.space4)
-        .background(
-            LinearGradient(
-                colors: [progressColor.opacity(0.1), Color.clear],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
-    }
-    
-    // MARK: - Progress Row
-    
-    private var progressRow: some View {
-        HStack(spacing: SBSLayout.space4) {
-            // Starting E1RM
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Started")
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(Color.inkSecondary)
-                
-                Text("\(Int(summary.startE1RM.rounded())) \(summary.unit)")
-                    .font(compact ? SBSFonts.heading() : SBSFonts.heading())
-                    .foregroundStyle(Color.inkSecondary)
-            }
-            
-            Spacer()
-            
-            // Arrow
-            Image(systemName: "arrow.right")
-                .font(SBSFonts.heading())
-                .foregroundStyle(Color.inkSecondary)
-            
-            Spacer()
-            
-            // Current E1RM
-            VStack(alignment: .trailing, spacing: 2) {
-                Text("Current")
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(Color.inkSecondary)
-                
-                HStack(spacing: 6) {
-                    Text("\(Int(summary.currentE1RM.rounded())) \(summary.unit)")
-                        .font(compact ? SBSFonts.heading() : SBSFonts.title())
-                        .foregroundStyle(Color.orangeText)
-                    
-                    // Gain indicator
-                    HStack(spacing: 2) {
-                        Image(systemName: summary.isPositiveProgress ? "arrow.up" : "arrow.down")
-                            .font(SBSFonts.caption().weight(.semibold))
-                        Text(String(format: "%@%.0f", summary.isPositiveProgress ? "+" : "", summary.gain))
-                            .font(SBSFonts.caption().weight(.semibold))
-                    }
-                    .foregroundStyle(progressColor)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(progressColor.opacity(0.15))
-                    )
-                }
-            }
-        }
-        .padding(.horizontal, SBSLayout.space6)
-        .padding(.vertical, SBSLayout.space4)
-    }
-    
-    // MARK: - Footer Section
-    
-    private var footerSection: some View {
-        HStack {
-            HStack(spacing: 6) {
-                Image(systemName: "figure.strengthtraining.traditional")
-                    .font(SBSFonts.caption().weight(.semibold))
-                    .foregroundStyle(Color.orangeText)
 
-                Text("Top Set Training")
-                    .font(SBSFonts.caption().weight(.semibold))
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            headerSection
+            ShareCardDivider()
+            progressRow
+            ShareCardDivider()
+            ShareCardFooter(detail: "Estimated 1RM")
+        }
+        .shareCardFrame()
+    }
+
+    // MARK: - Header Section
+
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            HStack(alignment: .top) {
+                SBSEyebrow("Estimated 1RM progress")
+                    .foregroundStyle(Color.inkSecondary)
+
+                Spacer(minLength: SBSLayout.space2)
+
+                // The change as a status badge: arrow glyph and the number carry it
+                SBSBadge(
+                    text: String(format: "%@%.1f%%", summary.isPositiveProgress ? "+" : "", summary.gainPercent),
+                    variant: .status(summary.isPositiveProgress ? .success : .danger),
+                    systemImage: summary.isPositiveProgress ? "arrow.up" : "arrow.down"
+                )
+            }
+
+            Text(summary.liftName)
+                .font(compact ? SBSFonts.heading() : SBSFonts.title())
+                .foregroundStyle(Color.ink)
+
+            Text("\(dateFormatter.string(from: summary.startDate)) → \(dateFormatter.string(from: summary.currentDate))")
+                .font(SBSFonts.numberSmall())
+                .foregroundStyle(Color.inkSecondary)
+        }
+        .padding(SBSLayout.space6)
+    }
+
+    // MARK: - Progress Row
+
+    private var progressRow: some View {
+        HStack(alignment: .lastTextBaseline, spacing: SBSLayout.space4) {
+            VStack(alignment: .leading, spacing: 2) {
+                SBSEyebrow("Started")
+                    .foregroundStyle(Color.inkSecondary)
+
+                Text("\(Int(summary.startE1RM.rounded())) \(summary.unit)")
+                    .font(SBSFonts.number())
                     .foregroundStyle(Color.inkSecondary)
             }
-            
-            Spacer()
-            
-            Text("Estimated 1RM Progress")
-                .font(SBSFonts.caption())
+
+            Spacer(minLength: SBSLayout.space2)
+
+            Image(systemName: "arrow.right")
+                .font(SBSFonts.number())
                 .foregroundStyle(Color.inkSecondary)
+
+            Spacer(minLength: SBSLayout.space2)
+
+            VStack(alignment: .trailing, spacing: 2) {
+                SBSEyebrow("Now")
+                    .foregroundStyle(Color.inkSecondary)
+
+                HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space1) {
+                    Text("\(Int(summary.currentE1RM.rounded()))")
+                        .font(SBSFonts.numberLarge())
+                        .foregroundStyle(Color.ink)
+                    Text(summary.unit)
+                        .font(SBSFonts.numberUnit())
+                        .foregroundStyle(Color.inkSecondary)
+                }
+
+                SBSChangeLabel(text: String(format: "%.0f", abs(summary.gain)), isUp: summary.isPositiveProgress)
+            }
         }
         .padding(.horizontal, SBSLayout.space6)
         .padding(.vertical, SBSLayout.space4)
-        .background(Color.surface.opacity(0.5))
     }
 }
 
@@ -1453,18 +1155,15 @@ struct LiftProgressShareCard: View {
 
 struct ShareableLiftProgressCard: View {
     let summary: LiftProgressSummary
-    
+
     var body: some View {
-        LiftProgressShareCard(summary: summary)
-            // Rendered off-screen at a fixed pixel width for export — pin to
-            // the default type size so the image is deterministic regardless
-            // of the user's Dynamic Type setting.
-            .dynamicTypeSize(.large)
-            .frame(width: 340)
+        ShareCardCanvas(width: 340) {
+            LiftProgressShareCard(summary: summary)
+        }
     }
 
-    // Uses the unified `View.snapshot()` (ImageRenderer, fixed dark scheme,
-    // scale 3) for a deterministic export — see the extension above.
+    // Uses the unified `View.snapshot(colorScheme:)` (ImageRenderer, scale 3) for a
+    // deterministic export — see the extension above.
 }
 
 #Preview("Lift Progress Card") {

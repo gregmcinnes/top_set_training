@@ -1399,7 +1399,8 @@ final class ActiveWorkoutSession: Identifiable {
             exercises: exercises,
             totalSets: workoutState.completedSetsCount,
             duration: workoutDuration,
-            prs: prs
+            prs: prs,
+            barWeight: appState.settings.barWeight
         )
     }
 

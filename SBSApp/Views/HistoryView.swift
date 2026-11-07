@@ -66,6 +66,7 @@ struct HistoryView: View {
     @State private var chartDisplayMode: ChartDisplayMode = .trainingMax // Default to TM for free users
     @State private var showingPaywall = false
     @State private var sharePayload: ShareImagePayload?
+    @Environment(\.colorScheme) private var colorScheme
     @State private var ageCategory: AgeCategory = .allAges
     @State private var selectedStrengthFormula: StrengthScoreFormula = .wilks
     @State private var showStrengthScore = true // Show strength score by default
@@ -649,7 +650,7 @@ struct HistoryView: View {
 
         // ImageRenderer (via View.snapshot()) lays out synchronously, so the
         // image is ready immediately — no settling delay or off-window race.
-        sharePayload = ShareImagePayload(image: shareableCard.snapshot())
+        sharePayload = ShareImagePayload(image: shareableCard.snapshot(colorScheme: colorScheme))
     }
     
     /// Get only current cycle logs for free users

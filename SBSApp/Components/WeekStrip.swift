@@ -1,156 +1,171 @@
 import SwiftUI
 
+/// One day of a week in the strip
+struct WeekStripDay: Hashable {
+    let day: Int
+    let status: DayLogStatus
+}
+
+/// Where the lifter is in the cycle (WeekStrip guideline): a pill per week with a
+/// square per day, filled ink when done. The week being shown below is selected
+/// (orange-soft, orange-text edge); the week the lifter is in has its label in
+/// orange-text, an ink edge, and its next day's square in orange.
 struct WeekStrip: View {
     @Binding var selectedWeek: Int
     let totalWeeks: Int
-    /// Returns fraction of workouts completed for a given week (0.0 to 1.0)
-    var weekCompletionFraction: ((Int) -> Double)?
-    
+    /// The week and day of the next (or in-progress) workout, when there is one
+    var currentWeek: Int? = nil
+    var currentDay: Int? = nil
+    /// The days of a week and how far each got
+    var days: (Int) -> [WeekStripDay] = { _ in [] }
+
     var body: some View {
-        VStack(spacing: SBSLayout.paddingSmall) {
-            // Week label
-            Text("WEEK \(selectedWeek) OF \(totalWeeks)")
-                .font(SBSFonts.captionBold())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
-                .tracking(1)
-            
-            // Week selector
-            HStack(spacing: SBSLayout.paddingMedium) {
-                // Previous button
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedWeek = max(1, selectedWeek - 1)
-                    }
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(selectedWeek > 1 ? Color.orangeText : SBSColors.textTertiaryFallback)
-                        .frame(width: 44, height: 44)
-                }
-                .disabled(selectedWeek <= 1)
-                
-                // Week pills - show 5 at a time centered on selection
-                ScrollViewReader { proxy in
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(1...totalWeeks, id: \.self) { week in
-                                WeekPill(
-                                    week: week,
-                                    isSelected: week == selectedWeek,
-                                    completionFraction: weekCompletionFraction?(week) ?? 0.0
-                                )
-                                .id(week)
-                                .onTapGesture {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        selectedWeek = week
-                                    }
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            SBSSectionEyebrow("Week \(selectedWeek) of \(totalWeeks)", knurled: true)
+
+            // Scrolls when the cycle is longer than fits; never wraps
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: SBSLayout.space2) {
+                        ForEach(1...max(totalWeeks, 1), id: \.self) { week in
+                            WeekPill(
+                                week: week,
+                                days: days(week),
+                                isSelected: week == selectedWeek,
+                                isCurrent: week == currentWeek,
+                                currentDay: week == currentWeek ? currentDay : nil
+                            ) {
+                                withAnimation(.easeOut(duration: 0.15)) {
+                                    selectedWeek = week
                                 }
                             }
-                        }
-                        .padding(.horizontal, SBSLayout.paddingSmall)
-                    }
-                    .onChange(of: selectedWeek) { _, newValue in
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            proxy.scrollTo(newValue, anchor: .center)
+                            .id(week)
                         }
                     }
-                    .onAppear {
-                        proxy.scrollTo(selectedWeek, anchor: .center)
+                    // Room for the selected pill's edge
+                    .padding(.vertical, 1)
+                }
+                .onChange(of: selectedWeek) { _, newValue in
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        proxy.scrollTo(newValue, anchor: .center)
                     }
                 }
-                .frame(maxWidth: .infinity)
-                
-                // Next button
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedWeek = min(totalWeeks, selectedWeek + 1)
-                    }
-                } label: {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(selectedWeek < totalWeeks ? Color.orangeText : SBSColors.textTertiaryFallback)
-                        .frame(width: 44, height: 44)
+                .onAppear {
+                    proxy.scrollTo(selectedWeek, anchor: .center)
                 }
-                .disabled(selectedWeek >= totalWeeks)
             }
         }
-        .padding(.vertical, SBSLayout.paddingSmall)
     }
 }
 
 struct WeekPill: View {
     let week: Int
+    let days: [WeekStripDay]
     let isSelected: Bool
-    /// Fraction of workouts completed for this week (0.0 to 1.0)
-    let completionFraction: Double
-    
+    let isCurrent: Bool
+    /// The next day in the current week: its square is orange
+    var currentDay: Int? = nil
+    let onTap: () -> Void
+
+    @ScaledMetric(relativeTo: .caption2) private var squareSize: CGFloat = 10
+
+    private var doneCount: Int {
+        days.filter { $0.status == .complete }.count
+    }
+
+    private var labelColor: Color {
+        if isCurrent { return .orangeText }
+        return isSelected ? .ink : .inkSecondary
+    }
+
+    private var edgeColor: Color {
+        if isSelected { return .orangeText }
+        return isCurrent ? .ink : .hairline
+    }
+
+    private var accessibilityValue: String {
+        var parts = ["\(doneCount) of \(days.count) days done"]
+        if isCurrent { parts.append("current week") }
+        return parts.joined(separator: ", ")
+    }
+
     var body: some View {
-        Text("\(week)")
-            .font(SBSFonts.captionBold())
-            .foregroundStyle(foregroundColor)
-            .frame(width: 36, height: 36)
-            .background(
-                Circle()
-                    .fill(backgroundColor)
-            )
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Week \(week)".uppercased())
+                    .font(SBSFonts.eyebrow())
+                    .tracking(0.9)
+                    .foregroundStyle(labelColor)
+                    .lineLimit(1)
+
+                HStack(spacing: 3) {
+                    ForEach(days, id: \.self) { day in
+                        DaySquare(status: day.status, isCurrent: day.day == currentDay)
+                            .frame(width: squareSize, height: squareSize)
+                    }
+                }
+                .frame(minHeight: squareSize)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, SBSLayout.space2)
+            .frame(minWidth: 64, alignment: .leading)
+            .background(isSelected ? Color.orangeSoft : Color.surface, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
             .overlay(
-                Circle()
-                    .strokeBorder(borderColor, lineWidth: isSelected ? 2 : 0)
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .strokeBorder(edgeColor, lineWidth: SBSLayout.strokeHairline)
             )
-    }
-    
-    private var foregroundColor: Color {
-        if isSelected {
-            return .white
-        } else if completionFraction >= 1.0 {
-            // Fully completed week - white text for contrast with full orange
-            return .white
-        } else if completionFraction > 0 {
-            // Partially completed - adjust based on completion (darker text as background gets lighter)
-            return completionFraction > 0.5 ? .white : SBSColors.textPrimaryFallback
-        } else {
-            return SBSColors.textPrimaryFallback
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Week \(week)")
+        .accessibilityValue(accessibilityValue)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
-    
-    private var backgroundColor: Color {
-        if isSelected {
-            // Selected week always gets full accent color
-            return SBSColors.accentFallback
-        } else if completionFraction >= 1.0 {
-            // Fully completed - slightly muted orange to distinguish from selected
-            return SBSColors.accentFallback.opacity(0.85)
-        } else if completionFraction > 0 {
-            // Partially completed - gradient of orange based on completion
-            // Minimum opacity 0.2, max 0.7 (saving full for completed/selected)
-            let opacity = 0.2 + (completionFraction * 0.5)
-            return SBSColors.accentFallback.opacity(opacity)
-        } else {
-            // Not started - default surface color
-            return SBSColors.surfaceFallback
+}
+
+/// A day in a week pill: an ink outline, filled ink when done, the lower half
+/// filled when partly done, orange with an ink edge for the next workout. The
+/// fill is the state; no checkmarks.
+private struct DaySquare: View {
+    let status: DayLogStatus
+    let isCurrent: Bool
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            if isCurrent && status != .complete {
+                Rectangle().fill(Color.orangeFill)
+            } else {
+                switch status {
+                case .complete:
+                    Rectangle().fill(Color.ink)
+                case .partial:
+                    GeometryReader { geo in
+                        Rectangle()
+                            .fill(Color.ink)
+                            .frame(height: geo.size.height / 2)
+                            .frame(maxHeight: .infinity, alignment: .bottom)
+                    }
+                case .notStarted:
+                    Color.clear
+                }
+            }
+            Rectangle().strokeBorder(Color.ink, lineWidth: SBSLayout.strokeHairline)
         }
-    }
-    
-    private var borderColor: Color {
-        isSelected ? SBSColors.accentFallback.opacity(0.5) : .clear
+        .accessibilityHidden(true)
     }
 }
 
 #Preview {
     VStack {
         WeekStrip(
-            selectedWeek: .constant(5),
-            totalWeeks: 20,
-            weekCompletionFraction: { week in
-                // Demo: show varying completion levels
-                switch week {
-                case 1: return 1.0      // Fully complete
-                case 2: return 1.0      // Fully complete
-                case 3: return 0.8      // 80% complete
-                case 4: return 0.6      // 60% complete
-                case 5: return 0.4      // 40% complete (selected)
-                case 6: return 0.2      // 20% complete
-                default: return 0.0     // Not started
+            selectedWeek: .constant(3),
+            totalWeeks: 12,
+            currentWeek: 3,
+            currentDay: 2,
+            days: { week in
+                (1...4).map { day in
+                    let status: DayLogStatus = week < 3 ? .complete : (week == 3 && day == 1 ? .complete : (week == 3 && day == 3 ? .partial : .notStarted))
+                    return WeekStripDay(day: day, status: status)
                 }
             }
         )
@@ -158,4 +173,3 @@ struct WeekPill: View {
     .padding()
     .sbsBackground()
 }
-

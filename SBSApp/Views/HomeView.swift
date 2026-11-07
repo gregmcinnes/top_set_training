@@ -44,41 +44,55 @@ struct HomeView: View {
         appState.startWorkout(week: week, day: day)
     }
 
+    /// The workout the strip and day list mark as current: the one in progress, else what's next
+    private var currentWorkout: (week: Int, day: Int)? {
+        if let session = appState.activeSession {
+            return (session.week, session.day)
+        }
+        return appState.nextWorkoutInCycle
+    }
+
     /// The top of Home: the workout in progress, else what's next, else the end of the
     /// cycle. Each hides the ones after it.
     @ViewBuilder
     private var topCard: some View {
         if let session = appState.activeSession {
-            NextWorkoutCard(
-                heading: "In Progress: \(appState.dayTitle(day: session.day))",
-                week: session.week,
-                day: session.day,
-                lifts: appState.dayLifts(week: session.week, day: session.day),
-                actionTitle: "Resume Workout",
-                action: { appState.resumeWorkout() }
-            )
-            .padding(.horizontal)
+            VStack(alignment: .leading, spacing: SBSLayout.space2) {
+                SBSSectionEyebrow("In progress", knurled: true)
+                NextWorkoutCard(
+                    heading: appState.dayTitle(day: session.day),
+                    week: session.week,
+                    day: session.day,
+                    lifts: appState.dayLifts(week: session.week, day: session.day),
+                    actionTitle: "Resume Workout",
+                    action: { appState.resumeWorkout() }
+                )
+            }
         } else if let next = appState.nextWorkoutInCycle {
-            NextWorkoutCard(
-                heading: "Next: \(appState.dayTitle(day: next.day))",
-                week: next.week,
-                day: next.day,
-                lifts: appState.dayLifts(week: next.week, day: next.day),
-                actionTitle: "Start Workout",
-                action: { startNextWorkout(week: next.week, day: next.day) }
-            )
-            .padding(.horizontal)
+            VStack(alignment: .leading, spacing: SBSLayout.space2) {
+                SBSSectionEyebrow("Up next", knurled: true)
+                NextWorkoutCard(
+                    heading: appState.dayTitle(day: next.day),
+                    week: next.week,
+                    day: next.day,
+                    lifts: appState.dayLifts(week: next.week, day: next.day),
+                    actionTitle: "Start Workout",
+                    action: { startNextWorkout(week: next.week, day: next.day) }
+                )
+            }
         } else if appState.isCycleComplete {
-            CycleCompletionCard(
-                cycleNumber: appState.currentCycleNumber,
-                summary: appState.cycleCompletionSummary(),
-                useMetric: appState.settings.useMetric,
-                onQuickRepeat: quickRepeat,
-                onCustomize: openCycleBuilder
-            )
-            .padding(.horizontal)
+            VStack(alignment: .leading, spacing: SBSLayout.space2) {
+                SBSSectionEyebrow("End of cycle", knurled: true)
+                CycleCompletionCard(
+                    cycleNumber: appState.currentCycleNumber,
+                    summary: appState.cycleCompletionSummary(),
+                    useMetric: appState.settings.useMetric,
+                    onQuickRepeat: quickRepeat,
+                    onCustomize: openCycleBuilder
+                )
+            }
             .transition(.asymmetric(
-                insertion: .slide.combined(with: .opacity),
+                insertion: .move(edge: .leading).combined(with: .opacity),
                 removal: .opacity
             ))
         }
@@ -87,47 +101,57 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: SBSLayout.sectionSpacing) {
+                VStack(alignment: .leading, spacing: SBSLayout.space6) {
                     topCard
 
                     // Week selector strip
                     WeekStrip(
                         selectedWeek: $appState.selectedWeek,
                         totalWeeks: appState.weeks.count,
-                        weekCompletionFraction: { week in
-                            appState.weekCompletionFraction(for: week)
+                        currentWeek: currentWorkout?.week,
+                        currentDay: currentWorkout?.day,
+                        days: { week in
+                            appState.visibleDays(forWeek: week).map { day in
+                                WeekStripDay(day: day, status: appState.dayDisplayStatus(week: week, day: day))
+                            }
                         }
                     )
-                    .padding(.horizontal)
-                    
+
                     // Progress indicator, for programs that have days it can count
                     if appState.programHasLoggableDays {
                         WeekProgressBar(progress: appState.cycleCompletionFraction)
-                            .padding(.horizontal)
                     }
 
-                    // Day cards
-                    VStack(spacing: SBSLayout.cardSpacing) {
-                        ForEach(appState.days, id: \.self) { day in
-                            DayCard(
-                                day: day,
-                                title: appState.dayTitle(day: day),
-                                lifts: appState.dayLifts(week: appState.selectedWeek, day: day),
-                                logStatus: appState.dayDisplayStatus(week: appState.selectedWeek, day: day),
-                                isSelected: day == appState.selectedDay,
-                                onTap: {
-                                    appState.selectedDay = day
-                                    selectedSessionDay = day
-                                    showingSession = true
+                    // Day list
+                    VStack(alignment: .leading, spacing: SBSLayout.space2) {
+                        SBSSectionEyebrow("Days in week \(appState.selectedWeek)", knurled: true)
+
+                        VStack(spacing: 0) {
+                            ForEach(Array(appState.days.enumerated()), id: \.element) { index, day in
+                                if index > 0 {
+                                    SBSRowDivider()
                                 }
-                            )
+                                DayCard(
+                                    day: day,
+                                    title: appState.dayTitle(day: day),
+                                    lifts: appState.dayLifts(week: appState.selectedWeek, day: day),
+                                    logStatus: appState.dayDisplayStatus(week: appState.selectedWeek, day: day),
+                                    isCurrent: currentWorkout.map { $0.week == appState.selectedWeek && $0.day == day } ?? false,
+                                    onTap: {
+                                        appState.selectedDay = day
+                                        selectedSessionDay = day
+                                        showingSession = true
+                                    }
+                                )
+                            }
                         }
+                        .card()
                     }
-                    .padding(.horizontal)
-                    
+
                     Spacer(minLength: 100)
                 }
-                .padding(.top)
+                .padding(.horizontal, SBSLayout.space4)
+                .padding(.top, SBSLayout.space4)
             }
             .sbsBackground()
             .onChange(of: appState.returnToHomeCount) { _, _ in
@@ -218,7 +242,8 @@ struct HomeView: View {
                 ProgramDetailView(
                     program: programInfo,
                     programData: appState.programData,
-                    familyColor: programFamilyColor,
+                    // Orange as text and icons; no colour per program family
+                    familyColor: Color.orangeText,
                     level: programExperienceLevel
                 )
             }
@@ -233,22 +258,6 @@ struct HomeView: View {
             return nil
         }
         return program
-    }
-    
-    private var programFamilyColor: Color {
-        guard let selectedId = appState.userData.selectedProgram else { return SBSColors.accentFallback }
-        switch selectedId {
-        case "nsuns_5day_12week", "nsuns_4day_12week":
-            return .orange
-        case "531_bbb_12week", "531_triumvirate_12week":
-            return .blue
-        case "stronglifts_5x5_12week", "greyskull_lp_12week", "starting_strength_12week", "gzclp_12week":
-            return .green
-        case "reddit_ppl_12week", "sbs_program_config":
-            return .purple
-        default:
-            return SBSColors.accentFallback
-        }
     }
     
     private var programExperienceLevel: ProgramLevel {
@@ -268,6 +277,8 @@ struct HomeView: View {
 
 // MARK: - Next Workout Card
 
+/// What's next (or in progress): the week and day, the workout, its lifts, and
+/// Home's one primary button.
 struct NextWorkoutCard: View {
     let heading: String
     let week: Int
@@ -277,33 +288,31 @@ struct NextWorkoutCard: View {
     let action: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: SBSLayout.space4) {
+            VStack(alignment: .leading, spacing: SBSLayout.space1) {
                 // Always named: the strip may be showing a different week
-                Text("WEEK \(week), DAY \(day)")
-                    .font(SBSFonts.captionBold())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                    .tracking(1)
+                SBSEyebrow("Week \(week) · Day \(day)")
+                    .foregroundStyle(Color.inkSecondary)
 
                 Text(heading)
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(Color.ink)
 
-                Text(lifts.isEmpty ? "No exercises" : lifts.joined(separator: " • "))
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                Text(lifts.isEmpty ? "No exercises" : lifts.joined(separator: " · "))
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
                     .lineLimit(2)
             }
 
             Button(action: action) {
-                Text(actionTitle)
+                SBSButtonTitle(actionTitle)
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(SBSLegacyPrimaryButtonStyle())
+            .buttonStyle(SBSPrimaryButtonStyle())
         }
-        .padding()
+        .padding(SBSLayout.space4)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .sbsCard()
+        .card()
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("nextWorkoutCard")
     }
@@ -335,232 +344,112 @@ struct CycleCompletionCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(SBSColors.success)
-                        .frame(width: 44, height: 44)
-
-                    Image(systemName: "trophy.fill")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-                .accessibilityHidden(true)
-
+        VStack(alignment: .leading, spacing: SBSLayout.space4) {
+            SBSAdaptiveStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Cycle \(cycleNumber) Complete")
-                        .font(SBSFonts.title3())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.heading())
+                        .foregroundStyle(Color.ink)
 
-                    Text(sessionsText)
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                    SBSRowSubtitle(sessionsText)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-                Spacer()
+                SBSBadge(text: "Complete", variant: .status(.success), systemImage: "checkmark")
             }
 
-            Rectangle()
-                .fill(SBSColors.textTertiaryFallback.opacity(0.2))
-                .frame(height: 1)
+            SBSRowDivider()
 
             if summary.gains.isEmpty {
                 Text(noGainsText)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             } else {
                 gainsList
             }
 
-            VStack(spacing: SBSLayout.paddingSmall) {
+            VStack(spacing: SBSLayout.space2) {
                 Button(action: onQuickRepeat) {
-                    Text("Quick Repeat")
+                    SBSButtonTitle("Quick Repeat")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(SBSLegacyPrimaryButtonStyle())
+                .buttonStyle(SBSPrimaryButtonStyle())
 
                 Button(action: onCustomize) {
-                    Text("Customize")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                    SBSButtonTitle("Customize")
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, SBSLayout.paddingSmall)
-                        .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SBSSecondaryButtonStyle())
             }
         }
-        .padding()
+        .padding(SBSLayout.space4)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .sbsCard()
-        .overlay(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                .strokeBorder(SBSColors.success.opacity(0.4), lineWidth: 1)
-        )
+        .card()
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("cycleCompletionCard")
     }
 
     private var gainsList: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
-            Text(gainsHeading)
-                .font(SBSFonts.captionBold())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            SBSEyebrow(gainsHeading)
+                .foregroundStyle(Color.inkSecondary)
 
             ForEach(summary.gains.prefix(maximumGainRows), id: \.lift) { gain in
-                HStack(spacing: SBSLayout.paddingSmall) {
+                HStack(spacing: SBSLayout.space2) {
                     Text(gain.lift)
-                        .font(SBSFonts.legacyBody())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.body())
+                        .foregroundStyle(Color.ink)
                         .lineLimit(1)
 
                     Spacer()
 
                     Text(gain.to.formattedWeight(useMetric: useMetric))
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.numberSmall().weight(.semibold))
+                        .foregroundStyle(Color.ink)
 
-                    Text("+\(gain.gain.formattedWeight(useMetric: useMetric))")
-                        .font(SBSFonts.captionBold())
-                        .foregroundStyle(SBSColors.success)
+                    SBSChangeLabel(text: gain.gain.formattedWeight(useMetric: useMetric), isUp: true)
                 }
+                .accessibilityElement(children: .combine)
             }
 
             if summary.gains.count > maximumGainRows {
                 Text("and \(summary.gains.count - maximumGainRows) more")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
         }
     }
 }
 
+/// Days done across the cycle: a knurled eyebrow with the percentage, and an
+/// ink bar on a hairline track (orange stays with the Start button).
 struct WeekProgressBar: View {
     /// Completed days across the cycle, 0 to 1
     let progress: Double
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
-            HStack {
-                Text("Program Progress")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                
-                Spacer()
-                
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            SBSSectionEyebrow("Program Progress", knurled: true) {
                 Text("\(Int(progress * 100))%")
-                    .font(SBSFonts.captionBold())
-                    .foregroundStyle(Color.orangeText)
+                    .font(SBSFonts.numberSmall().weight(.semibold))
+                    .foregroundStyle(Color.ink)
             }
-            
+
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    // Track, visible against the card at 0%
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(SBSColors.textTertiaryFallback.opacity(0.25))
-                        .frame(height: 8)
-                    
-                    // Progress
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(
-                            LinearGradient(
-                                colors: [SBSColors.accentFallback, SBSColors.accentSecondaryFallback],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: geo.size.width * progress, height: 8)
-                        .animation(.easeInOut(duration: 0.3), value: progress)
+                    Rectangle()
+                        .fill(Color.surface)
+                        .overlay(Rectangle().strokeBorder(Color.hairline, lineWidth: SBSLayout.strokeHairline))
+
+                    Rectangle()
+                        .fill(Color.ink)
+                        .frame(width: geo.size.width * min(max(progress, 0), 1))
+                        .animation(.easeOut(duration: 0.25), value: progress)
                 }
             }
             .frame(height: 8)
+            .accessibilityHidden(true)
         }
-        .padding()
-        .sbsCard()
-    }
-}
-
-// MARK: - Quick Stats Card (optional enhancement)
-
-struct QuickStatsCard: View {
-    let appState: AppState
-    
-    var body: some View {
-        VStack(spacing: SBSLayout.paddingMedium) {
-            HStack {
-                Text("This Week")
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                
-                Spacer()
-            }
-            
-            HStack(spacing: SBSLayout.paddingLarge) {
-                StatItem(
-                    icon: "checkmark.circle.fill",
-                    value: "\(completedDays)",
-                    label: "Days Done",
-                    color: SBSColors.success
-                )
-                
-                StatItem(
-                    icon: "flame.fill",
-                    value: "\(totalSets)",
-                    label: "Total Sets",
-                    color: SBSColors.accentFallback
-                )
-                
-                StatItem(
-                    icon: "arrow.up.circle.fill",
-                    value: tmGains,
-                    label: "TM Gains",
-                    color: SBSColors.accentSecondaryFallback
-                )
-            }
-        }
-        .padding()
-        .sbsCard()
-    }
-    
-    private var completedDays: Int {
-        appState.days.filter { day in
-            appState.dayLogStatus(week: appState.selectedWeek, day: day) == .complete
-        }.count
-    }
-    
-    private var totalSets: Int {
-        // Each day has approximately 8 working sets (2 lifts × 4 sets)
-        completedDays * 8
-    }
-    
-    private var tmGains: String {
-        // Calculate average TM change for the week
-        "+1.2%"
-    }
-}
-
-struct StatItem: View {
-    let icon: String
-    let value: String
-    let label: String
-    let color: Color
-    
-    var body: some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 20))
-                .foregroundStyle(color)
-            
-            Text(value)
-                .font(SBSFonts.title2())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
-            
-            Text(label)
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textTertiaryFallback)
-        }
-        .frame(maxWidth: .infinity)
     }
 }
 

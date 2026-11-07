@@ -1,184 +1,185 @@
 import SwiftUI
 
+/// A day in Home's list: a row in a hairline group. The day pill follows the
+/// WeekStrip guideline (done, current, upcoming); the status is a glyph and word.
 struct DayCard: View {
     let day: Int
     let title: String
     let lifts: [String]
     let logStatus: DayLogStatus
-    let isSelected: Bool
+    /// The next (or in-progress) workout: its pill is orange
+    var isCurrent: Bool = false
     let onTap: () -> Void
-    
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var liftsText: String {
+        lifts.isEmpty ? "No exercises" : lifts.joined(separator: " · ")
+    }
+
+    private var accessibilityText: String {
+        var parts = ["Day \(day)", title, lifts.isEmpty ? "No exercises" : lifts.joined(separator: ", ")]
+        if isCurrent { parts.append("Next workout") }
+        // The status last: UI tests and VoiceOver users both read it there
+        parts.append(LogStatusBadge.word(for: logStatus))
+        return parts.joined(separator: ", ")
+    }
+
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: SBSLayout.paddingMedium) {
-                // Day number badge
-                DayBadge(day: day, status: logStatus, isSelected: isSelected)
-                
-                // Content
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .font(SBSFonts.bodyBold())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                    
-                    Text(lifts.isEmpty ? "No exercises" : lifts.joined(separator: " • "))
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
+            Group {
+                if dynamicTypeSize.isAccessibilitySize {
+                    // Stacked, so the title isn't squeezed to a letter a line
+                    VStack(alignment: .leading, spacing: SBSLayout.space2) {
+                        HStack(spacing: SBSLayout.space2) {
+                            DayBadge(day: day, status: logStatus, isCurrent: isCurrent)
+                            Spacer(minLength: 0)
+                            SBSChevron()
+                        }
+                        titleAndLifts
+                        // Its own line: beside the pill it runs off the screen
+                        statusBadge
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    HStack(spacing: SBSLayout.space3) {
+                        DayBadge(day: day, status: logStatus, isCurrent: isCurrent)
+                        titleAndLifts
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .layoutPriority(1)
+                        statusBadge
+                        SBSChevron()
+                    }
                 }
-                .layoutPriority(1)
-                
-                Spacer()
-                
-                // Status indicator
-                LogStatusBadge(status: logStatus)
-                    .fixedSize()
-                
-                // Chevron
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
             }
-            .padding(SBSLayout.paddingMedium)
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                    .fill(isSelected ? SBSColors.surfaceElevatedFallback : SBSColors.surfaceFallback)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                    .strokeBorder(
-                        isSelected ? SBSColors.accentFallback : .clear,
-                        lineWidth: 2
-                    )
-            )
-            .shadow(
-                color: .black.opacity(isSelected ? 0.15 : 0.08),
-                radius: isSelected ? 8 : 4,
-                x: 0,
-                y: isSelected ? 4 : 2
-            )
+            .padding(.vertical, SBSLayout.space3)
+            .padding(.horizontal, SBSLayout.space4)
+            .frame(minHeight: 56)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // On the button itself: a wrapping element would make a second one
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private var titleAndLifts: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(SBSFonts.bodyStrong())
+                .foregroundStyle(Color.ink)
+
+            Text(liftsText)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
+                .multilineTextAlignment(.leading)
+        }
+    }
+
+    /// Done and partial days say so; an upcoming day needs no tag
+    @ViewBuilder
+    private var statusBadge: some View {
+        if logStatus != .notStarted {
+            LogStatusBadge(status: logStatus)
+                .fixedSize()
+        }
     }
 }
 
+/// The day pill: done is surface-raised with struck-through ink-secondary text,
+/// the current day orange with orange-ink and an ink edge, upcoming plain.
 struct DayBadge: View {
     let day: Int
     let status: DayLogStatus
-    let isSelected: Bool
-    
+    var isCurrent: Bool = false
+
+    private var isDone: Bool { status == .complete && !isCurrent }
+
+    private var fill: Color {
+        if isCurrent { return .orangeFill }
+        return isDone ? .surfaceRaised : .surface
+    }
+
+    private var edge: Color {
+        isCurrent ? .ink : .hairline
+    }
+
+    private var textColor: Color {
+        if isCurrent { return .orangeInk }
+        return isDone ? .inkSecondary : .ink
+    }
+
     var body: some View {
-        ZStack {
-            Circle()
-                .fill(backgroundColor)
-                .frame(width: 44, height: 44)
-            
-            Text("\(day)")
-                .font(SBSFonts.title3())
-                .foregroundStyle(foregroundColor)
-        }
-    }
-    
-    private var backgroundColor: Color {
-        switch status {
-        case .complete:
-            return SBSColors.success.opacity(0.15)
-        case .partial:
-            return SBSColors.warning.opacity(0.15)
-        case .notStarted:
-            return isSelected ? SBSColors.accentFallback.opacity(0.15) : SBSColors.backgroundFallback
-        }
-    }
-    
-    private var foregroundColor: Color {
-        switch status {
-        case .complete:
-            return SBSColors.success
-        case .partial:
-            return SBSColors.warning
-        case .notStarted:
-            return isSelected ? Color.orangeText : SBSColors.textSecondaryFallback
-        }
+        Text("Day \(day)")
+            .font(SBSFonts.numberSmall().weight(.semibold))
+            .strikethrough(isDone, color: Color.inkSecondary)
+            .foregroundStyle(textColor)
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(fill, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+            .overlay(
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .strokeBorder(edge, lineWidth: SBSLayout.strokeHairline)
+            )
     }
 }
 
+/// A day's log status as a status badge: glyph and word, never a solid fill.
 struct LogStatusBadge: View {
     let status: DayLogStatus
-    
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: iconName)
-                .font(.system(size: 12, weight: .semibold))
-            
-            Text(statusText)
-                .font(SBSFonts.legacyCaption())
-        }
-        .foregroundStyle(statusColor)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(
-            Capsule()
-                .fill(statusColor.opacity(0.12))
-        )
-    }
-    
-    private var iconName: String {
-        switch status {
-        case .complete: return "checkmark.circle.fill"
-        case .partial: return "circle.lefthalf.filled"
-        case .notStarted: return "circle"
-        }
-    }
-    
-    private var statusText: String {
+
+    /// The status as VoiceOver and UI tests read it. An upcoming day has no
+    /// visible badge, but its label still says "To Do".
+    static func word(for status: DayLogStatus) -> String {
         switch status {
         case .complete: return "Done"
         case .partial: return "Partial"
         case .notStarted: return "To Do"
         }
     }
-    
-    private var statusColor: Color {
+
+    var body: some View {
         switch status {
-        case .complete: return SBSColors.success
-        case .partial: return SBSColors.warning
-        case .notStarted: return SBSColors.textTertiaryFallback
+        case .complete:
+            SBSBadge(text: "Done", variant: .status(.success), systemImage: "checkmark")
+        case .partial:
+            SBSBadge(text: "Partial", variant: .status(.warning), systemImage: "circle.lefthalf.filled")
+        case .notStarted:
+            SBSBadge(text: "To Do")
         }
     }
 }
 
 #Preview {
-    VStack(spacing: 12) {
+    VStack(spacing: 0) {
         DayCard(
             day: 1,
             title: "Squat Day",
             lifts: ["Squat", "Push Press"],
             logStatus: .complete,
-            isSelected: false,
             onTap: {}
         )
-        
+        SBSRowDivider()
         DayCard(
             day: 2,
             title: "Bench Day",
             lifts: ["Bench Press", "Front Squat"],
             logStatus: .partial,
-            isSelected: true,
+            isCurrent: true,
             onTap: {}
         )
-        
+        SBSRowDivider()
         DayCard(
             day: 3,
             title: "Deadlift Day",
             lifts: ["Trap Bar Deadlift", "Incline Press"],
             logStatus: .notStarted,
-            isSelected: false,
             onTap: {}
         )
     }
+    .card()
     .padding()
     .sbsBackground()
 }
-
-
-

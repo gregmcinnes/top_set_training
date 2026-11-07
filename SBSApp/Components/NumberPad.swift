@@ -40,69 +40,50 @@ struct NumberPad: View {
     var prRepsNeeded: Int? = nil  // reps that would set a new E1RM PR; nil = no hint
     let onConfirm: () -> Void
 
-    private let columns = [
-        GridItem(.flexible()),
-        GridItem(.flexible()),
-        GridItem(.flexible())
-    ]
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: SBSLayout.space2), count: 3)
     
     var body: some View {
-        VStack(spacing: SBSLayout.paddingMedium) {
-            // Display with target indicator - more compact
-            HStack(spacing: SBSLayout.paddingMedium) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                        .fill(SBSColors.surfaceFallback)
-                        .frame(height: 64)
-                    
-                    if let v = value {
-                        HStack(spacing: SBSLayout.paddingSmall) {
-                            Text("\(v)")
-                                .font(.system(size: 36, weight: .bold, design: .rounded))
-                                .foregroundStyle(displayColor)
-                            
-                            Text("reps")
-                                .font(SBSFonts.legacyBody())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
-                        }
-                    } else {
-                        Text("—")
-                            .font(.system(size: 36, weight: .bold, design: .rounded))
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
-                    }
+        VStack(spacing: SBSLayout.space3) {
+            // Readout: one big number, then what it does to the program
+            VStack(spacing: SBSLayout.space1) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(value.map(String.init) ?? "—")
+                        .font(SBSFonts.timer())
+                        .foregroundStyle(value == nil ? Color.inkTertiary : Color.ink)
+                        .lineLimit(1)
+                    Text("reps")
+                        .font(SBSFonts.numberSmall())
+                        .foregroundStyle(Color.inkSecondary)
                 }
-                
-                // TM Impact and Target in side column
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Target: \(target)")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
-                    
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Reps")
+                .accessibilityValue(value.map { "\($0)" } ?? "Empty")
+
+                HStack(spacing: SBSLayout.space2) {
+                    Text("Target \(target)")
+                        .foregroundStyle(Color.inkSecondary)
+
                     if let v = value {
                         TMImpactPreviewCompact(reps: v, target: target, structuredContext: structuredContext)
                     }
 
                     if let needed = prRepsNeeded {
                         if let v = value, v >= needed {
-                            HStack(spacing: 2) {
-                                Image(systemName: "trophy.fill")
-                                    .font(.system(size: 10))
-                                Text("New 1RM!")
-                                    .font(SBSFonts.captionBold())
-                            }
-                            .foregroundStyle(SBSColors.warning)
+                            Label("New 1RM", systemImage: "trophy")
+                                .foregroundStyle(Color.success)
                         } else {
-                            Text("\(needed) reps = new 1RM")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.warning)
+                            Text("\(needed) = new 1RM")
+                                .foregroundStyle(Color.inkSecondary)
                         }
                     }
                 }
-                .frame(minWidth: 100)
+                .font(SBSFonts.caption())
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
             }
-            
-            // Number pad (calculator style) - more compact
-            LazyVGrid(columns: columns, spacing: 8) {
+            .frame(maxWidth: .infinity)
+
+            LazyVGrid(columns: columns, spacing: SBSLayout.space2) {
                 ForEach(1...9, id: \.self) { num in
                     NumberPadKey(digit: num) {
                         appendDigit(num)
@@ -111,7 +92,7 @@ struct NumberPad: View {
                 
                 // Clear/backspace button
                 Button {
-                    withAnimation(.easeInOut(duration: 0.15)) {
+                    withAnimation(.easeOut(duration: 0.15)) {
                         if let current = value, current >= 10 {
                             value = current / 10
                         } else {
@@ -121,51 +102,36 @@ struct NumberPad: View {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 } label: {
                     Image(systemName: "delete.left")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.bodyStrong())
                 }
-                .buttonStyle(NumberPadKeyStyle())
+                .buttonStyle(SBSNumberPadButtonStyle())
                 .accessibilityLabel("Delete")
 
-                // Zero
                 NumberPadKey(digit: 0) {
                     appendDigit(0)
                 }
                 
-                // Confirm checkmark
+                // Log: the one orange key, a primary button in miniature without the shadow
                 Button {
                     if value != nil {
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
                         onConfirm()
                     }
                 } label: {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(value != nil ? SBSColors.success : SBSColors.textTertiaryFallback)
+                    NumberPadCommitLabel(title: "Log", accessibilityLabel: "Confirm reps")
                 }
-                .buttonStyle(NumberPadKeyStyle(isAccent: value != nil))
+                .buttonStyle(SBSNumberPadButtonStyle(isHighlighted: true))
                 .disabled(value == nil)
-                .accessibilityLabel("Confirm reps")
             }
         }
-        .padding(.horizontal, SBSLayout.paddingLarge)
-        .padding(.vertical, SBSLayout.paddingMedium)
-    }
-    
-    private var displayColor: Color {
-        guard let v = value else { return SBSColors.textPrimaryFallback }
-        let diff = v - target
-        if diff >= 0 {
-            return SBSColors.success
-        } else if diff == -1 {
-            return SBSColors.warning
-        } else {
-            return SBSColors.error
-        }
+        .padding(SBSLayout.space4)
+        .numberPadPanel()
+        .padding(.horizontal, SBSLayout.space4)
+        .padding(.vertical, SBSLayout.space3)
     }
     
     private func appendDigit(_ digit: Int) {
-        withAnimation(.easeInOut(duration: 0.15)) {
+        withAnimation(.easeOut(duration: 0.15)) {
             if let current = value {
                 let newValue = current * 10 + digit
                 value = min(newValue, 99) // Cap at 99
@@ -179,9 +145,9 @@ struct NumberPad: View {
 
 // MARK: - Weight Pad
 
-/// The number pad for weights: a decimal key where the reps pad has delete, and ✓ in the
-/// same place. What counts as a valid weight is the caller's, because 0 is a real value
-/// for some inputs and means unset for others.
+/// The number pad for weights: a decimal key where the reps pad has delete, and the
+/// commit key in the same place. What counts as a valid weight is the caller's, because
+/// 0 is a real value for some inputs and means unset for others.
 struct WeightPad: View {
     @Binding var text: String
     let useMetric: Bool
@@ -192,36 +158,27 @@ struct WeightPad: View {
     /// the first key replaces it rather than adding digits to the end of "135.0".
     @State private var typedText: String?
 
-    private let columns = [
-        GridItem(.flexible()),
-        GridItem(.flexible()),
-        GridItem(.flexible())
-    ]
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: SBSLayout.space2), count: 3)
 
     private var editableText: String {
         text == typedText ? text : ""
     }
 
     var body: some View {
-        VStack(spacing: SBSLayout.paddingMedium) {
-            HStack(spacing: SBSLayout.paddingMedium) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                        .fill(SBSColors.surfaceFallback)
-                        .frame(height: 64)
+        VStack(spacing: SBSLayout.space3) {
+            HStack(spacing: SBSLayout.space2) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(text.isEmpty ? "—" : text)
+                        .font(SBSFonts.timer())
+                        .foregroundStyle(text.isEmpty ? Color.inkTertiary : Color.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
 
-                    HStack(spacing: SBSLayout.paddingSmall) {
-                        Text(text.isEmpty ? "—" : text)
-                            .font(.system(size: 36, weight: .bold, design: .rounded))
-                            .foregroundStyle(text.isEmpty ? SBSColors.textTertiaryFallback : SBSColors.textPrimaryFallback)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.6)
-
-                        Text(useMetric ? "kg" : "lb")
-                            .font(SBSFonts.legacyBody())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
-                    }
+                    Text(useMetric ? "kg" : "lb")
+                        .font(SBSFonts.numberSmall())
+                        .foregroundStyle(Color.inkSecondary)
                 }
+                .frame(maxWidth: .infinity)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Weight")
                 .accessibilityValue(text.isEmpty ? "Empty" : "\(text) \(useMetric ? "kilograms" : "pounds")")
@@ -230,15 +187,14 @@ struct WeightPad: View {
                     type(String(text.dropLast()))
                 } label: {
                     Image(systemName: "delete.left")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.bodyStrong())
                 }
-                .buttonStyle(NumberPadKeyStyle())
+                .buttonStyle(SBSNumberPadButtonStyle())
                 .frame(width: 88)
                 .accessibilityLabel("Delete")
             }
 
-            LazyVGrid(columns: columns, spacing: 8) {
+            LazyVGrid(columns: columns, spacing: SBSLayout.space2) {
                 ForEach(1...9, id: \.self) { digit in
                     NumberPadKey(digit: digit) {
                         type(WeightPadInput.appending(digit: digit, to: editableText))
@@ -249,10 +205,8 @@ struct WeightPad: View {
                     type(WeightPadInput.appendingSeparator(decimalSeparator, to: editableText))
                 } label: {
                     Text(decimalSeparator)
-                        .font(.system(size: 24, weight: .medium, design: .rounded))
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
                 }
-                .buttonStyle(NumberPadKeyStyle())
+                .buttonStyle(SBSNumberPadButtonStyle())
                 .accessibilityLabel("Decimal point")
 
                 NumberPadKey(digit: 0) {
@@ -263,17 +217,16 @@ struct WeightPad: View {
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                     onConfirm()
                 } label: {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(canConfirm ? SBSColors.success : SBSColors.textTertiaryFallback)
+                    NumberPadCommitLabel(title: "Save", accessibilityLabel: "Save weight")
                 }
-                .buttonStyle(NumberPadKeyStyle(isAccent: canConfirm))
+                .buttonStyle(SBSNumberPadButtonStyle(isHighlighted: true))
                 .disabled(!canConfirm)
-                .accessibilityLabel("Save weight")
             }
         }
-        .padding(.horizontal, SBSLayout.paddingLarge)
-        .padding(.vertical, SBSLayout.paddingMedium)
+        .padding(SBSLayout.space4)
+        .numberPadPanel()
+        .padding(.horizontal, SBSLayout.space4)
+        .padding(.vertical, SBSLayout.space3)
     }
 
     private var decimalSeparator: String {
@@ -298,29 +251,31 @@ struct NumberPadKey: View {
             action()
         } label: {
             Text("\(digit)")
-                .font(.system(size: 24, weight: .medium, design: .rounded))
-                .foregroundStyle(SBSColors.textPrimaryFallback)
         }
-        .buttonStyle(NumberPadKeyStyle())
+        .buttonStyle(SBSNumberPadButtonStyle())
     }
 }
 
-// MARK: - Number Pad Key Style
+/// The commit key's label: button type in capitals, the words as written for VoiceOver
+private struct NumberPadCommitLabel: View {
+    let title: String
+    let accessibilityLabel: String
 
-struct NumberPadKeyStyle: ButtonStyle {
-    var isAccent: Bool = false
-    
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .frame(maxWidth: .infinity)
-            .frame(height: 48)
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                    .fill(isAccent ? SBSColors.success.opacity(0.15) : SBSColors.surfaceFallback)
+    var body: some View {
+        SBSButtonTitle(title, accessibilityLabel: accessibilityLabel)
+            .font(SBSFonts.button())
+            .tracking(1.2)
+    }
+}
+
+extension View {
+    /// The pad's panel: surface-raised with the sheet radius and a hairline
+    fileprivate func numberPadPanel() -> some View {
+        background(Color.surfaceRaised, in: RoundedRectangle(cornerRadius: SBSLayout.radiusMd))
+            .overlay(
+                RoundedRectangle(cornerRadius: SBSLayout.radiusMd)
+                    .strokeBorder(Color.hairline, lineWidth: SBSLayout.strokeHairline)
             )
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .opacity(configuration.isPressed ? 0.8 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
@@ -363,10 +318,10 @@ struct TMImpactPreviewCompact: View {
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: iconName)
-                .font(.system(size: 12, weight: .semibold))
+                .font(SBSFonts.caption().weight(.semibold))
             
             Text(impactText)
-                .font(SBSFonts.legacyCaption())
+                .font(SBSFonts.caption())
         }
         .foregroundStyle(impactColor)
     }
@@ -422,15 +377,15 @@ struct TMImpactPreviewCompact: View {
     private var impactColor: Color {
         // Manual progression - just show hit/miss colors
         if let context = structuredContext, context.manualProgression {
-            return hitTarget ? SBSColors.success : SBSColors.error
+            return hitTarget ? Color.success : Color.warning
         }
         
         if effectiveDelta > 0 {
-            return SBSColors.success
+            return Color.success
         } else if effectiveDelta < 0 {
-            return SBSColors.error
+            return Color.warning
         } else {
-            return SBSColors.textSecondaryFallback
+            return Color.inkSecondary
         }
     }
 }
@@ -472,19 +427,20 @@ struct TMImpactPreview: View {
     }
     
     var body: some View {
-        HStack(spacing: SBSLayout.paddingSmall) {
+        HStack(spacing: SBSLayout.space2) {
             Image(systemName: iconName)
-                .font(.system(size: 14, weight: .semibold))
+                .font(SBSFonts.caption().weight(.semibold))
             
             Text(impactText)
-                .font(SBSFonts.captionBold())
+                .font(SBSFonts.caption())
         }
         .foregroundStyle(impactColor)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(
-            Capsule()
-                .fill(impactColor.opacity(0.12))
+        .padding(.horizontal, SBSLayout.space3)
+        .padding(.vertical, SBSLayout.space2)
+        .background(Color.surface, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+        .overlay(
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                .strokeBorder(Color.hairline, lineWidth: SBSLayout.strokeHairline)
         )
     }
     
@@ -539,15 +495,15 @@ struct TMImpactPreview: View {
     private var impactColor: Color {
         // Manual progression - just show hit/miss colors
         if let context = structuredContext, context.manualProgression {
-            return hitTarget ? SBSColors.success : SBSColors.error
+            return hitTarget ? Color.success : Color.warning
         }
         
         if effectiveDelta > 0 {
-            return SBSColors.success
+            return Color.success
         } else if effectiveDelta < 0 {
-            return SBSColors.error
+            return Color.warning
         } else {
-            return SBSColors.textSecondaryFallback
+            return Color.inkSecondary
         }
     }
 }
@@ -557,7 +513,7 @@ struct TMImpactPreview: View {
         value: .constant(12),
         target: 10,
         structuredContext: nil,  // nil = percentage display (SBS style)
-        onConfirm: {},
+        onConfirm: {}
     )
     .sbsBackground()
 }

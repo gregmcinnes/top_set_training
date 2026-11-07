@@ -598,6 +598,29 @@ final class StructuredProgressionTests: XCTestCase {
     // short-circuits AppState.finalTrainingMaxes' fallback chain, which then never consults
     // userData.trainingMaxes (the user's real TMs). Skipping the lift here lets that fallback engage.
 
+    func testBodyweightLiftAtZeroStaysInTheProgramAndProgresses() {
+        let state = createNSunsStyleState(initialMaxes: [:])
+        let dips = DayItem(
+            type: .structured, lift: "Weighted Dips", name: "Weighted Dips",
+            setsDetail: [SetDetail(intensity: 1.0, reps: 10, isAMRAP: true)]
+        )
+        state.days[1, default: []].append(dips)
+        state.initialMaxes["Weighted Dips"] = 0
+        state.initialMaxes["Squat"] = 0
+        state.weeks = [1, 2]
+        state.structuredLogs["Weighted Dips"] = [1: [1: StructuredLogEntry(amrapReps: [0: 14])]]
+
+        let tms = engine.computeStructuredTrainingMaxes(
+            state: state,
+            upToWeek: 2,
+            structuredLiftInfo: engine.gatherStructuredLiftInfo(from: state)
+        )
+
+        XCTAssertEqual(tms[1]?["Weighted Dips"], 0, "Zero added weight is a value")
+        XCTAssertGreaterThan(tms[2]?["Weighted Dips"] ?? 0, 0, "Beating the reps adds weight")
+        XCTAssertNil(tms[1]?["Squat"], "For a barbell lift zero is still unset")
+    }
+
     func testStructuredTMsMissingInitialMaxIsNilNotZero() {
         // No initial max for the configured structured lifts
         let state = createNSunsStyleState(initialMaxes: [:])

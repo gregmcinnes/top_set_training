@@ -75,15 +75,25 @@ final class FirstRunAndHomeUITests: XCTestCase {
         return "{" + lifts.map { #""\#($0)":{\#(weekMap)}"# }.joined(separator: ",") + "}"
     }
 
-    private func finishWorkout() {
+    /// Work through sets until the summary, or until `lift` is the one being done
+    private func finishWorkout(stoppingAt lift: String? = nil) {
         for _ in 0..<200 {
             if button("Done").exists && button("Done").isHittable { return }
+            if let lift, button("Complete Set").exists, button("Complete Set").isHittable,
+               app.staticTexts[lift].firstMatch.exists, !button("Skip rest timer").exists {
+                return
+            }
             if button("Continue").exists && button("Continue").isHittable {
                 button("Continue").tap()
             } else if button("Skip rest timer").exists && button("Skip rest timer").isHittable {
                 button("Skip rest timer").tap()
             } else if button("Complete Set").exists && button("Complete Set").isHittable {
                 button("Complete Set").tap()
+            } else if button("Log Reps").exists && button("Log Reps").isHittable {
+                button("Log Reps").tap()
+                tap("1")
+                tap("2")
+                tap("Confirm reps")
             }
             usleep(300_000)
         }
@@ -283,6 +293,78 @@ final class FirstRunAndHomeUITests: XCTestCase {
         XCTAssertTrue(squat.waitForExistence(timeout: 8))
         XCTAssertEqual(squat.value as? String, "235", "Nothing added on top")
         shot("after-repeat-weights")
+    }
+
+    /// Part of the final week logged: still in progress, so no 5/3/1 increase yet
+    func test531PartLoggedFinalWeekGetsNoIncrease() {
+        let entry = #"{"amrapReps":{},"note":""}"#
+        let tmEntry = #"{"repsLastSet":8,"note":""}"#
+        func weeks(_ entry: String) -> String {
+            (1...4).map { week in
+                let days = week == 4 ? [1, 2] : [1, 2, 3, 4]
+                return #""\#(week)":{"# + days.map { #""\#($0)":\#(entry)"# }.joined(separator: ",") + "}"
+            }.joined(separator: ",")
+        }
+        let lifts = ["Squat", "Bench Press", "Deadlift", "Overhead Press"]
+        let structured = "{" + lifts.map { #""\#($0)":{\#(weeks(entry))}"# }.joined(separator: ",") + "}"
+        let volume = "{" + lifts.map { #""\#($0)":{\#(weeks(tmEntry))}"# }.joined(separator: ",") + "}"
+        launch(json: #"{"hasCompletedOnboarding":true,"selectedProgram":"531_bbb_12week",\#(liftMaxes),"structuredLogs":\#(structured),"logs":\#(volume)}"#, premium: true)
+
+        XCTAssertTrue(nextCard.waitForExistence(timeout: 8))
+        XCTAssertFalse(completionCard.exists)
+        tap("More options")
+        tap("Start New Cycle")
+        XCTAssertTrue(containingText("in progress").waitForExistence(timeout: 5))
+        tap("Customize New Cycle")
+        sleep(1)
+        tapContinue()
+        tapContinue()
+        let squat = app.textFields["Squat weight"].firstMatch
+        XCTAssertTrue(squat.waitForExistence(timeout: 8))
+        XCTAssertEqual(squat.value as? String, "225", "No increase until the cycle is finished")
+        shot("weights")
+    }
+
+    // MARK: - Bodyweight lifts
+
+    /// Dips and pull-ups start at 0 added weight, stay in the workout and can be set up
+    func testBodyweightLiftsStartAtZero() {
+        let maxes = #""customInitialMaxes":{"Squat":225,"Bench Press":155,"Deadlift":275,"Overhead Press":95,"Barbell Row":135,"Incline Press":115,"Belt Squat":185,"EZ Bar Curl":65}"#
+        launch(json: #"{"hasCompletedOnboarding":true,"selectedProgram":"back_friendly_hypertrophy_12week",\#(maxes)}"#, premium: true)
+
+        // Setup offers 0 and lets it through
+        tap("More options")
+        tap("Start New Cycle")
+        tap("Customize New Cycle")
+        sleep(1)
+        tapContinue()
+        tapContinue()
+        let dips = app.textFields["Weighted Dips weight"].firstMatch
+        XCTAssertTrue(dips.waitForExistence(timeout: 8))
+        XCTAssertEqual(dips.value as? String, "0")
+        shot("setup-zero")
+        let next = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Continue'")).firstMatch
+        XCTAssertTrue(next.isEnabled, "0 doesn't block Continue")
+        next.tap()
+        sleep(1)
+        shot("setup-review")
+        tap("Start New Cycle")
+
+        // Saved, the lift is in the workout
+        XCTAssertTrue(nextCard.waitForExistence(timeout: 8))
+        XCTAssertTrue(nextCard.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Weighted Dips'")).firstMatch.exists, "Dips stay in the day")
+        shot("home")
+        nextCard.buttons["Start Workout"].tap()
+        XCTAssertTrue(button("Exercise list").waitForExistence(timeout: 8))
+        finishWorkout(stoppingAt: "Weighted Dips")
+        shot("dips-at-zero")
+        finishWorkout()
+        shot("summary")
+        tap("Done")
+        XCTAssertTrue(nextCard.waitForExistence(timeout: 8))
+        app.tabBars.buttons["History"].tap()
+        sleep(1)
+        shot("history")
     }
 
     // MARK: - Setup details

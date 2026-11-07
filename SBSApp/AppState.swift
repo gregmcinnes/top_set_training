@@ -2497,8 +2497,7 @@ public final class AppState {
         // Manual-progression programs (5/3/1) hold TMs through the cycle, so a
         // finished cycle is the one point they rise. Without this a one-tap repeat
         // would run the same weights forever. Partial cycles carry over unchanged.
-        if hasLoggedData, let state = programState, state.manualProgression,
-           let finalWeek = state.weeks.max(), lastWeek >= finalWeek {
+        if isCycleComplete, let state = programState, state.manualProgression {
             for lift in getAllStructuredLiftInfo().keys {
                 guard let tm = carriedMaxes[lift], tm > 0 else { continue }
                 carriedMaxes[lift] = tm + engine.manualCycleIncrement(lift: lift, useMetric: settings.useMetric)
@@ -2635,7 +2634,7 @@ public final class AppState {
 
         let lifts: [LiftCycleProgress] = HistoryLiftOrder.programOrder(items).compactMap { lift in
             let start = initialMax(for: lift)
-            guard start > 0 else { return nil }
+            guard start > 0 || StarterWeights.startsWithNoAddedWeight(lift) else { return nil }
             let kind = LiftProgressKind.resolve(
                 itemTypes: items.filter { $0.lift == lift }.map(\.type),
                 manualProgression: manual

@@ -116,8 +116,27 @@ final class FirstRunSetupTests: XCTestCase {
         XCTAssertEqual(starter("Push Press"), 55)
     }
 
+    func testBodyweightLiftsStartWithNoAddedWeight() {
+        for lift in ["Weighted Dips", "Weighted Pull-Ups", "Pull-Ups", "Dips (Chest)", "Bench Dips", "Chin-Ups"] {
+            XCTAssertEqual(starter(lift), 0, lift)
+            XCTAssertEqual(starter(lift, metric: true), 0, lift)
+            XCTAssertEqual(starter(lift, kind: .trainingMax), 0, lift)
+        }
+    }
+
+    func testWeightedBodyweightLiftsHaveDistinctShortNames() {
+        XCTAssertEqual(ExerciseLibrary.shortName(for: "Weighted Dips"), "DIP")
+        XCTAssertEqual(ExerciseLibrary.shortName(for: "Weighted Pull-Ups"), "PU")
+    }
+
+    func testOnlyBodyweightLiftsAcceptZero() {
+        XCTAssertTrue(StarterWeights.startsWithNoAddedWeight("Weighted Dips"))
+        for lift in ["Machine Dips", "Assisted Pull-Ups", "Squat", "Bench Press", "EZ Bar Curl"] {
+            XCTAssertFalse(StarterWeights.startsWithNoAddedWeight(lift), lift)
+        }
+    }
+
     func testNonBarbellAndUnknownLiftsStartAtTheBar() {
-        XCTAssertEqual(starter("Weighted Pull-Ups"), 45)
         XCTAssertEqual(starter("EZ Bar Curl"), 45)
         XCTAssertEqual(starter("Something Unknown"), 45)
         XCTAssertEqual(starter("Something Unknown", metric: true), kgBar, accuracy: 0.001)

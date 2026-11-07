@@ -476,10 +476,12 @@ public final class ProgramEngine {
         
         // Week 1 starts from initial maxes. Lifts with no (positive) initial max are skipped
         // rather than seeded with 0, so callers can fall back to the user's universal
-        // training maxes instead of short-circuiting on a literal 0.
+        // training maxes instead of short-circuiting on a literal 0. Bodyweight lifts are the
+        // exception: 0 is no added weight, and skipping one would drop it from the day.
         var current: [String: Double] = [:]
         for lift in structuredLiftInfo.keys {
-            if let initial = state.initialMaxes[lift], initial > 0 {
+            if let initial = state.initialMaxes[lift],
+               initial > 0 || (initial == 0 && StarterWeights.startsWithNoAddedWeight(lift)) {
                 current[lift] = initial
             }
         }

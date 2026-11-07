@@ -170,7 +170,8 @@ extension CompletedCycle {
     /// user ever logged, and those have no end value: they'd read as a 100% drop.
     var progressedLifts: [String] {
         HistoryLiftOrder.classicFirst(endingMaxes.keys.filter { lift in
-            (startingMaxes[lift] ?? 0) > 0 && (endingMaxes[lift] ?? 0) > 0
+            let started = (startingMaxes[lift] ?? 0) > 0 || StarterWeights.startsWithNoAddedWeight(lift)
+            return started && (endingMaxes[lift] ?? 0) > 0
         })
     }
 

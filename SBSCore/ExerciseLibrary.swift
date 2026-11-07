@@ -175,6 +175,9 @@ public final class ExerciseLibrary {
         case "rack pull": return "RP"
         case "push press": return "PP"
         case "row", "barbell row": return "ROW"
+        case "dips", "weighted dips": return "DIP"
+        case "pull-ups", "weighted pull-ups": return "PU"
+        case "chin-ups", "weighted chin-ups": return "CU"
         default:
             return String(liftName.prefix(3)).uppercased()
         }

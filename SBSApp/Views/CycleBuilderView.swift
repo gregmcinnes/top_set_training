@@ -1561,7 +1561,9 @@ struct TrainingMaxesStepView: View {
                     onContinue()
                 },
                 // Each empty row says why. A weight of 0 would produce 0 lb working sets.
-                continueDisabled: configuredLifts.contains { (trainingMaxes[$0] ?? 0) <= 0 }
+                continueDisabled: configuredLifts.contains {
+                    (trainingMaxes[$0] ?? 0) <= 0 && !StarterWeights.startsWithNoAddedWeight($0)
+                }
             )
         }
         .toolbar {
@@ -1617,8 +1619,10 @@ struct TMInputRow: View {
     @State private var inputText: String = ""
 
     private var isFocused: Bool { focus.wrappedValue == liftName }
+    /// Zero is a real value here: no added weight
+    private var isBodyweightLift: Bool { StarterWeights.startsWithNoAddedWeight(liftName) }
     /// Cleared or zero. Holds the step's Continue, so the row has to say why.
-    private var needsValue: Bool { value <= 0 }
+    private var needsValue: Bool { value <= 0 && !isBodyweightLift }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -1703,6 +1707,11 @@ struct TMInputRow: View {
                     .font(SBSFonts.caption())
                     .foregroundStyle(SBSColors.warning)
             }
+            if isBodyweightLift {
+                Text("Weight added to your bodyweight. 0 means none.")
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(SBSColors.textTertiaryFallback)
+            }
         }
         .onAppear {
             inputText = formatValue(value)
@@ -1726,7 +1735,7 @@ struct TMInputRow: View {
 
     /// An empty field rather than "0", so the placeholder and the message explain it
     private func formatValue(_ value: Double) -> String {
-        guard value > 0 else { return "" }
+        guard value > 0 else { return isBodyweightLift ? "0" : "" }
         let displayValue = ((useMetric ? value * lbToKg : value) * 10).rounded() / 10
         if displayValue.truncatingRemainder(dividingBy: 1) == 0 {
             return String(format: "%.0f", displayValue)
@@ -1778,12 +1787,15 @@ struct StartingWeightHelpSheet: View {
             kind: kind,
             targetReps: targetReps,
             useMetric: useMetric,
-            barWeight: barWeight
+            barWeight: StarterWeights.startsWithNoAddedWeight(lift) ? 0 : barWeight
         )
     }
 
     private var starterExplanation: String {
-        kind == .firstWorkingWeight
+        if StarterWeights.startsWithNoAddedWeight(lift) {
+            return "Start with your bodyweight and no added weight."
+        }
+        return kind == .firstWorkingWeight
             ? "A light first working weight for most people new to this lift."
             : "A light training max for most people new to this lift."
     }

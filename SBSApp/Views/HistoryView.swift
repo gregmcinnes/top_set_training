@@ -1749,9 +1749,11 @@ struct ProgressChart: View {
     
     private func gainString(from start: Double, to end: Double) -> String {
         let diff = end - start
-        guard start > 0, abs(diff) >= 0.01 else { return "No change" }
-        let pct = (diff / start) * 100
+        guard abs(diff) >= 0.01 else { return "No change" }
         let sign = diff >= 0 ? "+" : "-"
+        // From 0 added weight on a bodyweight lift there's no percentage to give
+        guard start > 0 else { return "\(sign)\(abs(diff).formattedWeightShort(useMetric: useMetric))" }
+        let pct = (diff / start) * 100
         return "\(sign)\(abs(diff).formattedWeightShort(useMetric: useMetric)) (\(sign)\(String(format: "%.1f", abs(pct)))%)"
 }
 }

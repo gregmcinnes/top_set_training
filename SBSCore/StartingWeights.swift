@@ -102,7 +102,7 @@ private static let trainingMaxShareOfE1RM = 0.9
 
         // Not loaded like a barbell, so a barbell number means nothing. The bar floor
         // below is what these get.
-        if has("dumbbell", "kettlebell", "goblet", "split squat", "lunge", "curl", "dip", "pull-up", "pullup", "chin") {
+        if has("dumbbell", "kettlebell", "goblet", "split squat", "lunge", "curl", "dip", "pull-up", "pullup", "pull up", "chin") {
             return nil
         }
         if has("romanian", "rdl", "stiff") { return .init(lb: 95, kg: 40) }
@@ -119,8 +119,18 @@ private static let trainingMaxShareOfE1RM = 0.9
         return nil
     }
 
-    /// The starter for a lift, in stored pounds. Never below the bar.
+    /// Lifts done on bodyweight, where the number is weight added to the lifter. Zero is a
+    /// real value for these: no added weight. For anything else zero still means unset.
+    public static func startsWithNoAddedWeight(_ lift: String) -> Bool {
+        let name = lift.lowercased()
+        guard !name.contains("machine"), !name.contains("assisted") else { return false }
+        return ["dip", "pull-up", "pullup", "pull up", "chin"].contains { name.contains($0) }
+    }
+
+    /// The starter for a lift, in stored pounds. Never below the bar, apart from bodyweight
+    /// lifts, which start with no added weight.
     public static func starter(for lift: String, useMetric: Bool, barWeight: Double, kind: StartingWeightKind) -> Double {
+        if startsWithNoAddedWeight(lift) { return 0 }
         guard let base = firstWorkingWeight(for: lift) else { return barWeight }
         var shown = useMetric ? base.kg : base.lb
         if kind == .trainingMax {

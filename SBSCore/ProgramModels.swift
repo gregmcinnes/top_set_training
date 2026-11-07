@@ -666,7 +666,7 @@ public final class ProgramState: Codable {
 // MARK: - Plan Item DTOs used by UI
 
 /// Represents a single set in a structured exercise with calculated weight
-public struct StructuredSetInfo: Equatable {
+public struct StructuredSetInfo: Equatable, Codable {
     public let setIndex: Int        // 0-based set index
     public let intensity: Double    // e.g., 0.75
     public let targetReps: Int      // target reps for this set
@@ -689,7 +689,7 @@ public struct StructuredSetInfo: Equatable {
 }
 
 /// Information about a linear progression exercise for UI display
-public struct LinearExerciseInfo: Equatable {
+public struct LinearExerciseInfo: Equatable, Codable {
     public let lift: String
     public let weight: Double           // Current working weight
     public let sets: Int                // Number of sets (e.g., 5)

@@ -54,6 +54,12 @@ struct LinearLogData: Identifiable {
 }
 
 struct SessionView: View {
+    /// What's waiting on the answer to "a workout is already in progress"
+    private enum PendingStart {
+        case workout
+        case accessoryWorkout
+    }
+
     @Bindable var appState: AppState
     let week: Int
     let day: Int
@@ -63,7 +69,8 @@ struct SessionView: View {
     @State private var weightOverrideData: WeightOverrideData?
     @State private var structuredLogData: StructuredLogData?
     @State private var linearLogData: LinearLogData?
-    @State private var showingWorkout = false
+    @State private var showingRedoConfirm = false
+    @State private var pendingStart: PendingStart?
     @State private var showingAccessoryWorkout = false
     @State private var showingAccessoryEditor = false
     @State private var showingAccessoryPicker = false
@@ -78,8 +85,19 @@ struct SessionView: View {
                     day: day,
                     dayTitle: appState.dayTitle(day: day),
                     logStatus: appState.dayLogStatus(week: week, day: day),
+                    workoutAction: workoutAction,
                     onStartWorkout: {
-                        showingWorkout = true
+                        requestStart(.workout)
+                    },
+                    onResumeWorkout: {
+                        appState.resumeWorkout()
+                    },
+                    onRedoWorkout: {
+                        if appState.activeSession != nil {
+                            pendingStart = .workout
+                        } else {
+                            showingRedoConfirm = true
+                        }
                     }
                 )
                 .padding(.horizontal)
@@ -95,7 +113,7 @@ struct SessionView: View {
                     AccessoryWorkoutCard(
                         hasAccessories: hasAccessories(in: plan),
                         onStart: {
-                            showingAccessoryWorkout = true
+                            requestStart(.accessoryWorkout)
                         },
                         onEdit: {
                             showingAccessoryEditor = true
@@ -122,11 +140,39 @@ struct SessionView: View {
         .sbsBackground()
         .navigationTitle("Week \(week), Day \(day)")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(isPresented: $showingWorkout) {
-            WorkoutView(appState: appState, week: week, day: day)
+        // Full screen, so the tab bar can't pop this mid-workout
+        .fullScreenCover(isPresented: $showingAccessoryWorkout) {
+            NavigationStack {
+                AccessoryWorkoutView(appState: appState, week: week, day: day)
+            }
         }
-        .navigationDestination(isPresented: $showingAccessoryWorkout) {
-            AccessoryWorkoutView(appState: appState, week: week, day: day)
+        .alert("Redo This Workout?", isPresented: $showingRedoConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Redo Workout") {
+                appState.startWorkout(week: week, day: day)
+            }
+        } message: {
+            Text(redoExplanation)
+        }
+        .alert("Workout in Progress", isPresented: Binding(
+            get: { pendingStart != nil },
+            set: { if !$0 { pendingStart = nil } }
+        )) {
+            Button("Resume Current Workout") {
+                pendingStart = nil
+                appState.resumeWorkout()
+            }
+            Button("Discard and Start New", role: .destructive) {
+                let start = pendingStart
+                pendingStart = nil
+                appState.activeSession?.exitWorkoutWithoutSaving()
+                if let start { beginStart(start) }
+            }
+            Button("Cancel", role: .cancel) {
+                pendingStart = nil
+            }
+        } message: {
+            Text(inProgressExplanation)
         }
         .sheet(item: $repLogData) { data in
             RepLogSheet(
@@ -481,6 +527,48 @@ struct SessionView: View {
         }
     }
     
+    /// The main button: resume this day's session, or start it unless it's already logged
+    private var workoutAction: SessionWorkoutAction {
+        if let session = appState.activeSession, session.week == week, session.day == day {
+            return .resume
+        }
+        return appState.dayLogStatus(week: week, day: day) == .complete ? .done : .start
+    }
+
+    private var redoExplanation: String {
+        "Your logged results stay until you log new ones, which replace them lift by lift. Later workouts update to match. Any lift you don't finish keeps its current result."
+    }
+
+    private var inProgressExplanation: String {
+        var text = "You're partway through a workout"
+        if let session = appState.activeSession {
+            text += " (Week \(session.week), Day \(session.day))"
+        }
+        text += ". Discarding it keeps results you've already logged, but your place in it will be lost."
+        if pendingStart == .workout, appState.dayLogStatus(week: week, day: day) == .complete {
+            text += " " + redoExplanation
+        }
+        return text
+    }
+
+    /// Start something new, asking first if a workout is already in progress
+    private func requestStart(_ start: PendingStart) {
+        if appState.activeSession != nil {
+            pendingStart = start
+        } else {
+            beginStart(start)
+        }
+    }
+
+    private func beginStart(_ start: PendingStart) {
+        switch start {
+        case .workout:
+            appState.startWorkout(week: week, day: day)
+        case .accessoryWorkout:
+            showingAccessoryWorkout = true
+        }
+    }
+
     private func hasAccessories(in plan: [PlanItem]) -> Bool {
         plan.contains { item in
             if case .accessory = item { return true }
@@ -614,12 +702,22 @@ struct SessionHeader: View {
 
 // MARK: - Session Header With Workout Button
 
+/// What the Session screen's main button offers for this day
+enum SessionWorkoutAction {
+    case start
+    case resume
+    case done
+}
+
 struct SessionHeaderWithWorkout: View {
     let week: Int
     let day: Int
     let dayTitle: String
     let logStatus: DayLogStatus
+    let workoutAction: SessionWorkoutAction
     let onStartWorkout: () -> Void
+    let onResumeWorkout: () -> Void
+    let onRedoWorkout: () -> Void
     
     var body: some View {
         VStack(spacing: SBSLayout.paddingMedium) {
@@ -639,26 +737,63 @@ struct SessionHeaderWithWorkout: View {
                 LogStatusBadge(status: logStatus)
             }
             
-            // Start Workout button
-            Button(action: onStartWorkout) {
-                HStack(spacing: SBSLayout.paddingSmall) {
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 14, weight: .semibold))
-                    
-                    Text("Start Workout")
-                        .font(SBSFonts.button())
-                }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, SBSLayout.paddingMedium)
-                .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                        .fill(SBSColors.accentFallback)
-                )
+            switch workoutAction {
+            case .start:
+                primaryButton("Start Workout", action: onStartWorkout)
+            case .resume:
+                primaryButton("Resume Workout", action: onResumeWorkout)
+            case .done:
+                doneState
             }
         }
         .padding()
         .sbsCard()
+    }
+
+    private func primaryButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: SBSLayout.paddingSmall) {
+                Image(systemName: "play.fill")
+                    .font(.system(size: 14, weight: .semibold))
+
+                Text(title)
+                    .font(SBSFonts.button())
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, SBSLayout.paddingMedium)
+            .background(
+                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                    .fill(SBSColors.accentFallback)
+            )
+        }
+    }
+
+    /// This day is logged, so starting it again is a quiet option rather than the
+    /// main action.
+    private var doneState: some View {
+        VStack(spacing: SBSLayout.paddingSmall) {
+            HStack(spacing: SBSLayout.paddingSmall) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 14, weight: .semibold))
+
+                Text("Workout Complete")
+                    .font(SBSFonts.button())
+            }
+            .foregroundStyle(SBSColors.success)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, SBSLayout.paddingMedium)
+            .background(
+                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                    .fill(SBSColors.success.opacity(0.12))
+            )
+            .accessibilityElement(children: .combine)
+
+            Button("Redo Workout", action: onRedoWorkout)
+                .font(SBSFonts.caption())
+                .foregroundStyle(SBSColors.textSecondaryFallback)
+                .frame(minHeight: 44)
+        }
     }
 }
 

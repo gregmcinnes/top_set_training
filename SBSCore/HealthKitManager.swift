@@ -118,8 +118,11 @@ public final class HealthKitManager: ObservableObject {
     // MARK: - Workout Session Management
     
     /// Start a new strength training workout
-    /// - Parameter workoutName: Optional name for the workout (e.g., "Week 1, Day 1 - Upper Body")
-    public func startWorkout(name: String? = nil) async throws {
+    /// - Parameters:
+    ///   - name: Optional name for the workout (e.g., "Week 1, Day 1 - Upper Body")
+    ///   - startDate: When the workout began, if earlier than now. The builder doesn't
+    ///     survive an app kill, so a resumed workout rebuilds one from its saved start.
+    public func startWorkout(name: String? = nil, startDate requestedStartDate: Date? = nil) async throws {
         guard isHealthKitAvailable else {
             throw HealthKitError.notAvailable
         }
@@ -152,7 +155,7 @@ public final class HealthKitManager: ObservableObject {
         workoutBuilder = builder
         
         // Begin data collection
-        let startDate = Date()
+        let startDate = requestedStartDate ?? Date()
         workoutStartDate = startDate
         
         do {

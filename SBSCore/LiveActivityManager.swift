@@ -42,9 +42,16 @@ public final class LiveActivityManager: ObservableObject {
     public func endAllActivities() async {
         Logger.debug("🧹 Cleaning up any stale Live Activities...", category: .liveActivity)
 
-        for activity in Activity<RestTimerAttributes>.activities {
+        let activities = Activity<RestTimerAttributes>.activities
+        for activity in activities {
             Logger.debug("   - Ending activity: \(activity.id)", category: .liveActivity)
             await endActivity(activity)
+        }
+
+        // This suspends, and the launch cleanup can overlap a restored rest starting
+        // its activity. Leave a newer activity's tracking alone.
+        if let current = currentActivity, !activities.contains(where: { $0.id == current.id }) {
+            return
         }
 
         currentActivity = nil
@@ -112,10 +119,13 @@ public final class LiveActivityManager: ObservableObject {
     ///   - exerciseName: Name of the exercise
     ///   - duration: Total timer duration in seconds
     ///   - nextSetInfo: Info about the next set (e.g., "Set 3 of 5")
+    ///   - endTime: When the timer ends, for a rest already under way (restored after
+    ///     an app kill). Defaults to `duration` from now.
     public func startTimer(
         exerciseName: String,
         duration: Int,
-        nextSetInfo: String
+        nextSetInfo: String,
+        endTime: Date? = nil
     ) {
         Logger.debug("🔵 LiveActivityManager.startTimer called", category: .liveActivity)
         Logger.debug("   - Exercise: \(exerciseName)", category: .liveActivity)
@@ -131,7 +141,7 @@ public final class LiveActivityManager: ObservableObject {
         // sequence so they can't race.
         Task { @MainActor in
             await endAllActivities()
-            createNewActivity(exerciseName: exerciseName, duration: duration, nextSetInfo: nextSetInfo)
+            createNewActivity(exerciseName: exerciseName, duration: duration, nextSetInfo: nextSetInfo, endTime: endTime)
         }
     }
 

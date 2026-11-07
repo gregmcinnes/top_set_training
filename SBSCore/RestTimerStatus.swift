@@ -5,7 +5,7 @@ import Observation
 ///
 /// `WorkoutState` / `AccessoryWorkoutState` own the real timer; they publish
 /// transitions here so that:
-/// - views outside the workout screen (other tabs) can show a countdown pill
+/// - views outside the workout screen (the resume bar) can show a countdown
 /// - `NotificationManager` can tell whether the workout screen is visible
 ///   when deciding to present the rest-complete notification in-foreground
 @Observable
@@ -24,8 +24,8 @@ public final class RestTimerStatus {
     /// Remaining seconds captured at pause time.
     public private(set) var pausedRemaining: Int?
 
-    /// True while WorkoutView or AccessoryWorkoutView is on screen.
-    /// The pill hides and foreground notifications are suppressed when set.
+    /// True while WorkoutView or AccessoryWorkoutView is on screen, and false while
+    /// minimized or restored. Foreground notifications are suppressed when set.
     public var isWorkoutScreenVisible = false
 
     private init() {}
@@ -56,11 +56,5 @@ public final class RestTimerStatus {
         if let pausedRemaining { return pausedRemaining }
         guard let endDate else { return 0 }
         return max(0, Int(ceil(endDate.timeIntervalSinceNow)))
-    }
-
-    /// A running timer reached zero but hasn't been dismissed yet
-    /// (it expired while the workout screen was off screen).
-    public var isExpired: Bool {
-        isActive && !isPaused && remaining <= 0
     }
 }

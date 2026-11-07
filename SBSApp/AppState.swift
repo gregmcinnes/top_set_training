@@ -168,10 +168,134 @@ public final class AppState {
     private(set) var availablePrograms: [AvailableProgramInfo] = []
     
     /// Discover all available program JSON files in the bundle
-    /// Set while a workout screen is open. Called when a cycle or program change pops
-    /// that screen from outside, since a pop looks the same as a tab switch to the view.
-    /// Not persisted or observed: it only bridges to the live workout view.
+    /// Set while the accessory workout screen is open, to clean up if it closes from
+    /// outside. Not persisted or observed: it only bridges to that live view.
     @ObservationIgnored var activeWorkoutTeardown: (() -> Void)?
+
+    // MARK: - Active Workout
+
+    /// The workout in progress, on screen or minimized
+    private(set) var activeSession: ActiveWorkoutSession?
+
+    /// The session showing full screen. Nil while minimized or restored, when the
+    /// resume bar stands in for it.
+    private(set) var presentedSession: ActiveWorkoutSession? {
+        didSet {
+            let isVisible = presentedSession != nil
+            RestTimerStatus.shared.isWorkoutScreenVisible = isVisible
+            // Keep screen awake during workout
+            UIApplication.shared.isIdleTimerDisabled = isVisible
+        }
+    }
+
+    /// A restored session is old enough to ask about instead of resuming silently
+    var showingStaleSessionPrompt = false
+
+    /// Start a workout, assuming the caller has settled any session already active
+    @MainActor
+    func startWorkout(week: Int, day: Int) {
+        if let activeSession, activeSession.week == week, activeSession.day == day {
+            presentedSession = activeSession
+            return
+        }
+        activeSession?.exitWorkoutWithoutSaving()
+
+        let session = ActiveWorkoutSession(appState: self, week: week, day: day)
+        guard !session.workoutState.exercises.isEmpty else {
+            session.markEnded()
+            Logger.error("Week \(week), day \(day) has no exercises to start", category: .general)
+            return
+        }
+        activeSession = session
+        session.activateSurfaces()
+        presentedSession = session
+    }
+
+    /// Reopen the session. A restored session still waiting on the stale question gets
+    /// its surfaces here too, however it's reopened.
+    @MainActor
+    func resumeWorkout() {
+        guard let activeSession else { return }
+        if activeSession.isStale { activeSession.touch() }
+        activeSession.activateSurfaces()
+        presentedSession = activeSession
+    }
+
+    @MainActor
+    func minimizeWorkout() {
+        presentedSession = nil
+    }
+
+    /// The session has finished or been abandoned: close it and forget the saved copy
+    @MainActor
+    func closeActiveSession(_ session: ActiveWorkoutSession) {
+        session.markEnded()
+        guard activeSession === session else { return }
+        presentedSession = nil
+        activeSession = nil
+        showingStaleSessionPrompt = false
+        persistence.clearActiveWorkoutSession()
+    }
+
+    func saveWorkoutSession(_ session: PersistedWorkoutSession) {
+        do {
+            persistence.saveActiveWorkoutSession(try JSONEncoder().encode(session))
+        } catch {
+            Logger.error("Failed to save workout in progress: \(error)", category: .general)
+        }
+    }
+
+    /// Bring back a workout saved before the app was killed. Anything unreadable or no
+    /// longer valid is dropped: it must never block launch.
+    @MainActor
+    func restoreActiveSessionIfNeeded() {
+        guard activeSession == nil else { return }
+        defer {
+            if activeSession == nil {
+                WatchConnectivityManager.shared.endAbandonedWorkoutIfIdle()
+            }
+        }
+        guard let data = persistence.loadActiveWorkoutSession() else { return }
+
+        guard let saved = PersistedWorkoutSession.decode(data),
+              saved.isResumable(
+                programId: userData.selectedProgram,
+                cycleStartDate: userData.currentCycleStartDate
+              ) else {
+            Logger.error("Dropping saved workout: it's unreadable or no longer fits this cycle", category: .general)
+            persistence.clearActiveWorkoutSession()
+            return
+        }
+
+        let session = ActiveWorkoutSession(appState: self, restoring: saved)
+        activeSession = session
+        if saved.isStale() {
+            showingStaleSessionPrompt = true
+        } else {
+            session.activateSurfaces()
+        }
+    }
+
+    /// Ask about a session left untouched for too long, on a return to the app too
+    @MainActor
+    func promptIfActiveSessionIsStale() {
+        guard let activeSession, presentedSession == nil, activeSession.isStale else { return }
+        showingStaleSessionPrompt = true
+    }
+
+    /// Answer to the stale session question: carry on
+    @MainActor
+    func keepStaleSession() {
+        resumeWorkout()
+    }
+
+    /// A cycle or program change makes the session meaningless: end it with no save
+    @MainActor
+    func endWorkoutForCycleChange() {
+        activeWorkoutTeardown?()
+        activeWorkoutTeardown = nil
+        activeSession?.exitWorkoutWithoutSaving()
+    }
 
     func discoverAvailablePrograms() async {
         // Known program files to check
@@ -877,6 +1001,7 @@ public final class AppState {
 
         // A re-log replaces the earlier entry, including any PR it set
         removeLiftRecords(lift: lift, week: week, day: day, setType: "volume")
+        removeWorkoutSets(lift: lift, week: week, day: day, setNumber: weekData.sets)
 
         // Check if this is a new PR (before recording, to get previous value)
         let previousPR = userData.personalRecords.canonicalLiftValue(for: lift)
@@ -948,22 +1073,14 @@ public final class AppState {
 
     /// Remove this cycle's workout-history sets for a session (nil setNumber: all of them)
     private func removeWorkoutSets(lift: String, week: Int, day: Int, setNumber: Int? = nil) {
-        let cycleStart = userData.currentCycleStartDate
-        let programId = userData.selectedProgram
-        for index in userData.workoutRecords.indices {
-            let record = userData.workoutRecords[index]
-            guard record.date >= cycleStart, record.week == week, record.day == day,
-                  record.programId == programId else { continue }
-            for exerciseIndex in record.exercises.indices where record.exercises[exerciseIndex].lift == lift {
-                if let setNumber {
-                    userData.workoutRecords[index].exercises[exerciseIndex].sets.removeAll { $0.setNumber == setNumber }
-                } else {
-                    userData.workoutRecords[index].exercises[exerciseIndex].sets = []
-                }
-            }
-            userData.workoutRecords[index].exercises.removeAll { $0.sets.isEmpty }
-        }
-        userData.workoutRecords.removeAll { $0.exercises.isEmpty && $0.date >= cycleStart && $0.week == week && $0.day == day && $0.programId == programId }
+        userData.removeWorkoutSets(
+            lift: lift,
+            programId: userData.selectedProgram,
+            week: week,
+            day: day,
+            setNumber: setNumber,
+            since: userData.currentCycleStartDate
+        )
     }
     
     // MARK: - Weight Overrides
@@ -1140,6 +1257,7 @@ public final class AppState {
 
                         // A re-log replaces this set's earlier entry, including any PR it set
                         removeLiftRecords(lift: lift, week: week, day: day, setIndex: setIndex)
+                        removeWorkoutSets(lift: lift, week: week, day: day, setNumber: setIndex)
 
                         // Check if this is a new PR (before recording, to get previous value)
                         let previousE1RM = userData.personalRecords.canonicalLiftValue(for: lift)?.estimatedOneRM
@@ -1275,6 +1393,7 @@ public final class AppState {
 
         // A re-log replaces the earlier result, including any PR it set
         removeLiftRecords(lift: lift, week: week, day: day)
+        removeWorkoutSets(lift: lift, week: week, day: day)
         
         // Record to unified lift history for progress tracking
         // Calculate E1RM using Epley formula: weight × (1 + reps/30)
@@ -1370,6 +1489,7 @@ public final class AppState {
 
         // A re-log replaces the earlier result, including any PR it set
         removeLiftRecords(lift: lift, week: week, day: day)
+        removeWorkoutSets(lift: lift, week: week, day: day)
         
         // Still record to lift history even on failure (shows attempted weight)
         // Use a reduced rep count to indicate it was a failed attempt

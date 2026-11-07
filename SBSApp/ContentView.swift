@@ -62,6 +62,11 @@ struct ContentView: View {
         
         do {
             try await appState.loadProgramConfig()
+
+            // A workout saved before the app was killed comes back behind the resume bar
+            if !appState.needsOnboarding {
+                appState.restoreActiveSessionIfNeeded()
+            }
             
             // Request notification permission if notifications are enabled in settings
             NotificationManager.shared.requestAuthorizationIfNeeded(
@@ -88,61 +93,96 @@ struct ContentView: View {
 struct MainTabView: View {
     @Bindable var appState: AppState
     @Binding var selectedTab: ContentView.Tab
-    private let restTimerStatus = RestTimerStatus.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         TabView(selection: $selectedTab) {
             HomeView(appState: appState)
-                .safeAreaInset(edge: .bottom, spacing: 0) { restTimerPill }
+                .safeAreaInset(edge: .bottom, spacing: 0) { resumeBar }
                 .tag(ContentView.Tab.home)
                 .tabItem {
                     Label("Workout", systemImage: "figure.strengthtraining.traditional")
                 }
             
             ProgramsView(appState: appState, selectedTab: $selectedTab)
-                .safeAreaInset(edge: .bottom, spacing: 0) { restTimerPill }
+                .safeAreaInset(edge: .bottom, spacing: 0) { resumeBar }
                 .tag(ContentView.Tab.programs)
                 .tabItem {
                     Label("Programs", systemImage: "book.pages")
                 }
             
             HistoryView(appState: appState)
-                .safeAreaInset(edge: .bottom, spacing: 0) { restTimerPill }
+                .safeAreaInset(edge: .bottom, spacing: 0) { resumeBar }
                 .tag(ContentView.Tab.history)
                 .tabItem {
                     Label("History", systemImage: "chart.line.uptrend.xyaxis")
                 }
             
             CalculatorsView(appState: appState)
-                .safeAreaInset(edge: .bottom, spacing: 0) { restTimerPill }
+                .safeAreaInset(edge: .bottom, spacing: 0) { resumeBar }
                 .tag(ContentView.Tab.calculators)
                 .tabItem {
                     Label("Calculators", systemImage: "function")
                 }
             
             SettingsView(appState: appState)
-                .safeAreaInset(edge: .bottom, spacing: 0) { restTimerPill }
+                .safeAreaInset(edge: .bottom, spacing: 0) { resumeBar }
                 .tag(ContentView.Tab.settings)
                 .tabItem {
                     Label("Settings", systemImage: "gearshape")
                 }
         }
         .tint(SBSColors.accentFallback)
-        .animation(.spring(duration: 0.3), value: restTimerStatus.isActive && !restTimerStatus.isWorkoutScreenVisible)
+        .animation(.spring(duration: 0.3), value: appState.activeSession?.id)
+        // Above the tab bar, so nothing in it can pop the workout. Item-driven, so the
+        // screen keeps its session while animating away after the session has ended.
+        .fullScreenCover(item: Binding(
+            get: { appState.presentedSession },
+            set: { if $0 == nil { appState.minimizeWorkout() } }
+        )) { session in
+            WorkoutView(appState: appState, session: session)
+        }
+        .alert("Resume Your Workout?", isPresented: $appState.showingStaleSessionPrompt) {
+            // The cancel role, or iOS adds a third button that answers nothing
+            Button("Resume", role: .cancel) {
+                appState.keepStaleSession()
+            }
+            Button("Discard", role: .destructive) {
+                appState.activeSession?.exitWorkoutWithoutSaving()
+            }
+        } message: {
+            Text("This workout has been sitting for a while. Results you've already logged are kept either way.")
+        }
+        // Here rather than on a tab, which may not be updating while off screen
+        .onChange(of: appState.userData.currentCycleStartDate) { _, _ in
+            appState.endWorkoutForCycleChange()
+        }
+        // Switching programs with nothing logged leaves the cycle date alone
+        .onChange(of: appState.userData.selectedProgram) { _, _ in
+            appState.endWorkoutForCycleChange()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            switch phase {
+            case .active:
+                appState.activeSession?.appDidBecomeActive()
+                appState.promptIfActiveSessionIsStale()
+            case .background:
+                appState.activeSession?.persist()
+            default:
+                break
+            }
+        }
     }
 
-    /// Keeps the rest timer visible while the user is on another tab mid-workout.
-    /// The workout lives in the Home tab's stack, so tapping the pill lands back
-    /// on it. A per-tab safe-area inset sits above the tab bar whatever its height
-    /// and keeps the pill from covering the end of a scrolled list.
+    /// Shows a workout is running whenever it's minimized. A per-tab safe-area inset
+    /// sits above the tab bar whatever its height and keeps the bar from covering the
+    /// end of a scrolled list.
     @ViewBuilder
-    private var restTimerPill: some View {
-        if restTimerStatus.isActive && !restTimerStatus.isWorkoutScreenVisible {
-            RestTimerPill(status: restTimerStatus) {
-                selectedTab = .home
+    private var resumeBar: some View {
+        if let session = appState.activeSession {
+            ResumeWorkoutBar(session: session) {
+                appState.resumeWorkout()
             }
-            .padding(.bottom, 8)
-            .frame(maxWidth: .infinity)
             .transition(.move(edge: .bottom).combined(with: .opacity))
         }
     }

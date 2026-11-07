@@ -425,6 +425,26 @@ public struct UserData: Codable, Equatable {
     }
 
     /// Get all records for a specific lift, sorted by date
+    /// Remove a session's workout-history sets for a lift (nil setNumber: all of them),
+    /// on any date, and drop records left empty. A re-log calls this first, so redoing
+    /// a day on a later date replaces the old sets rather than adding a second workout.
+    public mutating func removeWorkoutSets(lift: String, programId: String?, week: Int, day: Int, setNumber: Int? = nil, since: Date) {
+        func isSession(_ record: WorkoutRecord) -> Bool {
+            record.date >= since && record.week == week && record.day == day && record.programId == (programId ?? "")
+        }
+        for index in workoutRecords.indices where isSession(workoutRecords[index]) {
+            for exerciseIndex in workoutRecords[index].exercises.indices where workoutRecords[index].exercises[exerciseIndex].lift == lift {
+                if let setNumber {
+                    workoutRecords[index].exercises[exerciseIndex].sets.removeAll { $0.setNumber == setNumber }
+                } else {
+                    workoutRecords[index].exercises[exerciseIndex].sets = []
+                }
+            }
+            workoutRecords[index].exercises.removeAll { $0.sets.isEmpty }
+        }
+        workoutRecords.removeAll { $0.exercises.isEmpty && isSession($0) }
+    }
+
     public func history(for liftName: String) -> [LiftRecord] {
         liftHistory
             .filter { $0.liftName == liftName }
@@ -538,6 +558,7 @@ public final class ProgramPersistence {
     private let userDataKey = "sbs_user_data"
     private let programStateKey = "sbs_program_state"
     private let userDataBackupKey = "sbs_user_data_backup"
+    private let activeWorkoutSessionKey = "sbs_active_workout_session"
 
     public init(store: KeyValueStore = UserDefaultsStore()) {
         self.store = store
@@ -641,6 +662,22 @@ public final class ProgramPersistence {
         try saveUserData(userData)
     }
     
+    // MARK: - Active Workout Session
+
+    /// The workout in progress, as encoded data. Stored under its own key so a bad
+    /// saved session can't affect user data.
+    public func saveActiveWorkoutSession(_ data: Data) {
+        store.set(data, forKey: activeWorkoutSessionKey)
+    }
+
+    public func loadActiveWorkoutSession() -> Data? {
+        store.data(forKey: activeWorkoutSessionKey)
+    }
+
+    public func clearActiveWorkoutSession() {
+        store.remove(forKey: activeWorkoutSessionKey)
+    }
+
     // MARK: - Reset
     
     public func resetAllLogs() {
@@ -653,5 +690,6 @@ public final class ProgramPersistence {
         store.remove(forKey: settingsKey)
         store.remove(forKey: userDataKey)
         store.remove(forKey: programStateKey)
+        store.remove(forKey: activeWorkoutSessionKey)
     }
 }

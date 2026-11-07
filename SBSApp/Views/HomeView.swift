@@ -192,8 +192,6 @@ struct HomeView: View {
             }
             // Reset navigation when a new cycle starts (settings.currentWeek resets to 1)
             .onChange(of: appState.userData.currentCycleStartDate) { _, _ in
-                appState.activeWorkoutTeardown?()
-                appState.activeWorkoutTeardown = nil
                 showingSession = false
             }
             .sheet(isPresented: $showingPastCycles) {

@@ -146,3 +146,32 @@ targets:
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: 2K7MV7G4ZJ
         GENERATE_INFOPLIST_FILE: YES
+
+  SBSUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: SBSUITests
+    dependencies:
+      - target: SBSApp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.gregorymcinnes.topsettraining.uitests
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 2K7MV7G4ZJ
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  # Separate from SBSApp so the regular test command stays fast and doesn't log sets on
+  # the simulator it runs on. A target skipped in SBSApp can't be run with -only-testing.
+  # scripts/ui_walkthrough.sh runs this.
+  SBSWalkthrough:
+    build:
+      targets:
+        SBSApp: all
+        SBSUITests: [test]
+    test:
+      config: Debug
+      targets:
+        - SBSUITests

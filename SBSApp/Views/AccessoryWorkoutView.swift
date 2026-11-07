@@ -347,7 +347,7 @@ struct AccessoryWorkoutView: View {
             setupAccessories()
             resumeTimerLoopIfNeeded()
             startHealthKitWorkout()
-            // A cycle or program change pops this screen from outside; clean up then too
+            // A cycle or program change closes this screen from outside; clean up then too
             appState.activeWorkoutTeardown = { [self] in tearDownWorkout() }
             // Keep the screen awake through rests, like the main workout
             UIApplication.shared.isIdleTimerDisabled = true
@@ -403,6 +403,7 @@ struct AccessoryWorkoutView: View {
     }
     
     private func finishAndDismiss() {
+        appState.activeWorkoutTeardown = nil
         stopTimer()
         RestTimerStatus.shared.timerCleared()
         NotificationManager.shared.cancelRestTimerNotification()

@@ -69,7 +69,7 @@ public final class WatchConnectivityManager: NSObject, ObservableObject {
     @Published public private(set) var isWatchWorkoutSessionActive = false
     
     /// Callback triggered when Watch requests set completion
-    /// WorkoutView should set this to handle set completion from Watch
+    /// The active workout session sets this, so it fires while minimized too
     /// Parameters: rep count for AMRAP sets (nil for normal sets), and the
     /// (exerciseIndex, setNumber) the Watch was showing (both nil on older Watch
     /// builds that don't stamp identity) so the phone can drop stale requests.
@@ -140,6 +140,42 @@ public final class WatchConnectivityManager: NSObject, ObservableObject {
         isWatchWorkoutSessionActive = false
         timerSnapshot = nil
         deliverWorkoutStart()
+    }
+
+    /// The id of the workout running on the phone, saved with the session so a
+    /// relaunch can continue it with `resumeWorkout`.
+    public var activeWorkoutId: String? { currentWorkoutId }
+
+    /// Continue a workout from before an app kill. Using the same id means the Watch
+    /// treats this as a replay of the workout it's already running, and carries on.
+    public func resumeWorkout(id: String, healthKitEnabled: Bool) {
+        lastHealthKitEnabled = healthKitEnabled
+        currentWorkoutId = id
+        deliverWorkoutStart()
+        recoverWatchSessionState()
+    }
+
+    /// The Watch reported whether it owns the HealthKit workout to the process that was
+    /// killed. Its last report stays in the received context, so read it from there.
+    private func recoverWatchSessionState() {
+        guard let context = session?.receivedApplicationContext,
+              let active = context["watchSessionActive"] as? Bool else { return }
+        applyWatchSessionState(
+            active: active,
+            watchSaved: context["watchSaved"] as? Bool ?? false,
+            workoutId: context["workoutId"] as? String
+        )
+    }
+
+    /// Tell the Watch a workout from a killed process is over, unless one is running
+    /// now. Runs at launch once any saved session has been resolved.
+    public func endAbandonedWorkoutIfIdle() {
+        guard currentWorkoutId == nil,
+              let session = session,
+              session.activationState == .activated,
+              session.applicationContext["workoutActive"] as? Bool == true else { return }
+        Logger.debug("Clearing stale active workout left in Watch context", category: .general)
+        updateWorkoutContext(workoutActive: false, abandoned: true)
     }
 
     /// Push the current workout's start to the Watch. Also runs from activation
@@ -422,13 +458,14 @@ extension WatchConnectivityManager: WCSessionDelegate {
     /// Runs once WCSession is usable. Sends a start that was requested before
     /// activation; otherwise, if the persisted context still says a workout is
     /// running, this process has none (the app was killed mid-workout) — tell the
-    /// Watch so its session doesn't run on with nothing to stop it.
+    /// Watch so its session doesn't run on with nothing to stop it. Not if there's a
+    /// saved session, though: that workout is about to resume with the same id.
     private func reconcileAfterActivation(_ session: WCSession) {
         if currentWorkoutId != nil {
             deliverWorkoutStart()
-        } else if session.applicationContext["workoutActive"] as? Bool == true {
-            Logger.debug("Clearing stale active workout left in Watch context", category: .general)
-            updateWorkoutContext(workoutActive: false, abandoned: true)
+            recoverWatchSessionState()
+        } else if ProgramPersistence().loadActiveWorkoutSession() == nil {
+            endAbandonedWorkoutIfIdle()
         }
     }
 

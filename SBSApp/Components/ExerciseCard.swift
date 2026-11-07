@@ -263,6 +263,36 @@ struct VolumeCard: View {
         return "\(percentage)% TM"
     }
 
+    private var volumeScheme: some View {
+        Text("\(sets) × \(repsPerSet)")
+            .font(SBSFonts.numberLarge())
+            .tracking(-0.84)
+            .foregroundStyle(Color.ink)
+    }
+
+    private var volumeWeight: some View {
+        HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space2) {
+            Text("@")
+                .font(SBSFonts.number())
+                .foregroundStyle(Color.inkSecondary)
+
+            Button(action: { onWeightTap?() }) {
+                HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space1) {
+                    Text(weight.formattedWeight(useMetric: useMetric))
+                        .font(SBSFonts.numberLarge())
+                        .tracking(-0.84)
+                        .foregroundStyle(isWeightOverridden ? Color.warning : Color.ink)
+
+                    Image(systemName: isWeightOverridden ? "pencil" : "chevron.right")
+                        .font(SBSFonts.caption().weight(.semibold))
+                        .foregroundStyle(isWeightOverridden ? Color.warning : Color.inkSecondary)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Edit weight, \(weight.formattedWeight(useMetric: useMetric))\(isWeightOverridden ? ", adjusted" : "")")
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: SBSLayout.space3) {
             HStack(alignment: .firstTextBaseline) {
@@ -275,36 +305,24 @@ struct VolumeCard: View {
                 SBSBadge(text: intensityBadgeText)
             }
 
-            // Prescription: "4 × 8 @ 130 lb"
-            HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space2) {
-                Text("\(sets) × \(repsPerSet)")
-                    .font(SBSFonts.numberLarge())
-                    .tracking(-0.84)
-                    .foregroundStyle(Color.ink)
-
-                Text("@")
-                    .font(SBSFonts.number())
-                    .foregroundStyle(Color.inkSecondary)
-
-                Button(action: { onWeightTap?() }) {
-                    HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space1) {
-                        Text(weight.formattedWeight(useMetric: useMetric))
-                            .font(SBSFonts.numberLarge())
-                            .tracking(-0.84)
-                            .foregroundStyle(isWeightOverridden ? Color.warning : Color.ink)
-
-                        Image(systemName: isWeightOverridden ? "pencil" : "chevron.right")
-                            .font(SBSFonts.caption().weight(.semibold))
-                            .foregroundStyle(isWeightOverridden ? Color.warning : Color.inkSecondary)
-                    }
+            // Prescription: "4 × 8 @ 130 lb", the weight under the scheme when one line won't fit
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space2) {
+                    volumeScheme
+                    volumeWeight
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Edit weight, \(weight.formattedWeight(useMetric: useMetric))\(isWeightOverridden ? ", adjusted" : "")")
+                .lineLimit(1)
+
+                VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                    volumeScheme
+                    volumeWeight
+                }
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
             }
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
 
             if isWeightOverridden, let calculated = calculatedWeight {
+
                 Label("Recommended: \(calculated.formattedWeight(useMetric: useMetric))", systemImage: "arrow.turn.up.right")
                     .font(SBSFonts.caption())
                     .foregroundStyle(Color.inkSecondary)
@@ -732,32 +750,48 @@ struct LinearCard: View {
         info.logEntry?.completed ?? false
     }
 
+    private var linearScheme: some View {
+        Text("\(info.sets) × \(info.reps)")
+            .font(SBSFonts.numberLarge())
+            .tracking(-0.84)
+            .foregroundStyle(Color.ink)
+    }
+
+    private var linearWeight: some View {
+        HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space2) {
+            Text("@")
+                .font(SBSFonts.number())
+                .foregroundStyle(Color.inkSecondary)
+
+            Text(info.weight.formattedWeight(useMetric: useMetric))
+                .font(SBSFonts.numberLarge())
+                .tracking(-0.84)
+                .foregroundStyle(Color.ink)
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: SBSLayout.space3) {
             Text(name)
                 .font(SBSFonts.heading())
                 .foregroundStyle(Color.ink)
 
-            // "5 × 5 @ 135 lb"
-            HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space2) {
-                Text("\(info.sets) × \(info.reps)")
-                    .font(SBSFonts.numberLarge())
-                    .tracking(-0.84)
-                    .foregroundStyle(Color.ink)
+            // "5 × 5 @ 135 lb", the weight under the scheme when one line won't fit
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space2) {
+                    linearScheme
+                    linearWeight
+                    Spacer(minLength: 0)
+                }
+                .lineLimit(1)
 
-                Text("@")
-                    .font(SBSFonts.number())
-                    .foregroundStyle(Color.inkSecondary)
-
-                Text(info.weight.formattedWeight(useMetric: useMetric))
-                    .font(SBSFonts.numberLarge())
-                    .tracking(-0.84)
-                    .foregroundStyle(Color.ink)
-
-                Spacer()
+                VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                    linearScheme
+                    linearWeight
+                }
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
             }
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
 
             if showPlateCalculator && info.weight >= barWeight {
                 PlateListView(weight: info.weight, barWeight: barWeight, useMetric: useMetric)

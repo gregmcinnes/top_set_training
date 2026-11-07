@@ -485,8 +485,8 @@ struct PlateListView: View {
             Text(PlateText.perSide(result, useMetric: useMetric))
                 .font(SBSFonts.numberSmall())
                 .foregroundStyle(Color.inkSecondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                // Wraps at the accessibility sizes rather than cutting the list short
+                .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
     }

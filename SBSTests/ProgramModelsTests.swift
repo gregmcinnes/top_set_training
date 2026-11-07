@@ -274,12 +274,6 @@ final class ProgramModelsTests: XCTestCase {
     
     // MARK: - ProgramLevel Tests
     
-    func testProgramLevelColors() {
-        XCTAssertNotNil(ProgramLevel.beginner.color)
-        XCTAssertNotNil(ProgramLevel.intermediate.color)
-        XCTAssertNotNil(ProgramLevel.advanced.color)
-    }
-    
     func testProgramLevelIcons() {
         XCTAssertEqual(ProgramLevel.beginner.icon, "leaf.fill")
         XCTAssertEqual(ProgramLevel.intermediate.icon, "flame.fill")

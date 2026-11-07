@@ -46,30 +46,36 @@ struct PastCyclesView: View {
     }
     
     private var emptyState: some View {
-        VStack(spacing: SBSLayout.paddingLarge) {
+        VStack(spacing: SBSLayout.space6) {
             Image(systemName: "clock.arrow.circlepath")
-                .font(.system(size: 60))
-                .foregroundStyle(SBSColors.textTertiaryFallback)
-            
-            Text("No Past Cycles")
-                .font(SBSFonts.title2())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
-            
-            Text("When you complete a training cycle and start a new one, your history will appear here.")
-                .font(SBSFonts.legacyBody())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, SBSLayout.paddingLarge)
+                .font(SBSFonts.titleLarge())
+                .foregroundStyle(Color.inkSecondary)
+                .accessibilityHidden(true)
 
-            Button("Go to Workout") {
+            Text("No Past Cycles")
+                .font(SBSFonts.title())
+                .foregroundStyle(Color.ink)
+
+            Text("When you complete a training cycle and start a new one, your history will appear here.")
+                .font(SBSFonts.body())
+                .foregroundStyle(Color.inkSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, SBSLayout.space6)
+
+            // The screen's one action
+            Button {
                 dismiss()
                 appState.goToWorkoutTab()
+            } label: {
+                SBSButtonTitle("Go to Workout")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(SBSPrimaryButtonStyle())
         }
+        .padding(SBSLayout.space4)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-}
-    
+        .background(Color.bg.ignoresSafeArea())
+    }
+
     private var cycleList: some View {
         List {
             ForEach(appState.cycleHistory) { cycle in
@@ -87,7 +93,9 @@ struct PastCyclesView: View {
                         }
                     }
             }
+            .sbsListRows()
         }
+        .sbsGroupedList()
     }
 }
 
@@ -104,7 +112,12 @@ struct CycleRowView: View {
         return formatter
     }
     
-    private let summaryColumns = Array(repeating: GridItem(.flexible(), spacing: 0, alignment: .leading), count: 4)
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var summaryColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: SBSLayout.space2, alignment: .leading),
+              count: dynamicTypeSize.isAccessibilitySize ? 2 : 4)
+    }
 
     private var durationText: String {
         let weeks = cycle.lastCompletedWeek
@@ -124,71 +137,50 @@ struct CycleRowView: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Cycle \(cycle.cycleNumber)")
-                        .font(SBSFonts.title3())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+        HStack(spacing: SBSLayout.space3) {
+            VStack(alignment: .leading, spacing: SBSLayout.space2) {
+                SBSAdaptiveStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Cycle \(cycle.cycleNumber)")
+                            .font(SBSFonts.bodyStrong())
+                            .foregroundStyle(Color.ink)
 
-                    if let programName = cycle.programName, !programName.isEmpty {
-                        Text(programName)
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                        if let programName = cycle.programName, !programName.isEmpty {
+                            Text(programName)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    // Average TM gain
+                    if averageTMGain != 0 {
+                        SBSChangeLabel(text: String(format: "%.1f%%", abs(averageTMGain)), isUp: averageTMGain >= 0)
                     }
                 }
 
-                Spacer()
+                SBSRowSubtitle("\(dateFormatter.string(from: cycle.startDate)) · \(durationText)")
 
-                // Average TM gain badge
-                if averageTMGain != 0 {
-                    HStack(spacing: 2) {
-                        Image(systemName: averageTMGain >= 0 ? "arrow.up.right" : "arrow.down.right")
-                            .font(.system(size: 10, weight: .bold))
-                        Text(String(format: "%.1f%%", averageTMGain))
-                            .font(SBSFonts.captionBold())
-                    }
-                    .foregroundStyle(averageTMGain >= 0 ? SBSColors.success : SBSColors.error)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill((averageTMGain >= 0 ? SBSColors.success : SBSColors.error).opacity(0.15))
-                    )
-                }
-            }
-            
-            HStack(spacing: SBSLayout.paddingMedium) {
-                Label(dateFormatter.string(from: cycle.startDate), systemImage: "calendar")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                
-                Label(durationText, systemImage: "clock")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
-            }
-            
-            // Quick summary of every lift
-            HStack(spacing: SBSLayout.paddingMedium) {
-                LazyVGrid(columns: summaryColumns, spacing: SBSLayout.paddingSmall) {
+                // Quick summary of every lift
+                LazyVGrid(columns: summaryColumns, spacing: SBSLayout.space2) {
                     ForEach(cycle.summaryLifts, id: \.self) { lift in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(ExerciseLibrary.shortName(for: lift))
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
+                                .lineLimit(1)
                             Text((cycle.endingMaxes[lift] ?? 0).formattedWeightShort(useMetric: useMetric))
-                                .font(SBSFonts.captionBold())
-                                .foregroundStyle(Color.orangeText)
+                                .font(SBSFonts.numberSmall().weight(.semibold))
+                                .foregroundStyle(Color.ink)
                         }
+                        .accessibilityElement(children: .combine)
                     }
                 }
-
-Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
             }
+
+            SBSChevron()
         }
-        .padding(.vertical, SBSLayout.paddingSmall)
+        .padding(.vertical, SBSLayout.space2)
     }
 }
 
@@ -216,7 +208,7 @@ struct CycleDetailView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: SBSLayout.sectionSpacing) {
+                VStack(alignment: .leading, spacing: SBSLayout.space6) {
                     // Summary card
                     summaryCard
                     
@@ -230,8 +222,8 @@ struct CycleDetailView: View {
                     if canViewSessions {
                         sessionsSection
                     }
-}
-                .padding()
+                }
+                .padding(SBSLayout.space4)
             }
             .sbsBackground()
             .navigationTitle("Cycle \(cycle.cycleNumber)")
@@ -247,57 +239,37 @@ struct CycleDetailView: View {
     }
     
     private var summaryCard: some View {
-        VStack(spacing: SBSLayout.paddingMedium) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Duration")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
-                    Text("\(cycle.lastCompletedWeek) week\(cycle.lastCompletedWeek == 1 ? "" : "s")")
-                        .font(SBSFonts.title3())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                }
-                
+        VStack(spacing: SBSLayout.space4) {
+            HStack(alignment: .top) {
+                summaryValue("Duration", "\(cycle.lastCompletedWeek) week\(cycle.lastCompletedWeek == 1 ? "" : "s")", alignment: .leading)
                 Spacer()
-                
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("Completed")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
-                    Text(dateFormatter.string(from: cycle.endDate))
-                        .font(SBSFonts.legacyBody())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                }
+                summaryValue("Completed", dateFormatter.string(from: cycle.endDate), alignment: .trailing)
             }
-            
-            Divider()
-            
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Started")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
-                    Text(dateFormatter.string(from: cycle.startDate))
-                        .font(SBSFonts.legacyBody())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                }
-                
+
+            SBSRowDivider()
+
+            HStack(alignment: .top) {
+                summaryValue("Started", dateFormatter.string(from: cycle.startDate), alignment: .leading)
                 Spacer()
-                
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("Total Workouts")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
-                    Text("\(totalLoggedWorkouts)")
-                        .font(SBSFonts.title3())
-                        .foregroundStyle(Color.orangeText)
-                }
+                summaryValue("Total Workouts", "\(totalLoggedWorkouts)", alignment: .trailing)
             }
         }
-        .padding()
-        .sbsCard()
+        .padding(SBSLayout.space4)
+        .card()
     }
-    
+
+    private func summaryValue(_ label: String, _ value: String, alignment: HorizontalAlignment) -> some View {
+        VStack(alignment: alignment, spacing: SBSLayout.space1) {
+            SBSEyebrow(label)
+                .foregroundStyle(Color.inkSecondary)
+            Text(value)
+                .font(SBSFonts.number())
+                .foregroundStyle(Color.ink)
+                .multilineTextAlignment(alignment == .leading ? .leading : .trailing)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
     private var totalLoggedWorkouts: Int {
         // Prefer the self-contained workout records (one per logged session) when present.
         if !cycle.workoutRecords.isEmpty {
@@ -334,13 +306,14 @@ struct CycleDetailView: View {
     }
 
     private var tmProgressionSection: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-            Text(progressionTitle)
-                .font(SBSFonts.title3())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            SBSSectionEyebrow(progressionTitle)
 
-            VStack(spacing: SBSLayout.paddingSmall) {
-                ForEach(cycle.progressedLifts, id: \.self) { lift in
+            VStack(spacing: 0) {
+                ForEach(Array(cycle.progressedLifts.enumerated()), id: \.element) { index, lift in
+                    if index > 0 {
+                        SBSRowDivider()
+                    }
                     TMProgressionRow(
                         liftName: lift,
                         startTM: cycle.startingMaxes[lift] ?? 0,
@@ -351,6 +324,7 @@ struct CycleDetailView: View {
                     )
                 }
             }
+            .card()
         }
     }
 
@@ -358,12 +332,10 @@ struct CycleDetailView: View {
     private var sessionsSection: some View {
         let sessions = HistorySessionBuilder.sessions(for: cycle, accessoryHistory: accessoryHistory)
         if !sessions.isEmpty {
-            VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-                Text("Workouts")
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+            VStack(alignment: .leading, spacing: SBSLayout.space2) {
+                SBSSectionEyebrow("Workouts")
 
-                LazyVStack(spacing: SBSLayout.paddingSmall) {
+                LazyVStack(spacing: SBSLayout.space2) {
                     ForEach(sessions) { session in
                         NavigationLink {
                             WorkoutSessionDetailView(session: session, useMetric: useMetric)
@@ -434,52 +406,77 @@ struct CycleDetailView: View {
     private var weeklyLogsSection: some View {
         let performances = weeklyLiftPerformances
         if !performances.isEmpty {
-            VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-                Text("Weekly Results")
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+            VStack(alignment: .leading, spacing: SBSLayout.space2) {
+                SBSSectionEyebrow("Weekly Results")
 
-                ForEach(performances) { performance in
-                    VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
-                        Text(performance.lift)
-                            .font(SBSFonts.bodyBold())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                VStack(spacing: 0) {
+                    ForEach(Array(performances.enumerated()), id: \.element.id) { index, performance in
+                        if index > 0 {
+                            SBSRowDivider()
+                        }
+                        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+                            Text(performance.lift)
+                                .font(SBSFonts.bodyStrong())
+                                .foregroundStyle(Color.ink)
 
-                        if performance.labelsByWeek.isEmpty {
-                            Text("No logs recorded")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
-                        } else {
-                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 10), spacing: 4) {
-                                ForEach(1...weekCount, id: \.self) { week in
-                                    if let label = performance.labelsByWeek[week] {
-                                        Text(label)
-                                            .font(SBSFonts.legacyCaption())
-                                            .foregroundStyle(SBSColors.textPrimaryFallback)
-                                            .frame(width: 28, height: 28)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 4)
-                                                    .fill(SBSColors.accentFallback.opacity(0.2))
-                                            )
-                                    } else {
-                                        Text("-")
-                                            .font(SBSFonts.legacyCaption())
-                                            .foregroundStyle(SBSColors.textTertiaryFallback)
-                                            .frame(width: 28, height: 28)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 4)
-                                                    .fill(SBSColors.surfaceFallback)
-                                            )
+                            if performance.labelsByWeek.isEmpty {
+                                Text("No logs recorded")
+                                    .font(SBSFonts.caption())
+                                    .foregroundStyle(Color.inkSecondary)
+                            } else {
+                                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: SBSLayout.space1), count: 10), spacing: SBSLayout.space1) {
+                                    ForEach(1...weekCount, id: \.self) { week in
+                                        WeekResultCell(week: week, label: performance.labelsByWeek[week])
                                     }
                                 }
                             }
                         }
+                        .padding(SBSLayout.space4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .padding()
-                    .sbsCard()
                 }
+                .card()
             }
         }
+    }
+}
+
+/// One week of a lift's results: a hairline cell with the AMRAP reps, or a
+/// ✓ / ✗ for a linear session in success or danger. An empty week is a dash.
+private struct WeekResultCell: View {
+    let week: Int
+    let label: String?
+
+    private var color: Color {
+        switch label {
+        case "✓": return .success
+        case "✗": return .danger
+        case nil: return .inkTertiary
+        default: return .ink
+        }
+    }
+
+    private var accessibilityText: String {
+        switch label {
+        case "✓": return "Week \(week): done"
+        case "✗": return "Week \(week): missed"
+        case nil: return "Week \(week): no log"
+        case let reps?: return "Week \(week): \(reps) reps"
+        }
+    }
+
+    var body: some View {
+        Text(label ?? "–")
+            .font(SBSFonts.numberSmall().weight(.semibold))
+            .foregroundStyle(color)
+            .frame(maxWidth: 28, minHeight: 28)
+            .background(label == nil ? Color.surface : Color.surfaceRaised, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+            .overlay(
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .strokeBorder(Color.hairline, lineWidth: SBSLayout.strokeHairline)
+            )
+            .accessibilityElement()
+            .accessibilityLabel(accessibilityText)
     }
 }
 
@@ -504,59 +501,52 @@ struct TMProgressionRow: View {
     }
     
     var body: some View {
-        HStack {
+        SBSAdaptiveStack {
             Text(liftName)
-                .font(SBSFonts.legacyBody())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
-                .frame(width: 100, alignment: .leading)
-            
-            Spacer()
-            
-            // Start TM
+                .font(SBSFonts.bodyStrong())
+                .foregroundStyle(Color.ink)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Start → end
+            HStack(spacing: SBSLayout.space3) {
             VStack(alignment: .trailing, spacing: 2) {
-                Text("Start")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                SBSEyebrow("Start")
+                    .foregroundStyle(Color.inkSecondary)
                 Text(startTM.formattedWeightShort(useMetric: useMetric))
-                    .font(SBSFonts.legacyNumber())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.numberSmall())
+                    .foregroundStyle(Color.inkSecondary)
             }
-            
+
             Image(systemName: "arrow.right")
-                .font(.system(size: 12))
-                .foregroundStyle(SBSColors.textTertiaryFallback)
-                .padding(.horizontal, SBSLayout.paddingSmall)
-            
-            // End TM
+                .font(SBSFonts.numberSmall())
+                .foregroundStyle(Color.inkSecondary)
+                .accessibilityLabel("to")
+
             VStack(alignment: .trailing, spacing: 2) {
-                Text(endLabel)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                SBSEyebrow(endLabel)
+                    .foregroundStyle(Color.inkSecondary)
                 Text(endTM.formattedWeightShort(useMetric: useMetric))
-                    .font(SBSFonts.legacyNumber())
-                    .foregroundStyle(Color.orangeText)
+                    .font(SBSFonts.number())
+                    .foregroundStyle(Color.ink)
             }
-            
-            // Progression badge
-            if hasChange {
-                HStack(spacing: 2) {
-                    Image(systemName: progression >= 0 ? "arrow.up" : "arrow.down")
-                        .font(.system(size: 10, weight: .bold))
-                    Text(String(format: "%.1f%%", abs(progression)))
-                        .font(SBSFonts.captionBold())
+
+            // Progression
+            Group {
+                if hasChange {
+                    SBSChangeLabel(text: String(format: "%.1f%%", abs(progression)), isUp: progression >= 0)
+                } else {
+                    Text("—")
+                        .font(SBSFonts.numberSmall())
+                        .foregroundStyle(Color.inkSecondary)
+                        .accessibilityLabel("No change")
                 }
-                .foregroundStyle(progression >= 0 ? SBSColors.success : SBSColors.error)
-                .frame(width: 60, alignment: .trailing)
-            } else {
-                Text("—")
-                    .font(SBSFonts.captionBold())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
-                    .frame(width: 60, alignment: .trailing)
-                    .accessibilityLabel("No change")
             }
-}
-        .padding()
-        .sbsCard()
+            .frame(minWidth: 60, alignment: .trailing)
+            }
+        }
+        .padding(.vertical, SBSLayout.space3)
+        .padding(.horizontal, SBSLayout.space4)
+        .frame(minHeight: 56)
     }
 }
 

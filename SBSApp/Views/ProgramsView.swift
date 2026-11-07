@@ -90,13 +90,9 @@ struct ProgramsView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 // Section picker
-                Picker("Section", selection: $selectedSection) {
-                    ForEach(ProgramSection.allCases, id: \.self) { section in
-                        Text(section.rawValue).tag(section)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding()
+                SBSSegmentedControl(options: ProgramSection.allCases, selection: $selectedSection) { $0.rawValue }
+                    .padding(.horizontal, SBSLayout.space4)
+                    .padding(.vertical, SBSLayout.space3)
                 
                 // Content based on selected section
                 if selectedSection == .programs {
@@ -247,69 +243,70 @@ struct ProgramsView: View {
     private var programsContent: some View {
         VStack(spacing: 0) {
             // Filter bar
-            VStack(spacing: SBSLayout.paddingMedium) {
+            VStack(spacing: SBSLayout.space2) {
                 // Days filter
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: SBSLayout.paddingSmall) {
-                        FilterChip(
-                            title: "All Days",
-                            isSelected: selectedDaysFilter == nil,
-                            onTap: { selectedDaysFilter = nil }
-                        )
-                        
+                    HStack(spacing: SBSLayout.space2) {
+                        SBSChip(title: "All Days", isSelected: selectedDaysFilter == nil) {
+                            selectedDaysFilter = nil
+                        }
+
                         ForEach(availableDays, id: \.self) { days in
-                            FilterChip(
-                                title: "\(days) Days",
-                                isSelected: selectedDaysFilter == days,
-                                onTap: { selectedDaysFilter = days }
-                            )
+                            SBSChip(title: "\(days) Days", isSelected: selectedDaysFilter == days) {
+                                selectedDaysFilter = days
+                            }
                         }
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, SBSLayout.space4)
+                    .padding(.vertical, 1)
                 }
                 
                 // Level filter
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: SBSLayout.paddingSmall) {
-                        FilterChip(
-                            title: "All Levels",
-                            isSelected: selectedLevelFilter == nil,
-                            onTap: { selectedLevelFilter = nil }
-                        )
-                        
+                    HStack(spacing: SBSLayout.space2) {
+                        SBSChip(title: "All Levels", isSelected: selectedLevelFilter == nil) {
+                            selectedLevelFilter = nil
+                        }
+
                         ForEach(ProgramLevel.allCases, id: \.self) { level in
-                            FilterChip(
-                                title: level.rawValue,
-                                icon: level.icon,
-                                isSelected: selectedLevelFilter == level,
-                                onTap: { selectedLevelFilter = level }
-                            )
+                            SBSChip(title: level.rawValue, systemImage: level.icon, isSelected: selectedLevelFilter == level) {
+                                selectedLevelFilter = level
+                            }
                         }
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, SBSLayout.space4)
+                    .padding(.vertical, 1)
                 }
             }
-            .padding(.vertical, SBSLayout.paddingMedium)
-            .background(SBSColors.backgroundFallback)
+            .padding(.bottom, SBSLayout.space3)
+            .background(Color.bg)
+            .overlay(alignment: .bottom) { SBSRowDivider() }
             
             // Program list
             ScrollView {
-                LazyVStack(spacing: SBSLayout.paddingMedium) {
+                LazyVStack(spacing: SBSLayout.space3) {
                     // Quiz prompt
-                    QuizPromptCard(onTakeQuiz: { showingProgramQuiz = true })
-                        .padding(.horizontal)
-                        .padding(.top, SBSLayout.paddingMedium)
-                    
-                    // Disclaimer note
-                    HStack(spacing: SBSLayout.paddingSmall) {
-                        Image(systemName: "info.circle")
-                            .font(.system(size: 12))
-                        Text("All programs are based on popular training programs. Some names are changed.")
-                            .font(SBSFonts.legacyCaption())
+                    Button {
+                        showingProgramQuiz = true
+                    } label: {
+                        SBSListRow("Not sure which to pick?", showsChevron: true) {
+                            Text("Take the quiz to find the best program for you")
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
+                        }
+                        .card()
                     }
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
-                    .padding(.horizontal)
-                    .padding(.vertical, SBSLayout.paddingSmall)
+                    .buttonStyle(.plain)
+
+                    // Disclaimer note
+                    HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space2) {
+                        Image(systemName: "info.circle")
+                            .font(SBSFonts.caption())
+                        Text("All programs are based on popular training programs. Some names are changed.")
+                            .font(SBSFonts.caption())
+                    }
+                    .foregroundStyle(Color.inkSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     
                     // Program families
                     ForEach(groupedPrograms, id: \.family) { group in
@@ -339,28 +336,29 @@ struct ProgramsView: View {
                     
                     // Empty state
                     if filteredPrograms.isEmpty {
-                        VStack(spacing: SBSLayout.paddingMedium) {
+                        VStack(spacing: SBSLayout.space4) {
                             Image(systemName: "magnifyingglass")
-                                .font(.system(size: 40))
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
-                            
+                                .font(SBSFonts.title())
+                                .foregroundStyle(Color.inkSecondary)
+
                             Text("No programs matched your filters")
-                                .font(SBSFonts.legacyBody())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.body())
+                                .foregroundStyle(Color.inkSecondary)
                                 .multilineTextAlignment(.center)
-                            
-                            Button("Clear Filters") {
+
+                            Button {
                                 selectedDaysFilter = nil
                                 selectedLevelFilter = nil
+                            } label: {
+                                SBSButtonTitle("Clear Filters")
                             }
-                            .font(SBSFonts.bodyBold())
-                            .foregroundStyle(Color.orangeText)
+                            .buttonStyle(SBSSecondaryButtonStyle())
                         }
-                        .padding(.vertical, SBSLayout.paddingXLarge)
+                        .padding(.vertical, SBSLayout.space8)
                     }
                 }
-                .padding(.horizontal)
-                .padding(.vertical, SBSLayout.paddingMedium)
+                .padding(.horizontal, SBSLayout.space4)
+                .padding(.vertical, SBSLayout.space4)
             }
         }
     }
@@ -378,58 +376,25 @@ struct ProgramsView: View {
     }
     
     private var templatesEmptyState: some View {
-        VStack(spacing: SBSLayout.paddingLarge) {
-            Spacer()
-            
-            Image(systemName: "square.stack.3d.up.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [SBSColors.accentFallback, SBSColors.accentSecondaryFallback],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-            
-            VStack(spacing: SBSLayout.paddingSmall) {
-                Text("No Templates Yet")
-                    .font(SBSFonts.legacyTitle())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                
-                Text("Create your own custom workout program with exercises, sets, reps, and progression rules.")
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, SBSLayout.paddingLarge)
-            }
-            
-            Button {
-                showingTemplateBuilder = true
-            } label: {
-                Label("Create Template", systemImage: "plus")
-            }
-            .buttonStyle(SBSLegacyPrimaryButtonStyle())
-            .padding(.top, SBSLayout.paddingMedium)
-            
-            Spacer()
-            
-            // Template limit info for free users
-            if !storeManager.isPremium {
-                freeTierInfoCard
-                    .padding(.horizontal)
-                    .padding(.bottom, SBSLayout.paddingLarge)
-            }
-        }
-        .padding()
+        TemplatesEmptyState(
+            showsFreeTierInfo: !storeManager.isPremium,
+            onCreate: { showingTemplateBuilder = true },
+            onUpgrade: { showingPaywall = true }
+        )
     }
-    
+
     private var templatesList: some View {
         List {
             // Template limit section for free users
             if !storeManager.isPremium {
                 Section {
-                    freeTierRow
+                    TemplateFreeTierRow(
+                        templateCount: templates.count,
+                        canCreateTemplate: canCreateTemplate,
+                        onUpgrade: { showingPaywall = true }
+                    )
                 }
+                .sbsListRows()
             }
             
             // Templates section
@@ -457,11 +422,13 @@ struct ProgramsView: View {
                     )
                 }
             } header: {
-                Text("Saved Templates")
+                SBSListHeader("Saved Templates")
             } footer: {
-                Text("Templates can be selected when starting a new training cycle.")
+                SBSListFooter("Templates can be selected when starting a new training cycle.")
             }
+            .sbsListRows()
         }
+        .sbsGroupedList()
     }
     
     // MARK: - Create Template Button
@@ -487,81 +454,6 @@ struct ProgramsView: View {
         }
     }
     
-    // MARK: - Free Tier Info
-    
-    private var freeTierInfoCard: some View {
-        VStack(spacing: SBSLayout.paddingMedium) {
-            HStack(spacing: SBSLayout.paddingSmall) {
-                Image(systemName: "crown.fill")
-                    .foregroundStyle(Color.orangeText)
-                
-                Text("Free users can save 1 template")
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
-            }
-            
-            Button {
-                showingPaywall = true
-            } label: {
-                Text("Upgrade for Unlimited")
-                    .font(SBSFonts.captionBold())
-            }
-            .buttonStyle(SBSLegacySecondaryButtonStyle())
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                .fill(SBSColors.surfaceFallback)
-        )
-    }
-    
-    private var freeTierRow: some View {
-        HStack(spacing: SBSLayout.paddingMedium) {
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [SBSColors.accentFallback.opacity(0.2), SBSColors.accentSecondaryFallback.opacity(0.1)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 40, height: 40)
-                
-                Image(systemName: "crown.fill")
-                    .foregroundStyle(Color.orangeText)
-            }
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text("\(templates.count) / \(FreeTierLimits.maxSavedTemplates) Template Used")
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                
-                Text(canCreateTemplate ? "You can create 1 more" : "Upgrade for unlimited templates")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
-            }
-            
-            Spacer()
-            
-            if !canCreateTemplate {
-                Button {
-                    showingPaywall = true
-                } label: {
-                    Text("Upgrade")
-                        .font(SBSFonts.captionBold())
-                        .foregroundStyle(Color.orangeInk)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill(SBSColors.accentFallback)
-                        )
-                }
-            }
-        }
-    }
-    
     // MARK: - Helper Methods
     
     private func shouldExpandFamily(_ family: String, programs: [AppState.AvailableProgramInfo]) -> Bool {
@@ -581,6 +473,117 @@ struct ProgramsView: View {
     }
 }
 
+// MARK: - Templates Empty State (Programs and My Templates)
+
+/// No templates yet: what a template is, the one primary action, and the free-tier limit.
+struct TemplatesEmptyState: View {
+    let showsFreeTierInfo: Bool
+    let onCreate: () -> Void
+    let onUpgrade: () -> Void
+
+    var body: some View {
+        VStack(spacing: SBSLayout.space6) {
+            Spacer()
+
+            Image(systemName: "square.stack.3d.up")
+                .font(SBSFonts.titleLarge())
+                .foregroundStyle(Color.inkSecondary)
+                .accessibilityHidden(true)
+
+            VStack(spacing: SBSLayout.space2) {
+                Text("No Templates Yet")
+                    .font(SBSFonts.title())
+                    .foregroundStyle(Color.ink)
+                    .multilineTextAlignment(.center)
+
+                Text("Create your own custom workout program with exercises, sets, reps, and progression rules.")
+                    .font(SBSFonts.body())
+                    .foregroundStyle(Color.inkSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, SBSLayout.space6)
+            }
+
+            Button(action: onCreate) {
+                HStack(spacing: SBSLayout.space2) {
+                    Image(systemName: "plus")
+                        .font(SBSFonts.button())
+                    SBSButtonTitle("Create Template")
+                }
+            }
+            .buttonStyle(SBSPrimaryButtonStyle())
+
+            Spacer()
+
+            // Template limit info for free users
+            if showsFreeTierInfo {
+                VStack(spacing: SBSLayout.space3) {
+                    Text("Free users can save 1 template")
+                        .font(SBSFonts.body())
+                        .foregroundStyle(Color.inkSecondary)
+
+                    Button(action: onUpgrade) {
+                        SBSButtonTitle("Upgrade for Unlimited")
+                    }
+                    .buttonStyle(SBSSecondaryButtonStyle())
+                }
+                .padding(SBSLayout.space4)
+                .frame(maxWidth: .infinity)
+                .card()
+            }
+        }
+        .padding(SBSLayout.space4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.bg.ignoresSafeArea())
+    }
+}
+
+/// How many templates a free account has used, and the way to more.
+struct TemplateFreeTierRow: View {
+    let templateCount: Int
+    let canCreateTemplate: Bool
+    let onUpgrade: () -> Void
+
+    var body: some View {
+        HStack(spacing: SBSLayout.space3) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Templates used")
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.ink)
+
+                Text(canCreateTemplate ? "You can create one more" : "Upgrade for unlimited templates")
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
+            }
+
+            Spacer()
+
+            Text("\(templateCount) / \(FreeTierLimits.maxSavedTemplates)")
+                .font(SBSFonts.number())
+                .foregroundStyle(Color.ink)
+                .accessibilityLabel("\(templateCount) of \(FreeTierLimits.maxSavedTemplates)")
+
+            if !canCreateTemplate {
+                Button("Upgrade", action: onUpgrade)
+                    .font(SBSFonts.caption().weight(.semibold))
+                    .foregroundStyle(Color.orangeText)
+                    .buttonStyle(.borderless)
+            }
+        }
+    }
+}
+
+/// "4 days/week · 12 weeks · 18 exercises" in number-small.
+struct TemplateMetaLine: View {
+    let template: CustomTemplate
+
+    var body: some View {
+        let days = template.daysPerWeek
+        let weeks = template.weeks.count
+        let exercises = template.days.values.flatMap { $0 }.count
+        SBSRowSubtitle("\(days) day\(days == 1 ? "" : "s")/week · \(weeks) week\(weeks == 1 ? "" : "s") · \(exercises) exercises")
+    }
+}
+
 // MARK: - Program Family Group View (for ProgramsView)
 
 struct ProgramFamilyGroupView: View {
@@ -594,52 +597,30 @@ struct ProgramFamilyGroupView: View {
     let onLockedTap: () -> Void
     let onStartCycle: (String) -> Void
     let onResetCustomizations: (String) -> Void
-    
-    private var familyColor: Color {
-        if let first = programs.first, let meta = metadata[first.id] {
-            return meta.level.color
-        }
-        return SBSColors.accentFallback
-    }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Family header
             if programs.count > 1 {
                 Button(action: onToggle) {
-                    HStack(spacing: SBSLayout.paddingMedium) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(family)
-                                .font(SBSFonts.title3())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
-                            
-                            Text("\(programs.count) variants")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
-                        }
-                        
-                        Spacer()
-                        
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                    SBSListRow(family) {
+                        SBSRowSubtitle("\(programs.count) variants")
+                    } trailing: {
+                        SBSChevron(systemName: isExpanded ? "chevron.up" : "chevron.down")
                     }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                            .fill(SBSColors.surfaceFallback)
-                    )
+                    .card()
                 }
                 .buttonStyle(.plain)
+                .accessibilityHint(isExpanded ? "Hides the variants" : "Shows the variants")
             }
-            
+
             // Programs
             if isExpanded || programs.count == 1 {
-                VStack(spacing: SBSLayout.paddingSmall) {
+                VStack(spacing: SBSLayout.space2) {
                     ForEach(programs) { program in
                         let meta = metadata[program.id]
                         let isLocked = isProgramLocked(program.id)
-                        
+
                         ProgramCardView(
                             program: program,
                             meta: meta,
@@ -651,8 +632,8 @@ struct ProgramFamilyGroupView: View {
                         )
                     }
                 }
-                .padding(.top, programs.count > 1 ? SBSLayout.paddingSmall : 0)
-                .padding(.leading, programs.count > 1 ? SBSLayout.paddingLarge : 0)
+                .padding(.top, programs.count > 1 ? SBSLayout.space2 : 0)
+                .padding(.leading, programs.count > 1 ? SBSLayout.space4 : 0)
             }
         }
     }
@@ -672,84 +653,60 @@ struct ProgramCardView: View {
     @State private var showingDetail = false
     private let storeManager = StoreManager.shared
 
-    private var familyColor: Color {
-        meta?.level.color ?? SBSColors.accentFallback
-    }
-    
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+        VStack(alignment: .leading, spacing: SBSLayout.space3) {
             // Header row
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: SBSLayout.paddingSmall) {
-                        Text(program.displayName)
-                            .font(SBSFonts.bodyBold())
-                            .foregroundStyle(isLocked ? SBSColors.textTertiaryFallback : SBSColors.textPrimaryFallback)
-                        
+            HStack(alignment: .top, spacing: SBSLayout.space3) {
+                VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                    Text(program.displayName)
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(isLocked ? Color.inkSecondary : Color.ink)
+
+                    // Two badges at most: Pro or Free, and Modified
+                    HStack(spacing: SBSLayout.space1) {
                         if isLocked {
-                            PremiumBadge(isCompact: true)
+                            SBSBadge(text: "Pro", variant: .pro, systemImage: "lock.fill")
                         }
-                        
+
                         if ProgramCatalog.showsFreeBadge(programId: program.id, isLocked: isLocked, isPremiumUser: storeManager.isPremium) {
-                            FreeBadge()
+                            SBSBadge(text: "Free")
                         }
 
                         if isCustomized {
-                            ModifiedBadge()
+                            SBSBadge(text: "Modified", systemImage: "pencil")
                         }
                     }
 
                     Text(meta?.shortDescription ?? program.programDescription)
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                         .lineLimit(2)
                 }
-                
-                Spacer(minLength: SBSLayout.paddingMedium)
-                
-                if isLocked {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 16))
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
-                }
-            }
-            
-            // Badges row
-            HStack(spacing: SBSLayout.paddingSmall) {
-                ProgramBadge(
-                    icon: "calendar",
-                    label: "\(program.days) Days",
-                    color: .blue
-                )
-                
-                ProgramBadge(
-                    icon: "clock",
-                    label: "\(program.weeks) Weeks",
-                    color: .gray
-                )
-                
-                if let level = meta?.level {
-                    ProgramBadge(
-                        icon: level.icon,
-                        label: level.rawValue,
-                        color: level.color
-                    )
-                }
-                
-                Spacer()
-                
+                .frame(maxWidth: .infinity, alignment: .leading)
+
                 // Info button
                 Button {
                     showingDetail = true
                 } label: {
                     Image(systemName: "info.circle")
-                        .font(.system(size: 20))
+                        .font(SBSFonts.heading())
                         .foregroundStyle(Color.orangeText)
+                        .frame(minWidth: 44, minHeight: 44)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("About \(program.displayName)")
             }
-            
-            // Start Cycle button
+
+            // Days, weeks and level
+            HStack(spacing: SBSLayout.space2) {
+                SBSRowSubtitle("\(program.days) days · \(program.weeks) weeks")
+
+                if let level = meta?.level {
+                    SBSBadge(text: level.rawValue, systemImage: level.icon)
+                }
+            }
+
+            // Start Cycle: secondary, since every card has one
             Button {
                 if isLocked {
                     onLockedTap()
@@ -757,29 +714,17 @@ struct ProgramCardView: View {
                     onStartCycle()
                 }
             } label: {
-                HStack {
+                HStack(spacing: SBSLayout.space2) {
                     Image(systemName: isLocked ? "lock.fill" : "play.fill")
-                        .font(.system(size: 12))
-                    Text(isLocked ? "Unlock to Start" : "Start Cycle")
-                        .font(SBSFonts.captionBold())
+                        .font(SBSFonts.caption())
+                    SBSButtonTitle(isLocked ? "Unlock to Start" : "Start Cycle")
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                        .fill(isLocked ? SBSColors.surfaceElevatedFallback : SBSColors.accentFallback)
-                )
-                .foregroundStyle(isLocked ? SBSColors.textSecondaryFallback : Color.orangeInk)
             }
-            .buttonStyle(.plain)
-            .padding(.top, SBSLayout.paddingSmall)
+            .buttonStyle(SBSSecondaryButtonStyle())
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                .fill(SBSColors.surfaceFallback)
-        )
-        .opacity(isLocked ? 0.7 : 1.0)
+        .padding(SBSLayout.space4)
+        .card()
         .contextMenu {
             if isCustomized {
                 Button(role: .destructive) {
@@ -792,7 +737,8 @@ struct ProgramCardView: View {
         .sheet(isPresented: $showingDetail) {
             ProgramDetailView(
                 program: program,
-                familyColor: familyColor,
+                // Orange as text and icons; no colour per level
+                familyColor: Color.orangeText,
                 level: meta?.level ?? .intermediate,
                 onStartCycle: isLocked ? nil : { onStartCycle() }
             )
@@ -808,112 +754,82 @@ struct TemplateRowView: View {
     let onEdit: () -> Void
     let onDelete: () -> Void
     let onStartCycle: () -> Void
-    
+
     @State private var showingDetail = false
-    
-    private var daysDescription: String {
-        "\(template.daysPerWeek) day\(template.daysPerWeek == 1 ? "" : "s")/week"
-    }
-    
-    private var weeksDescription: String {
-        "\(template.weeks.count) week\(template.weeks.count == 1 ? "" : "s")"
-    }
-    
-    private var exerciseCount: Int {
-        template.days.values.flatMap { $0 }.count
-    }
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: SBSLayout.paddingSmall) {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                    HStack(spacing: SBSLayout.space2) {
                         Text(template.name)
-                            .font(SBSFonts.bodyBold())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
-                        
-                        Text(template.mode.displayName)
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(template.mode == .advanced ? SBSColors.accentSecondaryFallback : SBSColors.textSecondaryFallback)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(
-                                Capsule()
-                                    .fill(template.mode == .advanced ? SBSColors.accentSecondaryFallback.opacity(0.15) : SBSColors.surfaceFallback)
-                            )
+                            .font(SBSFonts.bodyStrong())
+                            .foregroundStyle(Color.ink)
+
+                        SBSBadge(text: template.mode.displayName)
 
                         if isCustomized {
-                            ModifiedBadge()
+                            SBSBadge(text: "Modified", systemImage: "pencil")
                         }
                     }
 
                     if !template.templateDescription.isEmpty {
                         Text(template.templateDescription)
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
                             .lineLimit(2)
                     }
                 }
-                
+
                 Spacer()
-                
+
                 // Info button
                 Button {
                     showingDetail = true
                 } label: {
                     Image(systemName: "info.circle")
-                        .font(.system(size: 20))
+                        .font(SBSFonts.heading())
                         .foregroundStyle(Color.orangeText)
                 }
                 .buttonStyle(.borderless)
+                .accessibilityLabel("About \(template.name)")
             }
-            
-            // Stats row
-            HStack(spacing: SBSLayout.paddingMedium) {
-                Label(daysDescription, systemImage: "calendar")
-                Label(weeksDescription, systemImage: "clock")
-                Label("\(exerciseCount) exercises", systemImage: "figure.strengthtraining.traditional")
-            }
-            .font(SBSFonts.legacyCaption())
-            .foregroundStyle(SBSColors.textTertiaryFallback)
-            
+
+            TemplateMetaLine(template: template)
+
             // Action buttons row
             HStack {
-                Text("Updated \(template.updatedAt.formatted(.relative(presentation: .named)))")
-                    .font(.system(size: 11))
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
-                
+                SBSRowSubtitle("Updated \(template.updatedAt.formatted(.relative(presentation: .named)))")
+
                 Spacer()
-                
-                HStack(spacing: SBSLayout.paddingMedium) {
+
+                HStack(spacing: SBSLayout.space4) {
                     Button {
                         onStartCycle()
                     } label: {
                         Label("Start", systemImage: "play.fill")
-                            .font(SBSFonts.legacyCaption())
                     }
-                    .buttonStyle(.borderless)
                     .foregroundStyle(Color.orangeText)
-                    
+
                     Button {
                         onEdit()
                     } label: {
                         Label("Edit", systemImage: "pencil")
-                            .font(SBSFonts.legacyCaption())
                     }
-                    .buttonStyle(.borderless)
-                    
+                    .foregroundStyle(Color.ink)
+
                     Button(role: .destructive) {
                         onDelete()
                     } label: {
                         Label("Delete", systemImage: "trash")
-                            .font(SBSFonts.legacyCaption())
                     }
-                    .buttonStyle(.borderless)
+                    .foregroundStyle(Color.danger)
                 }
+                .font(SBSFonts.caption().weight(.semibold))
+                .buttonStyle(.borderless)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, SBSLayout.space1)
         .sheet(isPresented: $showingDetail) {
             CustomTemplateDetailView(
                 template: template,

@@ -118,51 +118,13 @@ struct TemplateListView: View {
     // MARK: - Empty State
     
     private var emptyStateView: some View {
-        VStack(spacing: SBSLayout.paddingLarge) {
-            Spacer()
-            
-            Image(systemName: "square.stack.3d.up.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [SBSColors.accentFallback, SBSColors.accentSecondaryFallback],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-            
-            VStack(spacing: SBSLayout.paddingSmall) {
-                Text("No Templates Yet")
-                    .font(SBSFonts.legacyTitle())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                
-                Text("Create your own custom workout program with exercises, sets, reps, and progression rules.")
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, SBSLayout.paddingLarge)
-            }
-            
-            Button {
-                showingTemplateBuilder = true
-            } label: {
-                Label("Create Template", systemImage: "plus")
-            }
-            .buttonStyle(SBSLegacyPrimaryButtonStyle())
-            .padding(.top, SBSLayout.paddingMedium)
-            
-            Spacer()
-            
-            // Template limit info for free users
-            if !storeManager.isPremium {
-                freeTierInfoCard
-                    .padding(.horizontal)
-                    .padding(.bottom, SBSLayout.paddingLarge)
-            }
-        }
-        .padding()
+        TemplatesEmptyState(
+            showsFreeTierInfo: !storeManager.isPremium,
+            onCreate: { showingTemplateBuilder = true },
+            onUpgrade: { showingPaywall = true }
+        )
     }
-    
+
     // MARK: - Template List
     
     private var templateListView: some View {
@@ -170,8 +132,13 @@ struct TemplateListView: View {
             // Template limit section for free users
             if !storeManager.isPremium {
                 Section {
-                    freeTierRow
+                    TemplateFreeTierRow(
+                        templateCount: templates.count,
+                        canCreateTemplate: canCreateTemplate,
+                        onUpgrade: { showingPaywall = true }
+                    )
                 }
+                .sbsListRows()
             }
             
             // Templates section
@@ -189,11 +156,13 @@ struct TemplateListView: View {
                     )
                 }
             } header: {
-                Text("Saved Templates")
+                SBSListHeader("Saved Templates")
             } footer: {
-                Text("Templates can be selected when starting a new training cycle.")
+                SBSListFooter("Templates can be selected when starting a new training cycle.")
             }
+            .sbsListRows()
         }
+        .sbsGroupedList()
     }
     
     // MARK: - Create Button
@@ -219,80 +188,6 @@ struct TemplateListView: View {
         }
     }
     
-    // MARK: - Free Tier Info
-    
-    private var freeTierInfoCard: some View {
-        VStack(spacing: SBSLayout.paddingMedium) {
-            HStack(spacing: SBSLayout.paddingSmall) {
-                Image(systemName: "crown.fill")
-                    .foregroundStyle(Color.orangeText)
-                
-                Text("Free users can save 1 template")
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
-            }
-            
-            Button {
-                showingPaywall = true
-            } label: {
-                Text("Upgrade for Unlimited")
-                    .font(SBSFonts.captionBold())
-            }
-            .buttonStyle(SBSLegacySecondaryButtonStyle())
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                .fill(SBSColors.surfaceFallback)
-        )
-    }
-    
-    private var freeTierRow: some View {
-        HStack(spacing: SBSLayout.paddingMedium) {
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [SBSColors.accentFallback.opacity(0.2), SBSColors.accentSecondaryFallback.opacity(0.1)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 40, height: 40)
-                
-                Image(systemName: "crown.fill")
-                    .foregroundStyle(Color.orangeText)
-            }
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text("\(templates.count) / \(FreeTierLimits.maxSavedTemplates) Template Used")
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                
-                Text(canCreateTemplate ? "You can create 1 more" : "Upgrade for unlimited templates")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
-            }
-            
-            Spacer()
-            
-            if !canCreateTemplate {
-                Button {
-                    showingPaywall = true
-                } label: {
-                    Text("Upgrade")
-                        .font(SBSFonts.captionBold())
-                        .foregroundStyle(Color.orangeInk)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill(SBSColors.accentFallback)
-                        )
-                }
-            }
-        }
-    }
 }
 
 // MARK: - Template Row
@@ -301,89 +196,56 @@ struct TemplateRow: View {
     let template: CustomTemplate
     let onEdit: () -> Void
     let onDelete: () -> Void
-    
-    private var daysDescription: String {
-        "\(template.daysPerWeek) day\(template.daysPerWeek == 1 ? "" : "s")/week"
-    }
-    
-    private var weeksDescription: String {
-        "\(template.weeks.count) week\(template.weeks.count == 1 ? "" : "s")"
-    }
-    
-    private var exerciseCount: Int {
-        template.days.values.flatMap { $0 }.count
-    }
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: SBSLayout.paddingSmall) {
-                        Text(template.name)
-                            .font(SBSFonts.bodyBold())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
-                        
-                        // Mode badge
-                        Text(template.mode.displayName)
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(template.mode == .advanced ? SBSColors.accentSecondaryFallback : SBSColors.textSecondaryFallback)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(
-                                Capsule()
-                                    .fill(template.mode == .advanced ? SBSColors.accentSecondaryFallback.opacity(0.15) : SBSColors.surfaceFallback)
-                            )
-                    }
-                    
-                    if !template.templateDescription.isEmpty {
-                        Text(template.templateDescription)
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
-                            .lineLimit(2)
-                    }
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                HStack(spacing: SBSLayout.space2) {
+                    Text(template.name)
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.ink)
+
+                    // Mode badge
+                    SBSBadge(text: template.mode.displayName)
                 }
-                
-                Spacer()
+
+                if !template.templateDescription.isEmpty {
+                    Text(template.templateDescription)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
+                        .lineLimit(2)
+                }
             }
-            
-            // Stats row
-            HStack(spacing: SBSLayout.paddingMedium) {
-                Label(daysDescription, systemImage: "calendar")
-                Label(weeksDescription, systemImage: "clock")
-                Label("\(exerciseCount) exercises", systemImage: "figure.strengthtraining.traditional")
-            }
-            .font(SBSFonts.legacyCaption())
-            .foregroundStyle(SBSColors.textTertiaryFallback)
-            
+
+            TemplateMetaLine(template: template)
+
             // Last updated
             HStack {
-                Text("Updated \(template.updatedAt.formatted(.relative(presentation: .named)))")
-                    .font(.system(size: 11))
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
-                
+                SBSRowSubtitle("Updated \(template.updatedAt.formatted(.relative(presentation: .named)))")
+
                 Spacer()
-                
+
                 // Action buttons
-                HStack(spacing: SBSLayout.paddingMedium) {
+                HStack(spacing: SBSLayout.space4) {
                     Button {
                         onEdit()
                     } label: {
                         Label("Edit", systemImage: "pencil")
-                            .font(SBSFonts.legacyCaption())
                     }
-                    .buttonStyle(.borderless)
-                    
+                    .foregroundStyle(Color.ink)
+
                     Button(role: .destructive) {
                         onDelete()
                     } label: {
                         Label("Delete", systemImage: "trash")
-                            .font(SBSFonts.legacyCaption())
                     }
-                    .buttonStyle(.borderless)
+                    .foregroundStyle(Color.danger)
                 }
+                .font(SBSFonts.caption().weight(.semibold))
+                .buttonStyle(.borderless)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, SBSLayout.space1)
     }
 }
 

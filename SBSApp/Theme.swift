@@ -460,16 +460,125 @@ struct SBSNumberPadButtonStyle: ButtonStyle {
         self.isHighlighted = isHighlighted
     }
 
+    @Environment(\.isEnabled) private var isEnabled
+
     func makeBody(configuration: Configuration) -> some View {
+        let lit = isHighlighted && isEnabled
         configuration.label
             .font(SBSFonts.number())
-            .foregroundStyle(isHighlighted ? Color.orangeInk : Color.ink)
-            .frame(width: 64, height: 64)
+            .foregroundStyle(lit ? Color.orangeInk : (isEnabled ? Color.ink : Color.inkTertiary))
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
             .background(
                 RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                    .fill(isHighlighted ? Color.orangeFill : (configuration.isPressed ? Color.surface : Color.surfaceRaised))
+                    .fill(lit ? Color.orangeFill : (configuration.isPressed ? Color.surfaceRaised : Color.surface))
             )
+            .overlay(
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .strokeBorder(lit ? Color.clear : Color.hairline, lineWidth: SBSLayout.strokeHairline)
+            )
+            .opacity(lit && configuration.isPressed ? 0.85 : 1)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Badges
+
+/// Small uppercase tag naming a state or category. The word does the work;
+/// colour only reinforces it.
+struct SBSBadge: View {
+    enum Variant {
+        /// Surface, ink text, hairline edge (program badges: 5/3/1, AMRAP, Accessory).
+        case standard
+        /// The one filled badge: orange with orange-ink and a 1pt ink edge.
+        case pr
+        /// Surface fill, text and edge in a status colour, with a glyph where one exists.
+        case status(Color)
+        /// Ink fill, bg text, for paywalled features.
+        case pro
+    }
+
+    let text: String
+    var variant: Variant = .standard
+    var systemImage: String? = nil
+
+    var body: some View {
+        HStack(spacing: SBSLayout.space1) {
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .font(SBSFonts.eyebrow().weight(.bold))
+            }
+            Text(text)
+                .eyebrowText()
+                .lineLimit(1)
+        }
+        .foregroundStyle(foreground)
+        .padding(.horizontal, SBSLayout.space2)
+        .padding(.vertical, 3)
+        .background(background, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+        .overlay(
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                .strokeBorder(edge, lineWidth: SBSLayout.strokeHairline)
+        )
+    }
+
+    private var foreground: Color {
+        switch variant {
+        case .standard: .ink
+        case .pr: .orangeInk
+        case .status(let color): color
+        case .pro: .bg
+        }
+    }
+
+    private var background: Color {
+        switch variant {
+        case .standard, .status: .surface
+        case .pr: .orangeFill
+        case .pro: .ink
+        }
+    }
+
+    private var edge: Color {
+        switch variant {
+        case .standard: .hairline
+        case .pr, .pro: .ink
+        case .status(let color): color
+        }
+    }
+}
+
+// MARK: - Knurl
+
+/// The diagonal knurl stripe: 1px knurl lines at 135°, 6pt pitch. Texture only,
+/// never meaning. Behind the rest timer and home-screen section headers.
+struct KnurlPattern: View {
+    var body: some View {
+        Canvas { context, size in
+            let pitch: CGFloat = 6
+            var path = Path()
+            // Lines running from bottom-left to top-right, stepped along x.
+            var x = -size.height
+            while x < size.width + size.height {
+                path.move(to: CGPoint(x: x, y: size.height))
+                path.addLine(to: CGPoint(x: x + size.height, y: 0))
+                x += pitch
+            }
+            context.stroke(path, with: .color(.knurl), lineWidth: 1)
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+extension View {
+    /// Selected state for a choice: orange-soft fill, 1px orange-text edge,
+    /// 2pt corners. Unselected is surface with a hairline.
+    func selectionCell(_ isSelected: Bool) -> some View {
+        background(isSelected ? Color.orangeSoft : Color.surface, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+            .overlay(
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .strokeBorder(isSelected ? Color.orangeText : Color.hairline, lineWidth: SBSLayout.strokeHairline)
+            )
     }
 }
 

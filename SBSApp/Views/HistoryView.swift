@@ -49,14 +49,6 @@ enum StrengthScoreFormula: String, CaseIterable {
         case .ipfGL: return "Official IPF scoring"
         }
     }
-    
-    var color: Color {
-        switch self {
-        case .wilks: return .blue
-        case .dots: return .purple
-        case .ipfGL: return .orange
-        }
-    }
 }
 
 /// Identifiable wrapper so share sheets can be presented via `.sheet(item:)`,
@@ -303,41 +295,7 @@ struct HistoryView: View {
         return bw * 0.453592
     }
     
-    /// Age category selector for competitive data
-    private var ageCategoryMenu: some View {
-        Menu {
-            ForEach(AgeCategory.allCases) { category in
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        ageCategory = category
-                    }
-                } label: {
-                    HStack {
-                        Text(category.displayName)
-                        if category == ageCategory {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                }
-            }
-        } label: {
-            HStack(spacing: 4) {
-                Text(ageCategory == .allAges ? "All Ages" : ageCategory.displayName)
-                    .font(SBSFonts.legacyCaption())
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 8, weight: .bold))
-            }
-            .foregroundStyle(.orange)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                Capsule()
-                    .fill(Color.orange.opacity(0.15))
-            )
-        }
-    }
-    
-    /// Sort menu for the lift selector pills
+    /// Sort menu for the lift selector
     private var liftSortMenu: some View {
         Menu {
             ForEach(LiftSortMode.allCases, id: \.self) { mode in
@@ -355,21 +313,9 @@ struct HistoryView: View {
                 }
             }
         } label: {
-            HStack(spacing: 4) {
-                Image(systemName: liftSortMode.systemImage)
-                    .font(.system(size: 10, weight: .semibold))
-                Text(liftSortMode.rawValue)
-                    .font(SBSFonts.legacyCaption())
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 8, weight: .bold))
-            }
-            .foregroundStyle(SBSColors.textSecondaryFallback)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                Capsule().fill(SBSColors.surfaceFallback)
-            )
+            HistoryControlLabel(title: liftSortMode.rawValue, systemImage: liftSortMode.systemImage, showsMenuChevron: true)
         }
+        .accessibilityLabel("Sort lifts: \(liftSortMode.rawValue)")
     }
 
     /// Whether there's enough data to generate a shareable progress image
@@ -383,49 +329,23 @@ struct HistoryView: View {
         Button {
             generateLiftProgressShareImage()
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 12))
-                Text("Share Progress")
-                    .font(SBSFonts.legacyCaption())
-            }
-            .foregroundStyle(Color.orangeText)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                Capsule()
-                    .fill(SBSColors.accentFallback.opacity(0.15))
-            )
+            HistoryControlLabel(title: "Share progress", systemImage: "square.and.arrow.up", tint: .orangeText)
         }
         .buttonStyle(.plain)
         .disabled(!canShareLiftProgress)
         .opacity(canShareLiftProgress ? 1 : 0.4)
     }
-    
+
     /// Prompt to set bodyweight for strength standards
     private var setBodyweightPrompt: some View {
         NavigationLink {
             SettingsView(appState: appState)
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "scalemass")
-                    .font(.system(size: 12))
-                Text("Set bodyweight for strength scores")
-                    .font(SBSFonts.legacyCaption())
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10))
-            }
-            .foregroundStyle(SBSColors.textTertiaryFallback)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                Capsule()
-                    .fill(SBSColors.surfaceFallback)
-            )
+            HistoryControlLabel(title: "Set bodyweight for scores", systemImage: "scalemass", showsChevron: true)
         }
         .buttonStyle(.plain)
     }
-    
+
     /// Toggle for showing strength score
     private var strengthScoreToggle: some View {
         Button {
@@ -433,23 +353,15 @@ struct HistoryView: View {
                 showStrengthScore.toggle()
             }
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: showStrengthScore ? "medal.fill" : "medal")
-                    .font(.system(size: 12))
-                Text(showStrengthScore ? "Hide Score" : "Show Score")
-                    .font(SBSFonts.legacyCaption())
-            }
-            .foregroundStyle(showStrengthScore ? selectedStrengthFormula.color : SBSColors.textSecondaryFallback)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                Capsule()
-                    .fill(showStrengthScore ? selectedStrengthFormula.color.opacity(0.15) : SBSColors.surfaceFallback)
+            HistoryControlLabel(
+                title: showStrengthScore ? "Hide score" : "Show score",
+                systemImage: showStrengthScore ? "medal.fill" : "medal",
+                isSelected: showStrengthScore
             )
         }
         .buttonStyle(.plain)
     }
-    
+
     /// Strength formula selector menu
     private var strengthFormulaMenu: some View {
         Menu {
@@ -462,7 +374,6 @@ struct HistoryView: View {
                     HStack {
                         Text(formula.rawValue)
                         Text("• \(formula.description)")
-                            .foregroundStyle(.secondary)
                         if formula == selectedStrengthFormula {
                             Image(systemName: "checkmark")
                         }
@@ -470,49 +381,28 @@ struct HistoryView: View {
                 }
             }
         } label: {
-            HStack(spacing: 4) {
-                Text(selectedStrengthFormula.rawValue)
-                    .font(SBSFonts.legacyCaption())
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 8, weight: .bold))
-            }
-            .foregroundStyle(selectedStrengthFormula.color)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                Capsule()
-                    .fill(selectedStrengthFormula.color.opacity(0.15))
-            )
+            HistoryControlLabel(title: selectedStrengthFormula.rawValue, showsMenuChevron: true)
         }
+        .accessibilityLabel("Score formula: \(selectedStrengthFormula.rawValue)")
     }
-    
+
     /// Locked strength score button for non-premium users
     private var lockedStrengthScoreButton: some View {
         Button {
             showingPaywall = true
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 10))
-                Text("Strength Scores")
-                    .font(SBSFonts.legacyCaption())
-                PremiumBadge(isCompact: true)
+            HStack(spacing: SBSLayout.space2) {
+                HistoryControlLabel(title: "Strength scores", systemImage: "lock.fill")
+                SBSBadge(text: "Pro", variant: .pro)
             }
-            .foregroundStyle(SBSColors.textTertiaryFallback)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                Capsule()
-                    .fill(SBSColors.surfaceFallback)
-            )
         }
         .buttonStyle(.plain)
     }
-    
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: SBSLayout.sectionSpacing) {
+                VStack(alignment: .leading, spacing: SBSLayout.space6) {
                     // Current Cycle TM Progress Card
                     CurrentCycleTMProgressCard(
                         appState: appState,
@@ -520,11 +410,9 @@ struct HistoryView: View {
                         showsEmptyAction: !orderedLifts.isEmpty,
                         onTap: { showingTMProgress = true }
                     )
-                    .padding(.horizontal)
 
                     if hasAnySessionHistory {
                         historyLinks
-                            .padding(.horizontal)
                     }
 
                     // Volume by Body Part card (disabled — see showVolumeByBodyPart)
@@ -535,27 +423,25 @@ struct HistoryView: View {
                             rows: volumeByBodyPart,
                             useMetric: appState.settings.useMetric
                         )
-                        .padding(.horizontal)
                     }
 
                     // Lift selector with sort menu
-                    VStack(spacing: SBSLayout.paddingSmall) {
-                        HStack {
-                            Spacer()
-                            liftSortMenu
-                        }
-                        .padding(.horizontal)
+                    if !orderedLifts.isEmpty {
+                        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+                            SBSSectionEyebrow("Lifts") {
+                                liftSortMenu
+                            }
 
-                        LiftSelector(
-                            lifts: orderedLifts,
-                            selectedLift: $selectedLift
-                        )
-                        .padding(.horizontal)
+                            LiftSelector(
+                                lifts: orderedLifts,
+                                selectedLift: $selectedLift
+                            )
+                        }
                     }
-                    
+
                     // Progress Chart with mode toggle
                     if let lift = selectedLift {
-                        VStack(spacing: SBSLayout.paddingSmall) {
+                        VStack(alignment: .leading, spacing: SBSLayout.space3) {
                             ProgressChart(
                                 liftName: lift,
                                 displayMode: $chartDisplayMode,
@@ -573,24 +459,20 @@ struct HistoryView: View {
                             )
 
                             // Strength score display and share button
-                            HStack {
-                                if canAccessStrengthScores {
-                                    if hasBodyweight {
-                                        strengthScoreToggle
-                                        if showStrengthScore {
-                                            strengthFormulaMenu
-                                        }
-                                    } else {
-                                        setBodyweightPrompt
-                                    }
-                                } else {
-                                    // Show locked strength score toggle for non-premium users
-                                    lockedStrengthScoreButton
+                            ViewThatFits(in: .horizontal) {
+                                HStack(spacing: SBSLayout.space2) {
+                                    strengthScoreControls
+                                    Spacer(minLength: 0)
+                                    shareLiftProgressButton
                                 }
-                                Spacer()
-                                shareLiftProgressButton
+                                VStack(alignment: .leading, spacing: SBSLayout.space2) {
+                                    HStack(spacing: SBSLayout.space2) {
+                                        strengthScoreControls
+                                    }
+                                    shareLiftProgressButton
+                                }
                             }
-                            
+
                             // Strength score card (when enabled and data available)
                             if canAccessStrengthScores && showStrengthScore && hasBodyweight && hasSBDData {
                                 StrengthScoreCard(
@@ -604,42 +486,53 @@ struct HistoryView: View {
                                 )
                             }
                         }
-                        .padding(.horizontal)
-                        
+
                         // Log history for this lift (includes past cycles)
                         // Free users only see current cycle
                         LogHistoryList(
                             liftName: lift,
                             logs: canAccessFullHistory ? allLogsForLift(lift) : currentCycleLogsOnly(lift),
                             useMetric: appState.settings.useMetric,
+                            barWeight: appState.settings.barWeight,
                             showPastCyclesLocked: !canAccessFullHistory && hasPastCycles,
                             onUnlockTap: { showingPaywall = true },
                             onGoToWorkout: { appState.goToWorkoutTab() }
                         )
-.padding(.horizontal)
                     } else if orderedLifts.isEmpty {
                         ContentUnavailableView {
                             Label("No Lifts Yet", systemImage: "chart.line.uptrend.xyaxis")
+                                .font(SBSFonts.heading())
+                                .foregroundStyle(Color.ink)
                         } description: {
                             Text("Log your first workout and your progress will show up here.")
+                                .font(SBSFonts.body())
+                                .foregroundStyle(Color.inkSecondary)
                         } actions: {
-                            Button("Go to Workout") { appState.goToWorkoutTab() }
-                                .buttonStyle(.borderedProminent)
-                                .accessibilityIdentifier("historyGoToWorkoutButton")
+                            // The screen's one action, so the primary button
+                            Button { appState.goToWorkoutTab() } label: {
+                                SBSButtonTitle("Go to Workout")
+                            }
+                            .buttonStyle(SBSPrimaryButtonStyle())
+                            .accessibilityIdentifier("historyGoToWorkoutButton")
                         }
-                        .padding(.top, 60)
+                        .padding(.top, SBSLayout.space8)
                     } else {
-                        ContentUnavailableView(
-                            "Select a Lift",
-                            systemImage: "chart.line.uptrend.xyaxis",
-                            description: Text("Choose a lift above to see your progress.")
-                        )
-                        .padding(.top, 60)
+                        ContentUnavailableView {
+                            Label("Select a Lift", systemImage: "chart.line.uptrend.xyaxis")
+                                .font(SBSFonts.heading())
+                                .foregroundStyle(Color.ink)
+                        } description: {
+                            Text("Choose a lift above to see your progress.")
+                                .font(SBSFonts.body())
+                                .foregroundStyle(Color.inkSecondary)
+                        }
+                        .padding(.top, SBSLayout.space8)
                     }
 
                     Spacer(minLength: 100)
                 }
-                .padding(.top)
+                .padding(.horizontal, SBSLayout.space4)
+                .padding(.top, SBSLayout.space4)
             }
             .sbsBackground()
             .navigationTitle("History")
@@ -664,7 +557,24 @@ struct HistoryView: View {
             }
         }
     }
-    
+
+    /// Show/hide, formula, or the way to unlock or enable strength scores
+    @ViewBuilder
+    private var strengthScoreControls: some View {
+        if canAccessStrengthScores {
+            if hasBodyweight {
+                strengthScoreToggle
+                if showStrengthScore {
+                    strengthFormulaMenu
+                }
+            } else {
+                setBodyweightPrompt
+            }
+        } else {
+            lockedStrengthScoreButton
+        }
+    }
+
     /// Check if there are any past cycles
     private var hasPastCycles: Bool {
         !appState.userData.cycleHistory.isEmpty
@@ -677,28 +587,29 @@ struct HistoryView: View {
 
     /// The ways into the per-workout and accessory screens
     private var historyLinks: some View {
-        VStack(spacing: SBSLayout.paddingSmall) {
+        SBSListGroup(title: "Sessions") {
             NavigationLink {
                 WorkoutSessionsView(appState: appState)
             } label: {
-                HistoryLinkRow(
-                    systemImage: "list.bullet.rectangle",
-                    title: "Workouts",
-                    subtitle: "Every session, with its exercises and results"
-                )
+                SBSListRow("Workouts", showsChevron: true) {
+                    Text("Every session, with its exercises and results")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
+                }
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("historySessionsLink")
 
             if !appState.userData.accessoryHistory.isEmpty {
+                SBSRowDivider()
                 NavigationLink {
                     AccessoryHistoryView(appState: appState)
                 } label: {
-                    HistoryLinkRow(
-                        systemImage: "dumbbell",
-                        title: "Accessories",
-                        subtitle: "Your logged accessory work, by exercise"
-                    )
+                    SBSListRow("Accessories", showsChevron: true) {
+                        Text("Your logged accessory work, by exercise")
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
+                    }
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("historyAccessoriesLink")
@@ -1261,6 +1172,42 @@ struct HistoryLogEntry: Identifiable {
     var missedTarget: Bool = false
 }
 
+// MARK: - Controls
+
+/// A small hairline control for History's toolbar rows: menus, toggles, links.
+/// Selected is orange-soft with an orange-text edge; the text stays as tinted.
+struct HistoryControlLabel: View {
+    let title: String
+    var systemImage: String? = nil
+    var tint: Color = .ink
+    var isSelected: Bool = false
+    var showsMenuChevron: Bool = false
+    var showsChevron: Bool = false
+
+    var body: some View {
+        HStack(spacing: SBSLayout.space1) {
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .font(SBSFonts.caption().weight(.semibold))
+                    .accessibilityHidden(true)
+            }
+            Text(title)
+                .font(SBSFonts.caption().weight(.semibold))
+                .lineLimit(1)
+            if showsMenuChevron {
+                SBSChevron(systemName: "chevron.down")
+            } else if showsChevron {
+                SBSChevron()
+            }
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, SBSLayout.space3)
+        .frame(minHeight: 32)
+        .selectionCell(isSelected)
+        .contentShape(Rectangle())
+    }
+}
+
 // MARK: - Volume by Body Part
 
 struct VolumeByBodyPartCard: View {
@@ -1270,31 +1217,26 @@ struct VolumeByBodyPartCard: View {
     let useMetric: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
+        VStack(alignment: .leading, spacing: SBSLayout.space4) {
             HStack(alignment: .center) {
                 Text("Volume by Body Part")
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(Color.ink)
                 Spacer()
                 periodMenu
             }
 
-            Picker("", selection: $metric) {
-                ForEach(VolumeMetric.allCases, id: \.self) { m in
-                    Text(m.rawValue).tag(m)
-                }
-            }
-            .pickerStyle(.segmented)
+            SBSSegmentedControl(options: VolumeMetric.allCases, selection: $metric) { $0.rawValue }
 
             if rows.isEmpty {
                 Text("Log a workout to see your volume.")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                    .padding(.vertical, SBSLayout.paddingSmall)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
+                    .padding(.vertical, SBSLayout.space2)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 let maxValue = rows.first?.value ?? 1
-                VStack(spacing: SBSLayout.paddingSmall) {
+                VStack(spacing: SBSLayout.space2) {
                     ForEach(rows.indices, id: \.self) { i in
                         VolumeRow(
                             label: rows[i].bodyPart?.rawValue ?? "Other",
@@ -1307,11 +1249,8 @@ struct VolumeByBodyPartCard: View {
                 }
             }
         }
-        .padding(SBSLayout.paddingMedium)
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                .fill(SBSColors.surfaceFallback)
-        )
+        .padding(SBSLayout.space4)
+        .card()
     }
 
     private var periodMenu: some View {
@@ -1331,16 +1270,7 @@ struct VolumeByBodyPartCard: View {
                 }
             }
         } label: {
-            HStack(spacing: 4) {
-                Text(period.rawValue)
-                    .font(SBSFonts.legacyCaption())
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 8, weight: .bold))
-            }
-            .foregroundStyle(SBSColors.textSecondaryFallback)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(Capsule().fill(SBSColors.backgroundFallback))
+            HistoryControlLabel(title: period.rawValue, showsMenuChevron: true)
         }
     }
 }
@@ -1353,26 +1283,26 @@ private struct VolumeRow: View {
     let useMetric: Bool
 
     var body: some View {
-        HStack(spacing: SBSLayout.paddingSmall) {
+        HStack(spacing: SBSLayout.space2) {
             Text(label)
-                .font(SBSFonts.legacyBody())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .font(SBSFonts.body())
+                .foregroundStyle(Color.ink)
                 .frame(width: 90, alignment: .leading)
 
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(SBSColors.backgroundFallback)
-                    Capsule()
-                        .fill(SBSColors.accentFallback)
+                    Rectangle()
+                        .fill(Color.surfaceRaised)
+                    Rectangle()
+                        .fill(Color.ink)
                         .frame(width: max(2, geo.size.width * CGFloat(value / max(maxValue, 1))))
                 }
             }
             .frame(height: 8)
 
             Text(formattedValue)
-                .font(SBSFonts.captionBold())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .font(SBSFonts.numberSmall())
+                .foregroundStyle(Color.ink)
                 .frame(minWidth: 60, alignment: .trailing)
         }
     }
@@ -1399,29 +1329,23 @@ private struct VolumeRow: View {
 struct LiftSelector: View {
     let lifts: [String]
     @Binding var selectedLift: String?
-    
+
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: SBSLayout.space2) {
                 ForEach(lifts, id: \.self) { lift in
-                    Button {
+                    SBSChip(title: shortName(for: lift), isSelected: selectedLift == lift) {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             selectedLift = lift
                         }
-                    } label: {
-                        LiftPill(
-                            name: shortName(for: lift),
-                            isSelected: selectedLift == lift
-                        )
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(selectedLift == lift ? [.isSelected] : [])
                 }
             }
-            .padding(.horizontal, 4)
+            // Room for the selected chip's edge
+            .padding(.vertical, 1)
         }
     }
-    
+
     private func shortName(for lift: String) -> String {
         // Shorten common lift names for pills
         let shortcuts: [String: String] = [
@@ -1438,23 +1362,6 @@ struct LiftSelector: View {
     }
 }
 
-struct LiftPill: View {
-    let name: String
-    let isSelected: Bool
-    
-    var body: some View {
-        Text(name)
-            .font(SBSFonts.captionBold())
-            .foregroundStyle(isSelected ? Color.orangeInk : SBSColors.textPrimaryFallback)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(
-                Capsule()
-                    .fill(isSelected ? SBSColors.accentFallback : SBSColors.surfaceFallback)
-            )
-    }
-}
-
 // MARK: - Progress Chart (E1RM or Training Max)
 
 /// Data point for the chart with index for even spacing
@@ -1468,6 +1375,8 @@ struct ChartDataPoint: Identifiable {
     var reps: Int?
 }
 
+/// One series in ink; the latest (or tapped) point is the one orange mark.
+/// The legend names both, so neither rests on colour.
 struct ProgressChart: View {
     let liftName: String
     @Binding var displayMode: ChartDisplayMode
@@ -1476,7 +1385,7 @@ struct ProgressChart: View {
     let useMetric: Bool
     var canAccessE1RM: Bool = true
     var onE1RMLockedTap: (() -> Void)?
-    
+
     // Strength standard bands (optional)
     var showStrengthBands: Bool = false
     var bodyweight: Double = 0
@@ -1501,150 +1410,138 @@ struct ProgressChart: View {
             }
         }
     }
-    
+
     /// Selected data point for tooltip
     private var selectedDataPoint: ChartDataPoint? {
         guard let idx = selectedIndex else { return nil }
         return chartDataPoints.first { $0.index == idx }
     }
-    
-    private var chartColor: Color {
-        switch displayMode {
-        case .e1rm:
-            return SBSColors.accentFallback
-        case .trainingMax:
-            return SBSColors.accentSecondaryFallback
-        }
+
+    /// The tapped point, else the latest: the one point drawn in orange
+    private var highlightedIndex: Int? {
+        selectedDataPoint?.index ?? chartDataPoints.last?.index
     }
-    
+
+    private var seriesName: String {
+        displayMode == .e1rm ? "Est. 1RM" : progressKind.chartModeLabel
+    }
+
     private var latestValue: Double? {
         chartDataPoints.last?.value
     }
-    
+
     private var firstValue: Double? {
         chartDataPoints.first?.value
     }
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
+        VStack(alignment: .leading, spacing: SBSLayout.space4) {
             // Header with mode toggle
-            VStack(spacing: SBSLayout.paddingSmall) {
-                HStack {
+            VStack(alignment: .leading, spacing: SBSLayout.space3) {
+                SBSAdaptiveStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(displayMode == .e1rm ? "Estimated 1RM Progress" : progressKind.chartTitle)
-                            .font(SBSFonts.title3())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
-                        
+                            .font(SBSFonts.heading())
+                            .foregroundStyle(Color.ink)
+
                         Text(displayMode == .e1rm ? "Based on completed sets" : progressKind.chartSubtitle)
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
                     }
-                    
-                    Spacer()
-                    
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
                     if let latest = latestValue {
                         Text(latest.formattedWeight(useMetric: useMetric))
-                            .font(SBSFonts.weight())
-                            .foregroundStyle(chartColor)
+                            .font(SBSFonts.number())
+                            .foregroundStyle(Color.ink)
+                            .lineLimit(1)
+                            .accessibilityLabel("Latest \(seriesName): \(latest.formattedWeight(useMetric: useMetric))")
                     }
                 }
-                
-                // Mode toggle picker
+
+                // Mode toggle
                 if canAccessE1RM {
-                    Picker("Display Mode", selection: $displayMode) {
-                        ForEach(ChartDisplayMode.allCases, id: \.self) { mode in
-                            Text(mode == .trainingMax ? progressKind.chartModeLabel : mode.rawValue).tag(mode)
-                        }
+                    SBSSegmentedControl(options: ChartDisplayMode.allCases, selection: $displayMode) { mode in
+                        mode == .trainingMax ? progressKind.chartModeLabel : mode.rawValue
                     }
-                    .pickerStyle(.segmented)
                 } else {
-                    // Show E1RM as locked option
-                    HStack(spacing: SBSLayout.paddingSmall) {
+                    // Est. 1RM is a locked option
+                    HStack(spacing: SBSLayout.space1) {
                         Text(progressKind.chartModeLabel)
-                            .font(SBSFonts.captionBold())
-                            .foregroundStyle(SBSColors.accentSecondaryFallback)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(
-                                Capsule()
-                                    .fill(SBSColors.accentSecondaryFallback.opacity(0.15))
-                            )
-                        
+                            .font(SBSFonts.caption().weight(.semibold))
+                            .foregroundStyle(Color.ink)
+                            .padding(.horizontal, SBSLayout.space2)
+                            .frame(maxWidth: .infinity, minHeight: 36)
+                            .selectionCell(true)
+                            .accessibilityAddTraits(.isSelected)
+
                         Button {
                             onE1RMLockedTap?()
                         } label: {
-                            HStack(spacing: 4) {
+                            HStack(spacing: SBSLayout.space1) {
                                 Image(systemName: "lock.fill")
-                                    .font(.system(size: 10))
+                                    .font(SBSFonts.caption())
                                 Text("Est. 1RM")
-                                    .font(SBSFonts.captionBold())
-                                PremiumBadge(isCompact: true)
+                                    .font(SBSFonts.caption().weight(.semibold))
+                                SBSBadge(text: "Pro", variant: .pro)
                             }
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(
-                                Capsule()
-                                    .fill(SBSColors.surfaceFallback)
-                            )
+                            .foregroundStyle(Color.inkSecondary)
+                            .padding(.horizontal, SBSLayout.space2)
+                            .frame(maxWidth: .infinity, minHeight: 36)
+                            .selectionCell(false)
                         }
                         .buttonStyle(.plain)
                     }
                 }
             }
-            
+
             // Chart
             if chartDataPoints.count > 1 {
                 Chart {
                     ForEach(chartDataPoints) { item in
                         LineMark(
                             x: .value("Record", item.index),
-                            y: .value("Value", displayWeight(item.value))
+                            y: .value(seriesName, displayWeight(item.value))
                         )
-                        .foregroundStyle(chartColor)
-                        .interpolationMethod(.catmullRom)
-                        
-                        AreaMark(
-                            x: .value("Record", item.index),
-                            y: .value("Value", displayWeight(item.value))
-                        )
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [chartColor.opacity(0.3), .clear],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .interpolationMethod(.catmullRom)
-                        
-                        PointMark(
-                            x: .value("Record", item.index),
-                            y: .value("Value", displayWeight(item.value))
-                        )
-                        .foregroundStyle(item.index == selectedIndex ? .white : chartColor)
-                        .symbolSize(item.index == selectedIndex ? 120 : 50)
+                        .foregroundStyle(Color.ink)
+                        .lineStyle(StrokeStyle(lineWidth: 2))
+                        .interpolationMethod(.monotone)
                     }
-                    
+
                     // Selection rule line
                     if let selected = selectedDataPoint {
                         RuleMark(x: .value("Selected", selected.index))
-                            .foregroundStyle(chartColor.opacity(0.5))
-                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                            .foregroundStyle(Color.inkSecondary)
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                    }
+
+                    ForEach(chartDataPoints) { item in
+                        PointMark(
+                            x: .value("Record", item.index),
+                            y: .value(seriesName, displayWeight(item.value))
+                        )
+                        .symbol {
+                            ChartPointSymbol(isHighlighted: item.index == highlightedIndex)
+                        }
                     }
                 }
+                .chartYScale(domain: .automatic(includesZero: false))
                 .chartXAxis {
                     AxisMarks(values: .automatic(desiredCount: 4)) { _ in
-                        AxisGridLine()
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: SBSLayout.strokeHairline))
+                            .foregroundStyle(Color.hairline)
                         // No labels - points are evenly spaced, tap to see date
                     }
                 }
                 .chartYAxis {
                     AxisMarks(position: .leading) { value in
-                        AxisGridLine()
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: SBSLayout.strokeHairline))
+                            .foregroundStyle(Color.hairline)
                         AxisValueLabel {
                             if let val = value.as(Double.self) {
                                 Text("\(Int(val))")
-                                    .font(SBSFonts.legacyCaption())
+                                    .font(SBSFonts.numberSmall())
+                                    .foregroundStyle(Color.inkSecondary)
                             }
                         }
                     }
@@ -1653,100 +1550,130 @@ struct ProgressChart: View {
                 .frame(height: 200)
                 .animation(.easeInOut(duration: 0.3), value: displayMode)
                 .animation(.easeInOut(duration: 0.15), value: selectedIndex)
-                
+
+                legend
+
                 // Tooltip for selected point
                 if let selected = selectedDataPoint {
-                    HStack(spacing: SBSLayout.paddingMedium) {
+                    HStack(spacing: SBSLayout.space4) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(selected.date, format: .dateTime.month(.abbreviated).day().year())
-                                .font(SBSFonts.captionBold())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
-                            
+                                .font(SBSFonts.numberSmall())
+                                .foregroundStyle(Color.ink)
+
                             if displayMode == .e1rm, let weight = selected.weight, let reps = selected.reps {
                                 Text("\(weight.formattedWeight(useMetric: useMetric)) × \(reps) reps")
-                                    .font(SBSFonts.legacyCaption())
-                                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                                    .font(SBSFonts.numberSmall())
+                                    .foregroundStyle(Color.inkSecondary)
                             }
                         }
-                        
+
                         Spacer()
-                        
+
                         Text(selected.value.formattedWeight(useMetric: useMetric))
-                            .font(SBSFonts.bodyBold())
-                            .foregroundStyle(chartColor)
+                            .font(SBSFonts.number())
+                            .foregroundStyle(Color.ink)
                     }
-                    .padding(SBSLayout.paddingSmall)
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                            .fill(SBSColors.surfaceFallback)
+                    .padding(SBSLayout.space2)
+                    .background(Color.surfaceRaised, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                            .strokeBorder(Color.hairline, lineWidth: SBSLayout.strokeHairline)
                     )
-                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    .transition(.opacity)
                 }
             } else if chartDataPoints.count == 1 {
                 // Single data point - show info instead of chart
-                VStack(spacing: 8) {
+                VStack(spacing: SBSLayout.space2) {
                     Text("Complete more weeks to see progress chart")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
-                    
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
+                        .multilineTextAlignment(.center)
+
                     if let single = chartDataPoints.first {
                         if displayMode == .e1rm, let weight = single.weight, let reps = single.reps {
                             Text("\(single.date, format: .dateTime.month(.abbreviated).day()): \(weight.formattedWeight(useMetric: useMetric)) × \(reps) reps")
-                                .font(SBSFonts.legacyBody())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.numberSmall())
+                                .foregroundStyle(Color.ink)
                         } else {
                             Text("\(single.date, format: .dateTime.month(.abbreviated).day()): \(progressKind == .workingWeight ? "" : "TM ")\(single.value.formattedWeight(useMetric: useMetric))")
-                                .font(SBSFonts.legacyBody())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.numberSmall())
+                                .foregroundStyle(Color.ink)
                         }
                     }
                 }
                 .frame(height: 200)
                 .frame(maxWidth: .infinity)
             } else {
-                VStack(spacing: SBSLayout.paddingSmall) {
+                VStack(spacing: SBSLayout.space2) {
                     Text(displayMode == .e1rm && !tmData.isEmpty ? "No rep results for this lift yet" : "No completed workouts yet")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
+                        .multilineTextAlignment(.center)
 
                     if let onGoToWorkout {
                         Button("Go to Workout", action: onGoToWorkout)
-                            .font(SBSFonts.captionBold())
+                            .font(SBSFonts.caption().weight(.semibold))
                             .foregroundStyle(Color.orangeText)
                     }
                 }
                 .frame(height: 200)
                 .frame(maxWidth: .infinity)
-}
-            
+            }
+
             // Stats row
             if let first = firstValue, let last = latestValue, chartDataPoints.count > 1 {
-                HStack(spacing: SBSLayout.paddingLarge) {
-                    StatBox(
-                        label: displayMode == .e1rm ? "First Est. 1RM" : progressKind.chartStartLabel,
-                        value: first.formattedWeight(useMetric: useMetric)
-                    )
-                    
-                    StatBox(
-                        label: displayMode == .e1rm ? "Latest Est. 1RM" : progressKind.chartLatestLabel,
-                        value: last.formattedWeight(useMetric: useMetric)
-                    )
-                    
-                    StatBox(
-                        label: "Progress",
-                        value: gainString(from: first, to: last)
-                    )
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: SBSLayout.space3) { stats(first: first, last: last) }
+                    VStack(alignment: .leading, spacing: SBSLayout.space3) { stats(first: first, last: last) }
                 }
             }
         }
-        .padding()
-        .sbsCard()
+        .padding(SBSLayout.space4)
+        .card()
     }
-    
+
+    /// Names the line and the orange point
+    private var legend: some View {
+        HStack(spacing: SBSLayout.space4) {
+            HStack(spacing: SBSLayout.space1) {
+                Rectangle()
+                    .fill(Color.ink)
+                    .frame(width: 16, height: 2)
+                Text(seriesName)
+            }
+            HStack(spacing: SBSLayout.space1) {
+                ChartPointSymbol(isHighlighted: true)
+                Text(selectedDataPoint == nil ? "Latest" : "Selected")
+            }
+        }
+        .font(SBSFonts.caption())
+        .foregroundStyle(Color.inkSecondary)
+        .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private func stats(first: Double, last: Double) -> some View {
+        StatBox(
+            label: displayMode == .e1rm ? "First Est. 1RM" : progressKind.chartStartLabel,
+            value: first.formattedWeight(useMetric: useMetric)
+        )
+
+        StatBox(
+            label: displayMode == .e1rm ? "Latest Est. 1RM" : progressKind.chartLatestLabel,
+            value: last.formattedWeight(useMetric: useMetric)
+        )
+
+        StatBox(
+            label: "Progress",
+            value: gainString(from: first, to: last)
+        )
+    }
+
     private func displayWeight(_ weight: Double) -> Double {
         useMetric ? weight * 0.453592 : weight
     }
-    
+
     private func gainString(from start: Double, to end: Double) -> String {
         let diff = end - start
         guard abs(diff) >= 0.01 else { return "No change" }
@@ -1755,24 +1682,40 @@ struct ProgressChart: View {
         guard start > 0 else { return "\(sign)\(abs(diff).formattedWeightShort(useMetric: useMetric))" }
         let pct = (diff / start) * 100
         return "\(sign)\(abs(diff).formattedWeightShort(useMetric: useMetric)) (\(sign)\(String(format: "%.1f", abs(pct)))%)"
+    }
 }
+
+/// A chart point: a small ink-edged square, or the one orange point (latest or tapped).
+struct ChartPointSymbol: View {
+    let isHighlighted: Bool
+
+    var body: some View {
+        let size: CGFloat = isHighlighted ? 11 : 7
+        Rectangle()
+            .fill(isHighlighted ? Color.orangeFill : Color.surface)
+            .overlay(Rectangle().strokeBorder(Color.ink, lineWidth: isHighlighted ? 1.5 : 1))
+            .frame(width: size, height: size)
+    }
 }
 
 struct StatBox: View {
     let label: String
     let value: String
-    
+
     var body: some View {
-        VStack(spacing: 4) {
-            Text(label)
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textTertiaryFallback)
-            
+        VStack(alignment: .leading, spacing: SBSLayout.space1) {
+            SBSEyebrow(label)
+                .foregroundStyle(Color.inkSecondary)
+                .lineLimit(2)
+
             Text(value)
-                .font(SBSFonts.bodyBold())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .font(SBSFonts.numberSmall().weight(.semibold))
+                .foregroundStyle(Color.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -1782,6 +1725,7 @@ struct LogHistoryList: View {
     let liftName: String
     let logs: [HistoryLogEntry]
     let useMetric: Bool
+    var barWeight: Double = 45
     var showPastCyclesLocked: Bool = false
     var onUnlockTap: (() -> Void)?
     var onGoToWorkout: (() -> Void)?
@@ -1795,125 +1739,106 @@ struct LogHistoryList: View {
             return (cycle, programName, cycleLogs)
         }
     }
-    
+
+    /// The best set by estimated 1RM: the record, so it carries the PR badge.
+    /// Nothing to beat with a single result, and a missed session's reps are assumed.
+    private var recordID: UUID? {
+        let measured = logs.filter { !$0.missedTarget }
+        guard measured.count > 1 else { return nil }
+        return measured.max { $0.e1rm < $1.e1rm }?.id
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Best Sets")
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+        VStack(alignment: .leading, spacing: SBSLayout.space3) {
+            VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                SBSSectionEyebrow("Best sets")
 
                 if !logs.isEmpty {
                     Text("Your top set each week, by estimated 1RM")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                 }
             }
 
             if logs.isEmpty {
-                VStack(spacing: SBSLayout.paddingSmall) {
+                VStack(spacing: SBSLayout.space2) {
                     Text("No workouts recorded yet")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
 
                     if let onGoToWorkout {
                         Button("Go to Workout", action: onGoToWorkout)
-                            .font(SBSFonts.captionBold())
+                            .font(SBSFonts.caption().weight(.semibold))
                             .foregroundStyle(Color.orangeText)
                     }
                 }
                 .frame(maxWidth: .infinity)
-                .padding()
+                .padding(SBSLayout.space4)
+                .card()
             } else {
-                LazyVStack(spacing: SBSLayout.paddingMedium) {
+                let record = recordID
+                LazyVStack(alignment: .leading, spacing: SBSLayout.space4) {
                     ForEach(logsByCycle, id: \.cycleNumber) { cycleGroup in
-                        VStack(alignment: .leading, spacing: 8) {
-                            // Cycle header with program name
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Cycle \(cycleGroup.cycleNumber)")
-                                        .font(SBSFonts.captionBold())
-                                        .foregroundStyle(SBSColors.accentSecondaryFallback)
-                                    
-                                    if let programName = cycleGroup.programName {
-                                        Text(programName)
-                                            .font(SBSFonts.legacyCaption())
-                                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+                            // Cycle eyebrow with program name
+                            SBSEyebrow(cycleTitle(cycleGroup.cycleNumber, program: cycleGroup.programName))
+                                .foregroundStyle(Color.inkSecondary)
+                                .lineLimit(2)
+
+                            VStack(spacing: 0) {
+                                ForEach(Array(cycleGroup.logs.enumerated()), id: \.element.id) { index, log in
+                                    if index > 0 {
+                                        SBSRowDivider()
                                     }
+                                    LogHistoryRow(
+                                        week: log.week,
+                                        reps: log.reps,
+                                        target: log.target,
+                                        weight: log.weight,
+                                        e1rm: log.e1rm,
+                                        note: log.note,
+                                        useMetric: useMetric,
+                                        date: log.date,
+                                        missedTarget: log.missedTarget,
+                                        isRecord: log.id == record,
+                                        barWeight: barWeight
+                                    )
                                 }
-                                
-                                Rectangle()
-                                    .fill(SBSColors.surfaceFallback)
-                                    .frame(height: 1)
                             }
-                            
-                            // Logs for this cycle
-                            ForEach(cycleGroup.logs) { log in
-                                LogHistoryRow(
-                                    week: log.week,
-                                    reps: log.reps,
-                                    target: log.target,
-                                    weight: log.weight,
-                                    e1rm: log.e1rm,
-                                    note: log.note,
-                                    useMetric: useMetric,
-                                    date: log.date,
-                                    missedTarget: log.missedTarget
-                                )
-                            }
+                            .card()
                         }
                     }
                 }
             }
-            
+
             // Show locked past cycles prompt
             if showPastCyclesLocked {
                 Button {
                     onUnlockTap?()
                 } label: {
-                    HStack(spacing: SBSLayout.paddingMedium) {
-                        ZStack {
-                            Circle()
-                                .fill(SBSColors.accentFallback.opacity(0.12))
-                                .frame(width: 40, height: 40)
-                            
-                            Image(systemName: "clock.arrow.circlepath")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(Color.orangeText)
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("View Past Cycles")
-                                .font(SBSFonts.bodyBold())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
-                            
-                            Text("Unlock full workout history with Premium")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
-                        }
-                        
-                        Spacer()
-                        
-                        PremiumBadge(isCompact: false)
+                    SBSListRow("View Past Cycles") {
+                        Text("Unlock full workout history with Premium")
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
+                    } trailing: {
+                        SBSBadge(text: "Pro", variant: .pro)
                     }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                            .fill(SBSColors.accentFallback.opacity(0.05))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                                    .strokeBorder(SBSColors.accentFallback.opacity(0.15), lineWidth: 1)
-                            )
-                    )
+                    .card()
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding()
-        .sbsCard()
+    }
+
+    private func cycleTitle(_ cycle: Int, program: String?) -> String {
+        guard let program, !program.isEmpty else { return "Cycle \(cycle)" }
+        return "Cycle \(cycle) · \(program)"
     }
 }
 
+/// A best-set row: the week and a PR tag, the date and estimated 1RM in
+/// number-small, the result against target as glyph and words, the compact
+/// plate strip, and the set as the trailing number.
 struct LogHistoryRow: View {
     let week: Int
     let reps: Int
@@ -1925,6 +1850,9 @@ struct LogHistoryRow: View {
     /// The workout this set came from, when the saved data knows it
     var date: Date? = nil
     var missedTarget: Bool = false
+    /// The best estimated 1RM in this lift's history
+    var isRecord: Bool = false
+    var barWeight: Double = 45
 
     private var diff: Int { reps - target }
 
@@ -1932,62 +1860,64 @@ struct LogHistoryRow: View {
         guard let note = note else { return false }
         return !note.isEmpty
     }
-    
+
     @State private var isNoteExpanded: Bool = false
-    
+
+    /// "Nov 4 · e1RM 262 lb". No estimate for a missed session, whose rep count is assumed.
+    private var detailLine: String? {
+        var parts: [String] = []
+        if let date { parts.append(date.historyDateText) }
+        if !missedTarget { parts.append("e1RM \(e1rm.formattedWeight(useMetric: useMetric))") }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    private var plates: [Plate]? {
+        // Bodyweight and sub-bar loads have nothing to show on a bar
+        guard weight > barWeight else { return nil }
+        return PlateCalculator(barWeight: barWeight, useMetric: useMetric).calculate(totalWeight: weight).platesPerSide
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: SBSLayout.paddingSmall) {
-                        Text("Week \(week)")
-                            .font(SBSFonts.bodyBold())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+        VStack(alignment: .leading, spacing: SBSLayout.space1) {
+            SBSAdaptiveStack(alignment: .firstTextBaseline) {
+                HStack(spacing: SBSLayout.space2) {
+                    Text("Week \(week)")
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.ink)
 
-                        // Note indicator
-                        if hasNote {
-                            Image(systemName: "note.text")
-                                .font(.system(size: 12))
-                                .foregroundStyle(SBSColors.accentSecondaryFallback)
-                        }
+                    if isRecord {
+                        PRBadge()
                     }
 
-                    if let date {
-                        Text(date.historyDateText)
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                    if hasNote {
+                        Image(systemName: "note.text")
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
+                            .accessibilityLabel("Has a note")
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-                Spacer()
-                
-                Text(diffText)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(resultColor)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(resultColor.opacity(0.12))
-                    )
+                // The set itself: the row's value
+                Text("\(weight.formattedWeightShort(useMetric: useMetric)) × \(reps)")
+                    .font(SBSFonts.number())
+                    .foregroundStyle(Color.ink)
+                    .lineLimit(1)
+                    .accessibilityLabel("\(weight.formattedWeight(useMetric: useMetric)) × \(reps) reps")
             }
-            
-            HStack {
-                // Weight × Reps
-                Text("\(weight.formattedWeight(useMetric: useMetric)) × \(reps) reps")
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                
-                Spacer()
-                
-                // Estimated 1RM. Not for a missed session, whose rep count is assumed.
-                if !missedTarget {
-                    Text("Est. 1RM: \(e1rm.formattedWeight(useMetric: useMetric))")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(Color.orangeText)
+
+            if let detailLine {
+                SBSRowSubtitle(detailLine)
+            }
+
+            HStack(spacing: SBSLayout.space2) {
+                resultLabel
+                Spacer(minLength: 0)
+                if let plates {
+                    PlateStrip(plates: plates, height: PlateStrip.rowHeight)
                 }
-}
-            
+            }
+
             // Note display (if present)
             if hasNote, let note = note {
                 Button {
@@ -1995,37 +1925,46 @@ struct LogHistoryRow: View {
                         isNoteExpanded.toggle()
                     }
                 } label: {
-                    HStack(alignment: .top, spacing: SBSLayout.paddingSmall) {
+                    HStack(alignment: .top, spacing: SBSLayout.space2) {
                         Image(systemName: "note.text")
-                            .font(.system(size: 12))
-                            .foregroundStyle(SBSColors.accentSecondaryFallback)
-                        
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
+
                         Text(note)
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
                             .lineLimit(isNoteExpanded ? nil : 2)
                             .multilineTextAlignment(.leading)
-                        
+
                         Spacer()
-                        
+
                         if note.count > 60 {
-                            Image(systemName: isNoteExpanded ? "chevron.up" : "chevron.down")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                            SBSChevron(systemName: isNoteExpanded ? "chevron.up" : "chevron.down")
                         }
                     }
-                    .padding(SBSLayout.paddingSmall)
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                            .fill(SBSColors.accentSecondaryFallback.opacity(0.08))
-                    )
+                    .padding(SBSLayout.space2)
+                    .background(Color.surfaceRaised, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
                 }
                 .buttonStyle(.plain)
+                .padding(.top, SBSLayout.space1)
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, SBSLayout.space3)
+        .padding(.horizontal, SBSLayout.space4)
     }
-    
+
+    /// The result against target: glyph and words, coloured to match
+    private var resultLabel: some View {
+        HStack(spacing: SBSLayout.space1) {
+            Image(systemName: resultGlyph)
+                .font(SBSFonts.numberSmall().weight(.bold))
+                .accessibilityHidden(true)
+            Text(diffText)
+                .font(SBSFonts.numberSmall())
+        }
+        .foregroundStyle(resultColor)
+    }
+
     private var diffText: String {
         if missedTarget { return "Missed" }
         if diff > 0 {
@@ -2036,15 +1975,22 @@ struct LogHistoryRow: View {
             return "Hit target"
         }
     }
-    
+
+    private var resultGlyph: String {
+        if missedTarget { return "xmark" }
+        if diff > 0 { return "arrow.up" }
+        if diff == 0 { return "checkmark" }
+        return "arrow.down"
+    }
+
     private var resultColor: Color {
-        if missedTarget { return SBSColors.warning }
+        if missedTarget { return Color.warning }
         if diff >= 0 {
-            return SBSColors.success
+            return Color.success
         } else if diff == -1 {
-            return SBSColors.warning
+            return Color.warning
         } else {
-            return SBSColors.error
+            return Color.danger
         }
     }
 }
@@ -2056,7 +2002,12 @@ struct CurrentCycleTMProgressCard: View {
     var showsEmptyAction: Bool = true
     let onTap: () -> Void
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 4)
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var columns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: SBSLayout.space2, alignment: .leading),
+              count: dynamicTypeSize.isAccessibilitySize ? 2 : 4)
+    }
 
     private var currentWeek: Int {
         appState.highestLoggedWeek()
@@ -2077,113 +2028,93 @@ struct CurrentCycleTMProgressCard: View {
     }
 
     private func card(_ summary: CycleProgressSummary) -> some View {
-        VStack(spacing: SBSLayout.paddingMedium) {
+        VStack(alignment: .leading, spacing: SBSLayout.space3) {
             // Header
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: SBSLayout.paddingSmall) {
-                        Image(systemName: "chart.line.uptrend.xyaxis")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(Color.orangeText)
+            SBSAdaptiveStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                    SBSEyebrow("Cycle \(appState.currentCycleNumber) · Week \(currentWeek)")
+                        .foregroundStyle(Color.inkSecondary)
 
-                        Text(summary.cardTitle)
-                            .font(SBSFonts.title3())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
-                    }
-
-                    Text("Cycle \(appState.currentCycleNumber) • Week \(currentWeek)")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                    Text(summary.cardTitle)
+                        .font(SBSFonts.heading())
+                        .foregroundStyle(Color.ink)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-                Spacer()
-
-                // Average gain badge
+                // Average gain
                 if appState.hasLoggedData && summary.showsAverageBadge {
-                    let isUp = summary.averagePercent >= 0
-                    HStack(spacing: 2) {
-                        Image(systemName: isUp ? "arrow.up.right" : "arrow.down.right")
-                            .font(.system(size: 12, weight: .bold))
-                        Text(String(format: "%.1f%%", abs(summary.averagePercent)))
-                            .font(SBSFonts.bodyBold())
-                    }
-                    .foregroundStyle(isUp ? SBSColors.success : SBSColors.error)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill((isUp ? SBSColors.success : SBSColors.error).opacity(0.15))
+                    SBSChangeLabel(
+                        text: String(format: "%.1f%%", abs(summary.averagePercent)),
+                        isUp: summary.averagePercent >= 0
                     )
+                    .padding(.top, dynamicTypeSize.isAccessibilitySize ? 0 : SBSLayout.space1)
                 }
             }
 
             if appState.hasLoggedData {
-                Divider()
+                SBSRowDivider()
 
                 // Every main lift, in program order
-                LazyVGrid(columns: columns, spacing: SBSLayout.paddingMedium) {
+                LazyVGrid(columns: columns, alignment: .leading, spacing: SBSLayout.space3) {
                     ForEach(summary.lifts) { progress in
-                        VStack(spacing: 4) {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(ExerciseLibrary.shortName(for: progress.lift))
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
+                                .lineLimit(1)
 
                             Text(progress.current.formattedWeightShort(useMetric: appState.settings.useMetric))
-                                .font(SBSFonts.legacyNumber())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
+                                .font(SBSFonts.number())
+                                .foregroundStyle(Color.ink)
 
                             changeLabel(progress)
                         }
+                        .accessibilityElement(children: .combine)
                     }
                 }
 
                 // Tap hint
-                HStack {
+                HStack(spacing: SBSLayout.space1) {
                     Spacer()
                     Text("Tap for details")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
+                    SBSChevron()
                 }
             } else {
                 // No data yet
                 Text(summary.emptyMessage)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
-                    .multilineTextAlignment(.center)
-                    .padding(.vertical, SBSLayout.paddingSmall)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
+                    .multilineTextAlignment(.leading)
 
                 if showsEmptyAction {
                     Button("Go to Workout") { appState.goToWorkoutTab() }
-                        .font(SBSFonts.captionBold())
+                        .font(SBSFonts.caption().weight(.semibold))
                         .foregroundStyle(Color.orangeText)
                 }
             }
         }
-        .padding()
-        .sbsCard()
+        .padding(SBSLayout.space4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .card()
     }
 
     @ViewBuilder
     private func changeLabel(_ progress: LiftCycleProgress) -> some View {
         if progress.kind == .fixedTrainingMax {
             Text("Fixed")
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
         } else if progress.hasChange {
-            HStack(spacing: 1) {
-                Image(systemName: progress.gain > 0 ? "arrow.up" : "arrow.down")
-                    .font(.system(size: 8, weight: .bold))
-                Text(abs(progress.gain).formattedWeightShort(useMetric: appState.settings.useMetric))
-                    .font(SBSFonts.legacyCaption())
-            }
-            .foregroundStyle(progress.gain > 0 ? SBSColors.success : SBSColors.error)
+            SBSChangeLabel(
+                text: abs(progress.gain).formattedWeightShort(useMetric: appState.settings.useMetric),
+                isUp: progress.gain > 0
+            )
         } else {
             Text("No change")
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
         }
     }
 }
@@ -2194,37 +2125,33 @@ struct TMProgressDetailView: View {
     let appState: AppState
     @Environment(\.dismiss) private var dismiss
     @State private var showingShareSheet = false
-    
+
     private var currentWeek: Int {
         appState.highestLoggedWeek()
     }
-    
+
     /// Computed once when the sheet opens: it replays the program's progression
     @State private var summary = CycleProgressSummary(lifts: [])
 
-    private var hasPRs: Bool {
-        appState.liftNames.contains { appState.personalRecord(for: $0) != nil }
-    }
-    
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: SBSLayout.sectionSpacing) {
+                VStack(alignment: .leading, spacing: SBSLayout.space6) {
                     // Summary card
                     summaryCard
-                    
-                    // Share progress button
+
+                    // Share progress: the sheet's one action
                     if appState.hasLoggedData {
                         shareProgressButton
                     }
-                    
+
                     // All lifts breakdown
                     allLiftsSection
-                    
+
                     // Personal Records section
                     personalRecordsSection
                 }
-                .padding()
+                .padding(SBSLayout.space4)
             }
             .sbsBackground()
             .navigationTitle(summary.detailTitle)
@@ -2253,27 +2180,16 @@ struct TMProgressDetailView: View {
         Button {
             showingShareSheet = true
         } label: {
-            HStack(spacing: SBSLayout.paddingSmall) {
+            HStack(spacing: SBSLayout.space2) {
                 Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 16, weight: .semibold))
-                
-                Text(hasPRs ? "Share Your Progress" : "Share Progress")
-                    .font(SBSFonts.legacyButton())
+                    .font(SBSFonts.button())
+                SBSButtonTitle("Share Progress")
             }
-            .foregroundStyle(hasPRs ? .black : .white)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, SBSLayout.paddingMedium)
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusLarge)
-                    .fill(
-                        hasPRs
-                            ? LinearGradient(colors: [.yellow, .orange], startPoint: .leading, endPoint: .trailing)
-                            : LinearGradient(colors: [SBSColors.accentFallback], startPoint: .leading, endPoint: .trailing)
-                    )
-            )
         }
+        .buttonStyle(SBSPrimaryButtonStyle())
     }
-    
+
     private func buildProgressSummary() -> ProgressSummary {
         let lifts: [ProgressSummary.LiftProgress] = summary.lifts.map { progress in
             ProgressSummary.LiftProgress(
@@ -2286,7 +2202,7 @@ struct TMProgressDetailView: View {
 
         let prs: [ProgressSummary.PRProgress] = appState.liftNames.compactMap { liftName in
             guard let pr = appState.personalRecord(for: liftName) else { return nil }
-            
+
             return ProgressSummary.PRProgress(
                 liftName: liftName,
                 weight: pr.weight,
@@ -2295,10 +2211,10 @@ struct TMProgressDetailView: View {
                 date: pr.date
             )
         }
-        
+
         let programName = appState.programData?.displayName ?? appState.programData?.name ?? "Training Program"
         let totalWeeks = appState.weeks.max() ?? 20
-        
+
         return ProgressSummary(
             programName: programName,
             cycleNumber: appState.currentCycleNumber,
@@ -2311,106 +2227,105 @@ struct TMProgressDetailView: View {
             isComplete: currentWeek >= totalWeeks
         )
     }
-    
+
     private var summaryCard: some View {
-        VStack(spacing: SBSLayout.paddingMedium) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Current Cycle")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+        VStack(alignment: .leading, spacing: SBSLayout.space4) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                    SBSEyebrow("Current cycle")
+                        .foregroundStyle(Color.inkSecondary)
                     Text("Cycle \(appState.currentCycleNumber)")
-                        .font(SBSFonts.title2())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.heading())
+                        .foregroundStyle(Color.ink)
                 }
-                
+
                 Spacer()
-                
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("Progress")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+
+                VStack(alignment: .trailing, spacing: SBSLayout.space1) {
+                    SBSEyebrow("Progress")
+                        .foregroundStyle(Color.inkSecondary)
                     Text("Week \(currentWeek) of \(appState.weeks.max() ?? 20)")
-                        .font(SBSFonts.legacyBody())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.numberSmall())
+                        .foregroundStyle(Color.ink)
                 }
             }
-            
-            Divider()
-            
+
+            SBSRowDivider()
+
             if summary.isFixedThroughCycle {
                 Text(summary.explanation)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                HStack(spacing: SBSLayout.paddingLarge) {
+                HStack(alignment: .top, spacing: SBSLayout.space4) {
                     // Average % gain
-                    VStack(spacing: 4) {
-                        changeIcon
-
-                        Text(String(format: "%.1f%%", abs(summary.averagePercent)))
-                            .font(SBSFonts.title2())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                    VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                        HStack(spacing: SBSLayout.space1) {
+                            changeIcon
+                            Text(String(format: "%.1f%%", abs(summary.averagePercent)))
+                                .font(SBSFonts.numberLarge())
+                                .foregroundStyle(Color.ink)
+                        }
 
                         Text(summary.averageLabel)
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
                     }
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityElement(children: .combine)
 
                     // Total weight gained
-                    VStack(spacing: 4) {
-                        Image(systemName: "scalemass.fill")
-                            .font(.system(size: 24))
-                            .foregroundStyle(Color.orangeText)
-
+                    VStack(alignment: .leading, spacing: SBSLayout.space1) {
                         Text("\(summary.totalGain < 0 ? "-" : "")\(abs(summary.totalGain).formattedWeightShort(useMetric: appState.settings.useMetric))")
-                            .font(SBSFonts.title2())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.numberLarge())
+                            .foregroundStyle(Color.ink)
 
                         Text(summary.totalLabel)
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
                     }
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityElement(children: .combine)
                 }
             }
         }
-        .padding()
-        .sbsCard()
+        .padding(SBSLayout.space4)
+        .card()
     }
 
+    /// Direction as a glyph beside the number, in success or danger
     @ViewBuilder
     private var changeIcon: some View {
         if abs(summary.averagePercent) < 0.05 {
-            Image(systemName: "minus.circle.fill")
-                .font(.system(size: 24))
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+            Image(systemName: "minus")
+                .font(SBSFonts.number())
+                .foregroundStyle(Color.inkSecondary)
+                .accessibilityLabel("No change")
         } else {
-            Image(systemName: summary.averagePercent > 0 ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
-                .font(.system(size: 24))
-                .foregroundStyle(summary.averagePercent > 0 ? SBSColors.success : SBSColors.error)
+            let isUp = summary.averagePercent > 0
+            Image(systemName: isUp ? "arrow.up" : "arrow.down")
+                .font(SBSFonts.number().weight(.bold))
+                .foregroundStyle(isUp ? Color.success : Color.danger)
+                .accessibilityLabel(isUp ? "Up" : "Down")
         }
     }
 
     private var allLiftsSection: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("All Lifts")
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            SBSSectionEyebrow("All lifts")
 
-                if !summary.isFixedThroughCycle {
-                    Text(summary.explanation)
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
-                }
+            if !summary.isFixedThroughCycle {
+                Text(summary.explanation)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
 
-            VStack(spacing: SBSLayout.paddingSmall) {
-                ForEach(summary.lifts) { progress in
+            VStack(spacing: 0) {
+                ForEach(Array(summary.lifts.enumerated()), id: \.element.id) { index, progress in
+                    if index > 0 {
+                        SBSRowDivider()
+                    }
                     CurrentCycleTMRow(
                         liftName: progress.lift,
                         startTM: progress.start,
@@ -2421,36 +2336,35 @@ struct TMProgressDetailView: View {
                     )
                 }
             }
-}
+            .card()
+        }
     }
-    
+
     private var personalRecordsSection: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-            HStack {
-                Image(systemName: "trophy.fill")
-                    .foregroundStyle(.yellow)
-                Text("Personal Records")
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
-            }
-            
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            SBSSectionEyebrow("Personal records")
+
             let liftsWithPRs = appState.liftNames.filter { appState.personalRecord(for: $0) != nil }
-            
+
             if liftsWithPRs.isEmpty {
                 Text("Complete workouts to track your personal records")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .sbsCard()
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
+                    .padding(SBSLayout.space4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .card()
             } else {
-                VStack(spacing: SBSLayout.paddingSmall) {
-                    ForEach(liftsWithPRs, id: \.self) { lift in
+                VStack(spacing: 0) {
+                    ForEach(Array(liftsWithPRs.enumerated()), id: \.element) { index, lift in
                         if let pr = appState.personalRecord(for: lift) {
+                            if index > 0 {
+                                SBSRowDivider()
+                            }
                             PRRow(liftName: lift, pr: pr, useMetric: appState.settings.useMetric)
                         }
                     }
                 }
+                .card()
             }
         }
     }
@@ -2458,6 +2372,7 @@ struct TMProgressDetailView: View {
 
 // MARK: - Current Cycle TM Row
 
+/// A row in a hairline group: lift and PR tag, start → current, the change.
 struct CurrentCycleTMRow: View {
     let liftName: String
     let startTM: Double
@@ -2472,133 +2387,97 @@ struct CurrentCycleTMRow: View {
         guard startTM > 0 else { return 0 }
         return ((currentTM - startTM) / startTM) * 100
     }
-    
+
     var body: some View {
-        HStack {
+        SBSAdaptiveStack {
             // Lift name
-            VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: SBSLayout.space2) {
                 Text(liftName)
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.ink)
+
                 if personalRecord != nil {
                     PRBadge(small: true)
                 }
             }
-            
-            Spacer()
-            
+            .frame(maxWidth: .infinity, alignment: .leading)
+
             if kind == .fixedTrainingMax {
                 // Held through the cycle, so there's no start and end to compare
                 VStack(alignment: .trailing, spacing: 0) {
                     Text(currentTM.formattedWeightShort(useMetric: useMetric))
-                        .font(SBSFonts.bodyBold())
-                        .foregroundStyle(Color.orangeText)
+                        .font(SBSFonts.number())
+                        .foregroundStyle(Color.ink)
                     Text("Fixed")
-                        .font(SBSFonts.caption2())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                 }
             } else {
+                HStack(spacing: SBSLayout.space3) {
                 // Start → Current
-                HStack(spacing: SBSLayout.paddingSmall) {
+                HStack(spacing: SBSLayout.space1) {
                     Text(startTM.formattedWeightShort(useMetric: useMetric))
-                        .font(SBSFonts.legacyBody())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.numberSmall())
+                        .foregroundStyle(Color.inkSecondary)
 
                     Image(systemName: "arrow.right")
-                        .font(.system(size: 10))
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .font(SBSFonts.numberSmall())
+                        .foregroundStyle(Color.inkSecondary)
+                        .accessibilityLabel("to")
 
                     Text(currentTM.formattedWeightShort(useMetric: useMetric))
-                        .font(SBSFonts.bodyBold())
-                        .foregroundStyle(Color.orangeText)
+                        .font(SBSFonts.number())
+                        .foregroundStyle(Color.ink)
                 }
 
                 // Gain
-                if hasChange {
-                    HStack(spacing: 2) {
-                        Image(systemName: gain >= 0 ? "arrow.up" : "arrow.down")
-                            .font(.system(size: 10, weight: .bold))
+                Group {
+                    if hasChange {
                         VStack(alignment: .trailing, spacing: 0) {
-                            Text(gain >= 0 ? "+\(abs(gain).formattedWeightShort(useMetric: useMetric))" : "-\(abs(gain).formattedWeightShort(useMetric: useMetric))")
-                                .font(SBSFonts.captionBold())
+                            SBSChangeLabel(text: abs(gain).formattedWeightShort(useMetric: useMetric), isUp: gain >= 0)
                             Text(String(format: "%.1f%%", abs(gainPercent)))
-                                .font(SBSFonts.caption2())
+                                .font(SBSFonts.numberSmall())
+                                .foregroundStyle(Color.inkSecondary)
                         }
+                    } else {
+                        Text("—")
+                            .font(SBSFonts.numberSmall())
+                            .foregroundStyle(Color.inkSecondary)
+                            .accessibilityLabel("No change")
                     }
-                    .foregroundStyle(gain >= 0 ? SBSColors.success : SBSColors.error)
-                    .frame(width: 55, alignment: .trailing)
-                } else {
-                    Text("—")
-                        .font(SBSFonts.captionBold())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
-                        .frame(width: 55, alignment: .trailing)
-                        .accessibilityLabel("No change")
+                }
+                .frame(minWidth: 56, alignment: .trailing)
                 }
             }
         }
-        .padding()
-        .sbsCard()
+        .padding(.vertical, SBSLayout.space3)
+        .padding(.horizontal, SBSLayout.space4)
+        .frame(minHeight: 56)
     }
 }
 
 // MARK: - PR Row
 
+/// A personal record row: the lift, the set in number-small, the estimate as the value.
 struct PRRow: View {
     let liftName: String
     let pr: PersonalRecord
     let useMetric: Bool
-    
-    private var dateFormatter: DateFormatter {
-        let f = DateFormatter()
-        f.dateStyle = .short
-        return f
-    }
-    
+
     var body: some View {
-        HStack {
-            // Trophy
-            Image(systemName: "trophy.fill")
-                .font(.system(size: 20))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.yellow, .orange],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(liftName)
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                
-                Text("\(pr.weight.formattedWeightShort(useMetric: useMetric)) × \(pr.reps) reps")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
-            }
-            
-            Spacer()
-            
+        SBSListRow(liftName) {
+            SBSRowSubtitle("\(pr.weight.formattedWeightShort(useMetric: useMetric)) × \(pr.reps) reps")
+        } trailing: {
             VStack(alignment: .trailing, spacing: 2) {
-                Text("Est. 1RM")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
-                
+                SBSEyebrow("Est. 1RM")
+                    .foregroundStyle(Color.inkSecondary)
+
                 Text(pr.estimatedOneRM.formattedWeight(useMetric: useMetric))
-                    .font(SBSFonts.legacyNumber())
-                    .foregroundStyle(SBSColors.success)
+                    .font(SBSFonts.number())
+                    .foregroundStyle(Color.ink)
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                .fill(Color.yellow.opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                        .strokeBorder(Color.yellow.opacity(0.2), lineWidth: 1)
-                )
-        )
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -2729,139 +2608,103 @@ struct StrengthScoreCard: View {
         return totalKg * 100.0 / denominator
     }
     
-    private var rating: (text: String, color: Color) {
-        guard let score = score else { return ("--", .gray) }
-        
+    /// The rating is a word on a standard badge: no colour per level
+    private var rating: String {
+        guard let score = score else { return "--" }
+
         switch formula {
         case .wilks, .dots:
             switch score {
-            case 500...: return ("Elite", .purple)
-            case 400..<500: return ("Advanced", .blue)
-            case 300..<400: return ("Intermediate", .green)
-            case 200..<300: return ("Novice", .orange)
-            default: return ("Beginner", .gray)
+            case 500...: return "Elite"
+            case 400..<500: return "Advanced"
+            case 300..<400: return "Intermediate"
+            case 200..<300: return "Novice"
+            default: return "Beginner"
             }
         case .ipfGL:
             switch score {
-            case 100...: return ("Elite", .purple)
-            case 80..<100: return ("Advanced", .blue)
-            case 60..<80: return ("Intermediate", .green)
-            case 40..<60: return ("Novice", .orange)
-            default: return ("Beginner", .gray)
+            case 100...: return "Elite"
+            case 80..<100: return "Advanced"
+            case 60..<80: return "Intermediate"
+            case 40..<60: return "Novice"
+            default: return "Beginner"
             }
         }
     }
-    
+
     private var unit: String {
         useMetric ? "kg" : "lb"
     }
     
     var body: some View {
-        VStack(spacing: SBSLayout.paddingMedium) {
+        VStack(alignment: .leading, spacing: SBSLayout.space4) {
             // Header
-            HStack {
+            HStack(alignment: .top, spacing: SBSLayout.space3) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(formula.rawValue) Score")
-                        .font(SBSFonts.title3())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                    
+                        .font(SBSFonts.heading())
+                        .foregroundStyle(Color.ink)
+
                     Text(formula.description)
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                 }
-                
-                Spacer()
-                
+                .frame(maxWidth: .infinity, alignment: .leading)
+
                 // Score display
                 if let score = score {
-                    VStack(alignment: .trailing, spacing: 2) {
+                    VStack(alignment: .trailing, spacing: SBSLayout.space1) {
                         Text(String(format: "%.1f", score))
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundStyle(formula.color)
-                        
+                            .font(SBSFonts.numberLarge())
+                            .foregroundStyle(Color.ink)
+
                         // A rating is only meaningful for a full squat/bench/deadlift total
-                        Text(isPartialTotal ? "Partial total" : rating.text)
-                            .font(SBSFonts.captionBold())
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 2)
-                            .background(isPartialTotal ? SBSColors.textTertiaryFallback : rating.color)
-                            .clipShape(Capsule())
+                        SBSBadge(text: isPartialTotal ? "Partial total" : rating)
                     }
                 }
             }
-            
-            Divider()
-            
+
+            SBSRowDivider()
+
             // Lift breakdown
-            HStack(spacing: 0) {
+            HStack(alignment: .top, spacing: SBSLayout.space2) {
                 liftColumn(name: "Squat", value: squatDisplay, hasData: squatE1RM != nil)
                 liftColumn(name: "Bench", value: benchDisplay, hasData: benchE1RM != nil)
                 liftColumn(name: "Deadlift", value: deadliftDisplay, hasData: deadliftE1RM != nil)
-                
-                // Total
-                VStack(spacing: 4) {
-                    Text("Total")
-                        .font(SBSFonts.captionBold())
-                        .foregroundStyle(formula.color)
-                    
-                    if totalDisplay > 0 {
-                        Text(formatWeight(totalDisplay))
-                            .font(SBSFonts.legacyNumber())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
-                    } else {
-                        Text("--")
-                            .font(SBSFonts.legacyNumber())
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
-                    }
-                }
-                .frame(maxWidth: .infinity)
+                liftColumn(name: "Total", value: totalDisplay, hasData: totalDisplay > 0)
             }
-            
+
             // Bodyweight info
             HStack {
-                Image(systemName: "scalemass")
-                    .font(.system(size: 10))
                 Text("@ \(formatWeight(useMetric ? bodyweightKg : bodyweightKg * 2.20462)) \(unit) BW")
-                    .font(SBSFonts.legacyCaption())
-                
+                    .font(SBSFonts.numberSmall())
+
                 Spacer()
-                
+
                 Text(isMale ? "Men's" : "Women's")
-                    .font(SBSFonts.legacyCaption())
+                    .font(SBSFonts.caption())
             }
-            .foregroundStyle(SBSColors.textTertiaryFallback)
+            .foregroundStyle(Color.inkSecondary)
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                .fill(formula.color.opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                        .strokeBorder(formula.color.opacity(0.2), lineWidth: 1)
-                )
-        )
+        .padding(SBSLayout.space4)
+        .card()
     }
-    
+
     private func liftColumn(name: String, value: Double, hasData: Bool) -> some View {
-        VStack(spacing: 4) {
-            Text(name)
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
-            
-            if hasData {
-                Text(formatWeight(value))
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
-            } else {
-                Text("--")
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
-            }
+        VStack(alignment: .leading, spacing: SBSLayout.space1) {
+            SBSEyebrow(name)
+                .foregroundStyle(Color.inkSecondary)
+
+            Text(hasData ? formatWeight(value) : "--")
+                .font(SBSFonts.numberSmall().weight(.semibold))
+                .foregroundStyle(hasData ? Color.ink : Color.inkTertiary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
-    
+
     private func formatWeight(_ weight: Double) -> String {
         if weight.truncatingRemainder(dividingBy: 1) == 0 {
             return "\(Int(weight))"

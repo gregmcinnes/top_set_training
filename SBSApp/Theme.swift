@@ -1,227 +1,18 @@
 import SwiftUI
 
-// MARK: - Color Theme
+// MARK: - Namespaces
 
-enum SBSColors {
-    // Legacy names, now aliases for the Top Set tokens (Assets.xcassets/Colors).
-    // Views move to the tokens directly; delete this enum when nothing uses it.
-    static let success = Color.success
-    static let warning = Color.warning
-    static let error = Color.danger
+/// Top Set type styles (see the extension below). Every number uses a number style.
+enum SBSFonts {}
 
-    static let backgroundFallback = Color.bg
-    static let surfaceFallback = Color.surface
-    static let surfaceElevatedFallback = Color.surfaceRaised
-    /// Orange as a fill. Text or icons on it are Color.orangeInk; orange text
-    /// on bg/surface is Color.orangeText.
-    static let accentFallback = Color.orangeFill
-    /// No token: the blue is retired once History's charts move to ink and
-    /// orange (open decision), so this keeps its old literal until then.
-    static let accentSecondaryFallback = Color(light: .init(red: 0.2, green: 0.4, blue: 0.8), dark: .init(red: 0.4, green: 0.6, blue: 1.0))
-    static let textPrimaryFallback = Color.ink
-    static let textSecondaryFallback = Color.inkSecondary
-    static let textTertiaryFallback = Color.inkTertiary
-}
-
-// MARK: - Typography
-
-enum SBSFonts {
-    // All tokens are relative to a system text style so they scale with the
-    // user's Dynamic Type setting. Each token maps to the nearest text style by
-    // its original point size while preserving its original weight and design.
-    //
-    // Reference (text style -> default point size):
-    // largeTitle 34, title 28, title2 22, title3 20, headline/body 17,
-    // callout 16, subheadline 15, footnote 13, caption 12, caption2 11.
-
-    // Large titles
-    static func largeTitle() -> Font {
-        // Was 34pt bold rounded -> .largeTitle
-        .system(.largeTitle, design: .rounded, weight: .bold)
-    }
-
-    // Section headers
-    static func legacyTitle() -> Font {
-        // Was 22pt bold rounded -> .title2
-        .system(.title2, design: .rounded, weight: .bold)
-    }
-
-    static func title2() -> Font {
-        // Was 20pt semibold rounded -> .title3
-        .system(.title3, design: .rounded, weight: .semibold)
-    }
-
-    static func title3() -> Font {
-        // Was 18pt semibold rounded -> nearest is .headline (17)
-        .system(.headline, design: .rounded, weight: .semibold)
-    }
-
-    // Body text
-    static func legacyBody() -> Font {
-        // Was 17pt regular default -> .body
-        .system(.body, design: .default, weight: .regular)
-    }
-
-    static func bodyBold() -> Font {
-        // Was 17pt semibold default -> .body
-        .system(.body, design: .default, weight: .semibold)
-    }
-
-    // Weight/number display - monospaced for alignment
-    static func weight() -> Font {
-        // Was 24pt bold monospaced -> nearest is .title2 (22)
-        .system(.title2, design: .monospaced, weight: .bold)
-    }
-
-    static func weightLarge() -> Font {
-        // Was 32pt bold monospaced -> nearest is .largeTitle (34)
-        .system(.largeTitle, design: .monospaced, weight: .bold)
-    }
-
-    static func legacyNumber() -> Font {
-        // Was 20pt semibold monospaced -> .title3
-        .system(.title3, design: .monospaced, weight: .semibold)
-    }
-
-    // Small text
-    static func legacyCaption() -> Font {
-        // Was 13pt medium default -> .footnote (13)
-        .system(.footnote, design: .default, weight: .medium)
-    }
-
-    static func captionBold() -> Font {
-        // Was 13pt semibold default -> .footnote (13)
-        .system(.footnote, design: .default, weight: .semibold)
-    }
-
-    static func caption2() -> Font {
-        // ~11pt smaller caption -> .caption2 (11)
-        .system(.caption2, design: .default, weight: .medium)
-    }
-
-    static func label() -> Font {
-        // ~10pt smallest UI captions -> relative to .caption2 (no smaller style
-        // exists); semibold to keep tiny labels legible.
-        .system(.caption2, design: .default, weight: .semibold)
-    }
-
-    // Very large numeral displays (timers, weight readouts). No text style is
-    // as large as the original 48-56pt, so these map to .largeTitle and scale
-    // from there with Dynamic Type.
-    static func display() -> Font {
-        .system(.largeTitle, design: .rounded, weight: .bold)
-    }
-
-    static func displayMono() -> Font {
-        .system(.largeTitle, design: .monospaced, weight: .bold)
-    }
-
-    // Button text
-    static func legacyButton() -> Font {
-        // Was 17pt semibold rounded -> .body
-        .system(.body, design: .rounded, weight: .semibold)
-    }
-}
-
-// MARK: - Spacing & Layout
-
-enum SBSLayout {
-    static let paddingSmall: CGFloat = 8
-    static let paddingMedium: CGFloat = 16
-    static let paddingLarge: CGFloat = 24
-    static let paddingXLarge: CGFloat = 32
-    
-    static let cornerRadiusSmall: CGFloat = 8
-    static let cornerRadiusMedium: CGFloat = 12
-    static let cornerRadiusLarge: CGFloat = 16
-    
-    static let cardSpacing: CGFloat = 12
-    static let sectionSpacing: CGFloat = 24
-    
-    static let shadowRadius: CGFloat = 8
-    static let shadowY: CGFloat = 4
-}
-
-// MARK: - View Extensions
+/// Top Set spacing, radii and strokes (see the extension below).
+enum SBSLayout {}
 
 extension View {
-    /// Legacy alias for .card().
-    func sbsCard() -> some View {
-        card()
-    }
-
-    /// Legacy alias. Deliberately a hairline card, never .signatureCard():
-    /// the signature treatment is reserved for the live set card.
-    func sbsCardElevated() -> some View {
-        background(Color.surfaceRaised)
-            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
-            .overlay(
-                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                    .strokeBorder(Color.hairline, lineWidth: SBSLayout.strokeHairline)
-            )
-    }
-
+    /// The screen background, edge to edge.
     func sbsBackground() -> some View {
         self
             .background(Color.bg.ignoresSafeArea())
-    }
-}
-
-// MARK: - Button Styles
-
-struct SBSLegacyPrimaryButtonStyle: ButtonStyle {
-    @Environment(\.isEnabled) var isEnabled
-    
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(SBSFonts.legacyButton())
-            // Never white on orange: orange-ink when enabled; bg on the grey disabled fill.
-            .foregroundStyle(isEnabled ? Color.orangeInk : Color.bg)
-            .padding(.horizontal, SBSLayout.paddingLarge)
-            .padding(.vertical, SBSLayout.paddingMedium)
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                    .fill(isEnabled ? SBSColors.accentFallback : SBSColors.textTertiaryFallback)
-            )
-            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
-            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
-    }
-}
-
-struct SBSLegacySecondaryButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(SBSFonts.legacyButton())
-            .foregroundStyle(Color.orangeText)
-            .padding(.horizontal, SBSLayout.paddingLarge)
-            .padding(.vertical, SBSLayout.paddingMedium)
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                    .strokeBorder(SBSColors.accentFallback, lineWidth: 2)
-            )
-            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
-            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
-    }
-}
-
-struct SBSLegacyNumberPadButtonStyle: ButtonStyle {
-    let isHighlighted: Bool
-    
-    init(isHighlighted: Bool = false) {
-        self.isHighlighted = isHighlighted
-    }
-    
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(SBSFonts.legacyNumber())
-            .foregroundStyle(isHighlighted ? Color.orangeInk : SBSColors.textPrimaryFallback)
-            .frame(width: 64, height: 64)
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                    .fill(isHighlighted ? SBSColors.accentFallback : SBSColors.surfaceFallback)
-            )
-            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
@@ -624,16 +415,6 @@ extension View {
                 RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                     .strokeBorder(isSelected ? Color.orangeText : Color.hairline, lineWidth: SBSLayout.strokeHairline)
             )
-    }
-}
-
-// MARK: - Color Extension for Light/Dark
-
-extension Color {
-    init(light: Color, dark: Color) {
-        self.init(uiColor: UIColor { traits in
-            traits.userInterfaceStyle == .dark ? UIColor(dark) : UIColor(light)
-        })
     }
 }
 

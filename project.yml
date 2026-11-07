@@ -57,6 +57,19 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         NSSupportsLiveActivities: true
         UILaunchScreen: {}
+        # Bundled from Resources/Fonts (flattened into the bundle root). OFL licences sit beside them.
+        UIAppFonts:
+          - Archivo-Bold.ttf
+          - Archivo-ExtraBold.ttf
+          - Archivo-Medium.ttf
+          - Archivo-Regular.ttf
+          - Archivo-SemiBold.ttf
+          - ArchivoSemiCondensed-Bold.ttf
+          - ArchivoSemiExpanded-Black.ttf
+          - BarlowCondensed-Bold.ttf
+          - IBMPlexMono-Bold.ttf
+          - IBMPlexMono-Medium.ttf
+          - IBMPlexMono-SemiBold.ttf
         # Portrait-only on iPad needs this, or upload validation rejects the build
         # for not supporting all iPad orientations (ITMS-90474).
         UIRequiresFullScreen: true

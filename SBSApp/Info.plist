@@ -26,6 +26,20 @@
 	<string>Top Set Training uses HealthKit to automatically log your strength training workouts to Apple Fitness, tracking duration and workout completion.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Archivo-Bold.ttf</string>
+		<string>Archivo-ExtraBold.ttf</string>
+		<string>Archivo-Medium.ttf</string>
+		<string>Archivo-Regular.ttf</string>
+		<string>Archivo-SemiBold.ttf</string>
+		<string>ArchivoSemiCondensed-Bold.ttf</string>
+		<string>ArchivoSemiExpanded-Black.ttf</string>
+		<string>BarlowCondensed-Bold.ttf</string>
+		<string>IBMPlexMono-Bold.ttf</string>
+		<string>IBMPlexMono-Medium.ttf</string>
+		<string>IBMPlexMono-SemiBold.ttf</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UIRequiresFullScreen</key>

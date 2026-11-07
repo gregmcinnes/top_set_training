@@ -43,146 +43,123 @@ struct UpgradePrompt: View {
     }
     
     // MARK: - Compact Style
-    
+
     private var compactPrompt: some View {
         Button {
             onUpgrade?()
         } label: {
-            HStack(spacing: SBSLayout.space2) {
+            HStack(spacing: SBSLayout.space1) {
                 Image(systemName: "lock.fill")
-                    .font(.system(size: 12))
-                
+                    .font(SBSFonts.caption().weight(.semibold))
+                    .accessibilityHidden(true)
+
                 Text("Premium")
                     .font(SBSFonts.caption().weight(.semibold))
             }
-            .foregroundStyle(Color.orangeText)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                Capsule()
-                    .fill(Color.orangeSoft)
-            )
+            .foregroundStyle(Color.ink)
+            .padding(.horizontal, SBSLayout.space3)
+            .frame(minHeight: 32)
+            .selectionCell(false)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Unlock \(feature.displayName) with Premium")
     }
-    
+
     // MARK: - Card Style
-    
+
     private var cardPrompt: some View {
-        HStack(spacing: SBSLayout.space4) {
-            // Icon
-            ZStack {
-                Circle()
-                    .fill(Color.orangeSoft)
-                    .frame(width: 40, height: 40)
-                
-                Image(systemName: feature.iconName)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Color.orangeText)
+        HStack(spacing: SBSLayout.space3) {
+            Image(systemName: feature.iconName)
+                .font(SBSFonts.bodyStrong())
+                .foregroundStyle(Color.inkSecondary)
+                .frame(width: 24)
+                .accessibilityHidden(true)
+
+            SBSAdaptiveStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(feature.displayName)
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.ink)
+
+                    Text("Available with Premium")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
+                }
+
+                Spacer(minLength: SBSLayout.space2)
+
+                // Unlock: an orange block with orange-ink text, without the primary
+                // button's rule and shadow (that belongs to a screen's main action)
+                Button {
+                    onUpgrade?()
+                } label: {
+                    UpgradeUnlockLabel()
+                }
+                .buttonStyle(.plain)
             }
-            
-            // Text
-            VStack(alignment: .leading, spacing: 2) {
-                Text(feature.displayName)
-                    .font(SBSFonts.bodyStrong())
-                    .foregroundStyle(Color.ink)
-                
-                Text("Available with Premium")
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(Color.inkSecondary)
-            }
-            
-            Spacer()
-            
-            // Unlock button
-            Button {
-                onUpgrade?()
-            } label: {
-                Text("Unlock")
-                    .font(SBSFonts.caption().weight(.semibold))
-                    .foregroundStyle(Color.orangeInk)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(
-                        Capsule()
-                            .fill(SBSColors.accentFallback)
-                    )
-            }
-            .buttonStyle(.plain)
-            
-            // Dismiss button (if applicable)
+
             if isDismissible {
                 Button {
                     onDismiss?()
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(SBSFonts.caption().weight(.semibold))
                         .foregroundStyle(Color.inkSecondary)
-                        .frame(width: 24, height: 24)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Dismiss")
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                .fill(Color.surface)
-                .overlay(
-                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                        .strokeBorder(SBSColors.accentFallback.opacity(0.2), lineWidth: 1)
-                )
-        )
+        .padding(.vertical, SBSLayout.space3)
+        .padding(.leading, SBSLayout.space4)
+        .padding(.trailing, isDismissible ? SBSLayout.space1 : SBSLayout.space4)
+        .card()
     }
-    
+
     // MARK: - Banner Style
-    
+
     private var bannerPrompt: some View {
-        HStack(spacing: SBSLayout.space4) {
-            Image(systemName: "crown.fill")
-                .font(.system(size: 20))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [SBSColors.accentFallback, SBSColors.accentSecondaryFallback],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Upgrade to Premium")
+        Button {
+            onUpgrade?()
+        } label: {
+            SBSListRow("Upgrade to Premium", showsChevron: true) {
+                Image(systemName: "crown.fill")
                     .font(SBSFonts.bodyStrong())
-                    .foregroundStyle(Color.ink)
-                
+                    .foregroundStyle(Color.inkSecondary)
+                    .frame(width: 24)
+                    .accessibilityHidden(true)
+            } subtitle: {
                 Text("Unlock \(feature.displayName.lowercased()) and more")
                     .font(SBSFonts.caption())
                     .foregroundStyle(Color.inkSecondary)
+            } trailing: {
+                SBSBadge(text: "Pro", variant: .pro)
             }
-            
-            Spacer()
-            
-            Button {
-                onUpgrade?()
-            } label: {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.orangeText)
-            }
-            .buttonStyle(.plain)
+            .card()
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.orangeSoft,
-                            SBSColors.accentSecondaryFallback.opacity(0.05)
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-        )
+        .buttonStyle(.plain)
+    }
+}
+
+/// The unlock action inside a prompt: orange fill, orange-ink label, square.
+private struct UpgradeUnlockLabel: View {
+    var body: some View {
+        HStack(spacing: SBSLayout.space1) {
+            Image(systemName: "lock.open.fill")
+                .font(SBSFonts.caption().weight(.bold))
+                .accessibilityHidden(true)
+            SBSButtonTitle("Unlock")
+                .font(SBSFonts.caption().weight(.heavy))
+                .tracking(1.0)
+        }
+        .foregroundStyle(Color.orangeInk)
+        .padding(.horizontal, SBSLayout.space3)
+        .frame(minHeight: 36)
+        .background(Color.orangeFill, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+        .contentShape(Rectangle())
     }
 }
 
@@ -192,59 +169,43 @@ struct UpgradePrompt: View {
 struct PremiumLockOverlay: View {
     let feature: PremiumFeature
     var onTap: (() -> Void)?
-    
+
     /// Whether to blur the background content
     var blurBackground: Bool = true
-    
+
     var body: some View {
         ZStack {
-            // Blur effect (optional)
             if blurBackground {
                 Rectangle()
                     .fill(.ultraThinMaterial)
             }
-            
-            // Lock content
-            VStack(spacing: SBSLayout.space4) {
-                ZStack {
-                    Circle()
-                        .fill(Color.orangeSoft)
-                        .frame(width: 64, height: 64)
-                    
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(Color.orangeText)
-                }
-                
-                VStack(spacing: 4) {
-                    Text("Premium Feature")
+
+            VStack(spacing: SBSLayout.space3) {
+                Image(systemName: "lock.fill")
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(Color.ink)
+                    .frame(width: 48, height: 48)
+                    .selectionCell(false)
+                    .accessibilityHidden(true)
+
+                VStack(spacing: SBSLayout.space1) {
+                    SBSEyebrow("Premium feature")
+                        .foregroundStyle(Color.inkSecondary)
+
+                    Text(feature.displayName)
                         .font(SBSFonts.bodyStrong())
                         .foregroundStyle(Color.ink)
-                    
-                    Text(feature.displayName)
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(Color.inkSecondary)
+                        .multilineTextAlignment(.center)
                 }
-                
+
                 Button {
                     onTap?()
                 } label: {
-                    HStack(spacing: SBSLayout.space2) {
-                        Image(systemName: "crown.fill")
-                            .font(.system(size: 12))
-                        Text("Unlock")
-                            .font(SBSFonts.caption().weight(.semibold))
-                    }
-                    .foregroundStyle(Color.orangeInk)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-                    .background(
-                        Capsule()
-                            .fill(SBSColors.accentFallback)
-                    )
+                    UpgradeUnlockLabel()
                 }
                 .buttonStyle(.plain)
             }
+            .padding()
         }
     }
 }
@@ -350,24 +311,13 @@ extension View {
 #Preview("Lock Overlay") {
     ZStack {
         Text("Premium Content Here")
-            .font(.largeTitle)
+            .font(SBSFonts.title())
             .frame(width: 300, height: 200)
-            .background(Color.blue.opacity(0.3))
-        
+            .card()
+
         PremiumLockOverlay(
             feature: .plateCalculator,
             onTap: { Logger.debug("Unlock tapped", category: .ui) }
         )
     }
 }
-
-#Preview("Premium Badge") {
-    HStack(spacing: 20) {
-        PremiumBadge()
-        PremiumBadge(isCompact: true)
-    }
-    .padding()
-    .background(Color.black)
-}
-
-

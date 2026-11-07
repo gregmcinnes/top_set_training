@@ -75,17 +75,8 @@ struct PaywallView: View {
 
     var body: some View {
         ZStack {
-            // Background
-            LinearGradient(
-                colors: [
-                    Color.bg,
-                    Color.bg,
-                    Color.orangeSoft
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            Color.bg
+                .ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: SBSLayout.space6) {
@@ -125,11 +116,14 @@ struct PaywallView: View {
                     Button {
                         dismiss()
                     } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(Color.inkSecondary)
+                        Image(systemName: "xmark")
+                            .font(SBSFonts.bodyStrong().weight(.bold))
+                            .foregroundStyle(Color.ink)
+                            .frame(width: 44, height: 44)
+                            .selectionCell(false)
                             .padding()
                     }
+                    .accessibilityLabel("Close")
                 }
                 Spacer()
             }
@@ -176,94 +170,54 @@ struct PaywallView: View {
     // MARK: - Header Section
 
     private var headerSection: some View {
-        VStack(spacing: SBSLayout.space4) {
-            // Crown icon
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                SBSColors.accentFallback.opacity(0.2),
-                                Color.orangeSoft
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 100, height: 100)
-
+        VStack(alignment: .leading, spacing: SBSLayout.space3) {
+            HStack(spacing: SBSLayout.space2) {
                 Image(systemName: "crown.fill")
-                    .font(.system(size: 44))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [SBSColors.accentFallback, SBSColors.accentSecondaryFallback],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .font(SBSFonts.eyebrow())
+                    .accessibilityHidden(true)
+                SBSEyebrow("Top Set Premium")
             }
+            .foregroundStyle(Color.inkSecondary)
 
-            VStack(spacing: SBSLayout.space2) {
-                Text("Unlock Premium")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.ink)
+            Text("Unlock Premium".uppercased())
+                .font(SBSFonts.titleLarge())
+                .tracking(-0.34)
+                .foregroundStyle(Color.ink)
+                .accessibilityLabel("Unlock Premium")
+                .accessibilityAddTraits(.isHeader)
+                .fixedSize(horizontal: false, vertical: true)
 
-                Text("Get the most out of your training")
-                    .font(SBSFonts.body())
-                    .foregroundStyle(Color.inkSecondary)
-                    .multilineTextAlignment(.center)
-            }
+            Text("Get the most out of your training")
+                .font(SBSFonts.body())
+                .foregroundStyle(Color.inkSecondary)
+                .fixedSize(horizontal: false, vertical: true)
 
-            // If triggered by a specific feature, highlight it
+            // If triggered by a specific feature, name it
             if let feature = triggeredByFeature {
-                HStack(spacing: SBSLayout.space2) {
-                    Image(systemName: feature.iconName)
-                        .font(.system(size: 14))
-                    Text(feature.displayName)
-                        .font(SBSFonts.caption().weight(.semibold))
-                }
-                .foregroundStyle(Color.orangeText)
-                .padding(.horizontal, SBSLayout.space4)
-                .padding(.vertical, SBSLayout.space2)
-                .background(
-                    Capsule()
-                        .fill(Color.orangeSoft)
-                )
+                SBSBadge(text: feature.displayName, systemImage: feature.iconName)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // Clear of the close button
         .padding(.top, 60)
     }
 
     // MARK: - Features Section
 
     private var featuresSection: some View {
-        VStack(spacing: SBSLayout.space4) {
-            Text("What's Included")
-                .font(SBSFonts.heading())
-                .foregroundStyle(Color.ink)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            VStack(spacing: SBSLayout.space2) {
-                ForEach(PremiumFeature.allCases, id: \.rawValue) { feature in
-                    PremiumFeatureRow(feature: feature)
-                }
+        SBSListGroup(title: "What's included") {
+            ForEach(Array(PremiumFeature.allCases.enumerated()), id: \.element.rawValue) { index, feature in
+                if index > 0 { SBSRowDivider() }
+                PremiumFeatureRow(feature: feature)
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                .fill(Color.surface)
-        )
     }
 
     // MARK: - Plan Selection Section
 
     private var planSelectionSection: some View {
-        VStack(spacing: SBSLayout.space4) {
-            Text("Choose Your Plan")
-                .font(SBSFonts.heading())
-                .foregroundStyle(Color.ink)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            SBSSectionEyebrow("Choose your plan")
 
             VStack(spacing: SBSLayout.space2) {
                 ForEach(PlanOption.allCases, id: \.rawValue) { plan in
@@ -272,12 +226,14 @@ struct PaywallView: View {
                         product: plan.product(from: storeManager),
                         isSelected: selectedPlan == plan
                     )
+                    .contentShape(Rectangle())
                     .onTapGesture {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             selectedPlan = plan
                         }
                         Haptics.selection()
                     }
+                    .accessibilityAddTraits(selectedPlan == plan ? [.isButton, .isSelected] : .isButton)
                 }
             }
 
@@ -290,8 +246,10 @@ struct PaywallView: View {
 
     private var loadFailedRow: some View {
         HStack(spacing: SBSLayout.space2) {
-            Image(systemName: "exclamationmark.triangle.fill")
+            Image(systemName: "exclamationmark.triangle")
+                .font(SBSFonts.caption().weight(.semibold))
                 .foregroundStyle(Color.warning)
+                .accessibilityHidden(true)
             Text("Couldn't load pricing.")
                 .font(SBSFonts.caption())
                 .foregroundStyle(Color.inkSecondary)
@@ -304,13 +262,11 @@ struct PaywallView: View {
                 Text("Retry")
                     .font(SBSFonts.caption().weight(.semibold))
                     .foregroundStyle(Color.orangeText)
+                    .frame(minHeight: 44)
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                .fill(Color.surface)
-        )
+        .padding(.horizontal)
+        .card()
     }
 
     // MARK: - Purchase Section
@@ -328,29 +284,20 @@ struct PaywallView: View {
                 HStack(spacing: SBSLayout.space2) {
                     if isPurchasing {
                         ProgressView()
-                            .tint(.white)
+                            .tint(Color.orangeInk)
                     } else {
                         Image(systemName: "crown.fill")
-                        Text(selectedPlan == .lifetime ? "Unlock Forever" : "Subscribe Now")
+                            .accessibilityHidden(true)
+                        SBSButtonTitle(selectedPlan == .lifetime ? "Unlock Forever" : "Subscribe Now")
                     }
                 }
-                .font(SBSFonts.bodyStrong())
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, SBSLayout.space4 + 4)
-                .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                        .fill(
-                            LinearGradient(
-                                colors: [SBSColors.accentFallback, SBSColors.accentSecondaryFallback],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .opacity(selectedProduct == nil ? 0.5 : 1)
-                )
+                .frame(maxWidth: .infinity, minHeight: 56)
             }
+            // The one primary button on the paywall
+            .buttonStyle(SBSPrimaryButtonStyle())
             .disabled(isBusy || selectedProduct == nil)
+            .padding(.trailing, SBSLayout.hardShadowOffset)
+            .padding(.bottom, SBSLayout.space2)
 
             if selectedPlan != .lifetime {
                 Text("Cancel anytime. Subscription auto-renews.")
@@ -382,9 +329,10 @@ struct PaywallView: View {
                             .controlSize(.small)
                     }
                     Text("Restore Purchases")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.caption().weight(.semibold))
                         .foregroundStyle(Color.orangeText)
                 }
+                .frame(minHeight: 44)
             }
             .disabled(isBusy)
 
@@ -392,8 +340,9 @@ struct PaywallView: View {
                 showRedeemSheet = true
             } label: {
                 Text("Redeem Code")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.caption().weight(.semibold))
                     .foregroundStyle(Color.orangeText)
+                    .frame(minHeight: 44)
             }
             .disabled(isBusy)
         }
@@ -488,77 +437,67 @@ private struct PlanOptionCard: View {
     let isSelected: Bool
 
     var body: some View {
-        HStack(spacing: SBSLayout.space4) {
-            // Radio indicator
+        HStack(spacing: SBSLayout.space3) {
+            // Square radio: a hairline box, filled with ink when chosen
             ZStack {
-                Circle()
-                    .stroke(isSelected ? SBSColors.accentFallback : Color.inkTertiary.opacity(0.4), lineWidth: 2)
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .strokeBorder(isSelected ? Color.ink : Color.inkTertiary, lineWidth: SBSLayout.strokeHairline)
                     .frame(width: 22, height: 22)
 
                 if isSelected {
-                    Circle()
-                        .fill(SBSColors.accentFallback)
-                        .frame(width: 14, height: 14)
+                    Rectangle()
+                        .fill(Color.ink)
+                        .frame(width: 12, height: 12)
                 }
             }
+            .accessibilityHidden(true)
 
-            // Plan info
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: SBSLayout.space2) {
-                    Text(plan.label)
-                        .font(SBSFonts.bodyStrong())
-                        .foregroundStyle(Color.ink)
+            SBSAdaptiveStack {
+                // Plan info
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: SBSLayout.space2) {
+                        Text(plan.label)
+                            .font(SBSFonts.bodyStrong())
+                            .foregroundStyle(Color.ink)
 
-                    if let badge = plan.badgeText {
-                        Text(badge)
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundStyle(Color.orangeInk)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(
-                                Capsule()
-                                    .fill(SBSColors.accentFallback)
-                            )
+                        if let badge = plan.badgeText {
+                            SBSBadge(text: badge)
+                        }
                     }
+
+                    Text(plan.subtitle)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                 }
 
-                Text(plan.subtitle)
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(Color.inkSecondary)
-            }
+                Spacer(minLength: SBSLayout.space2)
 
-            Spacer()
+                // Price — redacted placeholder until the real Product loads, so we
+                // never render a fabricated fallback price.
+                HStack(alignment: .firstTextBaseline, spacing: 1) {
+                    if let product {
+                        Text(product.displayPrice)
+                            .font(SBSFonts.number())
+                            .foregroundStyle(Color.ink)
 
-            // Price — redacted placeholder until the real Product loads, so we
-            // never render a fabricated fallback price.
-            HStack(alignment: .firstTextBaseline, spacing: 1) {
-                if let product {
-                    Text(product.displayPrice)
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color.ink)
-
-                    if !plan.periodLabel.isEmpty {
-                        Text(plan.periodLabel)
-                            .font(SBSFonts.caption())
-                            .foregroundStyle(Color.inkSecondary)
+                        if !plan.periodLabel.isEmpty {
+                            Text(plan.periodLabel)
+                                .font(SBSFonts.numberSmall())
+                                .foregroundStyle(Color.inkSecondary)
+                        }
+                    } else {
+                        Text("$0.00")
+                            .font(SBSFonts.number())
+                            .foregroundStyle(Color.ink)
+                            .redacted(reason: .placeholder)
                     }
-                } else {
-                    Text("$0.00")
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color.ink)
-                        .redacted(reason: .placeholder)
                 }
             }
         }
         .padding()
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                .fill(Color.surface)
-                .overlay(
-                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                        .stroke(isSelected ? SBSColors.accentFallback : Color.clear, lineWidth: 2)
-                )
-        )
+        .frame(minHeight: 64)
+        .selectionCell(isSelected)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -568,19 +507,13 @@ private struct PremiumFeatureRow: View {
     let feature: PremiumFeature
 
     var body: some View {
-        HStack(spacing: SBSLayout.space4) {
-            // Icon
-            ZStack {
-                Circle()
-                    .fill(Color.orangeSoft)
-                    .frame(width: 36, height: 36)
+        HStack(alignment: .top, spacing: SBSLayout.space3) {
+            Image(systemName: feature.iconName)
+                .font(SBSFonts.bodyStrong())
+                .foregroundStyle(Color.inkSecondary)
+                .frame(width: 24)
+                .accessibilityHidden(true)
 
-                Image(systemName: feature.iconName)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(Color.orangeText)
-            }
-
-            // Text
             VStack(alignment: .leading, spacing: 2) {
                 Text(feature.displayName)
                     .font(SBSFonts.bodyStrong())
@@ -589,45 +522,18 @@ private struct PremiumFeatureRow: View {
                 Text(feature.featureDescription)
                     .font(SBSFonts.caption())
                     .foregroundStyle(Color.inkSecondary)
-                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            Spacer()
-
-            // Checkmark
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 20))
+            Image(systemName: "checkmark")
+                .font(SBSFonts.bodyStrong().weight(.bold))
                 .foregroundStyle(Color.success)
+                .accessibilityLabel("Included")
         }
-        .padding(.vertical, SBSLayout.space2)
-    }
-}
-
-// MARK: - Free vs Premium Comparison (Alternative Layout)
-
-struct FeatureComparisonRow: View {
-    let feature: String
-    let freeValue: String
-    let premiumValue: String
-
-    var body: some View {
-        HStack {
-            Text(feature)
-                .font(SBSFonts.body())
-                .foregroundStyle(Color.ink)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Text(freeValue)
-                .font(SBSFonts.caption())
-                .foregroundStyle(Color.inkSecondary)
-                .frame(width: 60)
-
-            Text(premiumValue)
-                .font(SBSFonts.caption().weight(.semibold))
-                .foregroundStyle(Color.orangeText)
-                .frame(width: 60)
-        }
-        .padding(.vertical, 8)
+        .padding(.vertical, SBSLayout.space3)
+        .padding(.horizontal, SBSLayout.space4)
+        .accessibilityElement(children: .combine)
     }
 }
 

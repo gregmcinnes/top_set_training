@@ -61,7 +61,7 @@ final class FirstRunAndHomeUITests: XCTestCase {
             return false
         }
         app.launch()
-        XCTAssertTrue(app.tabBars.buttons["Workout"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.otherElements["tabBar"].children(matching: .button)["Workout"].waitForExistence(timeout: 15))
     }
 
     private let liftMaxes = #""customInitialMaxes":{"Squat":225,"Bench Press":155,"Deadlift":275,"Overhead Press":95,"Barbell Row":135}"#
@@ -83,8 +83,8 @@ final class FirstRunAndHomeUITests: XCTestCase {
                app.staticTexts[lift].firstMatch.exists, !button("Skip rest timer").exists {
                 return
             }
-            if button("Continue").exists && button("Continue").isHittable {
-                button("Continue").tap()
+            if button("Back to it").exists && button("Back to it").isHittable {
+                button("Back to it").tap()
             } else if button("Skip rest timer").exists && button("Skip rest timer").isHittable {
                 button("Skip rest timer").tap()
             } else if button("Complete Set").exists && button("Complete Set").isHittable {
@@ -137,7 +137,7 @@ final class FirstRunAndHomeUITests: XCTestCase {
         XCTAssertTrue(nextCard.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Squat'")).firstMatch.exists)
 
         // History before any workout offers a way forward
-        app.tabBars.buttons["History"].tap()
+        app.otherElements["tabBar"].children(matching: .button)["History"].tap()
         sleep(1)
         shot("history-empty")
         tap("Go to Workout")
@@ -170,7 +170,7 @@ final class FirstRunAndHomeUITests: XCTestCase {
         shot("home-after-first")
 
         // History has the session and everything in it
-        app.tabBars.buttons["History"].tap()
+        app.otherElements["tabBar"].children(matching: .button)["History"].tap()
         sleep(1)
         shot("history-with-data")
         let sessions = app.descendants(matching: .any)["historySessionsLink"].firstMatch
@@ -183,7 +183,7 @@ final class FirstRunAndHomeUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["historySessionDetail"].firstMatch.waitForExistence(timeout: 8))
         XCTAssertTrue(containingText("Squat").exists)
         shot("history-session-detail")
-        app.tabBars.buttons["Workout"].tap()
+        app.otherElements["tabBar"].children(matching: .button)["Workout"].tap()
 
         // The second workout
         nextCard.buttons["Start Workout"].tap()
@@ -362,7 +362,7 @@ final class FirstRunAndHomeUITests: XCTestCase {
         shot("summary")
         tap("Done")
         XCTAssertTrue(nextCard.waitForExistence(timeout: 8))
-        app.tabBars.buttons["History"].tap()
+        app.otherElements["tabBar"].children(matching: .button)["History"].tap()
         sleep(1)
         shot("history")
     }

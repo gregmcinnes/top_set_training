@@ -58,7 +58,7 @@ final class AccessorySessionUITests: XCTestCase {
             app.launchArguments += ["-com.gregorymcinnes.topsettraining.reviewerUnlock", "YES"]
         }
         app.launch()
-        XCTAssertTrue(app.tabBars.buttons["Workout"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.otherElements["tabBar"].children(matching: .button)["Workout"].waitForExistence(timeout: 15))
     }
 
     private func openDay(_ number: Int) {
@@ -106,7 +106,7 @@ final class AccessorySessionUITests: XCTestCase {
     }
 
     private func openAccessoryHistory() {
-        app.tabBars.buttons["History"].tap()
+        app.otherElements["tabBar"].children(matching: .button)["History"].tap()
         let link = any("historyAccessoriesLink")
         for _ in 0..<4 where !(link.exists && link.isHittable) { app.swipeUp() }
         XCTAssertTrue(link.waitForExistence(timeout: 8), "No accessories in History")
@@ -122,7 +122,7 @@ final class AccessorySessionUITests: XCTestCase {
         sleep(1)
         shot("session-screen")
         startAccessoriesOnly()
-        XCTAssertFalse(app.tabBars.firstMatch.isHittable, "The tab bar must be out of reach here too")
+        XCTAssertFalse(app.otherElements["tabBar"].firstMatch.isHittable, "The tab bar must be out of reach here too")
         XCTAssertTrue(app.staticTexts["Curl"].firstMatch.exists, "Opens on the accessory")
         assertSquatNotInSession()
         shot("accessory-session")
@@ -179,7 +179,7 @@ final class AccessorySessionUITests: XCTestCase {
         shot("exit-alert")
         app.alerts.buttons["Exit"].tap()
         XCTAssertTrue(button("Start Workout").waitForExistence(timeout: 8))
-        app.tabBars.buttons["History"].tap()
+        app.otherElements["tabBar"].children(matching: .button)["History"].tap()
         sleep(1)
         XCTAssertFalse(any("historyAccessoriesLink").exists, "Nothing should be logged")
         shot("history")
@@ -207,7 +207,7 @@ final class AccessorySessionUITests: XCTestCase {
         shot("accessories-summary")
         tap("Done")
 
-        app.tabBars.buttons["History"].tap()
+        app.otherElements["tabBar"].children(matching: .button)["History"].tap()
         let sessionsLink = any("historySessionsLink")
         for _ in 0..<4 where !(sessionsLink.exists && sessionsLink.isHittable) { app.swipeUp() }
         sessionsLink.tap()

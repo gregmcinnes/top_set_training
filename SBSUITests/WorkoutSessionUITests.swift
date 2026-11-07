@@ -68,7 +68,7 @@ final class WorkoutSessionUITests: XCTestCase {
             completeOnboarding()
         }
         discardWorkoutIfActive()
-        let tab = app.tabBars.buttons["Workout"]
+        let tab = app.otherElements["tabBar"].children(matching: .button)["Workout"]
         XCTAssertTrue(tab.waitForExistence(timeout: 10))
         tab.tap()
     }
@@ -158,7 +158,7 @@ final class WorkoutSessionUITests: XCTestCase {
         startFirstDay()
         shot("workout-open")
 
-        XCTAssertFalse(app.tabBars.firstMatch.isHittable, "The tab bar must be out of reach during a workout")
+        XCTAssertFalse(app.otherElements["tabBar"].firstMatch.isHittable, "The tab bar must be out of reach during a workout")
 
         completeSet()
         skipRest()
@@ -188,21 +188,21 @@ final class WorkoutSessionUITests: XCTestCase {
 
         tap("Minimize workout")
         XCTAssertTrue(resumeBar.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.tabBars.firstMatch.isHittable)
+        XCTAssertTrue(app.otherElements["tabBar"].firstMatch.isHittable)
         XCTAssertTrue(resumeBar.label.contains("Rest timer"), "Countdown while resting: \(resumeBar.label)")
         shot("minimized-home")
 
-        app.tabBars.buttons["History"].tap()
+        app.otherElements["tabBar"].children(matching: .button)["History"].tap()
         XCTAssertTrue(resumeBar.waitForExistence(timeout: 5))
         shot("minimized-history")
-        app.tabBars.buttons["Settings"].tap()
+        app.otherElements["tabBar"].children(matching: .button)["Settings"].tap()
         XCTAssertTrue(resumeBar.waitForExistence(timeout: 5))
         app.swipeUp()
         shot("minimized-settings-scrolled")
 
         // Tapping the active tab does nothing to the workout now
-        app.tabBars.buttons["Workout"].tap()
-        app.tabBars.buttons["Workout"].tap()
+        app.otherElements["tabBar"].children(matching: .button)["Workout"].tap()
+        app.otherElements["tabBar"].children(matching: .button)["Workout"].tap()
         XCTAssertTrue(resumeBar.waitForExistence(timeout: 5))
 
         resumeBar.tap()
@@ -308,7 +308,7 @@ final class WorkoutSessionUITests: XCTestCase {
         shortenRest()
         tap("Minimize workout")
         XCTAssertTrue(resumeBar.waitForExistence(timeout: 5))
-        app.tabBars.buttons["Settings"].tap()
+        app.otherElements["tabBar"].children(matching: .button)["Settings"].tap()
 
         let done = NSPredicate(format: "label CONTAINS 'Rest done'")
         expectation(for: done, evaluatedWith: resumeBar)
@@ -349,7 +349,7 @@ final class WorkoutSessionUITests: XCTestCase {
         app.launchArguments = ["-sbs_active_workout_session", "<6e6f74206a736f6e>"]
         app.launch()
 
-        XCTAssertTrue(app.tabBars.buttons["Workout"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.otherElements["tabBar"].children(matching: .button)["Workout"].waitForExistence(timeout: 10))
         XCTAssertFalse(resumeBar.waitForExistence(timeout: 3))
         shot("launched-with-corrupt-session")
     }
@@ -359,7 +359,7 @@ final class WorkoutSessionUITests: XCTestCase {
     /// Do every set until the summary shows
     private func finishWorkout() {
         for _ in 0..<60 {
-            let celebration = button("Continue")
+            let celebration = button("Back to it")  // The PR cover, when confetti is on
             if celebration.exists && celebration.isHittable {
                 celebration.tap()
                 sleep(1)
@@ -428,7 +428,7 @@ final class WorkoutSessionUITests: XCTestCase {
         XCTAssertTrue(finishedDayCard.waitForExistence(timeout: 5))
         XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label ENDSWITH 'Done'")).count, 1)
         shot("home-after-redo")
-        app.tabBars.buttons["History"].tap()
+        app.otherElements["tabBar"].children(matching: .button)["History"].tap()
         sleep(1)
         shot("history-after-redo")
     }

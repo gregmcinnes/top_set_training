@@ -11,7 +11,9 @@ final class WorkoutFlowUITests: XCTestCase {
         ProcessInfo.processInfo.environment["WALKTHROUGH_OUT"] ?? NSTemporaryDirectory()
     }
 
-    private func launch(program: String) {
+    /// `confetti` turns on "Celebrate PRs with confetti", the PR cover. It's off by
+    /// default; the flash on the live set card always runs.
+    private func launch(program: String, confetti: Bool = false) {
         continueAfterFailure = false
         let maxes = #"{"Squat":225,"Bench Press":155,"Deadlift":275,"Overhead Press":95,"Barbell Row":135,"Sumo Deadlift":245,"Front Squat":185}"#
         let json = #"{"hasCompletedOnboarding":true,"selectedProgram":"\#(program)","customInitialMaxes":\#(maxes)}"#
@@ -19,6 +21,13 @@ final class WorkoutFlowUITests: XCTestCase {
         app = XCUIApplication()
         // Launch arguments override defaults, and the saved session has to go with the data
         app.launchArguments = ["-sbs_user_data", "<\(hex)>", "-sbs_active_workout_session", "<>"]
+        if confetti {
+            // Every key: settings have no decoding defaults, so a partial copy would be ignored
+            let adjustments = #"{"belowBy2Plus":-0.05,"belowBy1":-0.02,"hitTarget":0,"beatBy1":0.005,"beatBy2":0.01,"beatBy3":0.015,"beatBy4":0.02,"beatBy5Plus":0.03}"#
+            let settings = #"{"useMetric":false,"roundingIncrement":5,"currentWeek":1,"currentDay":1,"restTimerDuration":120,"supersetAccessories":false,"weightAdjustments":\#(adjustments),"barWeight":45,"showPlateCalculator":true,"playSoundNotifications":false,"appearanceMode":"system","isMale":true,"showPRCelebrations":true,"celebratePRsWithConfetti":true,"healthKitEnabled":false,"pushNotificationsEnabled":true}"#
+            let settingsHex = Data(settings.utf8).map { String(format: "%02x", $0) }.joined()
+            app.launchArguments += ["-sbs_settings", "<\(settingsHex)>"]
+        }
         addUIInterruptionMonitor(withDescription: "Notifications") { alert in
             let allow = alert.buttons["Allow"]
             if allow.exists { allow.tap(); return true }
@@ -26,7 +35,7 @@ final class WorkoutFlowUITests: XCTestCase {
         }
         app.launch()
         allowNotifications()
-        XCTAssertTrue(app.tabBars.buttons["Workout"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.otherElements["tabBar"].children(matching: .button)["Workout"].waitForExistence(timeout: 15))
         try? FileManager.default.createDirectory(atPath: outputDirectory, withIntermediateDirectories: true)
     }
 
@@ -82,7 +91,7 @@ final class WorkoutFlowUITests: XCTestCase {
         var celebrations = 0
         for _ in 0..<200 {
             if button("Done").exists && button("Done").isHittable { return celebrations }
-            if button("Continue").exists && button("Continue").isHittable {
+            if button("Back to it").exists && button("Back to it").isHittable {
                 celebrations += 1
                 dismissCelebration()
             } else if button("Skip rest timer").exists && button("Skip rest timer").isHittable {
@@ -101,8 +110,8 @@ final class WorkoutFlowUITests: XCTestCase {
 
     /// Wait it out: a button on a cover that's animating away can't report hittability
     private func dismissCelebration() {
-        button("Continue").tap()
-        let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: button("Continue"))
+        button("Back to it").tap()
+        let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: button("Back to it"))
         wait(for: [gone], timeout: 5)
     }
 
@@ -150,7 +159,7 @@ final class WorkoutFlowUITests: XCTestCase {
         launch(program: "stronglifts_5x5_12week")
         start(day: 1)
         tap("Minimize workout")
-        app.tabBars.buttons["History"].tap()
+        app.otherElements["tabBar"].children(matching: .button)["History"].tap()
         let bar = app.buttons["resumeWorkoutBar"]
         XCTAssertTrue(bar.waitForExistence(timeout: 5))
         bar.tap()
@@ -163,7 +172,7 @@ final class WorkoutFlowUITests: XCTestCase {
     /// A real PR mid-workout gets one overlay with nothing readable behind it. A real PR
     /// on the last lift goes straight to the summary, once.
     func testRealPRsAppearOnce() {
-        launch(program: "stronglifts_5x5_12week")
+        launch(program: "stronglifts_5x5_12week", confetti: true)
         start(day: 1)
         XCTAssertEqual(finishWorkout(), 0)
         tap("Done")
@@ -174,7 +183,7 @@ final class WorkoutFlowUITests: XCTestCase {
         shot("last-time")
         var sawOverlay = false
         for _ in 0..<60 where !sawOverlay {
-            if button("Continue").exists && button("Continue").isHittable {
+            if button("Back to it").exists && button("Back to it").isHittable {
                 sawOverlay = true
             } else if button("Skip rest timer").exists && button("Skip rest timer").isHittable {
                 button("Skip rest timer").tap()
@@ -424,4 +433,5 @@ final class WorkoutFlowUITests: XCTestCase {
         XCTAssertTrue(finished.waitForExistence(timeout: 8))
         shot("nsuns-home")
     }
+
 }

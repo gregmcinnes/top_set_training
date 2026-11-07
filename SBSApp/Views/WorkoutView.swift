@@ -1492,6 +1492,8 @@ struct WorkoutCompleteView: View {
             StatBubble(value: volumeText, label: "Volume")
             StatBubble(value: "\(stats.sets)", label: "Sets")
         }
+        // One height for all three, whichever value had to shrink
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private var prSection: some View {
@@ -1615,7 +1617,7 @@ private struct StatBubble: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(SBSLayout.space3)
         .card()
         .accessibilityElement(children: .combine)

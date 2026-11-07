@@ -96,27 +96,27 @@ struct MainTabView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             HomeView(appState: appState)
-                .safeAreaInset(edge: .bottom, spacing: 0) { bottomBars }
+                .safeAreaInset(edge: .bottom, spacing: 0) { bottomBars(for: .home) }
                 .toolbar(.hidden, for: .tabBar)
                 .tag(ContentView.Tab.home)
             
             ProgramsView(appState: appState, selectedTab: $selectedTab)
-                .safeAreaInset(edge: .bottom, spacing: 0) { bottomBars }
+                .safeAreaInset(edge: .bottom, spacing: 0) { bottomBars(for: .programs) }
                 .toolbar(.hidden, for: .tabBar)
                 .tag(ContentView.Tab.programs)
             
             HistoryView(appState: appState)
-                .safeAreaInset(edge: .bottom, spacing: 0) { bottomBars }
+                .safeAreaInset(edge: .bottom, spacing: 0) { bottomBars(for: .history) }
                 .toolbar(.hidden, for: .tabBar)
                 .tag(ContentView.Tab.history)
             
             CalculatorsView(appState: appState)
-                .safeAreaInset(edge: .bottom, spacing: 0) { bottomBars }
+                .safeAreaInset(edge: .bottom, spacing: 0) { bottomBars(for: .calculators) }
                 .toolbar(.hidden, for: .tabBar)
                 .tag(ContentView.Tab.calculators)
             
             SettingsView(appState: appState)
-                .safeAreaInset(edge: .bottom, spacing: 0) { bottomBars }
+                .safeAreaInset(edge: .bottom, spacing: 0) { bottomBars(for: .settings) }
                 .toolbar(.hidden, for: .tabBar)
                 .tag(ContentView.Tab.settings)
         }
@@ -177,7 +177,10 @@ struct MainTabView: View {
     /// The resume bar above the tab bar. Inside each tab rather than around the TabView:
     /// a tab's hosting controller doesn't see insets added outside it, so content and
     /// the resume bar would slide under a bar placed there.
-    private var bottomBars: some View {
+    ///
+    /// Every tab carries its own copy, and tabs visited earlier stay in the hierarchy,
+    /// so only the selected tab's copy is visible to VoiceOver and UI tests.
+    private func bottomBars(for tab: ContentView.Tab) -> some View {
         VStack(spacing: 0) {
             resumeBar
             SBSTabBar(selection: $selectedTab, items: Self.tabItems) {
@@ -187,6 +190,7 @@ struct MainTabView: View {
                 ScrollToTop.reselectVisibleTab()
             }
         }
+        .accessibilityHidden(tab != selectedTab)
     }
 
     /// Shows a workout is running whenever it's minimized. A per-tab safe-area inset
@@ -237,10 +241,12 @@ struct SBSTabBar: View {
                             .symbolVariant(isActive ? .fill : .none)
                             .font(.system(size: 22, weight: .semibold))
                             .frame(height: 26)
+                            .accessibilityHidden(true)
                         Text(item.title)
                             .tabText()
                             .lineLimit(1)
                             .truncationMode(.tail)
+                            .accessibilityHidden(true)
                     }
                     .foregroundStyle(isActive ? Color.orangeText : Color.inkSecondary)
                     .frame(maxWidth: .infinity)
@@ -249,12 +255,10 @@ struct SBSTabBar: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityElement(children: .ignore)
+                // One element per tab, named by its title (the visible text is uppercased)
                 .accessibilityLabel(item.title)
-                .accessibilityAddTraits(isActive ? [.isButton, .isSelected] : [.isButton])
-                .accessibilityShowsLargeContentViewer {
-                    Label(item.title, systemImage: item.symbol)
-                }
+                .accessibilityAddTraits(isActive ? .isSelected : [])
+                .accessibilityShowsLargeContentViewer()
             }
         }
         .padding(.horizontal, SBSLayout.space1)

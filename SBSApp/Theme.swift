@@ -288,10 +288,20 @@ struct SBSButtonTitle: View {
     }
 
     var body: some View {
+        // One line when it fits. A longer title at the accessibility sizes wraps
+        // at a space rather than truncating ("I KNOW WHAT I W…"); a single word
+        // still shrinks rather than breaking ("PAUS / E").
+        ViewThatFits(in: .horizontal) {
+            label.lineLimit(1).fixedSize()
+            label
+                .lineLimit(title.contains(" ") ? 2 : 1)
+                .minimumScaleFactor(0.5)
+                .multilineTextAlignment(.center)
+        }
+    }
+
+    private var label: some View {
         Text(title.uppercased())
-            // A button title shrinks before it wraps ("PAUS / E")
-            .lineLimit(1)
-            .minimumScaleFactor(0.5)
             .accessibilityLabel(accessibilityText ?? title)
             // Inside the style's uppercase environment: keep the label as written
             .textCase(nil)

@@ -459,6 +459,8 @@ private struct PlanOptionCard: View {
                         Text(plan.label)
                             .font(SBSFonts.bodyStrong())
                             .foregroundStyle(Color.ink)
+                            // Never broken by the badge beside it ("Mon / thly")
+                            .fixedSize()
 
                         if let badge = plan.badgeText {
                             SBSBadge(text: badge)
@@ -505,14 +507,18 @@ private struct PlanOptionCard: View {
 
 private struct PremiumFeatureRow: View {
     let feature: PremiumFeature
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         HStack(alignment: .top, spacing: SBSLayout.space3) {
-            Image(systemName: feature.iconName)
-                .font(SBSFonts.bodyStrong())
-                .foregroundStyle(Color.inkSecondary)
-                .frame(width: 24)
-                .accessibilityHidden(true)
+            // The words need the width at the accessibility sizes
+            if !dynamicTypeSize.isAccessibilitySize {
+                Image(systemName: feature.iconName)
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.inkSecondary)
+                    .frame(width: 24)
+                    .accessibilityHidden(true)
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(feature.displayName)

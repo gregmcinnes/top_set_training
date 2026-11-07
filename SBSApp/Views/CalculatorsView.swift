@@ -407,7 +407,8 @@ struct OneRepMaxCalculatorView: View {
 
     private var inputSection: some View {
         CalculatorSection(title: "Enter your lift") {
-            HStack(alignment: .bottom, spacing: SBSLayout.space3) {
+            // Stacked at the accessibility sizes, where side by side breaks the labels mid-word
+            SBSAdaptiveStack(alignment: .bottom, spacing: SBSLayout.space3) {
                 // Weight input
                 VStack(alignment: .leading, spacing: SBSLayout.space1) {
                     SBSEyebrow("Weight (\(unit))")
@@ -417,11 +418,13 @@ struct OneRepMaxCalculatorView: View {
                         .focused($focusedField, equals: .weight)
                 }
 
-                Text("×")
-                    .font(SBSFonts.number())
-                    .foregroundStyle(Color.inkSecondary)
-                    .padding(.bottom, SBSLayout.space3)
-                    .accessibilityHidden(true)
+                if !dynamicTypeSize.isAccessibilitySize {
+                    Text("×")
+                        .font(SBSFonts.number())
+                        .foregroundStyle(Color.inkSecondary)
+                        .padding(.bottom, SBSLayout.space3)
+                        .accessibilityHidden(true)
+                }
 
                 // Reps input
                 VStack(alignment: .leading, spacing: SBSLayout.space1) {

@@ -181,6 +181,7 @@ struct TemplateStepProgressView: View {
 // MARK: - Step 1: Basics
 
 struct BasicsStepView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Binding var template: CustomTemplate
     let onContinue: () -> Void
     
@@ -304,7 +305,11 @@ struct BasicsStepView: View {
                 VStack(alignment: .leading, spacing: SBSLayout.space2) {
                     SBSSectionEyebrow("Program Length")
 
-                    HStack(spacing: SBSLayout.space1) {
+                    // A grid of three at the accessibility sizes: five across reads "4 wk8 wk12 wk"
+                    LazyVGrid(
+                        columns: Array(repeating: GridItem(.flexible(), spacing: SBSLayout.space1), count: dynamicTypeSize.isAccessibilitySize ? 3 : 5),
+                        spacing: SBSLayout.space1
+                    ) {
                         ForEach([4, 8, 12, 16, 20], id: \.self) { weekCount in
                             let isSelected = template.weeks.count == weekCount
                             Button {
@@ -383,7 +388,8 @@ struct DaysStepView: View {
     let onContinue: () -> Void
     
     @State private var selectedDay: Int = 1
-    
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -391,10 +397,14 @@ struct DaysStepView: View {
                 Text("Configure Days")
                     .font(SBSFonts.title())
                     .foregroundStyle(Color.ink)
-                
-                Text("Select each day to add exercises.")
-                    .font(SBSFonts.body())
-                    .foregroundStyle(Color.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                // The fixed header gives the list room at the accessibility sizes
+                if !dynamicTypeSize.isAccessibilitySize {
+                    Text("Select each day to add exercises.")
+                        .font(SBSFonts.body())
+                        .foregroundStyle(Color.inkSecondary)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()

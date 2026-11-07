@@ -362,6 +362,7 @@ private struct PickerExerciseRow: View {
     let detail: String?
     let badge: String?
     let isSelected: Bool
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         HStack(spacing: SBSLayout.space3) {
@@ -382,11 +383,17 @@ private struct PickerExerciseRow: View {
                         .font(SBSFonts.caption())
                         .foregroundStyle(Color.inkSecondary)
                 }
+
+                // Under the name at the accessibility sizes, where beside it the
+                // name breaks a letter a line
+                if let badge, dynamicTypeSize.isAccessibilitySize {
+                    SBSBadge(text: badge)
+                }
             }
 
             Spacer(minLength: SBSLayout.space2)
 
-            if let badge {
+            if let badge, !dynamicTypeSize.isAccessibilitySize {
                 SBSBadge(text: badge)
             }
 

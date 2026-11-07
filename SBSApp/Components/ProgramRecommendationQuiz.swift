@@ -286,6 +286,25 @@ struct QuestionView: View {
     }
     
     var body: some View {
+        // Centred when it fits; scrolls at the accessibility sizes instead of
+        // squeezing the question and answers to "Keep it si…"
+        ViewThatFits(in: .vertical) {
+            questionContent(spaced: true)
+            ScrollView {
+                questionContent(spaced: false)
+                    .padding(.bottom, SBSLayout.space6)
+            }
+        }
+        .onAppear {
+            // Reset and animate options
+            animateOptions = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                animateOptions = true
+            }
+        }
+    }
+
+    private func questionContent(spaced: Bool) -> some View {
         VStack(spacing: SBSLayout.space6) {
             // Question header
             VStack(spacing: SBSLayout.space4) {
@@ -312,7 +331,7 @@ struct QuestionView: View {
             .padding(.horizontal, SBSLayout.space4)
             .padding(.top, SBSLayout.space6)
 
-            Spacer()
+            if spaced { Spacer() }
             
             // Options
             VStack(spacing: SBSLayout.space2) {
@@ -333,14 +352,7 @@ struct QuestionView: View {
             }
             .padding(.horizontal, SBSLayout.space4)
 
-            Spacer()
-        }
-        .onAppear {
-            // Reset and animate options
-            animateOptions = false
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                animateOptions = true
-            }
+            if spaced { Spacer() }
         }
     }
 }
@@ -657,7 +669,7 @@ struct RecommendationCard: View {
                                 .foregroundStyle(isLocked ? Color.inkSecondary : Color.ink)
                                 .multilineTextAlignment(.leading)
 
-                            HStack(spacing: SBSLayout.space2) {
+                            SBSAdaptiveStack(spacing: SBSLayout.space2) {
                                 if recommendation.isFree {
                                     SBSBadge(text: "Free")
                                 } else {
@@ -680,7 +692,8 @@ struct RecommendationCard: View {
                         .multilineTextAlignment(.leading)
 
                     // Tags: neutral badges, the word does the work
-                    HStack(spacing: SBSLayout.space1) {
+                    // Wraps rather than widening the card at the accessibility sizes
+                    FlowLayout(spacing: SBSLayout.space1) {
                         ForEach(recommendation.tags.prefix(3), id: \.self) { tag in
                             SBSBadge(text: tag)
                         }
@@ -786,7 +799,7 @@ struct RecommendationCardCompact: View {
                             .foregroundStyle(isLocked ? Color.inkSecondary : Color.ink)
                             .multilineTextAlignment(.leading)
 
-                        HStack(spacing: SBSLayout.space2) {
+                        SBSAdaptiveStack(spacing: SBSLayout.space2) {
                             if recommendation.isFree {
                                 SBSBadge(text: "Free")
                             } else {

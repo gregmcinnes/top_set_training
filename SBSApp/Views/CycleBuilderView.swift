@@ -548,6 +548,7 @@ selectedProgram = programId
 // MARK: - Step Progress View
 
 struct StepProgressView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let currentStep: CycleBuilderView.BuilderStep
 
     private let steps = CycleBuilderView.BuilderStep.indicatorSteps
@@ -586,13 +587,16 @@ struct StepProgressView: View {
                         connector(isReached: step.rawValue < currentStep.rawValue, isHidden: step == steps.last)
                     }
 
-                    Text(step.title)
-                        .font(step == currentStep ? SBSFonts.caption().weight(.bold) : SBSFonts.caption())
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .foregroundStyle(isReached(step)
-                                        ? Color.ink
-                                        : Color.inkSecondary)
+                    // Markers only at the accessibility sizes: four labels can't fit
+                    if !dynamicTypeSize.isAccessibilitySize {
+                        Text(step.title)
+                            .font(step == currentStep ? SBSFonts.caption().weight(.bold) : SBSFonts.caption())
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .foregroundStyle(isReached(step)
+                                            ? Color.ink
+                                            : Color.inkSecondary)
+                    }
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -820,6 +824,7 @@ struct ProgramSelectionStepView: View {
     let onBuildTemplate: () -> Void
 
     @State private var showingProgramPaywall = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(spacing: 0) {
@@ -828,10 +833,15 @@ struct ProgramSelectionStepView: View {
                 Text("Select Program")
                     .font(SBSFonts.title())
                     .foregroundStyle(Color.ink)
-                
-                Text("Choose your training template")
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(Color.inkSecondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                // The fixed header gives the list room at the accessibility sizes
+                if !dynamicTypeSize.isAccessibilitySize {
+                    Text("Choose your training template")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
+                }
             }
             .padding(.top, SBSLayout.space4)
             .padding(.bottom, SBSLayout.space2)
@@ -901,7 +911,8 @@ struct ExerciseReviewStepView: View {
     @State private var editingAccessoryIndex: Int? = nil
     @State private var editingAccessorySets: Int = 4
     @State private var editingAccessoryReps: Int = 10
-    
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -909,17 +920,22 @@ struct ExerciseReviewStepView: View {
                 Text("Review Exercises")
                     .font(SBSFonts.title())
                     .foregroundStyle(Color.ink)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
 
-                Text("Customize the lifts for each training day")
-                    .font(SBSFonts.body())
-                    .foregroundStyle(Color.inkSecondary)
-                    .multilineTextAlignment(.center)
+                // The fixed header gives the list room at the accessibility sizes
+                if !dynamicTypeSize.isAccessibilitySize {
+                    Text("Customize the lifts for each training day")
+                        .font(SBSFonts.body())
+                        .foregroundStyle(Color.inkSecondary)
+                        .multilineTextAlignment(.center)
 
-                // Reassuring message
-                Text("Exercises can be changed in Settings")
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(Color.inkSecondary)
+                    // Reassuring message
+                    Text("Exercises can be changed in Settings")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
+                }
             }
             .padding(.top, SBSLayout.space6)
             .padding(.horizontal)

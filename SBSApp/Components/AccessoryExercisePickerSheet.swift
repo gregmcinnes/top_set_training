@@ -7,36 +7,36 @@ struct AccessoryExercisePickerSheet: View {
     let title: String
     let onSelect: (String) -> Void
     let onCancel: () -> Void
-    
+
     /// If true, shows only main lifts by default. If false, shows all exercises.
     var mainLiftsOnly: Bool = false
-    
+
     /// If true, shows filter chips to toggle between all exercises and main lifts
     var showFilterChips: Bool = false
-    
+
     /// Current exercise name (for showing checkmark)
     var currentExercise: String? = nil
-    
+
     /// Custom exercises the user has added
     @State private var customExercises: [String] = []
-    
+
     @State private var searchText: String = ""
     @State private var expandedBodyParts: Set<BodyPart> = []
     @State private var showingAddCustom = false
     @State private var customExerciseName = ""
     @State private var customExerciseBodyPart: BodyPart = .chest
     @State private var filterMainLiftsOnly: Bool = false
-    
+
     private let library = ExerciseLibrary.shared
-    
+
     private var effectiveMainLiftsOnly: Bool {
         mainLiftsOnly || filterMainLiftsOnly
     }
-    
+
     private var exercises: [Exercise] {
         effectiveMainLiftsOnly ? library.mainLifts : library.exercises
     }
-    
+
     private var filteredExercises: [Exercise] {
         if searchText.isEmpty {
             return exercises
@@ -44,19 +44,19 @@ struct AccessoryExercisePickerSheet: View {
         let query = searchText.lowercased()
         return exercises.filter { $0.name.lowercased().contains(query) }
     }
-    
+
     private var exercisesByBodyPart: [BodyPart: [Exercise]] {
         Dictionary(grouping: filteredExercises) { $0.bodyPart }
     }
-    
+
     private var sortedBodyParts: [BodyPart] {
         BodyPart.allCases.filter { exercisesByBodyPart[$0] != nil && !(exercisesByBodyPart[$0]?.isEmpty ?? true) }
     }
-    
+
     private var hasSearchResults: Bool {
         !filteredExercises.isEmpty || !filteredCustomExercises.isEmpty
     }
-    
+
     private var filteredCustomExercises: [String] {
         if searchText.isEmpty {
             return customExercises
@@ -64,34 +64,38 @@ struct AccessoryExercisePickerSheet: View {
         let query = searchText.lowercased()
         return customExercises.filter { $0.lowercased().contains(query) }
     }
-    
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 // Search bar
                 HStack(spacing: SBSLayout.space2) {
                     Image(systemName: "magnifyingglass")
+                        .font(SBSFonts.body())
                         .foregroundStyle(Color.inkSecondary)
-                    
+                        .accessibilityHidden(true)
+
                     TextField("Search exercises...", text: $searchText)
                         .textFieldStyle(.plain)
                         .font(SBSFonts.body())
-                    
+                        .foregroundStyle(Color.ink)
+
                     if !searchText.isEmpty {
                         Button {
                             searchText = ""
                         } label: {
                             Image(systemName: "xmark.circle.fill")
+                                .font(SBSFonts.body())
                                 .foregroundStyle(Color.inkSecondary)
                         }
+                        .accessibilityLabel("Clear search")
                     }
                 }
-                .padding()
-                .background(Color.surface)
-                .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+                .frame(minHeight: 32)
+                .sbsFieldCell()
                 .padding(.horizontal)
                 .padding(.top, SBSLayout.space2)
-                
+
                 // Filter chips
                 if showFilterChips {
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -101,7 +105,7 @@ struct AccessoryExercisePickerSheet: View {
                                 isSelected: !filterMainLiftsOnly,
                                 onTap: { filterMainLiftsOnly = false }
                             )
-                            
+
                             FilterChip(
                                 title: "Compound Lifts",
                                 icon: "figure.strengthtraining.traditional",
@@ -113,10 +117,10 @@ struct AccessoryExercisePickerSheet: View {
                     }
                     .padding(.top, SBSLayout.space2)
                 }
-                
+
                 if hasSearchResults {
                     ScrollView {
-                        LazyVStack(spacing: SBSLayout.space2) {
+                        LazyVStack(spacing: SBSLayout.space3) {
                             // Custom exercises section (if any)
                             if !filteredCustomExercises.isEmpty {
                                 CustomExercisesSection(
@@ -125,7 +129,7 @@ struct AccessoryExercisePickerSheet: View {
                                     onSelect: onSelect
                                 )
                             }
-                            
+
                             // Body part sections
                             ForEach(sortedBodyParts) { bodyPart in
                                 BodyPartSection(
@@ -150,25 +154,22 @@ struct AccessoryExercisePickerSheet: View {
                         description: Text("Try a different search or add a custom exercise")
                     )
                 }
-                
-                // Add custom button
+
+                // The sheet's action is picking a row, so adding one is the hairline alternative
                 Button {
                     showingAddCustom = true
                 } label: {
-                    HStack {
-                        Image(systemName: "plus.circle.fill")
-                        Text("Add Custom Exercise")
+                    HStack(spacing: SBSLayout.space2) {
+                        Image(systemName: "plus")
+                            .font(SBSFonts.button())
+                            .accessibilityHidden(true)
+                        SBSButtonTitle("Add Custom Exercise")
                     }
-                    .font(SBSFonts.bodyStrong())
-                    .foregroundStyle(Color.orangeText)
                     .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .strokeBorder(SBSColors.accentFallback.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [5]))
-                    )
                 }
+                .buttonStyle(SBSSecondaryButtonStyle())
                 .padding(.horizontal)
+                .padding(.top, SBSLayout.space2)
                 .padding(.bottom, SBSLayout.space4)
             }
             .sbsBackground()
@@ -200,7 +201,7 @@ struct AccessoryExercisePickerSheet: View {
             .onAppear {
                 // Load custom exercises from UserDefaults
                 loadCustomExercises()
-                
+
                 // Auto-expand the first body part if search is empty
                 if searchText.isEmpty && !sortedBodyParts.isEmpty {
                     expandedBodyParts.insert(sortedBodyParts[0])
@@ -208,7 +209,7 @@ struct AccessoryExercisePickerSheet: View {
             }
         }
     }
-    
+
     private func isExpanded(_ bodyPart: BodyPart) -> Bool {
         // If searching, show all expanded
         if !searchText.isEmpty {
@@ -216,7 +217,7 @@ struct AccessoryExercisePickerSheet: View {
         }
         return expandedBodyParts.contains(bodyPart)
     }
-    
+
     private func toggleBodyPart(_ bodyPart: BodyPart) {
         withAnimation(.easeInOut(duration: 0.2)) {
             if expandedBodyParts.contains(bodyPart) {
@@ -226,13 +227,13 @@ struct AccessoryExercisePickerSheet: View {
             }
         }
     }
-    
+
     private func loadCustomExercises() {
         if let saved = UserDefaults.standard.stringArray(forKey: "customExercises") {
             customExercises = saved
         }
     }
-    
+
     private func saveCustomExercises() {
         UserDefaults.standard.set(customExercises, forKey: "customExercises")
     }
@@ -240,6 +241,8 @@ struct AccessoryExercisePickerSheet: View {
 
 // MARK: - Body Part Section
 
+/// One hairline group per body part: a header row that expands it, then its exercises.
+/// Body parts are told apart by name and glyph, not by a colour each.
 struct BodyPartSection: View {
     let bodyPart: BodyPart
     let exercises: [Exercise]
@@ -247,78 +250,70 @@ struct BodyPartSection: View {
     let isExpanded: Bool
     let onToggle: () -> Void
     let onSelect: (String) -> Void
-    
-    private var bodyPartColor: Color {
-        switch bodyPart.color {
-        case "red": return .red
-        case "blue": return .blue
-        case "orange": return .orange
-        case "purple": return .purple
-        case "pink": return .pink
-        case "brown": return .brown
-        case "yellow": return .yellow
-        case "green": return .green
-        case "teal": return .teal
-        case "indigo": return .indigo
-        case "mint": return .mint
-        default: return .gray
-        }
-    }
-    
+
     var body: some View {
         VStack(spacing: 0) {
-            // Header (tappable to expand/collapse)
             Button(action: onToggle) {
-                HStack(spacing: SBSLayout.space2) {
-                    // Body part icon
-                    Image(systemName: bodyPart.icon)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(bodyPartColor)
-                        .frame(width: 32, height: 32)
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                .fill(bodyPartColor.opacity(0.15))
-                        )
-                    
-                    Text(bodyPart.rawValue)
-                        .font(SBSFonts.bodyStrong())
-                        .foregroundStyle(Color.ink)
-                    
-                    Text("(\(exercises.count))")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(Color.inkSecondary)
-                    
-                    Spacer()
-                    
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Color.inkTertiary)
-                }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: isExpanded ? 12 : SBSLayout.cornerRadiusMedium)
-                        .fill(Color.surface)
+                PickerGroupHeader(
+                    systemImage: bodyPart.icon,
+                    title: bodyPart.rawValue,
+                    count: exercises.count,
+                    chevron: isExpanded ? "chevron.up" : "chevron.down"
                 )
             }
             .buttonStyle(.plain)
-            
-            // Expanded exercises
+            .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
+
             if isExpanded {
-                VStack(spacing: 1) {
-                    ForEach(exercises) { exercise in
-                        ExerciseRow(
-                            exercise: exercise,
-                            isSelected: currentExercise == exercise.name,
-                            bodyPartColor: bodyPartColor,
-                            onSelect: { onSelect(exercise.name) }
-                        )
-                    }
+                ForEach(exercises) { exercise in
+                    SBSRowDivider()
+                    ExerciseRow(
+                        exercise: exercise,
+                        isSelected: currentExercise == exercise.name,
+                        onSelect: { onSelect(exercise.name) }
+                    )
                 }
-                .background(Color.surface.opacity(0.5))
-                .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
-                .padding(.top, 2)
             }
         }
+        .card()
+    }
+}
+
+/// A picker group's header: an ink-secondary glyph, the title, the count in
+/// number-small and an optional chevron.
+private struct PickerGroupHeader: View {
+    let systemImage: String
+    let title: String
+    let count: Int
+    var chevron: String? = nil
+
+    var body: some View {
+        HStack(spacing: SBSLayout.space3) {
+            Image(systemName: systemImage)
+                .font(SBSFonts.bodyStrong())
+                .foregroundStyle(Color.inkSecondary)
+                .frame(width: 24)
+                .accessibilityHidden(true)
+
+            Text(title)
+                .font(SBSFonts.bodyStrong())
+                .foregroundStyle(Color.ink)
+
+            Text("\(count)")
+                .font(SBSFonts.numberSmall())
+                .foregroundStyle(Color.inkSecondary)
+                .accessibilityLabel("\(count) exercises")
+
+            Spacer(minLength: 0)
+
+            if let chevron {
+                SBSChevron(systemName: chevron)
+            }
+        }
+        .padding(.horizontal, SBSLayout.space4)
+        .padding(.vertical, SBSLayout.space3)
+        .frame(minHeight: 56)
+        .contentShape(Rectangle())
     }
 }
 
@@ -327,59 +322,22 @@ struct BodyPartSection: View {
 struct ExerciseRow: View {
     let exercise: Exercise
     let isSelected: Bool
-    let bodyPartColor: Color
     let onSelect: () -> Void
-    
+
     var body: some View {
         Button(action: onSelect) {
-            HStack(spacing: SBSLayout.space4) {
-                // Equipment indicator
-                Image(systemName: equipmentIcon)
-                    .font(.system(size: 14))
-                    .foregroundStyle(Color.inkSecondary)
-                    .frame(width: 24)
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(exercise.name)
-                        .font(SBSFonts.body())
-                        .foregroundStyle(Color.ink)
-                    
-                    Text(exercise.equipment.rawValue)
-                        .font(.system(size: 11))
-                        .foregroundStyle(Color.inkSecondary)
-                }
-                
-                Spacer()
-                
-                // Category badge
-                if exercise.isCompound {
-                    Text("Compound")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(bodyPartColor)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(
-                            Capsule()
-                                .fill(bodyPartColor.opacity(0.12))
-                        )
-                }
-                
-                // Selection indicator
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(Color.orangeText)
-                }
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 12)
-            .background(
-                isSelected ? Color.orangeSoft : Color.clear
+            PickerExerciseRow(
+                systemImage: equipmentIcon,
+                name: exercise.name,
+                detail: exercise.equipment.rawValue,
+                badge: exercise.isCompound ? "Compound" : nil,
+                isSelected: isSelected
             )
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
-    
+
     private var equipmentIcon: String {
         switch exercise.equipment {
         case .barbell: return "line.horizontal.3"
@@ -396,89 +354,88 @@ struct ExerciseRow: View {
     }
 }
 
+/// An exercise row inside a picker group. The current exercise is orange-soft
+/// with an orange-text check; its text stays ink.
+private struct PickerExerciseRow: View {
+    let systemImage: String
+    let name: String
+    let detail: String?
+    let badge: String?
+    let isSelected: Bool
+
+    var body: some View {
+        HStack(spacing: SBSLayout.space3) {
+            Image(systemName: systemImage)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
+                .frame(width: 24)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                    .font(SBSFonts.body())
+                    .foregroundStyle(Color.ink)
+                    .multilineTextAlignment(.leading)
+
+                if let detail {
+                    Text(detail)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
+                }
+            }
+
+            Spacer(minLength: SBSLayout.space2)
+
+            if let badge {
+                SBSBadge(text: badge)
+            }
+
+            if isSelected {
+                Image(systemName: "checkmark")
+                    .font(SBSFonts.bodyStrong().weight(.bold))
+                    .foregroundStyle(Color.orangeText)
+                    .accessibilityHidden(true)
+            }
+        }
+        .padding(.horizontal, SBSLayout.space4)
+        .padding(.vertical, SBSLayout.space3)
+        .frame(minHeight: 56)
+        .background(isSelected ? Color.orangeSoft : Color.clear)
+        .contentShape(Rectangle())
+    }
+}
+
 // MARK: - Custom Exercises Section
 
 struct CustomExercisesSection: View {
     let exercises: [String]
     let currentExercise: String?
     let onSelect: (String) -> Void
-    
+
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack(spacing: SBSLayout.space2) {
-                Image(systemName: "star.fill")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.yellow)
-                    .frame(width: 32, height: 32)
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .fill(Color.yellow.opacity(0.15))
+            PickerGroupHeader(systemImage: "star", title: "My Exercises", count: exercises.count)
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isHeader)
+
+            ForEach(exercises, id: \.self) { name in
+                SBSRowDivider()
+                Button {
+                    onSelect(name)
+                } label: {
+                    PickerExerciseRow(
+                        systemImage: "dumbbell",
+                        name: name,
+                        detail: nil,
+                        badge: "Custom",
+                        isSelected: currentExercise == name
                     )
-                
-                Text("My Exercises")
-                    .font(SBSFonts.bodyStrong())
-                    .foregroundStyle(Color.ink)
-                
-                Text("(\(exercises.count))")
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(Color.inkSecondary)
-                
-                Spacer()
-            }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                    .fill(Color.surface)
-            )
-            
-            // Exercises
-            VStack(spacing: 1) {
-                ForEach(exercises, id: \.self) { name in
-                    Button {
-                        onSelect(name)
-                    } label: {
-                        HStack {
-                            Image(systemName: "dumbbell.fill")
-                                .font(.system(size: 14))
-                                .foregroundStyle(Color.inkSecondary)
-                                .frame(width: 24)
-                            
-                            Text(name)
-                                .font(SBSFonts.body())
-                                .foregroundStyle(Color.ink)
-                            
-                            Spacer()
-                            
-                            Text("Custom")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(.yellow)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(
-                                    Capsule()
-                                        .fill(Color.yellow.opacity(0.12))
-                                )
-                            
-                            if currentExercise == name {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 20))
-                                    .foregroundStyle(Color.orangeText)
-                            }
-                        }
-                        .padding(.horizontal)
-                        .padding(.vertical, 12)
-                        .background(
-                            currentExercise == name ? Color.orangeSoft : Color.clear
-                        )
-                    }
-                    .buttonStyle(.plain)
                 }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(currentExercise == name ? [.isSelected] : [])
             }
-            .background(Color.surface.opacity(0.5))
-            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
-            .padding(.top, 2)
         }
+        .card()
     }
 }
 
@@ -489,55 +446,51 @@ struct AddCustomExerciseSheet: View {
     @Binding var bodyPart: BodyPart
     let onAdd: (String) -> Void
     let onCancel: () -> Void
-    
+
     @FocusState private var isNameFocused: Bool
-    
+
     private var isValid: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
-    
+
     var body: some View {
         NavigationStack {
             VStack(spacing: SBSLayout.space6) {
                 // Header
                 VStack(spacing: SBSLayout.space2) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 48))
-                        .foregroundStyle(Color.orangeText)
-                    
                     Text("Add Custom Exercise")
                         .font(SBSFonts.title())
                         .foregroundStyle(Color.ink)
-                    
+                        .multilineTextAlignment(.center)
+
                     Text("Create your own exercise to track")
                         .font(SBSFonts.body())
                         .foregroundStyle(Color.inkSecondary)
+                        .multilineTextAlignment(.center)
                 }
                 .padding(.top, SBSLayout.space6)
-                
+                .padding(.horizontal)
+
                 // Name input
                 VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                    Text("Exercise Name")
-                        .font(SBSFonts.caption().weight(.semibold))
+                    SBSEyebrow("Exercise Name")
                         .foregroundStyle(Color.inkSecondary)
-                    
+
                     TextField("e.g., Chest Flyes, Hip Thrust", text: $name)
                         .font(SBSFonts.body())
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                .fill(Color.surface)
-                        )
+                        .foregroundStyle(Color.ink)
+                        .frame(minHeight: 32)
+                        .sbsFieldCell()
                         .focused($isNameFocused)
                 }
                 .padding(.horizontal)
-                
+
                 // Body part picker
                 VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                    Text("Body Part (optional)")
-                        .font(SBSFonts.caption().weight(.semibold))
+                    SBSEyebrow("Body Part (optional)")
                         .foregroundStyle(Color.inkSecondary)
-                    
+                        .padding(.horizontal)
+
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: SBSLayout.space2) {
                             ForEach(BodyPart.allCases) { part in
@@ -551,27 +504,23 @@ struct AddCustomExerciseSheet: View {
                         .padding(.horizontal)
                     }
                 }
-                
+
                 Spacer()
-                
-                // Add button
+
+                // Add button: the sheet's one primary action
                 Button {
                     let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
                     saveCustomExercise(trimmedName)
                     onAdd(trimmedName)
                 } label: {
-                    Text("Add Exercise")
-                        .font(SBSFonts.bodyStrong())
-                        .foregroundStyle(Color.orangeInk)
+                    SBSButtonTitle("Add Exercise")
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, SBSLayout.space4)
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                .fill(isValid ? SBSColors.accentFallback : Color.surface)
-                        )
                 }
+                .buttonStyle(SBSPrimaryButtonStyle())
                 .disabled(!isValid)
                 .padding(.horizontal)
+                // Room for the hard shadow
+                .padding(.trailing, SBSLayout.hardShadowOffset)
                 .padding(.bottom, SBSLayout.space6)
             }
             .sbsBackground()
@@ -589,7 +538,7 @@ struct AddCustomExerciseSheet: View {
             }
         }
     }
-    
+
     private func saveCustomExercise(_ exerciseName: String) {
         var customs = UserDefaults.standard.stringArray(forKey: "customExercises") ?? []
         if !customs.contains(exerciseName) {
@@ -601,79 +550,29 @@ struct AddCustomExerciseSheet: View {
 
 // MARK: - Body Part Chip
 
+/// A body part choice: an SBSChip (selected orange-soft with an orange-text edge),
+/// no longer filled in the body part's own colour.
 struct BodyPartChip: View {
     let bodyPart: BodyPart
     let isSelected: Bool
     let onSelect: () -> Void
-    
-    private var chipColor: Color {
-        switch bodyPart.color {
-        case "red": return .red
-        case "blue": return .blue
-        case "orange": return .orange
-        case "purple": return .purple
-        case "pink": return .pink
-        case "brown": return .brown
-        case "yellow": return .yellow
-        case "green": return .green
-        case "teal": return .teal
-        case "indigo": return .indigo
-        case "mint": return .mint
-        default: return .gray
-        }
-    }
-    
+
     var body: some View {
-        Button(action: onSelect) {
-            HStack(spacing: 4) {
-                Image(systemName: bodyPart.icon)
-                    .font(.system(size: 12))
-                Text(bodyPart.rawValue)
-                    .font(SBSFonts.caption().weight(.semibold))
-            }
-            .foregroundStyle(isSelected ? .white : Color.ink)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                Capsule()
-                    .fill(isSelected ? chipColor : Color.surface)
-            )
-        }
-        .buttonStyle(.plain)
+        SBSChip(title: bodyPart.rawValue, systemImage: bodyPart.icon, isSelected: isSelected, action: onSelect)
     }
 }
 
 // MARK: - Filter Chip
 
+/// Kept for its call sites (ProgramSelector too): an SBSChip.
 struct FilterChip: View {
     let title: String
     var icon: String? = nil
     let isSelected: Bool
     let onTap: () -> Void
-    
+
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 6) {
-                if let icon = icon {
-                    Image(systemName: icon)
-                        .font(.system(size: 12, weight: .medium))
-                }
-                Text(title)
-                    .font(SBSFonts.caption().weight(.semibold))
-            }
-            .foregroundStyle(isSelected ? Color.orangeInk : Color.ink)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(
-                Capsule()
-                    .fill(isSelected ? SBSColors.accentFallback : Color.surface)
-            )
-            .overlay(
-                Capsule()
-                    .strokeBorder(isSelected ? Color.clear : Color.inkTertiary.opacity(0.3), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
+        SBSChip(title: title, systemImage: icon, isSelected: isSelected, action: onTap)
     }
 }
 

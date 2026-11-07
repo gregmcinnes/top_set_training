@@ -153,96 +153,68 @@ struct SettingsView: View {
                         Button {
                             showingPaywall = true
                         } label: {
-                            HStack(spacing: SBSLayout.paddingMedium) {
-                                ZStack {
-                                    Circle()
-                                        .fill(
-                                            LinearGradient(
-                                                colors: [SBSColors.accentFallback.opacity(0.2), SBSColors.accentSecondaryFallback.opacity(0.1)],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            )
-                                        )
-                                        .frame(width: 44, height: 44)
-                                    
-                                    Image(systemName: "crown.fill")
-                                        .font(.system(size: 20))
-                                        .foregroundStyle(
-                                            LinearGradient(
-                                                colors: [SBSColors.accentFallback, SBSColors.accentSecondaryFallback],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            )
-                                        )
-                                }
-                                
+                            HStack(spacing: SBSLayout.space3) {
+                                Image(systemName: "crown.fill")
+                                    .font(SBSFonts.heading())
+                                    .foregroundStyle(Color.orangeText)
+                                    .frame(width: 28)
+                                    .accessibilityHidden(true)
+
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Upgrade to Premium")
-                                        .font(SBSFonts.bodyBold())
-                                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                                    
+                                        .font(SBSFonts.bodyStrong())
+                                        .foregroundStyle(Color.ink)
+
                                     Text("Unlock all programs & features")
-                                        .font(SBSFonts.legacyCaption())
-                                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                                        .font(SBSFonts.caption())
+                                        .foregroundStyle(Color.inkSecondary)
                                 }
-                                
+
                                 Spacer()
-                                
+
                                 Text(storeManager.premiumPriceString)
-                                    .font(SBSFonts.bodyBold())
-                                    .foregroundStyle(Color.orangeText)
+                                    .font(SBSFonts.number())
+                                    .foregroundStyle(Color.ink)
+
+                                SBSChevron()
                             }
-                            .padding(.vertical, 4)
                         }
                     }
+                    .sbsListRows()
                 }
-                
+
                 // Current Program
                 Section {
                     Button {
                         programInfoSheet = currentProgramInfo
                     } label: {
-                        HStack(spacing: SBSLayout.paddingMedium) {
-                            ZStack {
-                                Circle()
-                                    .fill(programFamilyColor.opacity(0.15))
-                                    .frame(width: 44, height: 44)
-                                
-                                Image(systemName: "dumbbell.fill")
-                                    .font(.system(size: 18))
-                                    .foregroundStyle(programFamilyColor)
-                            }
-                            
+                        HStack(spacing: SBSLayout.space3) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(appState.programDisplayName)
-                                    .font(SBSFonts.bodyBold())
-                                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                                
+                                    .font(SBSFonts.bodyStrong())
+                                    .foregroundStyle(Color.ink)
+
                                 if let programInfo = currentProgramInfo {
-                                    HStack(spacing: 8) {
-                                        Label("\(programInfo.days)d/wk", systemImage: "calendar")
-                                        Label("\(programInfo.weeks)wk", systemImage: "clock")
-                                    }
-                                    .font(SBSFonts.caption2())
-                                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                                    SBSRowSubtitle("\(programInfo.days) days/week · \(programInfo.weeks) weeks")
                                 }
                             }
-                            
+
                             Spacer()
 
                             if currentProgramInfo != nil {
                                 Image(systemName: "info.circle")
-                                    .font(.system(size: 18))
-                                    .foregroundStyle(programFamilyColor)
+                                    .font(SBSFonts.bodyStrong())
+                                    .foregroundStyle(Color.orangeText)
+                                    .accessibilityLabel("Program info")
                             }
                         }
-                        .padding(.vertical, 4)
                     }
                     .disabled(currentProgramInfo == nil)
                 } header: {
-                    Text("Current Program")
+                    SBSListHeader("Current Program")
                 }
-                
+                .sbsListRows()
+
                 // Units & Rounding
                 Section {
                     Toggle("Use Metric (kg)", isOn: $appState.settings.useMetric)
@@ -255,18 +227,21 @@ struct SettingsView: View {
                             Text(choice.label).tag(choice.value)
                         }
                     }
+                    .sbsValuePicker()
 
                     Picker("Barbell Weight", selection: barWeightBinding) {
                         ForEach(barWeightChoices) { option in
                             Text(option.label).tag(option.value)
                         }
                     }
+                    .sbsValuePicker()
                 } header: {
-                    Text("Units & Rounding")
+                    SBSListHeader("Units & Rounding")
                 } footer: {
-                    Text("Weights will be rounded to the nearest increment. Barbell weight is used for plate calculations.")
+                    SBSListFooter("Weights will be rounded to the nearest increment. Barbell weight is used for plate calculations.")
                 }
-                
+                .sbsListRows()
+
                 // Bodyweight & Standards
                 Section {
                     HStack {
@@ -275,7 +250,7 @@ struct SettingsView: View {
                         TextField(
                             "Not set",
                             value: Binding(
-                                get: { 
+                                get: {
                                     if let bw = appState.settings.bodyweight {
                                         return appState.settings.useMetric ? bw * 0.453592 : bw
                                     }
@@ -293,18 +268,21 @@ struct SettingsView: View {
                             format: .number.precision(.fractionLength(0))
                         )
                         .keyboardType(.decimalPad)
+                        .font(SBSFonts.numberUnit())
                         .multilineTextAlignment(.trailing)
                         .frame(width: 80)
-                        
+
                         Text(appState.settings.useMetric ? "kg" : "lb")
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.numberSmall())
+                            .foregroundStyle(Color.inkSecondary)
                     }
-                    
+
                     // Scoring formulas use different coefficients for men and women
                     Picker("Scoring Category", selection: $appState.settings.isMale) {
                         Text("Men").tag(true)
                         Text("Women").tag(false)
                     }
+                    .sbsValuePicker()
 
                     // Fetch from HealthKit button
                     if HealthKitManager.shared.isHealthKitAvailable {
@@ -313,20 +291,17 @@ struct SettingsView: View {
                                 await fetchBodyWeightFromHealthKit()
                             }
                         } label: {
-                            HStack {
-                                Image(systemName: "heart.text.square.fill")
-                                    .foregroundStyle(.red)
-                                Text("Fetch from HealthKit")
-                            }
+                            Label("Fetch from HealthKit", systemImage: "heart.text.square")
                         }
                     }
-                    
+
                 } header: {
-                    Text("Strength Scores")
+                    SBSListHeader("Strength Scores")
                 } footer: {
-                    Text("Used for strength scores in History and Calculators.")
+                    SBSListFooter("Used for strength scores in History and Calculators.")
                 }
-                
+                .sbsListRows()
+
                 // Display
                 Section {
                     Picker("Appearance", selection: $appState.settings.appearanceMode) {
@@ -335,35 +310,37 @@ struct SettingsView: View {
                                 .tag(mode)
                         }
                     }
+                    .sbsValuePicker()
                 } header: {
-                    Text("Display")
+                    SBSListHeader("Display")
                 } footer: {
-                    Text("Choose light mode, dark mode, or follow your device's system setting.")
+                    SBSListFooter("Choose light mode, dark mode, or follow your device's system setting.")
                 }
-                
+                .sbsListRows()
+
                 // Plate Calculator
                 Section {
                     if storeManager.canAccess(.plateCalculator) {
-                        HStack {
-                            Toggle("Show Plate Calculator", isOn: $appState.settings.showPlateCalculator)
-                            
+                        HStack(spacing: SBSLayout.space3) {
                             Button {
                                 showingPlateCalculatorInfo = true
                             } label: {
                                 Image(systemName: "info.circle")
-                                    .font(.system(size: 18))
+                                    .font(SBSFonts.bodyStrong())
                                     .foregroundStyle(Color.orangeText)
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("About the plate calculator")
+
+                            Toggle("Show Plate Calculator", isOn: $appState.settings.showPlateCalculator)
                         }
-                        
+
                         if appState.settings.showPlateCalculator {
                             // Preview of current barbell
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text(platePreviewLabel)
-                                    .font(SBSFonts.legacyCaption())
-                                    .foregroundStyle(SBSColors.textTertiaryFallback)
-                                
+                            VStack(alignment: .leading, spacing: SBSLayout.space2) {
+                                SBSEyebrow(platePreviewLabel)
+                                    .foregroundStyle(Color.inkSecondary)
+
                                 BarbellView(
                                     weight: platePreviewWeight,
                                     useMetric: appState.settings.useMetric,
@@ -372,38 +349,38 @@ struct SettingsView: View {
                                     compact: true
                                 )
                             }
-                            .padding(.vertical, 4)
+                            .padding(.vertical, SBSLayout.space1)
                         }
                     } else {
                         // Non-premium: show locked toggle with preview and info button
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
+                        VStack(alignment: .leading, spacing: SBSLayout.space3) {
+                            HStack(spacing: SBSLayout.space3) {
                                 Text("Show Plate Calculator")
-                                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                                    .foregroundStyle(Color.ink)
                                 Spacer()
-                                
+
                                 Button {
                                     showingPlateCalculatorInfo = true
                                 } label: {
                                     Image(systemName: "info.circle")
-                                        .font(.system(size: 18))
-                                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                                        .font(SBSFonts.bodyStrong())
+                                        .foregroundStyle(Color.orangeText)
                                 }
                                 .buttonStyle(.plain)
-                                
-                                PremiumBadge(isCompact: true)
+                                .accessibilityLabel("About the plate calculator")
+
+                                SBSBadge(text: "Pro", variant: .pro)
                             }
-                            
+
                             // Preview for free users - enticing teaser
                             Button {
                                 showingPaywall = true
                             } label: {
                                 ZStack {
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        Text(platePreviewLabel)
-                                            .font(SBSFonts.legacyCaption())
-                                            .foregroundStyle(SBSColors.textTertiaryFallback)
-                                        
+                                    VStack(alignment: .leading, spacing: SBSLayout.space2) {
+                                        SBSEyebrow(platePreviewLabel)
+                                            .foregroundStyle(Color.inkSecondary)
+
                                         BarbellView(
                                             weight: platePreviewWeight,
                                             useMetric: appState.settings.useMetric,
@@ -414,49 +391,40 @@ struct SettingsView: View {
                                     }
                                     .blur(radius: 2)
                                     .opacity(0.6)
-                                    
-                                    // Unlock overlay
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "lock.fill")
-                                            .font(.system(size: 10))
-                                        Text("Tap to unlock")
-                                            .font(SBSFonts.captionBold())
-                                    }
-                                    .foregroundStyle(Color.orangeInk)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(
-                                        Capsule()
-                                            .fill(SBSColors.accentFallback)
-                                    )
+
+                                    // Unlock tag
+                                    SBSBadge(text: "Tap to unlock", variant: .pro, systemImage: "lock.fill")
                                 }
                             }
                             .buttonStyle(.plain)
                         }
-                        .padding(.vertical, 4)
+                        .padding(.vertical, SBSLayout.space1)
                     }
                 } header: {
-                    Text("Plate Calculator")
+                    SBSListHeader("Plate Calculator")
                 } footer: {
                     if storeManager.canAccess(.plateCalculator) {
-                        Text("Visual barbell display showing which plates to load during workouts.")
+                        SBSListFooter("Visual barbell display showing which plates to load during workouts.")
                     } else {
-                        Text("Never calculate plates in your head again. Upgrade to Premium to enable.")
+                        SBSListFooter("Never calculate plates in your head again. Upgrade to Premium to enable.")
                     }
                 }
-                
+                .sbsListRows()
+
                 // Rest Timer
                 Section {
                     Picker("Main Lift Rest", selection: $appState.settings.restTimerDuration) {
                         restDurationOptions
                     }
+                    .sbsValuePicker()
 
                     Picker("Accessory Rest", selection: $appState.settings.accessoryRestSeconds) {
                         restDurationOptions
                     }
-                    
+                    .sbsValuePicker()
+
                     Toggle("Sound Notification", isOn: $appState.settings.playSoundNotifications)
-                    
+
                     Toggle("Push Notifications", isOn: Binding(
                         get: { appState.settings.pushNotificationsEnabled },
                         set: { newValue in
@@ -473,9 +441,9 @@ struct SettingsView: View {
                             }
                         }
                     ))
-                    
+
                     Toggle("Celebrate PRs with confetti", isOn: $appState.settings.prConfetti)
-                    
+
                     // Superset Accessories - Premium feature
                     if storeManager.canAccess(.supersets) {
                         Toggle("Superset Accessories", isOn: $appState.settings.supersetAccessories)
@@ -485,35 +453,24 @@ struct SettingsView: View {
                         } label: {
                             HStack {
                                 Text("Superset Accessories")
-                                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                                    .foregroundStyle(Color.ink)
                                 Spacer()
-                                PremiumBadge(isCompact: true)
+                                SBSBadge(text: "Pro", variant: .pro)
                             }
                         }
                     }
                 } header: {
-                    Text("Workout Timer")
+                    SBSListHeader("Workout Timer")
                 } footer: {
-                    Text("Sound notification plays a chime when the timer ends (respects silent mode). Push notifications alert you when the rest timer ends while the app is in the background. PR celebrations show a full-screen animation when you achieve a new personal record. When superset is enabled, accessories will be shown during rest periods.")
+                    SBSListFooter("Sound notification plays a chime when the timer ends (respects silent mode). Push notifications alert you when the rest timer ends while the app is in the background. PR celebrations show a full-screen animation when you achieve a new personal record. When superset is enabled, accessories will be shown during rest periods.")
                 }
-                
+                .sbsListRows()
+
                 // HealthKit / Apple Fitness Integration (Premium)
                 Section {
                     if StoreManager.shared.canAccess(.appleFitness) {
                         Toggle(isOn: $appState.settings.healthKitEnabled) {
-                            HStack(spacing: SBSLayout.paddingMedium) {
-                                ZStack {
-                                    Circle()
-                                        .fill(Color.red.opacity(0.15))
-                                        .frame(width: 32, height: 32)
-                                    
-                                    Image(systemName: "heart.fill")
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(.red)
-                                }
-                                
-                                Text("Enable HealthKit Sync")
-                            }
+                            Label("Enable HealthKit Sync", systemImage: "heart")
                         }
                         .onChange(of: appState.settings.healthKitEnabled) { _, enabled in
                             if enabled {
@@ -529,43 +486,39 @@ struct SettingsView: View {
                                 }
                             }
                         }
-                        
+
                         if HealthKitManager.shared.isHealthKitAvailable {
                             HStack {
                                 Text("HealthKit Status")
                                 Spacer()
                                 if appState.settings.healthKitEnabled && HealthKitManager.shared.isAuthorized {
-                                    Label("Connected", systemImage: "checkmark.circle.fill")
-                                        .font(SBSFonts.legacyCaption())
-                                        .foregroundStyle(.green)
+                                    SBSBadge(text: "Connected", variant: .status(.success), systemImage: "checkmark")
                                 } else if appState.settings.healthKitEnabled {
-                                    Label("Pending", systemImage: "exclamationmark.circle.fill")
-                                        .font(SBSFonts.legacyCaption())
-                                        .foregroundStyle(.orange)
+                                    SBSBadge(text: "Pending", variant: .status(.warning), systemImage: "exclamationmark")
                                 } else {
                                     Text("Disabled")
-                                        .font(SBSFonts.legacyCaption())
-                                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                                        .font(SBSFonts.caption())
+                                        .foregroundStyle(Color.inkSecondary)
                                 }
                             }
-                            
+
                             // Show what data is accessed
                             if appState.settings.healthKitEnabled {
-                                VStack(alignment: .leading, spacing: 8) {
+                                VStack(alignment: .leading, spacing: SBSLayout.space2) {
                                     Text("Data Accessed via HealthKit:")
-                                        .font(SBSFonts.legacyCaption())
-                                        .foregroundStyle(SBSColors.textSecondaryFallback)
-                                    
-                                    VStack(alignment: .leading, spacing: 4) {
+                                        .font(SBSFonts.caption())
+                                        .foregroundStyle(Color.inkSecondary)
+
+                                    VStack(alignment: .leading, spacing: SBSLayout.space1) {
                                         Label("Workouts (write)", systemImage: "figure.strengthtraining.traditional")
-                                        Label("Active Energy (write)", systemImage: "flame.fill")
-                                        Label("Body Weight (read)", systemImage: "scalemass.fill")
-                                        Label("Heart Rate (read, via Watch)", systemImage: "heart.fill")
+                                        Label("Active Energy (write)", systemImage: "flame")
+                                        Label("Body Weight (read)", systemImage: "scalemass")
+                                        Label("Heart Rate (read, via Watch)", systemImage: "heart")
                                     }
-                                    .font(SBSFonts.legacyCaption())
-                                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                                    .font(SBSFonts.caption())
+                                    .foregroundStyle(Color.inkSecondary)
                                 }
-                                .padding(.vertical, 4)
+                                .padding(.vertical, SBSLayout.space1)
                             }
                         }
                     } else {
@@ -573,172 +526,92 @@ struct SettingsView: View {
                         Button {
                             showingPaywall = true
                         } label: {
-                            HStack(spacing: SBSLayout.paddingMedium) {
-                                ZStack {
-                                    Circle()
-                                        .fill(Color.red.opacity(0.15))
-                                        .frame(width: 32, height: 32)
-                                    
-                                    Image(systemName: "heart.fill")
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(.red)
-                                }
-                                
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Enable HealthKit Sync")
-                                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                                    
-                                    Text("Premium Feature")
-                                        .font(SBSFonts.legacyCaption())
-                                        .foregroundStyle(Color.orangeText)
-                                }
-                                
+                            HStack(spacing: SBSLayout.space3) {
+                                Label("Enable HealthKit Sync", systemImage: "heart")
+                                    .foregroundStyle(Color.ink)
+
                                 Spacer()
-                                
-                                Image(systemName: "lock.fill")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(Color.orangeText)
+
+                                SBSBadge(text: "Pro", variant: .pro, systemImage: "lock.fill")
                             }
                         }
                     }
                 } header: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "heart.text.square.fill")
-                            .foregroundStyle(.red)
-                        Text("HealthKit & Apple Fitness")
+                    HStack(spacing: SBSLayout.space2) {
+                        SBSListHeader("HealthKit & Apple Fitness")
                         if !StoreManager.shared.canAccess(.appleFitness) {
-                            Text("PRO")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundStyle(Color.orangeInk)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(SBSColors.accentFallback)
-                                .cornerRadius(4)
+                            SBSBadge(text: "Pro", variant: .pro)
                         }
                     }
                 } footer: {
                     if StoreManager.shared.canAccess(.appleFitness) {
                         if HealthKitManager.shared.isHealthKitAvailable {
-                            Text("This app uses Apple HealthKit to log workouts to Apple Fitness. When enabled, starting a workout automatically begins a Strength Training workout. Your workout duration, calories burned, and heart rate (via Apple Watch) are tracked and saved to the Health app when you finish.")
+                            SBSListFooter("This app uses Apple HealthKit to log workouts to Apple Fitness. When enabled, starting a workout automatically begins a Strength Training workout. Your workout duration, calories burned, and heart rate (via Apple Watch) are tracked and saved to the Health app when you finish.")
                         } else {
-                            Text("HealthKit is not available on this device.")
+                            SBSListFooter("HealthKit is not available on this device.")
                         }
                     } else {
-                        Text("Upgrade to Premium to use HealthKit and automatically log your workouts to Apple Fitness with duration, calories, and volume tracking.")
+                        SBSListFooter("Upgrade to Premium to use HealthKit and automatically log your workouts to Apple Fitness with duration, calories, and volume tracking.")
                     }
                 }
-                
+                .sbsListRows()
+
                 // Training Maxes
                 Section {
-                    Button {
-                        showingTMEditor = true
-                    } label: {
-                        HStack {
-                            Text("Edit Starting TMs")
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
-                        }
-                    }
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    navigationRow("Edit Starting TMs") { showingTMEditor = true }
                 } header: {
-                    Text("Training Maxes")
+                    SBSListHeader("Training Maxes")
                 } footer: {
-                    Text("Adjust your Week 1 training maxes. This will recalculate all subsequent weeks.")
+                    SBSListFooter("Adjust your Week 1 training maxes. This will recalculate all subsequent weeks.")
                 }
-                
+                .sbsListRows()
+
                 // Weight Adjustments
                 Section {
-                    Button {
-                        showingWeightAdjustments = true
-                    } label: {
-                        HStack {
-                            Text("Weight Adjustments")
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
-                        }
-                    }
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    navigationRow("Weight Adjustments") { showingWeightAdjustments = true }
                 } header: {
-                    Text("Progression")
+                    SBSListHeader("Progression")
                 } footer: {
-                    Text("Adjust how much your training max changes based on rep-out performance.")
+                    SBSListFooter("Adjust how much your training max changes based on rep-out performance.")
                 }
-                
+                .sbsListRows()
+
                 // Exercises
                 Section {
-                    Button {
-                        showingExerciseEditor = true
-                    } label: {
-                        HStack {
-                            Text("Edit Exercises")
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
-                        }
-                    }
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    navigationRow("Edit Exercises") { showingExerciseEditor = true }
                 } header: {
-                    Text("Exercises")
+                    SBSListHeader("Exercises")
                 } footer: {
-                    Text("Customize which lifts and accessories you do each day.")
+                    SBSListFooter("Customize which lifts and accessories you do each day.")
                 }
-                
+                .sbsListRows()
+
                 // Custom Templates
                 Section {
                     Button {
                         showingTemplateList = true
                     } label: {
-                        HStack(spacing: SBSLayout.paddingMedium) {
-                            ZStack {
-                                Circle()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [SBSColors.accentFallback.opacity(0.2), SBSColors.accentSecondaryFallback.opacity(0.1)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                                    .frame(width: 36, height: 36)
-                                
-                                Image(systemName: "square.stack.3d.up.fill")
-                                    .foregroundStyle(
-                                        LinearGradient(
-                                            colors: [SBSColors.accentFallback, SBSColors.accentSecondaryFallback],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                            }
-                            
+                        HStack(spacing: SBSLayout.space3) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("My Templates")
-                                    .font(SBSFonts.bodyBold())
-                                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                                
-                                Text(templateCountText)
-                                    .font(SBSFonts.legacyCaption())
-                                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                                    .font(SBSFonts.bodyStrong())
+                                    .foregroundStyle(Color.ink)
+
+                                SBSRowSubtitle(templateCountText)
                             }
-                            
+
                             Spacer()
-                            
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+
+                            SBSChevron()
                         }
-                        .padding(.vertical, 4)
                     }
                 } header: {
-                    Text("Custom Templates")
+                    SBSListHeader("Custom Templates")
                 } footer: {
-                    Text("Create your own workout programs with custom exercises, sets, and progression rules.")
+                    SBSListFooter("Create your own workout programs with custom exercises, sets, and progression rules.")
                 }
-                
+                .sbsListRows()
+
                 // Program Cycle
                 Section {
                     // Current cycle info
@@ -746,16 +619,18 @@ struct SettingsView: View {
                         Text("Current Cycle")
                         Spacer()
                         Text("Cycle \(appState.currentCycleNumber)")
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.numberSmall())
+                            .foregroundStyle(Color.inkSecondary)
                     }
-                    
+
                     HStack {
                         Text("Started")
                         Spacer()
                         Text(appState.userData.currentCycleStartDate, style: .date)
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.numberSmall())
+                            .foregroundStyle(Color.inkSecondary)
                     }
-                    
+
                     // Past cycles
                     Button {
                         if storeManager.canAccess(.fullHistory) {
@@ -764,47 +639,36 @@ struct SettingsView: View {
                             showingPaywall = true
                         }
                     } label: {
-                        HStack {
+                        HStack(spacing: SBSLayout.space2) {
                             Text("Past Cycles")
+                                .foregroundStyle(Color.ink)
                             Spacer()
                             if !storeManager.canAccess(.fullHistory) {
-                                PremiumBadge(isCompact: true)
+                                SBSBadge(text: "Pro", variant: .pro)
                             }
                             if !appState.cycleHistory.isEmpty {
                                 Text("\(appState.cycleHistory.count)")
-                                    .font(SBSFonts.legacyCaption())
-                                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 2)
-                                    .background(
-                                        Capsule()
-                                            .fill(SBSColors.surfaceFallback)
-                                    )
+                                    .font(SBSFonts.numberSmall())
+                                    .foregroundStyle(Color.inkSecondary)
                             }
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                            SBSChevron()
                         }
                     }
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                    
+
                     // Start new cycle
                     Button {
                         showingNewCycleOptions = true
                     } label: {
-                        HStack {
-                            Image(systemName: "arrow.clockwise.circle.fill")
-                                .foregroundStyle(Color.orangeText)
-                            Text("Start New Cycle")
-                        }
+                        Label("Start New Cycle", systemImage: "arrow.clockwise")
+                            .foregroundStyle(Color.orangeText)
                     }
-                    .foregroundStyle(Color.orangeText)
                 } header: {
-                    Text("Program Cycle")
+                    SBSListHeader("Program Cycle")
                 } footer: {
-                    Text("Start a new \(appState.weeks.count)-week cycle. Your current progress will be archived and you can choose to carry over your training maxes.")
+                    SBSListFooter("Start a new \(appState.weeks.count)-week cycle. Your current progress will be archived and you can choose to carry over your training maxes.")
                 }
-                
+                .sbsListRows()
+
                 // Data
                 Section {
                     Button {
@@ -815,67 +679,72 @@ struct SettingsView: View {
                         }
                     } label: {
                         Label("Export Data", systemImage: "square.and.arrow.up")
+                            .foregroundStyle(Color.orangeText)
                     }
 
                     Button {
                         showingImporter = true
                     } label: {
                         Label("Restore from Backup", systemImage: "square.and.arrow.down")
+                            .foregroundStyle(Color.orangeText)
                     }
                 } header: {
-                    Text("Data")
+                    SBSListHeader("Data")
                 } footer: {
-                    Text("Backups include your logs, history, PRs, and templates. Settings such as units aren't included.")
+                    SBSListFooter("Backups include your logs, history, PRs, and templates. Settings such as units aren't included.")
                 }
-                
+                .sbsListRows()
+
                 // Danger Zone
                 Section {
                     Button(role: .destructive) {
                         showingResetAlert = true
                     } label: {
                         Label("Reset All Logs", systemImage: "trash")
+                            .foregroundStyle(Color.danger)
                     }
                 } header: {
-                    Text("Reset")
+                    SBSListHeader("Reset")
                 } footer: {
-                    Text("Clears the current cycle's logged sets and your saved accessory weights, and returns to Week 1, Day 1. Past cycles, PRs, lift history, and training maxes are kept.")
+                    SBSListFooter("Clears the current cycle's logged sets and your saved accessory weights, and returns to Week 1, Day 1. Past cycles, PRs, lift history, and training maxes are kept.")
                 }
-                
+                .sbsListRows()
+
                 // About
                 Section {
-                    
+
                     HStack {
                         Text("Version")
                         Spacer()
                         Text(appVersionString)
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.numberSmall())
+                            .foregroundStyle(Color.inkSecondary)
                     }
                     .contentShape(Rectangle())
                     .onTapGesture {
                         handleVersionTap()
                     }
-                    
+
                     // Premium status
                     HStack {
                         Text("Premium")
                         Spacer()
                         if storeManager.isPremium {
-                            HStack(spacing: 4) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(SBSColors.success)
-                                Text("Active")
-                                    .foregroundStyle(SBSColors.success)
-                            }
+                            SBSBadge(text: "Active", variant: .status(.success), systemImage: "checkmark")
                         } else {
                             Text("Free")
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
                         }
                     }
-                    
+
                     // Subscribers need a way to cancel, e.g. after buying Lifetime
                     if storeManager.isSubscribed {
-                        Button("Manage Subscription") {
+                        Button {
                             showingManageSubscription = true
+                        } label: {
+                            Text("Manage Subscription")
+                                .foregroundStyle(Color.orangeText)
                         }
                     }
 
@@ -889,6 +758,7 @@ struct SettingsView: View {
                     } label: {
                         HStack {
                             Text("Restore Purchases")
+                                .foregroundStyle(Color.orangeText)
                             Spacer()
                             if isRestoringPurchases {
                                 ProgressView()
@@ -897,94 +767,40 @@ struct SettingsView: View {
                     }
                     .disabled(isRestoringPurchases)
                 } header: {
-                    Text("About")
+                    SBSListHeader("About")
                 }
+                .sbsListRows()
 
                 // Legal
                 Section {
                     Link(destination: URL(string: "https://gregorymcinnes.com/apps/top-set-training/")!) {
-                        HStack {
-                            Text("Privacy Policy")
-                            Spacer()
-                            Image(systemName: "arrow.up.forward")
-                                .font(.system(size: 12))
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
-                        }
+                        externalLinkRow("Privacy Policy")
                     }
                     Link(destination: URL(string: "https://gregorymcinnes.com/terms")!) {
-                        HStack {
-                            Text("Terms of Use")
-                            Spacer()
-                            Image(systemName: "arrow.up.forward")
-                                .font(.system(size: 12))
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
-                        }
+                        externalLinkRow("Terms of Use")
                     }
                 } header: {
-                    Text("Legal")
+                    SBSListHeader("Legal")
                 }
+                .sbsListRows()
 
                 // More Apps - Cross promotion
                 Section {
                     Link(destination: URL(string: "https://apps.apple.com/us/app/top-set-timer/id6756226855")!) {
-                        HStack(spacing: SBSLayout.paddingMedium) {
-                            Image("TopSetTimerIcon")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 44, height: 44)
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Top Set Timer")
-                                    .font(SBSFonts.bodyBold())
-                                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                                
-                                Text("Rest timer built for strength training")
-                                    .font(SBSFonts.legacyCaption())
-                                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                            }
-                            
-                            Spacer()
-                            
-                            Image(systemName: "arrow.up.forward.app")
-                                .font(.system(size: 14))
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
-                        }
-                        .padding(.vertical, 4)
+                        appRow(image: "TopSetTimerIcon", title: "Top Set Timer", subtitle: "Rest timer built for strength training")
                     }
-                    
+
                     Link(destination: URL(string: "https://apps.apple.com/us/app/top-set-calculator/id6757142146")!) {
-                        HStack(spacing: SBSLayout.paddingMedium) {
-                            Image("TopSetCalculatorIcon")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 44, height: 44)
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Top Set Calculator")
-                                    .font(SBSFonts.bodyBold())
-                                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                                
-                                Text("Strength calculators & tools")
-                                    .font(SBSFonts.legacyCaption())
-                                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                            }
-                            
-                            Spacer()
-                            
-                            Image(systemName: "arrow.up.forward.app")
-                                .font(.system(size: 14))
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
-                        }
-                        .padding(.vertical, 4)
+                        appRow(image: "TopSetCalculatorIcon", title: "Top Set Calculator", subtitle: "Strength calculators & tools")
                     }
                 } header: {
-                    Text("More From Top Set")
+                    SBSListHeader("More From Top Set")
                 } footer: {
-                    Text("More strength training tools from Top Set Training.")
+                    SBSListFooter("More strength training tools from Top Set Training.")
                 }
+                .sbsListRows()
             }
+            .sbsGroupedList()
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Settings")
             .manageSubscriptionsSheet(isPresented: $showingManageSubscription)
@@ -1082,7 +898,8 @@ struct SettingsView: View {
                 ProgramDetailView(
                     program: programInfo,
                     programData: appState.programData,
-                    familyColor: programFamilyColor,
+                    // Orange as text and icons; no colour per program family
+                    familyColor: Color.orangeText,
                     level: programExperienceLevel
                 )
             }
@@ -1118,6 +935,57 @@ struct SettingsView: View {
         }
     }
     
+    // MARK: - Rows
+
+    /// A row that opens a sheet: the title and a chevron
+    private func navigationRow(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Text(title)
+                    .foregroundStyle(Color.ink)
+                Spacer()
+                SBSChevron()
+            }
+        }
+    }
+
+    private func externalLinkRow(_ title: String) -> some View {
+        HStack {
+            Text(title)
+                .foregroundStyle(Color.ink)
+            Spacer()
+            SBSChevron(systemName: "arrow.up.forward")
+        }
+    }
+
+    private func appRow(image: String, title: String, subtitle: String) -> some View {
+        HStack(spacing: SBSLayout.space3) {
+            Image(image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 44, height: 44)
+                .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusMd))
+                .overlay(
+                    RoundedRectangle(cornerRadius: SBSLayout.radiusMd)
+                        .strokeBorder(Color.hairline, lineWidth: SBSLayout.strokeHairline)
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.ink)
+
+                Text(subtitle)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
+            }
+
+            Spacer()
+
+            SBSChevron(systemName: "arrow.up.forward")
+        }
+    }
+
     // MARK: - App Version
 
     private var appVersionString: String {
@@ -1176,22 +1044,6 @@ struct SettingsView: View {
         return program
     }
     
-    private var programFamilyColor: Color {
-        guard let selectedId = appState.userData.selectedProgram else { return SBSColors.accentFallback }
-        switch selectedId {
-        case "nsuns_5day_12week", "nsuns_4day_12week":
-            return .orange
-        case "531_bbb_12week", "531_triumvirate_12week":
-            return .blue
-        case "stronglifts_5x5_12week", "greyskull_lp_12week", "starting_strength_12week", "gzclp_12week":
-            return .green
-        case "reddit_ppl_12week", "sbs_program_config":
-            return .purple
-        default:
-            return SBSColors.accentFallback
-        }
-    }
-    
     private var programExperienceLevel: ProgramLevel {
         guard let selectedId = appState.userData.selectedProgram else { return .intermediate }
         switch selectedId {
@@ -1230,7 +1082,9 @@ struct TMEditorView: View {
                         }
                     )
                 }
+                .sbsListRows()
             }
+            .sbsGroupedList()
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Starting TMs")
             .navigationBarTitleDisplayMode(.inline)
@@ -1261,8 +1115,9 @@ struct TMEditRow: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(liftName)
-                    .font(SBSFonts.bodyBold())
-                
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.ink)
+
                 Spacer()
                 
                 if currentValue != defaultValue {
@@ -1273,15 +1128,17 @@ struct TMEditRow: View {
                         suppressNextCommit = inputText != resetText
                         inputText = resetText
                     }
-                    .font(SBSFonts.legacyCaption())
+                    .font(SBSFonts.caption().weight(.semibold))
                     .foregroundStyle(Color.orangeText)
+                    .buttonStyle(.borderless)
                 }
             }
-            
+
             HStack {
                 TextField("Weight", text: $inputText)
                     .keyboardType(.decimalPad)
-                    .font(SBSFonts.legacyNumber())
+                    .font(SBSFonts.number())
+                    .foregroundStyle(Color.ink)
                     .focused($isFocused)
                     .onChange(of: inputText) { _, newValue in
                         if suppressNextCommit {
@@ -1295,15 +1152,12 @@ struct TMEditRow: View {
                     }
                 
                 Text(useMetric ? "kg" : "lb")
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.numberSmall())
+                    .foregroundStyle(Color.inkSecondary)
             }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                    .fill(SBSColors.backgroundFallback)
-            )
+            .sbsFieldCell()
         }
+        .padding(.vertical, SBSLayout.space1)
         .onAppear {
             inputText = formatValue(currentValue)
         }
@@ -1346,10 +1200,11 @@ struct WeightAdjustmentsEditorView: View {
                         defaultValue: WeightAdjustments.default.belowBy1
                     )
                 } header: {
-                    Text("Below Target")
+                    SBSListHeader("Below Target")
                 } footer: {
-                    Text("Negative values reduce your training max.")
+                    SBSListFooter("Negative values reduce your training max.")
                 }
+                .sbsListRows()
                 
                 Section {
                     AdjustmentRow(
@@ -1358,8 +1213,9 @@ struct WeightAdjustmentsEditorView: View {
                         defaultValue: WeightAdjustments.default.hitTarget
                     )
                 } header: {
-                    Text("On Target")
+                    SBSListHeader("On Target")
                 }
+                .sbsListRows()
                 
                 Section {
                     AdjustmentRow(
@@ -1392,19 +1248,23 @@ struct WeightAdjustmentsEditorView: View {
                         defaultValue: WeightAdjustments.default.beatBy5Plus
                     )
                 } header: {
-                    Text("Above Target")
+                    SBSListHeader("Above Target")
                 } footer: {
-                    Text("Positive values increase your training max for the next week.")
+                    SBSListFooter("Positive values increase your training max for the next week.")
                 }
+                .sbsListRows()
                 
                 Section {
                     Button(role: .destructive) {
                         appState.settings.weightAdjustments = .default
                     } label: {
                         Label("Reset to Defaults", systemImage: "arrow.counterclockwise")
+                            .foregroundStyle(Color.danger)
                     }
                 }
+                .sbsListRows()
             }
+            .sbsGroupedList()
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Weight Adjustments")
             .navigationBarTitleDisplayMode(.inline)
@@ -1430,15 +1290,17 @@ struct AdjustmentRow: View {
     var body: some View {
         HStack {
             Text(label)
-                .font(SBSFonts.legacyBody())
-            
+                .font(SBSFonts.body())
+                .foregroundStyle(Color.ink)
+
             Spacer()
-            
-            HStack(spacing: 4) {
+
+            HStack(spacing: SBSLayout.space1) {
                 TextField("0", text: $inputText)
                     // Not .decimalPad: it has no minus key, and these values can be negative
                     .keyboardType(.numbersAndPunctuation)
-                    .font(SBSFonts.legacyNumber())
+                    .font(SBSFonts.numberUnit())
+                    .foregroundStyle(Color.ink)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 60)
                     .focused($isFocused)
@@ -1448,15 +1310,10 @@ struct AdjustmentRow: View {
                     }
                 
                 Text("%")
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.numberSmall())
+                    .foregroundStyle(Color.inkSecondary)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                    .fill(SBSColors.backgroundFallback)
-            )
+            .sbsFieldCell()
         }
         .onAppear {
             inputText = formatValue(value)
@@ -1501,13 +1358,8 @@ struct ExerciseEditorView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 // Day picker
-                Picker("Day", selection: $selectedDay) {
-                    ForEach(appState.allDays, id: \.self) { day in
-                        Text("Day \(day)").tag(day)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding()
+                SBSSegmentedControl(options: appState.allDays, selection: $selectedDay) { "Day \($0)" }
+                    .padding(SBSLayout.space4)
                 .onAppear {
                     if !appState.allDays.contains(selectedDay) {
                         selectedDay = appState.allDays.first ?? 1
@@ -1529,10 +1381,11 @@ struct ExerciseEditorView: View {
                             )
                         }
                     } header: {
-                        Text("Main Lifts")
+                        SBSListHeader("Main Lifts")
                     } footer: {
-                        Text("Tap to swap for a different lift.")
+                        SBSListFooter("Tap to swap for a different lift.")
                     }
+                    .sbsListRows()
                     
                     // Accessories section
                     Section {
@@ -1553,11 +1406,13 @@ struct ExerciseEditorView: View {
                         Button {
                             showingExercisePicker = true
                         } label: {
-                            Label("Add Accessory", systemImage: "plus.circle.fill")
+                            Label("Add Accessory", systemImage: "plus")
+                                .foregroundStyle(Color.orangeText)
                         }
                     } header: {
-                        Text("Accessories")
+                        SBSListHeader("Accessories")
                     }
+                    .sbsListRows()
                     
                     // Reset section
                     if appState.hasCustomExercises(for: selectedDay) {
@@ -1566,11 +1421,15 @@ struct ExerciseEditorView: View {
                                 appState.resetDayItems(for: selectedDay)
                             } label: {
                                 Label("Reset Day \(selectedDay) to Default", systemImage: "arrow.counterclockwise")
+                                    .foregroundStyle(Color.danger)
                             }
                         }
+                        .sbsListRows()
                     }
                 }
+                .sbsGroupedList()
             }
+            .background(Color.bg.ignoresSafeArea())
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Edit Exercises")
             .navigationBarTitleDisplayMode(.inline)
@@ -1633,21 +1492,19 @@ struct MainLiftRow: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.name)
-                        .font(SBSFonts.legacyBody())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                    
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.ink)
+
                     if let subtitle = liftSubtitle {
                         Text(subtitle)
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
                     }
                 }
-                
+
                 Spacer()
-                
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
+
+                SBSChevron(systemName: "chevron.up.chevron.down")
             }
         }
         .sheet(isPresented: $showingPicker) {
@@ -1682,7 +1539,8 @@ struct AccessoryRow: View {
         HStack {
             if isEditing {
                 TextField("Accessory name", text: $editedName)
-                    .textFieldStyle(.roundedBorder)
+                    .font(SBSFonts.body())
+                    .sbsFieldCell()
                     .onSubmit {
                         if !editedName.isEmpty {
                             onRename(editedName)
@@ -1696,10 +1554,13 @@ struct AccessoryRow: View {
                     }
                     isEditing = false
                 }
-                .buttonStyle(.borderedProminent)
+                .font(SBSFonts.caption().weight(.semibold))
+                .foregroundStyle(Color.orangeText)
+                .buttonStyle(.borderless)
             } else {
                 Text(name)
-                    .font(SBSFonts.legacyBody())
+                    .font(SBSFonts.body())
+                    .foregroundStyle(Color.ink)
                 
                 Spacer()
                 
@@ -1717,7 +1578,7 @@ struct AccessoryRow: View {
                     onDelete()
                 } label: {
                     Image(systemName: "trash")
-                        .foregroundStyle(SBSColors.error)
+                        .foregroundStyle(Color.danger)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Delete accessory")
@@ -1815,17 +1676,19 @@ struct ReviewerLoginView: View {
                     .foregroundStyle(Color.orangeText)
                 
                 Text("Reviewer Access")
-                    .font(SBSFonts.legacyTitle())
-                
+                    .font(SBSFonts.title())
+                    .foregroundStyle(Color.ink)
+
                 Text("Enter your credentials to unlock premium features for review.")
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.body())
+                    .foregroundStyle(Color.inkSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
                 
                 VStack(spacing: 16) {
                     TextField("Username", text: $username)
-                        .textFieldStyle(.roundedBorder)
+                        .font(SBSFonts.body())
+                        .sbsFieldCell()
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .focused($focusedField, equals: .username)
@@ -1835,7 +1698,8 @@ struct ReviewerLoginView: View {
                         }
                     
                     SecureField("Password", text: $password)
-                        .textFieldStyle(.roundedBorder)
+                        .font(SBSFonts.body())
+                        .sbsFieldCell()
                         .focused($focusedField, equals: .password)
                         .submitLabel(.done)
                         .onSubmit {
@@ -1845,29 +1709,26 @@ struct ReviewerLoginView: View {
                 .padding(.horizontal, 32)
                 
                 if showError {
-                    Text("Invalid credentials")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.error)
+                    Label("Invalid credentials", systemImage: "xmark")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.danger)
                 }
                 
                 Button {
                     attemptLogin()
                 } label: {
-                    Text("Sign In")
-                        .font(SBSFonts.bodyBold())
+                    SBSButtonTitle("Sign In")
                         .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(SBSColors.accentFallback)
-                        .foregroundStyle(Color.orangeInk)
-                        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
                 }
+                .buttonStyle(SBSPrimaryButtonStyle())
                 .padding(.horizontal, 32)
                 .disabled(username.isEmpty || password.isEmpty)
-                .opacity(username.isEmpty || password.isEmpty ? 0.6 : 1)
                 
                 Spacer()
                 Spacer()
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.bg.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

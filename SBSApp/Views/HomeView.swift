@@ -100,9 +100,11 @@ struct HomeView: View {
                     )
                     .padding(.horizontal)
                     
-                    // Progress indicator
-                    WeekProgressBar(progress: appState.cycleCompletionFraction)
-                        .padding(.horizontal)
+                    // Progress indicator, for programs that have days it can count
+                    if appState.programHasLoggableDays {
+                        WeekProgressBar(progress: appState.cycleCompletionFraction)
+                            .padding(.horizontal)
+                    }
 
                     // Day cards
                     VStack(spacing: SBSLayout.cardSpacing) {

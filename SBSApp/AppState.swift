@@ -194,13 +194,26 @@ public final class AppState {
     /// Goes up when a finished workout should land on Home, from whichever tab
     private(set) var returnToHomeCount = 0
 
+    /// Whether finishing this day leaves a log that says so. Accessory-only days don't, so
+    /// they'd read To Do forever: they can't be what's next or count toward progress.
+    /// Reads the day's items rather than its plan: Home asks this for every day of the
+    /// cycle on each render, and building plans replays the logs.
+    func dayCanBeLogged(day: Int) -> Bool {
+        dayItems(for: day).contains { [.volume, .linear, .structured].contains($0.type) }
+    }
+
+    /// Whether Home has any days it can count progress across
+    var programHasLoggableDays: Bool {
+        allDays.contains { dayCanBeLogged(day: $0) }
+    }
+
     /// The next workout from a given week, for Done and for Home's next-workout card
     func nextWorkout(fromWeek week: Int) -> (week: Int, day: Int)? {
         NextWorkout.find(
             fromWeek: week,
             weeks: weeks,
             visibleDays: { visibleDays(forWeek: $0) },
-            isNotStarted: { dayLogStatus(week: $0, day: $1) == .notStarted }
+            isNotStarted: { dayCanBeLogged(day: $1) && dayLogStatus(week: $0, day: $1) == .notStarted }
         )
     }
 
@@ -221,7 +234,7 @@ public final class AppState {
     var cycleDayTally: CycleProgress.Tally {
         CycleProgress.tally(
             weeks: weeks,
-            visibleDays: { visibleDays(forWeek: $0) },
+            visibleDays: { week in visibleDays(forWeek: week).filter { dayCanBeLogged(day: $0) } },
             state: { week, day in
                 switch dayLogStatus(week: week, day: day) {
                 case .notStarted: return .notStarted
@@ -263,7 +276,7 @@ public final class AppState {
         if let next = nextWorkout(fromWeek: week) {
             selectedWeek = next.week
             selectedDay = next.day
-        } else if let lastWeek = weeks.max() {
+        } else if hasLoggedData, let lastWeek = weeks.max() {
             selectedWeek = lastWeek
         }
         returnToHomeCount += 1

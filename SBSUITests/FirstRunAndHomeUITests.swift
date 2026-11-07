@@ -367,6 +367,56 @@ final class FirstRunAndHomeUITests: XCTestCase {
         shot("history")
     }
 
+    // MARK: - Accessory-only days
+
+    /// A day with a template's JSON: accessories leave no log, so they can't be "next"
+    private func templateJSON(days: String, weeks: String = "[1,2]") -> String {
+        let id = "11111111-2222-3333-4444-555555555555"
+        let template = #"{"id":"\#(id)","name":"My Plan","created_at":0,"updated_at":0,"mode":"simple","days_per_week":2,"weeks":\#(weeks),"days":\#(days)}"#
+        return #"{"hasCompletedOnboarding":true,"selectedProgram":"custom_\#(id)","customTemplates":[\#(template)],"customInitialMaxes":{"Squat":135}}"#
+    }
+
+    private let accessoryDay = #"[{"type":"accessory","name":"Leg Press","defaultSets":1,"defaultReps":10}]"#
+
+    /// With only accessory days, Home doesn't claim a next workout or progress it can't track
+    func testAccessoryOnlyTemplateHasNoNextCardOrProgress() {
+        launch(json: templateJSON(days: #"{"1":\#(accessoryDay),"2":\#(accessoryDay)}"#), premium: true)
+        let day = app.buttons.matching(NSPredicate(format: "label BEGINSWITH '1,'")).firstMatch
+        XCTAssertTrue(day.waitForExistence(timeout: 8))
+        XCTAssertFalse(nextCard.exists)
+        XCTAssertFalse(app.staticTexts["Program Progress"].exists)
+        shot("home-before")
+
+        day.tap()
+        tap("Start Workout")
+        XCTAssertTrue(button("Exercise list").waitForExistence(timeout: 8))
+        finishWorkout()
+        tap("Done")
+
+        XCTAssertTrue(day.waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["WEEK 1 OF 2"].exists, "Stays on the week it was on")
+        XCTAssertFalse(nextCard.exists)
+        XCTAssertFalse(completionCard.exists)
+        shot("home-after")
+    }
+
+    /// In a mixed template the accessory day is passed over, and the cycle can still finish
+    func testMixedTemplateSkipsAccessoryDays() {
+        let squat = #"[{"type":"linear","lift":"Squat","name":"Squat","sets":1,"reps":5}]"#
+        launch(json: templateJSON(days: #"{"1":\#(accessoryDay),"2":\#(squat)}"#, weeks: "[1]"), premium: true)
+        XCTAssertTrue(nextCard.waitForExistence(timeout: 8))
+        XCTAssertTrue(nextCard.staticTexts["WEEK 1, DAY 2"].exists, "The accessory day isn't next")
+        XCTAssertEqual(containingText("%").label, "0%")
+        shot("home-before")
+
+        nextCard.buttons["Start Workout"].tap()
+        finishWorkout()
+        tap("Done")
+        XCTAssertTrue(completionCard.waitForExistence(timeout: 8), "The cycle can finish")
+        XCTAssertEqual(containingText("100%").label, "100%", "Accessory days don't hold progress back")
+        shot("home-after")
+    }
+
     // MARK: - Setup details
 
     /// The quiz's "Browse All Programs" goes to the list, not back to Welcome

@@ -275,8 +275,9 @@ final class AccessorySessionUITests: XCTestCase {
         launch(days: #"{"1":[\#(lift),\#(curl)],"2":[\#(lift)]}"#)
         openDay(1)
         sleep(1)
-        // The accessory's comes last: the day's lifts have Log buttons too
-        let logs = app.buttons.matching(identifier: "Log")
+        // The accessory's comes last: the day's lifts have log buttons too ("Log result",
+        // "Log accessory": the tiles are labelled for VoiceOver, not by their "Log" text)
+        let logs = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Log '"))
         XCTAssertTrue(logs.firstMatch.waitForExistence(timeout: 5))
         let log = logs.element(boundBy: logs.count - 1)
         for _ in 0..<3 where !(log.exists && log.isHittable) { app.swipeUp() }

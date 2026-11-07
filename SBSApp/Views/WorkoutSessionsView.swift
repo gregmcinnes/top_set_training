@@ -18,31 +18,20 @@ struct HistoryLinkRow: View {
     let subtitle: String
 
     var body: some View {
-        HStack(spacing: SBSLayout.space4) {
+        SBSListRow(title, showsChevron: true) {
             Image(systemName: systemImage)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(Color.orangeText)
-                .frame(width: 28)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(SBSFonts.bodyStrong())
-                    .foregroundStyle(Color.ink)
-
-                Text(subtitle)
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(Color.inkSecondary)
-            }
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Color.inkTertiary)
+                .font(SBSFonts.bodyStrong())
+                .foregroundStyle(Color.inkSecondary)
+                .frame(width: 24)
+                .accessibilityHidden(true)
+        } subtitle: {
+            Text(subtitle)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
+        } trailing: {
+            EmptyView()
         }
-        .padding()
         .card()
-        .contentShape(Rectangle())
     }
 }
 
@@ -52,27 +41,19 @@ struct HistoryLockedCyclesRow: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: SBSLayout.space4) {
+            SBSListRow("View Past Cycles") {
                 Image(systemName: "clock.arrow.circlepath")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Color.orangeText)
-                    .frame(width: 28)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("View Past Cycles")
-                        .font(SBSFonts.bodyStrong())
-                        .foregroundStyle(Color.ink)
-
-                    Text("Unlock full workout history with Premium")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(Color.inkSecondary)
-                }
-
-                Spacer()
-
-                PremiumBadge(isCompact: false)
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.inkSecondary)
+                    .frame(width: 24)
+                    .accessibilityHidden(true)
+            } subtitle: {
+                Text("Unlock full workout history with Premium")
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
+            } trailing: {
+                SBSBadge(text: "Pro", variant: .pro, systemImage: "lock.fill")
             }
-            .padding()
             .card()
         }
         .buttonStyle(.plain)
@@ -103,26 +84,34 @@ struct WorkoutSessionsView: View {
         )
 
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: SBSLayout.space4) {
+            LazyVStack(alignment: .leading, spacing: SBSLayout.space6) {
                 if list.isEmpty {
                     emptyState(hasLockedCycles: list.lockedCycleCount > 0)
                 }
 
                 ForEach(list.sections) { section in
-                    sectionHeader(section)
+                    VStack(alignment: .leading, spacing: SBSLayout.space2) {
+                        sectionHeader(section)
 
-                    ForEach(section.sessions) { session in
-                        NavigationLink {
-                            WorkoutSessionDetailView(session: session, useMetric: appState.settings.useMetric)
-                        } label: {
-                            WorkoutSessionRow(session: session)
+                        if !section.sessions.isEmpty {
+                            VStack(spacing: 0) {
+                                ForEach(Array(section.sessions.enumerated()), id: \.element.id) { index, session in
+                                    if index > 0 { SBSRowDivider() }
+                                    NavigationLink {
+                                        WorkoutSessionDetailView(session: session, useMetric: appState.settings.useMetric)
+                                    } label: {
+                                        WorkoutSessionRow(session: session)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityIdentifier("historySessionRow")
+                                }
+                            }
+                            .card()
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("historySessionRow")
-                    }
 
-                    if let cycle = section.cycleWithoutSessionRecords {
-                        legacyCycleRow(cycle)
+                        if let cycle = section.cycleWithoutSessionRecords {
+                            legacyCycleRow(cycle)
+                        }
                     }
                 }
 
@@ -161,11 +150,13 @@ struct WorkoutSessionsView: View {
                 ? "Workouts from earlier versions of the app aren't listed here. New workouts will be."
                 : "Log a workout and it will show up here with all its results.")
         } actions: {
-            Button("Go to Workout") {
+            Button {
                 dismiss()
                 appState.goToWorkoutTab()
+            } label: {
+                SBSButtonTitle("Go to Workout")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(SBSPrimaryButtonStyle())
             .accessibilityIdentifier("historySessionsGoToWorkoutButton")
         }
         .frame(maxWidth: .infinity)
@@ -174,9 +165,7 @@ struct WorkoutSessionsView: View {
 
     private func sectionHeader(_ section: HistorySessionSection) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(section.isCurrent ? "Cycle \(section.cycleNumber) (Current)" : "Cycle \(section.cycleNumber)")
-                .font(SBSFonts.caption().weight(.semibold))
-                .foregroundStyle(SBSColors.accentSecondaryFallback)
+            SBSSectionEyebrow(section.isCurrent ? "Cycle \(section.cycleNumber) · Current" : "Cycle \(section.cycleNumber)")
 
             if let programName = section.programName, !programName.isEmpty {
                 Text(programName)
@@ -184,7 +173,6 @@ struct WorkoutSessionsView: View {
                     .foregroundStyle(Color.inkSecondary)
             }
         }
-        .padding(.top, SBSLayout.space2)
     }
 
     /// Cycles from before per-session records still have their summary
@@ -213,15 +201,9 @@ struct WorkoutSessionRow: View {
     }
 
     var body: some View {
-        HStack(spacing: SBSLayout.space4) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(session.title)
-                    .font(SBSFonts.bodyStrong())
-                    .foregroundStyle(Color.ink)
-
-                Text(metadata)
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(Color.inkSecondary)
+        SBSListRow(session.title, showsChevron: true) {
+            VStack(alignment: .leading, spacing: 2) {
+                SBSRowSubtitle(metadata)
 
                 Text(session.exerciseNames.joined(separator: ", "))
                     .font(SBSFonts.caption())
@@ -229,16 +211,7 @@ struct WorkoutSessionRow: View {
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
             }
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Color.inkTertiary)
         }
-        .padding()
-        .card()
-        .contentShape(Rectangle())
     }
 }
 
@@ -258,14 +231,16 @@ struct WorkoutSessionDetailView: View {
                 }
 
                 if !session.accessories.isEmpty {
-                    Text("Accessories")
-                        .font(SBSFonts.heading())
-                        .foregroundStyle(Color.ink)
+                    SBSSectionEyebrow("Accessories")
                         .padding(.top, SBSLayout.space2)
 
-                    ForEach(session.accessories) { accessory in
-                        accessoryCard(accessory)
+                    VStack(spacing: 0) {
+                        ForEach(Array(session.accessories.enumerated()), id: \.element.id) { index, accessory in
+                            if index > 0 { SBSRowDivider() }
+                            accessoryRow(accessory)
+                        }
                     }
+                    .card()
                 }
             }
             .padding()
@@ -277,16 +252,15 @@ struct WorkoutSessionDetailView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(session.date.formatted(date: .long, time: .shortened))
-                .font(SBSFonts.bodyStrong())
-                .foregroundStyle(Color.ink)
-
             let details = [session.programName, session.positionLabel ?? ""].filter { !$0.isEmpty }
             if !details.isEmpty {
-                Text(details.joined(separator: " · "))
-                    .font(SBSFonts.caption())
+                SBSEyebrow(details.joined(separator: " · "))
                     .foregroundStyle(Color.inkSecondary)
             }
+
+            Text(session.date.formatted(date: .long, time: .shortened))
+                .font(SBSFonts.numberSmall())
+                .foregroundStyle(Color.ink)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
@@ -295,34 +269,23 @@ struct WorkoutSessionDetailView: View {
         .accessibilityIdentifier("historySessionDetail")
     }
 
-    private func accessoryCard(_ accessory: HistorySessionAccessory) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(accessory.name)
-                    .font(SBSFonts.bodyStrong())
-                    .foregroundStyle(Color.ink)
-
-                Spacer()
-
-                Text(accessoryResultText(
-                    weight: accessory.weight,
-                    sets: accessory.sets,
-                    reps: accessory.reps,
-                    useMetric: useMetric
-                ))
-                .font(SBSFonts.body())
-                .foregroundStyle(Color.inkSecondary)
-            }
-
+    private func accessoryRow(_ accessory: HistorySessionAccessory) -> some View {
+        SBSListRow(accessory.name) {
             if let note = accessory.note {
                 Text(note)
                     .font(SBSFonts.caption())
                     .foregroundStyle(Color.inkSecondary)
             }
+        } trailing: {
+            Text(accessoryResultText(
+                weight: accessory.weight,
+                sets: accessory.sets,
+                reps: accessory.reps,
+                useMetric: useMetric
+            ))
+            .font(SBSFonts.numberSmall())
+            .foregroundStyle(Color.ink)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .card()
     }
 }
 
@@ -344,16 +307,16 @@ private struct WorkoutSessionExerciseCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: SBSLayout.space2) {
-            HStack(alignment: .firstTextBaseline) {
+            SBSAdaptiveStack(alignment: .firstTextBaseline) {
                 Text(exercise.name)
-                    .font(SBSFonts.bodyStrong())
+                    .font(SBSFonts.heading())
                     .foregroundStyle(Color.ink)
 
-                Spacer()
+                Spacer(minLength: 0)
 
                 if let trainingMaxText {
                     Text(trainingMaxText)
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.numberSmall())
                         .foregroundStyle(Color.inkSecondary)
                 }
             }
@@ -365,8 +328,9 @@ private struct WorkoutSessionExerciseCard: View {
             if let note = exercise.note {
                 HStack(alignment: .top, spacing: SBSLayout.space2) {
                     Image(systemName: "note.text")
-                        .font(.system(size: 12))
-                        .foregroundStyle(SBSColors.accentSecondaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
+                        .accessibilityHidden(true)
 
                     Text(note)
                         .font(SBSFonts.caption())
@@ -384,31 +348,23 @@ private struct WorkoutSessionExerciseCard: View {
         return HStack {
             if line.isAMRAP {
                 Text("\(weight) × \(line.reps) reps")
-                    .font(SBSFonts.body())
-                    .foregroundStyle(Color.inkSecondary)
+                    .font(SBSFonts.number())
+                    .foregroundStyle(Color.ink)
             } else {
                 Text("\(line.count) × \(line.reps) · \(weight)")
-                    .font(SBSFonts.body())
-                    .foregroundStyle(Color.inkSecondary)
+                    .font(SBSFonts.number())
+                    .foregroundStyle(Color.ink)
             }
 
-            Spacer()
+            Spacer(minLength: SBSLayout.space2)
 
             if line.missed {
-                resultBadge("Missed", color: Color.warning)
+                SBSBadge(text: "Missed", variant: .status(.warning), systemImage: "xmark")
             } else if line.isAMRAP {
-                resultBadge("Target \(line.targetReps)+", color: line.reps >= line.targetReps ? Color.success : Color.warning)
+                let hit = line.reps >= line.targetReps
+                SBSBadge(text: "Target \(line.targetReps)+", variant: .status(hit ? .success : .warning), systemImage: hit ? "checkmark" : nil)
             }
         }
-    }
-
-    private func resultBadge(_ text: String, color: Color) -> some View {
-        Text(text)
-            .font(SBSFonts.caption())
-            .foregroundStyle(color)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Capsule().fill(color.opacity(0.12)))
     }
 }
 
@@ -440,18 +396,26 @@ struct AccessoryHistoryView: View {
                     } description: {
                         Text("Log accessory work in a workout and it will show up here.")
                     } actions: {
-                        Button("Go to Workout") {
+                        Button {
                             dismiss()
                             appState.goToWorkoutTab()
+                        } label: {
+                            SBSButtonTitle("Go to Workout")
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(SBSPrimaryButtonStyle())
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.top, 40)
                 }
 
-                ForEach(groups) { group in
-                    AccessoryHistoryCard(group: group, useMetric: appState.settings.useMetric)
+                if !groups.isEmpty {
+                    VStack(spacing: 0) {
+                        ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
+                            if index > 0 { SBSRowDivider() }
+                            AccessoryHistoryCard(group: group, useMetric: appState.settings.useMetric)
+                        }
+                    }
+                    .card()
                 }
 
                 if !canAccessFullHistory && !appState.userData.cycleHistory.isEmpty {
@@ -495,9 +459,7 @@ private struct AccessoryHistoryCard: View {
                     Spacer()
 
                     if !earlierEntries.isEmpty {
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(Color.inkTertiary)
+                        SBSChevron(systemName: isExpanded ? "chevron.up" : "chevron.down")
                     }
                 }
                 .contentShape(Rectangle())
@@ -512,15 +474,13 @@ private struct AccessoryHistoryCard: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .card()
+        .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+        .padding(.vertical, SBSLayout.space3)
+        .padding(.horizontal, SBSLayout.space4)
     }
 
     private func entryText(_ entry: AccessoryRecord) -> some View {
         let result = accessoryResultText(weight: entry.weight, sets: entry.sets, reps: entry.reps, useMetric: useMetric)
-        return Text("\(entry.date.historyDateText): \(result)")
-            .font(SBSFonts.caption())
-            .foregroundStyle(Color.inkSecondary)
+        return SBSRowSubtitle("\(entry.date.historyDateText) · \(result)")
     }
 }

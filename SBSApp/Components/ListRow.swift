@@ -185,6 +185,22 @@ struct SBSListRow<Leading: View, Subtitle: View, Trailing: View>: View {
     }
 }
 
+extension SBSListRow {
+    init(
+        _ title: String,
+        showsChevron: Bool = false,
+        @ViewBuilder leading: () -> Leading,
+        @ViewBuilder subtitle: () -> Subtitle,
+        @ViewBuilder trailing: () -> Trailing
+    ) {
+        self.title = title
+        self.showsChevron = showsChevron
+        self.leading = leading()
+        self.subtitle = subtitle()
+        self.trailing = trailing()
+    }
+}
+
 extension SBSListRow where Leading == EmptyView {
     init(
         _ title: String,
@@ -353,6 +369,56 @@ struct SBSSegmentedControl<Value: Hashable>: View {
                 .accessibilityAddTraits(isSelected ? [.isSelected] : [])
             }
         }
+    }
+}
+
+// MARK: - Stepper
+
+/// A count with square minus and plus keys: title in body-strong (caption when
+/// compact), the value in number. VoiceOver sees a standard stepper.
+struct SBSStepperRow: View {
+    let title: String
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+    var step: Int = 1
+    var compact: Bool = false
+
+    var body: some View {
+        SBSAdaptiveStack(spacing: SBSLayout.space2) {
+            Text(title)
+                .font(compact ? SBSFonts.caption() : SBSFonts.bodyStrong())
+                .foregroundStyle(compact ? Color.inkSecondary : Color.ink)
+                .frame(maxWidth: compact ? nil : .infinity, alignment: .leading)
+                .frame(minWidth: compact ? 44 : nil, alignment: .leading)
+
+            HStack(spacing: SBSLayout.space2) {
+                key("minus", enabled: value - step >= range.lowerBound) { value -= step }
+                Text("\(value)")
+                    .font(SBSFonts.number())
+                    .foregroundStyle(Color.ink)
+                    .frame(minWidth: 36)
+                key("plus", enabled: value + step <= range.upperBound) { value += step }
+            }
+        }
+        .padding(.horizontal, compact ? 0 : SBSLayout.space4)
+        .padding(.vertical, compact ? 0 : SBSLayout.space2)
+        .frame(minHeight: compact ? 44 : 56)
+        .accessibilityRepresentation {
+            Stepper("\(title) \(value)", value: $value, in: range, step: step)
+        }
+    }
+
+    private func key(_ systemName: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(SBSFonts.bodyStrong().weight(.bold))
+                .foregroundStyle(enabled ? Color.ink : Color.inkTertiary)
+                .frame(width: 44, height: 36)
+                .selectionCell(false)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
     }
 }
 

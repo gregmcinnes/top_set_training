@@ -101,13 +101,19 @@ struct SessionView: View {
                 )
                 .padding(.horizontal)
                 
-                // Exercise items
+                // Exercise items: the lifts, then the accessories, each under an eyebrow
                 if let plan = appState.dayPlan(week: week, day: day) {
-                    ForEach(Array(plan.enumerated()), id: \.offset) { _, item in
-                        planItemView(for: item)
-                            .padding(.horizontal)
+                    let indexed = Array(plan.enumerated())
+                    let lifts = indexed.filter { !$0.element.isAccessory }
+                    let accessories = indexed.filter { $0.element.isAccessory }
+
+                    if !lifts.isEmpty {
+                        planGroup(lifts.count == 1 ? "Lift" : "Lifts", items: lifts)
                     }
-                    
+                    if !accessories.isEmpty {
+                        planGroup(accessories.count == 1 ? "Accessory" : "Accessories", items: accessories)
+                    }
+
                     SessionAccessoryActions(
                         canStartAccessoriesOnly: canStartAccessoriesOnly(in: plan),
                         hasAccessories: hasAccessories(in: plan),
@@ -392,6 +398,17 @@ struct SessionView: View {
         }
     }
     
+    private func planGroup(_ title: String, items: [(offset: Int, element: PlanItem)]) -> some View {
+        VStack(alignment: .leading, spacing: SBSLayout.space3) {
+            SBSSectionEyebrow(title)
+            ForEach(items, id: \.offset) { _, item in
+                planItemView(for: item)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.top, SBSLayout.space2)
+    }
+
     @ViewBuilder
     private func planItemView(for item: PlanItem) -> some View {
         switch item {
@@ -567,10 +584,14 @@ struct SessionView: View {
     }
 
     private func hasAccessories(in plan: [PlanItem]) -> Bool {
-        plan.contains { item in
-            if case .accessory = item { return true }
-            return false
-        }
+        plan.contains(where: \.isAccessory)
+    }
+}
+
+private extension PlanItem {
+    var isAccessory: Bool {
+        if case .accessory = self { return true }
+        return false
     }
 }
 
@@ -590,71 +611,36 @@ struct SessionAccessoryActions: View {
                 Button(action: onStartAccessoriesOnly) {
                     label("Start Accessories Only", systemImage: "play.fill")
                 }
+                .buttonStyle(SBSSecondaryButtonStyle())
             }
 
-            HStack(spacing: SBSLayout.space2) {
+            SBSAdaptiveStack(spacing: SBSLayout.space2) {
                 Button(action: onAdd) {
-                    label("Add Accessory", systemImage: "plus.circle.fill")
+                    label("Add Accessory", systemImage: "plus")
                 }
+                .buttonStyle(SBSSecondaryButtonStyle())
 
                 if hasAccessories {
                     Button(action: onEdit) {
-                        label("Edit", systemImage: "pencil")
+                        label("Edit", systemImage: "pencil", accessibilityLabel: "Edit accessories")
                     }
-                    .accessibilityLabel("Edit accessories")
-                    .frame(maxWidth: 110)
+                    .buttonStyle(SBSSecondaryButtonStyle())
+                    .frame(maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : 120)
                 }
             }
         }
     }
 
-    private func label(_ title: String, systemImage: String) -> some View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private func label(_ title: String, systemImage: String, accessibilityLabel: String? = nil) -> some View {
         HStack(spacing: SBSLayout.space2) {
             Image(systemName: systemImage)
-                .font(.system(size: 14, weight: .semibold))
-            Text(title)
-                .font(SBSFonts.bodyStrong())
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .font(SBSFonts.button())
+                .accessibilityHidden(true)
+            SBSButtonTitle(title, accessibilityLabel: accessibilityLabel)
         }
-        .foregroundStyle(SBSColors.accentSecondaryFallback)
         .frame(maxWidth: .infinity)
-        .padding(.vertical, SBSLayout.space4)
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                .strokeBorder(SBSColors.accentSecondaryFallback, lineWidth: 1.5)
-        )
-    }
-}
-
-// MARK: - Session Header
-
-struct SessionHeader: View {
-    let week: Int
-    let day: Int
-    let dayTitle: String
-    let logStatus: DayLogStatus
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.space2) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(dayTitle)
-                        .font(SBSFonts.title())
-                        .foregroundStyle(Color.ink)
-                    
-                    Text("Week \(week) • Day \(day)")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(Color.inkSecondary)
-                }
-                
-                Spacer()
-                
-                LogStatusBadge(status: logStatus)
-            }
-        }
-        .padding()
-        .card()
     }
 }
 
@@ -679,19 +665,19 @@ struct SessionHeaderWithWorkout: View {
     
     var body: some View {
         VStack(spacing: SBSLayout.space4) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                    SBSEyebrow("Week \(week) · Day \(day)")
+                        .foregroundStyle(Color.inkSecondary)
+
                     Text(dayTitle)
                         .font(SBSFonts.title())
                         .foregroundStyle(Color.ink)
-                    
-                    Text("Week \(week) • Day \(day)")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(Color.inkSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                
-                Spacer()
-                
+
+                Spacer(minLength: SBSLayout.space2)
+
                 LogStatusBadge(status: logStatus)
             }
             
@@ -712,44 +698,40 @@ struct SessionHeaderWithWorkout: View {
         Button(action: action) {
             HStack(spacing: SBSLayout.space2) {
                 Image(systemName: "play.fill")
-                    .font(.system(size: 14, weight: .semibold))
-
-                Text(title)
-                    .font(SBSFonts.bodyStrong())
+                    .font(SBSFonts.button())
+                    .accessibilityHidden(true)
+                SBSButtonTitle(title)
             }
-            .foregroundStyle(Color.orangeInk)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, SBSLayout.space4)
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                    .fill(SBSColors.accentFallback)
-            )
         }
+        .buttonStyle(SBSPrimaryButtonStyle())
+        // Room for the hard shadow inside the card
+        .padding(.trailing, SBSLayout.hardShadowOffset)
+        .padding(.bottom, SBSLayout.hardShadowOffset)
     }
 
     /// This day is logged, so starting it again is a quiet option rather than the
     /// main action.
     private var doneState: some View {
         VStack(spacing: SBSLayout.space2) {
+            // Status as a glyph and a word on a hairline cell, never a fill
             HStack(spacing: SBSLayout.space2) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 14, weight: .semibold))
+                Image(systemName: "checkmark")
+                    .font(SBSFonts.bodyStrong().weight(.bold))
+                    .foregroundStyle(Color.success)
+                    .accessibilityHidden(true)
 
                 Text("Workout Complete")
                     .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.ink)
             }
-            .foregroundStyle(Color.success)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, SBSLayout.space4)
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                    .fill(Color.success.opacity(0.12))
-            )
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .selectionCell(false)
             .accessibilityElement(children: .combine)
 
             Button("Redo Workout", action: onRedoWorkout)
-                .font(SBSFonts.caption())
-                .foregroundStyle(Color.inkSecondary)
+                .font(SBSFonts.caption().weight(.semibold))
+                .foregroundStyle(Color.orangeText)
                 .frame(minHeight: 44)
         }
     }
@@ -789,15 +771,7 @@ struct RepLogSheet: View {
                         .foregroundStyle(Color.ink)
                     
                     if let setLabel {
-                        Text(setLabel)
-                            .font(SBSFonts.caption())
-                            .foregroundStyle(Color.warning)
-                            .padding(.horizontal, SBSLayout.space4)
-                            .padding(.vertical, SBSLayout.space2)
-                            .background(
-                                Capsule()
-                                    .fill(Color.warning.opacity(0.15))
-                            )
+                        SBSBadge(text: setLabel)
                     }
 
                     Text("How many reps on your AMRAP set?")
@@ -811,8 +785,9 @@ struct RepLogSheet: View {
                     if showingNoteField || !note.isEmpty {
                         HStack {
                             Image(systemName: "note.text")
-                                .font(.system(size: 14))
+                                .font(SBSFonts.caption())
                                 .foregroundStyle(Color.inkSecondary)
+                                .accessibilityHidden(true)
                             
                             TextField("Add a note (optional)", text: $note, axis: .vertical)
                                 .font(SBSFonts.body())
@@ -825,17 +800,14 @@ struct RepLogSheet: View {
                                     note = ""
                                 } label: {
                                     Image(systemName: "xmark.circle.fill")
-                                        .font(.system(size: 16))
+                                        .font(SBSFonts.body())
                                         .foregroundStyle(Color.inkSecondary)
                                 }
                                 .accessibilityLabel("Clear note")
                             }
                         }
-                        .padding(SBSLayout.space4)
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                .fill(Color.surface)
-                        )
+                        .padding(SBSLayout.space1)
+                        .sbsFieldCell()
                         .padding(.horizontal)
                         .padding(.top, SBSLayout.space2)
                     } else {
@@ -848,10 +820,10 @@ struct RepLogSheet: View {
                             }
                         } label: {
                             HStack(spacing: 4) {
-                                Image(systemName: "plus.circle")
-                                    .font(.system(size: 14))
+                                Image(systemName: "plus")
+                                    .font(SBSFonts.caption().weight(.semibold))
                                 Text("Add note")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.caption().weight(.semibold))
                             }
                             .foregroundStyle(Color.orangeText)
                         }
@@ -970,24 +942,21 @@ struct AccessoryLogSheet: View {
                         }
 
                         // Sets and reps
-                        VStack(spacing: SBSLayout.space2) {
-                            Stepper("Sets: \(sets)", value: $sets, in: 1...10)
-                            Stepper("Reps: \(reps)", value: $reps, in: 1...30)
+                        VStack(spacing: 0) {
+                            SBSStepperRow(title: "Sets", value: $sets, range: 1...10)
+                            SBSRowDivider()
+                            SBSStepperRow(title: "Reps", value: $reps, range: 1...30)
                         }
-                        .font(SBSFonts.bodyStrong())
-                        .foregroundStyle(Color.ink)
-                        .padding(SBSLayout.space4)
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                .fill(Color.surface)
-                        )
+                        .card()
                         .padding(.horizontal)
 
                         // Easy toggle - hint shown next time
                         Toggle(isOn: $wasEasy) {
-                            HStack(spacing: SBSLayout.space2) {
-                                Image(systemName: "hand.thumbsup.fill")
-                                    .foregroundStyle(Color.success)
+                            HStack(spacing: SBSLayout.space3) {
+                                Image(systemName: "hand.thumbsup")
+                                    .font(SBSFonts.bodyStrong())
+                                    .foregroundStyle(Color.inkSecondary)
+                                    .accessibilityHidden(true)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("That was easy")
                                         .font(SBSFonts.bodyStrong())
@@ -998,25 +967,22 @@ struct AccessoryLogSheet: View {
                                 }
                             }
                         }
-                        .tint(Color.success)
+                        .toggleStyle(SBSToggleStyle())
                         .padding(SBSLayout.space4)
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                .fill(Color.surface)
-                        )
+                        .card()
                         .padding(.horizontal)
 
                         // Note field (collapsible)
                         VStack(alignment: .leading, spacing: SBSLayout.space2) {
                             if showingNoteField || !note.isEmpty {
-                                Text("Note")
-                                    .font(SBSFonts.caption())
+                                SBSEyebrow("Note")
                                     .foregroundStyle(Color.inkSecondary)
                                 
                                 HStack {
                                     Image(systemName: "note.text")
-                                        .font(.system(size: 14))
+                                        .font(SBSFonts.caption())
                                         .foregroundStyle(Color.inkSecondary)
+                                        .accessibilityHidden(true)
                                     
                                     TextField("Add a note (optional)", text: $note, axis: .vertical)
                                         .font(SBSFonts.body())
@@ -1028,17 +994,14 @@ struct AccessoryLogSheet: View {
                                             note = ""
                                         } label: {
                                             Image(systemName: "xmark.circle.fill")
-                                                .font(.system(size: 16))
+                                                .font(SBSFonts.body())
                                                 .foregroundStyle(Color.inkSecondary)
                                         }
                                         .accessibilityLabel("Clear note")
                                     }
                                 }
-                                .padding(SBSLayout.space4)
-                                .background(
-                                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                        .fill(Color.surface)
-                                )
+                                .padding(SBSLayout.space1)
+                                .sbsFieldCell()
                             } else {
                                 Button {
                                     withAnimation(.easeInOut(duration: 0.2)) {
@@ -1046,10 +1009,10 @@ struct AccessoryLogSheet: View {
                                     }
                                 } label: {
                                     HStack(spacing: 4) {
-                                        Image(systemName: "plus.circle")
-                                            .font(.system(size: 14))
+                                        Image(systemName: "plus")
+                                            .font(SBSFonts.caption().weight(.semibold))
                                         Text("Add note")
-                                            .font(SBSFonts.caption())
+                                            .font(SBSFonts.caption().weight(.semibold))
                                     }
                                     .foregroundStyle(Color.orangeText)
                                 }
@@ -1210,63 +1173,17 @@ struct QuickWeightButton: View {
         Button(action: onTap) {
             VStack(spacing: 2) {
                 Text(label)
-                    .font(SBSFonts.caption().weight(.semibold))
+                    .font(SBSFonts.numberSmall().weight(.semibold))
+                    .foregroundStyle(Color.ink)
                 Text(weight.formattedWeightShort(useMetric: useMetric))
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.numberSmall())
                     .foregroundStyle(Color.inkSecondary)
             }
-            .foregroundStyle(Color.orangeText)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, SBSLayout.space2)
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                    .fill(Color.orangeSoft)
-            )
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .selectionCell(false)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Day Navigation
-
-struct DayNavigator: View {
-    @Binding var currentDay: Int
-    let totalDays: Int
-    
-    var body: some View {
-        HStack {
-            Button {
-                withAnimation {
-                    currentDay = max(1, currentDay - 1)
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "chevron.left")
-                    Text("Day \(currentDay - 1)")
-                }
-                .font(SBSFonts.caption())
-            }
-            .disabled(currentDay <= 1)
-            .opacity(currentDay <= 1 ? 0.3 : 1)
-            
-            Spacer()
-            
-            Button {
-                withAnimation {
-                    currentDay = min(totalDays, currentDay + 1)
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Text("Day \(currentDay + 1)")
-                    Image(systemName: "chevron.right")
-                }
-                .font(SBSFonts.caption())
-            }
-            .disabled(currentDay >= totalDays)
-            .opacity(currentDay >= totalDays ? 0.3 : 1)
-        }
-        .foregroundStyle(Color.orangeText)
-        .padding(.horizontal)
     }
 }
 
@@ -1306,8 +1223,9 @@ struct WeightOverrideSheet: View {
 
                     if let prescribedReps {
                         Text(prescribedReps)
-                            .font(SBSFonts.bodyStrong())
+                            .font(SBSFonts.number())
                             .foregroundStyle(Color.inkSecondary)
+                            .multilineTextAlignment(.center)
                     }
 
                     Text("Override the recommended weight")
@@ -1317,21 +1235,17 @@ struct WeightOverrideSheet: View {
                 .padding(.top)
 
                 // Recommended weight display
-                VStack(spacing: SBSLayout.space2) {
-                    Text("Recommended")
-                        .font(SBSFonts.caption())
+                VStack(spacing: SBSLayout.space1) {
+                    SBSEyebrow("Recommended")
                         .foregroundStyle(Color.inkSecondary)
 
                     Text(calculatedWeight.formattedWeight(useMetric: useMetric))
                         .font(SBSFonts.number())
-                        .foregroundStyle(Color.inkSecondary)
+                        .foregroundStyle(Color.ink)
                 }
                 .padding()
                 .frame(maxWidth: .infinity)
-                .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                        .fill(Color.surface)
-                )
+                .card()
                 .padding(.horizontal)
                 .padding(.top, SBSLayout.space6)
 
@@ -1369,7 +1283,8 @@ struct WeightOverrideSheet: View {
                 // Info text
                 HStack(spacing: SBSLayout.space2) {
                     Image(systemName: "info.circle")
-                        .font(.system(size: 14))
+                        .font(SBSFonts.caption())
+                        .accessibilityHidden(true)
                     Text("Weight changes will cascade to future weeks")
                         .font(SBSFonts.caption())
                 }
@@ -1428,14 +1343,11 @@ struct QuickAdjustButton: View {
     var body: some View {
         Button(action: onTap) {
             Text(label)
-                .font(SBSFonts.caption().weight(.semibold))
-                .foregroundStyle(Color.orangeText)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, SBSLayout.space2)
-                .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                        .fill(Color.orangeSoft)
-                )
+                .font(SBSFonts.numberSmall().weight(.semibold))
+                .foregroundStyle(Color.ink)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .selectionCell(false)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -1464,37 +1376,25 @@ struct LinearLogSheet: View {
                 // Header
                 VStack(spacing: SBSLayout.space2) {
                     Text(liftName)
-                        .font(SBSFonts.largeTitle())
+                        .font(SBSFonts.title())
                         .foregroundStyle(Color.ink)
-                    
-                    Text("\(sets)×\(reps) @ \(weight.formattedWeight(useMetric: useMetric))")
-                        .font(SBSFonts.heading())
+                        .multilineTextAlignment(.center)
+
+                    Text("\(sets) × \(reps) @ \(weight.formattedWeight(useMetric: useMetric))")
+                        .font(SBSFonts.number())
                         .foregroundStyle(Color.inkSecondary)
-                    
-                    // Linear progression badge
-                    HStack(spacing: SBSLayout.space2) {
-                        Image(systemName: "arrow.up.right")
-                            .font(.system(size: 12, weight: .semibold))
-                        
-                        Text("LINEAR PROGRESSION")
-                            .font(SBSFonts.caption().weight(.semibold))
-                    }
-                    .foregroundStyle(Color.orangeText)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(Color.orangeSoft)
-                    )
+
+                    SBSBadge(text: "Linear progression", systemImage: "arrow.up.right")
                 }
                 .padding(.top, SBSLayout.space6)
                 
                 // Current status
                 if let entry = logEntry {
                     HStack(spacing: SBSLayout.space4) {
-                        Image(systemName: entry.completed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                            .font(.system(size: 24))
+                        Image(systemName: entry.completed ? "checkmark" : "xmark")
+                            .font(SBSFonts.heading())
                             .foregroundStyle(entry.completed ? Color.success : Color.danger)
+                            .accessibilityHidden(true)
                         
                         VStack(alignment: .leading, spacing: 2) {
                             Text(entry.completed ? "Completed" : "Failed")
@@ -1513,21 +1413,21 @@ struct LinearLogSheet: View {
                         Button("Clear") {
                             onClear()
                         }
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(Color.inkSecondary)
+                        .font(SBSFonts.caption().weight(.semibold))
+                        .foregroundStyle(Color.orangeText)
+                        .frame(minHeight: 44)
                     }
                     .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .fill((entry.completed ? Color.success : Color.danger).opacity(0.1))
-                    )
+                    .card()
                     .padding(.horizontal)
                 } else {
                     // Deload warning
                     if isDeloadPending {
-                        HStack(spacing: SBSLayout.space2) {
-                            Image(systemName: "exclamationmark.triangle.fill")
+                        HStack(alignment: .top, spacing: SBSLayout.space3) {
+                            Image(systemName: "exclamationmark.triangle")
+                                .font(SBSFonts.bodyStrong())
                                 .foregroundStyle(Color.warning)
+                                .accessibilityHidden(true)
                             
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Deload Warning")
@@ -1540,10 +1440,8 @@ struct LinearLogSheet: View {
                             }
                         }
                         .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                .fill(Color.warning.opacity(0.1))
-                        )
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .card()
                         .padding(.horizontal)
                     }
                     
@@ -1554,20 +1452,20 @@ struct LinearLogSheet: View {
                             .foregroundStyle(Color.inkSecondary)
                             .multilineTextAlignment(.center)
                         
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text("Success:")
+                        SBSAdaptiveStack(alignment: .top) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Label("Success", systemImage: "checkmark")
                                     .font(SBSFonts.caption().weight(.semibold))
                                     .foregroundStyle(Color.success)
                                 Text("+\(increment.formattedWeight(useMetric: useMetric)) next time")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.numberSmall())
                                     .foregroundStyle(Color.inkSecondary)
                             }
-                            
-                            Spacer()
-                            
-                            VStack(alignment: .trailing) {
-                                Text("Failure:")
+
+                            Spacer(minLength: SBSLayout.space2)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Label("Failure", systemImage: "xmark")
                                     .font(SBSFonts.caption().weight(.semibold))
                                     .foregroundStyle(Color.danger)
                                 Text("Same weight")
@@ -1577,10 +1475,7 @@ struct LinearLogSheet: View {
                         }
                     }
                     .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .fill(Color.surface)
-                    )
+                    .card()
                     .padding(.horizontal)
                 }
                 
@@ -1588,40 +1483,30 @@ struct LinearLogSheet: View {
                 
                 // Buttons (only show if not already logged)
                 if logEntry == nil {
-                    VStack(spacing: SBSLayout.space4) {
+                    // One primary action; a miss is the hairline alternative, never a red block
+                    VStack(spacing: SBSLayout.space3) {
                         Button(action: onSuccess) {
                             HStack(spacing: SBSLayout.space2) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 20))
-                                
-                                Text("Yes - Completed All Reps")
-                                    .font(SBSFonts.bodyStrong())
+                                Image(systemName: "checkmark")
+                                    .font(SBSFonts.button())
+                                    .accessibilityHidden(true)
+                                SBSButtonTitle("Completed All Reps")
                             }
-                            .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, SBSLayout.space4)
-                            .background(
-                                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                    .fill(Color.success)
-                            )
                         }
-                        
+                        .buttonStyle(SBSPrimaryButtonStyle())
+
                         Button(action: onFailure) {
                             HStack(spacing: SBSLayout.space2) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 20))
-                                
-                                Text("No - Missed Reps")
-                                    .font(SBSFonts.bodyStrong())
+                                Image(systemName: "xmark")
+                                    .font(SBSFonts.button())
+                                    .foregroundStyle(Color.danger)
+                                    .accessibilityHidden(true)
+                                SBSButtonTitle("Missed Reps")
                             }
-                            .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, SBSLayout.space4)
-                            .background(
-                                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                    .fill(Color.danger)
-                            )
                         }
+                        .buttonStyle(SBSSecondaryButtonStyle())
                     }
                     .padding(.horizontal, SBSLayout.space6)
                     .padding(.bottom, SBSLayout.space6)
@@ -1664,8 +1549,9 @@ struct AccessoryEditorSheet: View {
                         Spacer()
                         
                         Image(systemName: "dumbbell")
-                            .font(.system(size: 56))
+                            .font(SBSFonts.titleLarge())
                             .foregroundStyle(Color.inkSecondary)
+                            .accessibilityHidden(true)
                         
                         Text("No Accessories")
                             .font(SBSFonts.title())
@@ -1701,8 +1587,9 @@ struct AccessoryEditorSheet: View {
                         }
                         .onDelete(perform: deleteAccessories)
                         .onMove(perform: moveAccessories)
+                        .sbsListRows()
                     }
-                    .listStyle(.insetGrouped)
+                    .sbsGroupedList()
                 }
                 
                 VStack(spacing: SBSLayout.space2) {
@@ -1710,38 +1597,27 @@ struct AccessoryEditorSheet: View {
                         showingAddAccessory = true
                     } label: {
                         HStack(spacing: SBSLayout.space2) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 20))
-
-                            Text("Add Accessory")
-                                .font(SBSFonts.bodyStrong())
+                            Image(systemName: "plus")
+                                .font(SBSFonts.button())
+                                .accessibilityHidden(true)
+                            SBSButtonTitle("Add Accessory")
                         }
-                        .foregroundStyle(SBSColors.accentSecondaryFallback)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, SBSLayout.space4)
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                .strokeBorder(SBSColors.accentSecondaryFallback, lineWidth: 1.5)
-                        )
                     }
+                    .buttonStyle(SBSSecondaryButtonStyle())
 
                     Button {
                         saveChanges()
                         onDismiss()
                     } label: {
-                        Text("Save")
-                            .font(SBSFonts.bodyStrong())
-                            .foregroundStyle(hasChanges ? Color.orangeInk : Color.inkSecondary)
+                        SBSButtonTitle("Save")
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, SBSLayout.space4)
-                            .background(
-                                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                    .fill(hasChanges ? SBSColors.accentFallback : Color.surface)
-                            )
                     }
+                    .buttonStyle(SBSPrimaryButtonStyle())
                     .disabled(!hasChanges)
                 }
                 .padding()
+                .padding(.trailing, SBSLayout.hardShadowOffset)
             }
             .sbsBackground()
             .navigationTitle("Edit Accessories")
@@ -1852,44 +1728,19 @@ struct AccessoryEditRow: View {
                 .foregroundStyle(Color.ink)
             
             // Stacked: side by side the two steppers squeeze their labels to one letter a line
-            VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                // Sets stepper
-                HStack(spacing: SBSLayout.space2) {
-                    Text("Sets:")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(Color.inkSecondary)
-                        .frame(width: 40, alignment: .leading)
-                    
-                    Stepper("\(accessory.sets)", value: Binding(
-                        get: { accessory.sets },
-                        set: { onUpdateSets($0) }
-                    ), in: 1...10)
-                    .labelsHidden()
-                    
-                    Text("\(accessory.sets)")
-                        .font(SBSFonts.bodyStrong())
-                        .foregroundStyle(SBSColors.accentSecondaryFallback)
-                        .frame(width: 24)
-                }
-                
-                // Reps stepper
-                HStack(spacing: SBSLayout.space2) {
-                    Text("Reps:")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(Color.inkSecondary)
-                        .frame(width: 40, alignment: .leading)
-                    
-                    Stepper("\(accessory.reps)", value: Binding(
-                        get: { accessory.reps },
-                        set: { onUpdateReps($0) }
-                    ), in: 1...30)
-                    .labelsHidden()
-                    
-                    Text("\(accessory.reps)")
-                        .font(SBSFonts.bodyStrong())
-                        .foregroundStyle(SBSColors.accentSecondaryFallback)
-                        .frame(width: 24)
-                }
+            VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                SBSStepperRow(
+                    title: "Sets",
+                    value: Binding(get: { accessory.sets }, set: { onUpdateSets($0) }),
+                    range: 1...10,
+                    compact: true
+                )
+                SBSStepperRow(
+                    title: "Reps",
+                    value: Binding(get: { accessory.reps }, set: { onUpdateReps($0) }),
+                    range: 1...30,
+                    compact: true
+                )
             }
         }
         .padding(.vertical, SBSLayout.space2)

@@ -295,7 +295,12 @@ final class AccessorySessionUITests: XCTestCase {
         tap("Save weight")
         XCTAssertTrue(containingText("Last: 25").waitForExistence(timeout: 5))
 
-        tap("Edit accessories")
+        // Below the day's exercises: scroll it clear of the tab bar first
+        let edit = button("Edit accessories")
+        XCTAssertTrue(edit.waitForExistence(timeout: 5))
+        for _ in 0..<4 where !edit.isHittable { app.swipeUp() }
+        app.swipeUp()
+        edit.tap()
         XCTAssertTrue(app.navigationBars["Edit Accessories"].waitForExistence(timeout: 5))
         shot("accessory-editor")
         tap("Cancel")

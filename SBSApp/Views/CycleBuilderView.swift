@@ -560,7 +560,7 @@ struct StepProgressView: View {
     private func connector(isReached: Bool, isHidden: Bool) -> some View {
         Rectangle()
             .fill(isReached ? Color.ink : Color.hairline)
-            .frame(height: isReached ? SBSLayout.strokeRule : SBSLayout.strokeHairline)
+            .frame(height: SBSLayout.strokeHairline)
             .opacity(isHidden ? 0 : 1)
     }
 

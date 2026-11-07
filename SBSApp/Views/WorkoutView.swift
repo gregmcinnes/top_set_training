@@ -24,6 +24,11 @@ struct WorkoutView: View {
     @State private var showingStandaloneAccessoryWeight = false  // For editing the current standalone accessory's weight
     @State private var showingWeightOverride = false  // For overriding exercise weight mid-workout
     @ObservedObject private var watchConnectivity = WatchConnectivityManager.shared
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    /// A PR to flash on the live set card, cleared once it has flashed
+    @State private var flashToken: UUID?
+    /// The PR shown on the rest screen that follows it
+    @State private var restPR: AppState.LogRepsResult?
 
     private let storeManager = StoreManager.shared
 
@@ -62,7 +67,8 @@ struct WorkoutView: View {
                         canUndo: session.canUndoLastSet,
                         onDone: { session.finishAndDismiss() },
                         onShare: { showingShareSheet = true },
-                        onUndo: { session.undoLastSet() }
+                        onUndo: { session.undoLastSet() },
+                        showConfetti: appState.settings.prConfetti
                     )
                 } else if workoutState.showingTimer {
                     // Timer view with next set preview
@@ -97,7 +103,10 @@ struct WorkoutView: View {
                         onAdjust: { delta in
                             session.handleTimerAdjust(by: delta)
                         },
-                        onUndo: session.canUndoLastSet ? { session.undoLastSet() } : nil
+                        onUndo: session.canUndoLastSet ? { session.undoLastSet() } : nil,
+                        recentPR: restPR,
+                        flashToken: flashToken,
+                        onFlashDone: { flashToken = nil }
                     )
                 } else {
                     // Current set view
@@ -122,7 +131,9 @@ struct WorkoutView: View {
                             }
                         },
                         onMarkEasy: session.toggleCurrentAccessoryEasy,
-                        personalRecordE1RM: { appState.personalRecord(for: $0)?.estimatedOneRM }
+                        personalRecordE1RM: { appState.personalRecord(for: $0)?.estimatedOneRM },
+                        flashToken: flashToken,
+                        onFlashDone: { flashToken = nil }
                     )
                 }
             }
@@ -138,12 +149,12 @@ struct WorkoutView: View {
                 ToolbarItem(placement: .principal) {
                     VStack(spacing: 0) {
                         Text(appState.dayTitle(day: day))
-                            .font(SBSFonts.bodyBold())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.bodyStrong())
+                            .foregroundStyle(Color.ink)
                             .lineLimit(1)
                         Text("Week \(week) · \(appState.programDisplayName)")
-                            .font(SBSFonts.caption2())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
                             .lineLimit(1)
                     }
                     .accessibilityElement(children: .combine)
@@ -155,8 +166,8 @@ struct WorkoutView: View {
                         appState.minimizeWorkout()
                     } label: {
                         Image(systemName: "chevron.down")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.bodyStrong())
+                            .foregroundStyle(Color.ink)
                     }
                     .accessibilityLabel("Minimize workout")
                 }
@@ -166,8 +177,8 @@ struct WorkoutView: View {
                         showingExercisePicker = true
                     } label: {
                         Image(systemName: "list.bullet")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.bodyStrong())
+                            .foregroundStyle(Color.ink)
                     }
                     .accessibilityLabel("Exercise list")
 
@@ -175,8 +186,8 @@ struct WorkoutView: View {
                         showingExitConfirm = true
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.bodyStrong())
+                            .foregroundStyle(Color.ink)
                     }
                     .accessibilityLabel("Exit workout")
                 }
@@ -204,6 +215,7 @@ struct WorkoutView: View {
             )
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+            .workoutSheetStyle()
         }
         .alert("Exit Workout?", isPresented: $showingExitConfirm) {
             Button("Keep Going", role: .cancel) {}
@@ -289,7 +301,7 @@ struct WorkoutView: View {
 
                     if let exercise = workoutState.currentExercise,
                        let result = session.logAMRAPSet(exercise: exercise, structuredSetIndex: setIndex, reps: reps, note: note),
-                       result.isNewPR, appState.settings.showPRCelebrations {
+                       result.isNewPR {
                         session.showingRepInput = false
                         // Complete the set and start timer (same as non-PR flow)
                         session.completeSetAndStartTimer()
@@ -305,8 +317,12 @@ struct WorkoutView: View {
                     session.showingRepInput = false
                 }
             )
-            .presentationDetents([.height(session.pendingStructuredSetIndex == nil ? 420 : 500), .large])
+            // At accessibility sizes the pad needs the whole screen
+            .presentationDetents(dynamicTypeSize.isAccessibilitySize
+                ? [.large]
+                : [.height(session.pendingStructuredSetIndex == nil ? 460 : 540), .large])
             .presentationDragIndicator(.visible)
+            .workoutSheetStyle()
         }
         // item-driven: an isPresented cover reading separate optional state can render empty
         .fullScreenCover(item: $session.celebratingPR) { result in
@@ -348,8 +364,9 @@ struct WorkoutView: View {
                     },
                     onCancel: { showingAccessoryWeightSheet = false }
                 )
-                .presentationDetents([.height(600), .large])
+                .presentationDetents(dynamicTypeSize.isAccessibilitySize ? [.large] : [.height(640), .large])
                 .presentationDragIndicator(.visible)
+                .workoutSheetStyle()
             }
         }
         .sheet(isPresented: $showingStandaloneAccessoryWeight) {
@@ -365,8 +382,9 @@ struct WorkoutView: View {
                     },
                     onCancel: { showingStandaloneAccessoryWeight = false }
                 )
-                .presentationDetents([.height(600), .large])
+                .presentationDetents(dynamicTypeSize.isAccessibilitySize ? [.large] : [.height(640), .large])
                 .presentationDragIndicator(.visible)
+                .workoutSheetStyle()
             }
         }
         .sheet(isPresented: $showingWeightOverride) {
@@ -392,10 +410,20 @@ struct WorkoutView: View {
                 )
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+                .workoutSheetStyle()
             }
         }
         .onAppear {
             session.workoutScreenDidAppear()
+        }
+        // Every PR flashes the live set card once (600ms), confetti setting or not
+        .onChange(of: session.prFlash?.id) { _, id in
+            flashToken = id
+            restPR = session.prFlash
+        }
+        // The PR line belongs to the rest after the set
+        .onChange(of: workoutState.showingTimer) { _, showing in
+            if !showing { restPR = nil }
         }
     }
 
@@ -754,12 +782,10 @@ struct CurrentSetView: View {
     private func actions(for exercise: WorkoutExercise) -> some View {
         VStack(spacing: SBSLayout.space2) {
             Button(action: onComplete) {
-                Text(isCurrentAMRAP ? "Log Reps" : "Complete Set")
+                SBSButtonTitle(isCurrentAMRAP ? "Log Reps" : "Complete Set")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(SBSPrimaryButtonStyle())
-            // The style uppercases what it shows; VoiceOver and Voice Control get the words
-            .accessibilityLabel(isCurrentAMRAP ? "Log Reps" : "Complete Set")
 
             // Only linear lifts progress from each set's result. Elsewhere a set's
             // reps don't change anything, and an AMRAP asks for its count anyway.
@@ -767,11 +793,10 @@ struct CurrentSetView: View {
                 Button {
                     onMissed?()
                 } label: {
-                    Text("Missed Reps")
+                    SBSButtonTitle("Missed Reps")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(SBSSecondaryButtonStyle())
-                .accessibilityLabel("Missed Reps")
                 .disabled(workoutState.isSetCompleted(workoutState.currentSetNumber))
             }
         }
@@ -973,6 +998,12 @@ struct TimerView: View {
     var onResume: (() -> Void)?
     var onAdjust: ((Int) -> Void)?
     var onUndo: (() -> Void)?
+    /// A PR from the set just logged: named under the timer for this rest
+    var recentPR: AppState.LogRepsResult? = nil
+    var flashToken: UUID? = nil
+    var onFlashDone: (() -> Void)? = nil
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var hasSuperset: Bool {
         showSuperset && workoutState.currentSupersetAccessory != nil
@@ -991,6 +1022,17 @@ struct TimerView: View {
                 }
 
                 restPanel
+
+                if let pr = recentPR {
+                    HStack(spacing: SBSLayout.space2) {
+                        SBSBadge(text: "PR", variant: .pr)
+                        Text("\(pr.liftName) · est. 1RM \(pr.newE1RM.formattedWeight(useMetric: useMetric))")
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.ink)
+                            .lineLimit(2)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
 
                 nextSet
             }
@@ -1129,7 +1171,9 @@ struct TimerView: View {
                 barWeight: barWeight,
                 showPlateCalculator: showPlateCalculator,
                 compact: hasSuperset,
-                onUnlockTap: onUnlockTap
+                onUnlockTap: onUnlockTap,
+                flashToken: flashToken,
+                onFlashDone: onFlashDone
             )
         }
     }
@@ -1138,7 +1182,11 @@ struct TimerView: View {
 
     private var controls: some View {
         VStack(spacing: SBSLayout.space1) {
-            HStack(spacing: SBSLayout.space2) {
+            // Side by side, or stacked when accessibility text would squeeze the labels
+            let layout = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(spacing: SBSLayout.space2))
+                : AnyLayout(HStackLayout(spacing: SBSLayout.space2))
+            layout {
                 Button {
                     Haptics.light()
                     if workoutState.timerIsPaused {
@@ -1156,21 +1204,27 @@ struct TimerView: View {
                         )
                     }
                 } label: {
-                    Label(workoutState.timerIsPaused ? "Resume" : "Pause",
-                          systemImage: workoutState.timerIsPaused ? "play.fill" : "pause.fill")
-                        .frame(maxWidth: .infinity)
+                    Label {
+                        SBSButtonTitle(workoutState.timerIsPaused ? "Resume" : "Pause",
+                                       accessibilityLabel: workoutState.timerIsPaused ? "Resume timer" : "Pause timer")
+                    } icon: {
+                        Image(systemName: workoutState.timerIsPaused ? "play.fill" : "pause.fill")
+                    }
+                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(SBSSecondaryButtonStyle())
-                .accessibilityLabel(workoutState.timerIsPaused ? "Resume timer" : "Pause timer")
 
                 Button {
                     onSkip?()
                 } label: {
-                    Label("Skip rest", systemImage: "forward.fill")
-                        .frame(maxWidth: .infinity)
+                    Label {
+                        SBSButtonTitle("Skip rest", accessibilityLabel: "Skip rest timer")
+                    } icon: {
+                        Image(systemName: "forward.fill")
+                    }
+                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(SBSSecondaryButtonStyle())
-                .accessibilityLabel("Skip rest timer")
             }
 
             if let onUndo {
@@ -1350,8 +1404,10 @@ struct WorkoutCompleteView: View {
     let onDone: () -> Void
     let onShare: () -> Void
     let onUndo: () -> Void
+    /// The "Celebrate PRs with confetti" setting
+    var showConfetti: Bool = false
 
-    @State private var showConfetti = false
+    @State private var confettiVisible = false
 
     private var prs: [WorkoutPRRecord] { workoutState.prsAchieved }
 
@@ -1372,21 +1428,21 @@ struct WorkoutCompleteView: View {
         ZStack {
             VStack(spacing: 0) {
                 ScrollView {
-                    VStack(spacing: SBSLayout.paddingLarge) {
+                    VStack(alignment: .leading, spacing: SBSLayout.space6) {
                         header
                         statsRow
                         if !prs.isEmpty { prSection }
                         if !outlooks.isEmpty { outlookSection }
                         if !workoutState.performedAccessories.isEmpty { accessorySection }
                     }
-                    .padding(.horizontal)
-                    .padding(.vertical, SBSLayout.paddingLarge)
+                    .padding(.horizontal, SBSLayout.space4)
+                    .padding(.vertical, SBSLayout.space6)
                 }
 
                 buttons
             }
 
-            if showConfetti && !prs.isEmpty {
+            if showConfetti && confettiVisible && !prs.isEmpty {
                 ConfettiView()
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
@@ -1397,8 +1453,8 @@ struct WorkoutCompleteView: View {
             Haptics.success()
 
             if !prs.isEmpty {
-                withAnimation(.easeIn(duration: 0.3).delay(0.2)) {
-                    showConfetti = true
+                withAnimation(.easeOut(duration: 0.25).delay(0.2)) {
+                    confettiVisible = true
                 }
 
                 // Extra haptic for PRs
@@ -1411,25 +1467,30 @@ struct WorkoutCompleteView: View {
     }
 
     private var header: some View {
-        VStack(spacing: SBSLayout.paddingSmall) {
-            Image(systemName: prs.isEmpty ? "checkmark.circle.fill" : "trophy.fill")
-                .font(.system(size: 56))
-                .foregroundStyle(prs.isEmpty ? SBSColors.success : .orange)
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            if !prs.isEmpty {
+                SBSBadge(text: prs.count == 1 ? "PR" : "\(prs.count) PRs", variant: .pr)
+            }
 
-            Text(workoutState.finishedEarly ? "Workout Finished" : "Workout Complete")
-                .font(SBSFonts.largeTitle())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
-                .multilineTextAlignment(.center)
+            // Capitals drawn here rather than by textCase, which would also capitalise
+            // what VoiceOver reads
+            let title = workoutState.finishedEarly ? "Workout Finished" : "Workout Complete"
+            Text(title.uppercased())
+                .font(SBSFonts.titleLarge())
+                .tracking(-0.34)
+                .foregroundStyle(Color.ink)
+                .accessibilityLabel(title)
+                .accessibilityAddTraits(.isHeader)
         }
     }
 
     private var statsRow: some View {
-        HStack(spacing: SBSLayout.paddingSmall) {
+        HStack(spacing: SBSLayout.space2) {
             if let durationText {
-                StatBubble(icon: "clock.fill", value: durationText, label: "duration")
+                StatBubble(value: durationText, label: "Duration")
             }
-            StatBubble(icon: "scalemass.fill", value: volumeText, label: "volume")
-            StatBubble(icon: "checkmark.circle.fill", value: "\(stats.sets)", label: "sets")
+            StatBubble(value: volumeText, label: "Volume")
+            StatBubble(value: "\(stats.sets)", label: "Sets")
         }
     }
 
@@ -1471,18 +1532,15 @@ struct WorkoutCompleteView: View {
     }
 
     private func summarySection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
-            Text(title)
-                .font(SBSFonts.captionBold())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
-            VStack(spacing: SBSLayout.paddingMedium) {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            SBSEyebrow(title)
+                .foregroundStyle(Color.inkSecondary)
+                .accessibilityAddTraits(.isHeader)
+            VStack(spacing: SBSLayout.space4) {
                 content()
             }
-            .padding(SBSLayout.paddingMedium)
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                    .fill(SBSColors.surfaceFallback)
-            )
+            .padding(SBSLayout.space4)
+            .card()
         }
     }
 
@@ -1490,39 +1548,34 @@ struct WorkoutCompleteView: View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(name)
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.ink)
                 if let note {
                     Text(note)
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                 }
             }
             Spacer()
             if let detail {
                 Text(detail)
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.numberSmall())
+                    .foregroundStyle(Color.ink)
             }
         }
         .accessibilityElement(children: .combine)
     }
 
     private var buttons: some View {
-        VStack(spacing: SBSLayout.paddingSmall) {
+        VStack(spacing: SBSLayout.space1) {
             Button(action: onDone) {
-                Text("Done")
-                    .font(SBSFonts.legacyButton())
-                    .foregroundStyle(Color.orangeInk)
+                SBSButtonTitle("Done")
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, SBSLayout.paddingMedium + 2)
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusLarge)
-                            .fill(SBSColors.accentFallback)
-                    )
             }
+            .buttonStyle(SBSPrimaryButtonStyle())
+            .padding(.trailing, SBSLayout.hardShadowOffset)
 
-            HStack(spacing: SBSLayout.paddingLarge) {
+            HStack(spacing: SBSLayout.space6) {
                 Button(action: onShare) {
                     Label(prs.isEmpty ? "Share Workout" : "Share Your PR", systemImage: "square.and.arrow.up")
                 }
@@ -1534,47 +1587,38 @@ struct WorkoutCompleteView: View {
                     }
                 }
             }
-            .font(SBSFonts.legacyCaption())
-            .foregroundStyle(SBSColors.textSecondaryFallback)
+            .font(SBSFonts.caption())
+            .foregroundStyle(Color.inkSecondary)
             .frame(minHeight: 44)
         }
-        .padding(.horizontal, SBSLayout.paddingLarge)
-        .padding(.bottom, SBSLayout.paddingSmall)
+        .padding(.horizontal, SBSLayout.space4)
+        .padding(.top, SBSLayout.space3)
+        .padding(.bottom, SBSLayout.space2)
+        .background(Color.bg)
     }
 }
 
 // MARK: - Stat Bubble
 
 private struct StatBubble: View {
-    let icon: String
     let value: String
     let label: String
-    
+
     var body: some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(Color.orangeText)
-                
-                Text(value)
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-            
-            Text(label)
-                .font(SBSFonts.caption2())
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+        VStack(alignment: .leading, spacing: SBSLayout.space1) {
+            SBSEyebrow(label)
+                .foregroundStyle(Color.inkSecondary)
+
+            Text(value)
+                .font(SBSFonts.number())
+                .foregroundStyle(Color.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, SBSLayout.paddingSmall)
-        .padding(.vertical, SBSLayout.paddingSmall)
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                .fill(SBSColors.surfaceFallback)
-        )
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(SBSLayout.space3)
+        .card()
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -1635,37 +1679,36 @@ struct ExercisePickerSheet: View {
                             }
                         )
                         .id(index)
-                        .listRowBackground(
-                            index == workoutState.currentExerciseIndex
-                                ? SBSColors.accentFallback.opacity(0.1)
-                                : Color.clear
-                        )
+                        // The current exercise is the selected row
+                        .listRowBackground(index == workoutState.currentExerciseIndex ? Color.orangeSoft : Color.bg)
+                        .listRowSeparatorTint(Color.hairline)
                     }
 
                     // Hint about adding accessories if none are configured
                     if !hasAccessories {
                         Section {
-                            HStack(spacing: SBSLayout.paddingMedium) {
-                                Image(systemName: "plus.circle")
-                                    .font(SBSFonts.title3())
-                                    .foregroundStyle(SBSColors.accentSecondaryFallback)
+                            HStack(spacing: SBSLayout.space4) {
+                                Image(systemName: "plus")
+                                    .font(SBSFonts.bodyStrong())
+                                    .foregroundStyle(Color.ink)
 
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Add Accessories")
-                                        .font(SBSFonts.bodyBold())
-                                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                                VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                                    Text("Add accessories")
+                                        .font(SBSFonts.bodyStrong())
+                                        .foregroundStyle(Color.ink)
 
                                     Text("You can add accessory exercises to each day via Settings → Day Accessories")
-                                        .font(SBSFonts.legacyCaption())
-                                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                                        .font(SBSFonts.caption())
+                                        .foregroundStyle(Color.inkSecondary)
                                 }
                             }
-                            .padding(.vertical, SBSLayout.paddingSmall)
+                            .padding(.vertical, SBSLayout.space2)
                         }
-                        .listRowBackground(SBSColors.accentSecondaryFallback.opacity(0.08))
+                        .listRowBackground(Color.surface)
                     }
                 }
                 .listStyle(.plain)
+                .scrollContentBackground(.hidden)
                 // Pinned: at the sheet's first height it would be below the fold of a
                 // long list. Needs something to summarize, and X leaves an untouched session.
                 .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -1673,14 +1716,13 @@ struct ExercisePickerSheet: View {
                         Button {
                             showingFinishConfirm = true
                         } label: {
-                            Text("Finish Workout")
-                                .font(SBSFonts.legacyButton())
-                                .foregroundStyle(Color.orangeText)
-                                .frame(maxWidth: .infinity, minHeight: 44)
+                            SBSButtonTitle("Finish Workout")
+                                .frame(maxWidth: .infinity)
                         }
-                        .padding(.horizontal)
-                        .padding(.vertical, SBSLayout.paddingSmall)
-                        .background(SBSColors.surfaceFallback)
+                        .buttonStyle(SBSSecondaryButtonStyle())
+                        .padding(.horizontal, SBSLayout.space4)
+                        .padding(.vertical, SBSLayout.space2)
+                        .background(Color.bg)
                     }
                 }
                 .onAppear {
@@ -1721,63 +1763,52 @@ private struct WorkoutOverviewSummary: View {
     let prCount: Int
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-            HStack(alignment: .firstTextBaseline) {
+        VStack(alignment: .leading, spacing: SBSLayout.space3) {
+            HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space2) {
                 Text("\(Int(progress * 100))%")
-                    .font(SBSFonts.legacyTitle())
-                    .foregroundStyle(Color.orangeText)
+                    .font(SBSFonts.numberLarge())
+                    .tracking(-0.84)
+                    .foregroundStyle(Color.ink)
                 Text("complete")
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.body())
+                    .foregroundStyle(Color.inkSecondary)
                 Spacer()
                 if prCount > 0 {
-                    HStack(spacing: 4) {
-                        Image(systemName: "trophy.fill")
-                        Text("\(prCount) PR\(prCount == 1 ? "" : "s")")
-                            .font(SBSFonts.captionBold())
-                    }
-                    .foregroundStyle(.orange)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(Color.orange.opacity(0.15)))
+                    SBSBadge(text: prCount == 1 ? "1 PR" : "\(prCount) PRs", variant: .pr)
                 }
             }
 
             // Progress bar
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(SBSColors.surfaceFallback)
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(SBSColors.accentFallback)
+                    Rectangle()
+                        .fill(Color.hairline)
+                    Rectangle()
+                        .fill(Color.ink)
                         .frame(width: max(0, geo.size.width * progress))
                 }
             }
-            .frame(height: 6)
+            .frame(height: 4)
 
-            HStack(spacing: SBSLayout.paddingLarge) {
+            HStack(spacing: SBSLayout.space6) {
                 summaryStat(label: "Sets", value: "\(completedSets) / \(totalSets)")
                 summaryStat(label: "Exercises", value: "\(completedExercises) / \(totalExercises)")
                 Spacer()
             }
         }
-        .padding(SBSLayout.paddingMedium)
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                .fill(SBSColors.surfaceFallback.opacity(0.5))
-        )
-        .padding(.horizontal, SBSLayout.paddingMedium)
-        .padding(.vertical, SBSLayout.paddingSmall)
+        .padding(SBSLayout.space4)
+        .card()
+        .padding(.horizontal, SBSLayout.space4)
+        .padding(.vertical, SBSLayout.space2)
     }
 
     private func summaryStat(label: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(value)
-                .font(SBSFonts.bodyBold())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
-            Text(label)
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .font(SBSFonts.number())
+                .foregroundStyle(Color.ink)
+            SBSEyebrow(label)
+                .foregroundStyle(Color.inkSecondary)
         }
     }
 }
@@ -1820,69 +1851,62 @@ struct ExercisePickerRow: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: SBSLayout.paddingMedium) {
-                // Status indicator
+            HStack(spacing: SBSLayout.space3) {
+                // Status cell: a check when done, otherwise the exercise's position
                 ZStack {
-                    Circle()
-                        .fill(statusColor.opacity(0.15))
-                        .frame(width: 40, height: 40)
-
                     if isComplete {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(SBSColors.success)
+                            .font(SBSFonts.bodyStrong().weight(.bold))
+                            .foregroundStyle(Color.success)
                     } else {
                         Text("\(index + 1)")
-                            .font(SBSFonts.bodyBold())
-                            .foregroundStyle(statusColor)
+                            .font(SBSFonts.number())
+                            .foregroundStyle(isCurrent ? Color.ink : Color.inkSecondary)
                     }
                 }
+                .frame(width: 40, height: 40)
+                .background(isComplete ? Color.surfaceRaised : Color.surface, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+                .overlay(
+                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                        .strokeBorder(Color.hairline, lineWidth: SBSLayout.strokeHairline)
+                )
 
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: SBSLayout.paddingSmall) {
-                        if exercise.isAccessory {
-                            Image(systemName: "dumbbell.fill")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.accentSecondaryFallback)
-                        }
-
-                        Text(exercise.name)
-                            .font(SBSFonts.bodyBold())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
+                VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                    if exercise.isAccessory {
+                        SBSEyebrow("Accessory")
+                            .foregroundStyle(Color.inkSecondary)
                     }
 
-                    HStack(spacing: SBSLayout.paddingSmall) {
+                    Text(exercise.name)
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+
+                    HStack(spacing: SBSLayout.space2) {
                         Text(exercise.weight.formattedWeightShort(useMetric: useMetric))
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(exercise.isAccessory ? SBSColors.accentSecondaryFallback : Color.orangeText)
+                            .foregroundStyle(Color.ink)
 
                         Text("·")
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                            .foregroundStyle(Color.inkSecondary)
 
                         Text(repsLabel)
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .foregroundStyle(Color.inkSecondary)
 
                         Text("·")
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                            .foregroundStyle(Color.inkSecondary)
 
                         Text("\(completedSets)/\(exercise.totalSets) sets")
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(isComplete ? SBSColors.success : SBSColors.textSecondaryFallback)
+                            .foregroundStyle(isComplete ? Color.success : Color.inkSecondary)
                     }
+                    .font(SBSFonts.numberSmall())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
 
                     if let amrap = amrapResult {
-                        HStack(spacing: 4) {
-                            Image(systemName: "flame.fill")
-                                .font(SBSFonts.caption2())
-                            Text("AMRAP: \(amrap.reps) reps @ \(amrap.weight.formattedWeightShort(useMetric: useMetric))")
-                                .font(SBSFonts.legacyCaption())
-                        }
-                        .foregroundStyle(SBSColors.success)
+                        Label("AMRAP: \(amrap.reps) reps @ \(amrap.weight.formattedWeightShort(useMetric: useMetric))", systemImage: "flame")
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.ink)
                     }
                 }
 
@@ -1890,53 +1914,36 @@ struct ExercisePickerRow: View {
 
                 // Status badge: CURRENT > IN PROGRESS > COMPLETE > nothing
                 if isCurrent {
-                    Text("CURRENT")
-                        .font(SBSFonts.label())
-                        .foregroundStyle(Color.orangeText)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Capsule().fill(SBSColors.accentFallback.opacity(0.15)))
+                    SBSBadge(text: "Current")
                 } else if isInProgress {
-                    Text("IN PROGRESS")
-                        .font(SBSFonts.label())
-                        .foregroundStyle(SBSColors.warning)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Capsule().fill(SBSColors.warning.opacity(0.15)))
+                    SBSBadge(text: "In progress", variant: .status(.warning))
                 } else if isComplete {
-                    Text("DONE")
-                        .font(SBSFonts.label())
-                        .foregroundStyle(SBSColors.success)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Capsule().fill(SBSColors.success.opacity(0.15)))
+                    SBSBadge(text: "Done", variant: .status(.success), systemImage: "checkmark")
                 }
 
                 Image(systemName: "chevron.right")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
-            .padding(.vertical, SBSLayout.paddingSmall)
+            .padding(.vertical, SBSLayout.space2)
         }
         .buttonStyle(.plain)
     }
-
-    private var statusColor: Color {
-        if isComplete {
-            return SBSColors.success
-        } else if isCurrent {
-            return SBSColors.accentFallback
-        } else if isInProgress {
-            return SBSColors.warning
-        } else if exercise.isAccessory {
-            return SBSColors.accentSecondaryFallback
-        } else {
-            return SBSColors.textSecondaryFallback
-        }
-    }
 }
 
-// MARK: - Rep Out Input Sheet
+// MARK: - Sheet Style
+
+extension View {
+    /// Sheets over the workout: the sheet radius, orange-text for their toolbar
+    /// buttons, and the same Dynamic Type cap as the workout screen, which a sheet
+    /// doesn't inherit.
+    func workoutSheetStyle() -> some View {
+        self
+            .tint(Color.orangeText)
+            .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+            .presentationCornerRadius(SBSLayout.radiusMd)
+    }
+}
 
 #Preview {
     let appState = AppState()

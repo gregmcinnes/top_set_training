@@ -78,9 +78,9 @@ struct PaywallView: View {
             // Background
             LinearGradient(
                 colors: [
-                    SBSColors.backgroundFallback,
-                    SBSColors.backgroundFallback,
-                    SBSColors.accentFallback.opacity(0.08)
+                    Color.bg,
+                    Color.bg,
+                    Color.orangeSoft
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -88,7 +88,7 @@ struct PaywallView: View {
             .ignoresSafeArea()
 
             ScrollView {
-                VStack(spacing: SBSLayout.paddingLarge) {
+                VStack(spacing: SBSLayout.space6) {
                     // Header
                     headerSection
                         .opacity(animateIn ? 1 : 0)
@@ -127,7 +127,7 @@ struct PaywallView: View {
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 28))
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                            .foregroundStyle(Color.inkSecondary)
                             .padding()
                     }
                 }
@@ -176,7 +176,7 @@ struct PaywallView: View {
     // MARK: - Header Section
 
     private var headerSection: some View {
-        VStack(spacing: SBSLayout.paddingMedium) {
+        VStack(spacing: SBSLayout.space4) {
             // Crown icon
             ZStack {
                 Circle()
@@ -184,7 +184,7 @@ struct PaywallView: View {
                         LinearGradient(
                             colors: [
                                 SBSColors.accentFallback.opacity(0.2),
-                                SBSColors.accentFallback.opacity(0.05)
+                                Color.orangeSoft
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -203,31 +203,31 @@ struct PaywallView: View {
                     )
             }
 
-            VStack(spacing: SBSLayout.paddingSmall) {
+            VStack(spacing: SBSLayout.space2) {
                 Text("Unlock Premium")
                     .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .foregroundStyle(Color.ink)
 
                 Text("Get the most out of your training")
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.body())
+                    .foregroundStyle(Color.inkSecondary)
                     .multilineTextAlignment(.center)
             }
 
             // If triggered by a specific feature, highlight it
             if let feature = triggeredByFeature {
-                HStack(spacing: SBSLayout.paddingSmall) {
+                HStack(spacing: SBSLayout.space2) {
                     Image(systemName: feature.iconName)
                         .font(.system(size: 14))
                     Text(feature.displayName)
-                        .font(SBSFonts.captionBold())
+                        .font(SBSFonts.caption().weight(.semibold))
                 }
                 .foregroundStyle(Color.orangeText)
-                .padding(.horizontal, SBSLayout.paddingMedium)
-                .padding(.vertical, SBSLayout.paddingSmall)
+                .padding(.horizontal, SBSLayout.space4)
+                .padding(.vertical, SBSLayout.space2)
                 .background(
                     Capsule()
-                        .fill(SBSColors.accentFallback.opacity(0.12))
+                        .fill(Color.orangeSoft)
                 )
             }
         }
@@ -237,13 +237,13 @@ struct PaywallView: View {
     // MARK: - Features Section
 
     private var featuresSection: some View {
-        VStack(spacing: SBSLayout.paddingMedium) {
+        VStack(spacing: SBSLayout.space4) {
             Text("What's Included")
-                .font(SBSFonts.title3())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .font(SBSFonts.heading())
+                .foregroundStyle(Color.ink)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            VStack(spacing: SBSLayout.paddingSmall) {
+            VStack(spacing: SBSLayout.space2) {
                 ForEach(PremiumFeature.allCases, id: \.rawValue) { feature in
                     PremiumFeatureRow(feature: feature)
                 }
@@ -251,21 +251,21 @@ struct PaywallView: View {
         }
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                .fill(SBSColors.surfaceFallback)
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                .fill(Color.surface)
         )
     }
 
     // MARK: - Plan Selection Section
 
     private var planSelectionSection: some View {
-        VStack(spacing: SBSLayout.paddingMedium) {
+        VStack(spacing: SBSLayout.space4) {
             Text("Choose Your Plan")
-                .font(SBSFonts.title3())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .font(SBSFonts.heading())
+                .foregroundStyle(Color.ink)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            VStack(spacing: SBSLayout.paddingSmall) {
+            VStack(spacing: SBSLayout.space2) {
                 ForEach(PlanOption.allCases, id: \.rawValue) { plan in
                     PlanOptionCard(
                         plan: plan,
@@ -289,12 +289,12 @@ struct PaywallView: View {
     }
 
     private var loadFailedRow: some View {
-        HStack(spacing: SBSLayout.paddingSmall) {
+        HStack(spacing: SBSLayout.space2) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(SBSColors.warning)
+                .foregroundStyle(Color.warning)
             Text("Couldn't load pricing.")
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
 
             Spacer()
 
@@ -302,21 +302,21 @@ struct PaywallView: View {
                 Task { await storeManager.loadProducts() }
             } label: {
                 Text("Retry")
-                    .font(SBSFonts.captionBold())
+                    .font(SBSFonts.caption().weight(.semibold))
                     .foregroundStyle(Color.orangeText)
             }
         }
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                .fill(SBSColors.surfaceFallback)
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                .fill(Color.surface)
         )
     }
 
     // MARK: - Purchase Section
 
     private var purchaseSection: some View {
-        VStack(spacing: SBSLayout.paddingSmall) {
+        VStack(spacing: SBSLayout.space2) {
             // Purchase button — disabled until the selected product has actually
             // loaded, so we never let the user tap "buy" on a price we can't show.
             let selectedProduct = selectedPlan.product(from: storeManager)
@@ -325,7 +325,7 @@ struct PaywallView: View {
                     await purchaseSelectedPlan()
                 }
             } label: {
-                HStack(spacing: SBSLayout.paddingSmall) {
+                HStack(spacing: SBSLayout.space2) {
                     if isPurchasing {
                         ProgressView()
                             .tint(.white)
@@ -334,12 +334,12 @@ struct PaywallView: View {
                         Text(selectedPlan == .lifetime ? "Unlock Forever" : "Subscribe Now")
                     }
                 }
-                .font(SBSFonts.legacyButton())
+                .font(SBSFonts.bodyStrong())
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, SBSLayout.paddingMedium + 4)
+                .padding(.vertical, SBSLayout.space4 + 4)
                 .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusLarge)
+                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                         .fill(
                             LinearGradient(
                                 colors: [SBSColors.accentFallback, SBSColors.accentSecondaryFallback],
@@ -354,23 +354,23 @@ struct PaywallView: View {
 
             if selectedPlan != .lifetime {
                 Text("Cancel anytime. Subscription auto-renews.")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
                     .multilineTextAlignment(.center)
             }
 
             Text("By purchasing, you agree to our [Terms of Use](https://gregorymcinnes.com/terms) and [Privacy Policy](https://gregorymcinnes.com/apps/top-set-training/).")
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
                 .multilineTextAlignment(.center)
-                .tint(SBSColors.accentFallback)
+                .tint(Color.orangeText)
         }
     }
 
     // MARK: - Restore Section
 
     private var restoreSection: some View {
-        HStack(spacing: SBSLayout.paddingLarge) {
+        HStack(spacing: SBSLayout.space6) {
             Button {
                 Task {
                     await restorePurchases()
@@ -382,7 +382,7 @@ struct PaywallView: View {
                             .controlSize(.small)
                     }
                     Text("Restore Purchases")
-                        .font(SBSFonts.legacyCaption())
+                        .font(SBSFonts.caption())
                         .foregroundStyle(Color.orangeText)
                 }
             }
@@ -392,12 +392,12 @@ struct PaywallView: View {
                 showRedeemSheet = true
             } label: {
                 Text("Redeem Code")
-                    .font(SBSFonts.legacyCaption())
+                    .font(SBSFonts.caption())
                     .foregroundStyle(Color.orangeText)
             }
             .disabled(isBusy)
         }
-        .padding(.top, SBSLayout.paddingSmall)
+        .padding(.top, SBSLayout.space2)
     }
 
     // MARK: - Actions
@@ -488,11 +488,11 @@ private struct PlanOptionCard: View {
     let isSelected: Bool
 
     var body: some View {
-        HStack(spacing: SBSLayout.paddingMedium) {
+        HStack(spacing: SBSLayout.space4) {
             // Radio indicator
             ZStack {
                 Circle()
-                    .stroke(isSelected ? SBSColors.accentFallback : SBSColors.textTertiaryFallback.opacity(0.4), lineWidth: 2)
+                    .stroke(isSelected ? SBSColors.accentFallback : Color.inkTertiary.opacity(0.4), lineWidth: 2)
                     .frame(width: 22, height: 22)
 
                 if isSelected {
@@ -504,10 +504,10 @@ private struct PlanOptionCard: View {
 
             // Plan info
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: SBSLayout.paddingSmall) {
+                HStack(spacing: SBSLayout.space2) {
                     Text(plan.label)
-                        .font(SBSFonts.bodyBold())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.ink)
 
                     if let badge = plan.badgeText {
                         Text(badge)
@@ -523,8 +523,8 @@ private struct PlanOptionCard: View {
                 }
 
                 Text(plan.subtitle)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
 
             Spacer()
@@ -535,27 +535,27 @@ private struct PlanOptionCard: View {
                 if let product {
                     Text(product.displayPrice)
                         .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .foregroundStyle(Color.ink)
 
                     if !plan.periodLabel.isEmpty {
                         Text(plan.periodLabel)
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
                     }
                 } else {
                     Text("$0.00")
                         .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .foregroundStyle(Color.ink)
                         .redacted(reason: .placeholder)
                 }
             }
         }
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                .fill(SBSColors.surfaceFallback)
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                .fill(Color.surface)
                 .overlay(
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                         .stroke(isSelected ? SBSColors.accentFallback : Color.clear, lineWidth: 2)
                 )
         )
@@ -568,11 +568,11 @@ private struct PremiumFeatureRow: View {
     let feature: PremiumFeature
 
     var body: some View {
-        HStack(spacing: SBSLayout.paddingMedium) {
+        HStack(spacing: SBSLayout.space4) {
             // Icon
             ZStack {
                 Circle()
-                    .fill(SBSColors.accentFallback.opacity(0.1))
+                    .fill(Color.orangeSoft)
                     .frame(width: 36, height: 36)
 
                 Image(systemName: feature.iconName)
@@ -583,12 +583,12 @@ private struct PremiumFeatureRow: View {
             // Text
             VStack(alignment: .leading, spacing: 2) {
                 Text(feature.displayName)
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.ink)
 
                 Text(feature.featureDescription)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
                     .lineLimit(2)
             }
 
@@ -597,9 +597,9 @@ private struct PremiumFeatureRow: View {
             // Checkmark
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 20))
-                .foregroundStyle(SBSColors.success)
+                .foregroundStyle(Color.success)
         }
-        .padding(.vertical, SBSLayout.paddingSmall)
+        .padding(.vertical, SBSLayout.space2)
     }
 }
 
@@ -613,17 +613,17 @@ struct FeatureComparisonRow: View {
     var body: some View {
         HStack {
             Text(feature)
-                .font(SBSFonts.legacyBody())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .font(SBSFonts.body())
+                .foregroundStyle(Color.ink)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(freeValue)
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
                 .frame(width: 60)
 
             Text(premiumValue)
-                .font(SBSFonts.captionBold())
+                .font(SBSFonts.caption().weight(.semibold))
                 .foregroundStyle(Color.orangeText)
                 .frame(width: 60)
         }

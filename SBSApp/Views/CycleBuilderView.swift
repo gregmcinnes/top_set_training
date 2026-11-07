@@ -83,9 +83,9 @@ struct CycleBuilderView: View {
             // Background gradient
             LinearGradient(
                 colors: [
-                    SBSColors.backgroundFallback,
-                    SBSColors.backgroundFallback.opacity(0.95),
-                    SBSColors.accentFallback.opacity(0.05)
+                    Color.bg,
+                    Color.bg.opacity(0.95),
+                    Color.orangeSoft
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -194,7 +194,7 @@ onComplete: completeCycleSetup
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 28))
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                                .foregroundStyle(Color.inkSecondary)
                         }
                         .accessibilityLabel("Cancel new cycle")
                         .padding()
@@ -208,19 +208,19 @@ onComplete: completeCycleSetup
                 Color.black.opacity(0.3)
                     .ignoresSafeArea()
                 
-                VStack(spacing: SBSLayout.paddingMedium) {
+                VStack(spacing: SBSLayout.space4) {
                     ProgressView()
                         .scaleEffect(1.5)
-                        .tint(SBSColors.textPrimaryFallback)
+                        .tint(Color.ink)
                     
                     Text("Loading program...")
-                        .font(SBSFonts.legacyBody())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.body())
+                        .foregroundStyle(Color.ink)
                 }
-                .padding(SBSLayout.paddingLarge)
+                .padding(SBSLayout.space6)
                 .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                        .fill(SBSColors.surfaceFallback.opacity(0.9))
+                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                        .fill(Color.surface.opacity(0.9))
                 )
             }
         }
@@ -564,7 +564,7 @@ struct StepProgressView: View {
 
     private func connector(isReached: Bool, isHidden: Bool) -> some View {
         Rectangle()
-            .fill(isReached ? SBSColors.accentFallback : SBSColors.textTertiaryFallback.opacity(0.3))
+            .fill(isReached ? SBSColors.accentFallback : Color.inkTertiary.opacity(0.3))
             .frame(height: 2)
             .opacity(isHidden ? 0 : 1)
     }
@@ -579,18 +579,18 @@ struct StepProgressView: View {
                         Circle()
                             .fill(isReached(step)
                                   ? SBSColors.accentFallback
-                                  : SBSColors.textTertiaryFallback.opacity(0.3))
+                                  : Color.inkSecondary.opacity(0.3))
                             .frame(width: 8, height: 8)
                         connector(isReached: step.rawValue < currentStep.rawValue, isHidden: step == steps.last)
                     }
 
                     Text(step.title)
-                        .font(SBSFonts.caption2())
+                        .font(SBSFonts.caption())
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .foregroundStyle(isReached(step)
-                                        ? SBSColors.textPrimaryFallback
-                                        : SBSColors.textTertiaryFallback)
+                                        ? Color.ink
+                                        : Color.inkSecondary)
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -621,16 +621,16 @@ struct WelcomeStepView: View {
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(spacing: SBSLayout.paddingLarge) {
+                VStack(spacing: SBSLayout.space6) {
                     // Animated icon
                     ZStack {
                         Circle()
-                            .fill(SBSColors.accentFallback.opacity(0.1))
+                            .fill(Color.orangeSoft)
                             .frame(width: 120, height: 120)
                             .scaleEffect(animateIcon ? 1.0 : 0.8)
                         
                         Circle()
-                            .fill(SBSColors.accentFallback.opacity(0.15))
+                            .fill(Color.orangeSoft)
                             .frame(width: 90, height: 90)
                             .scaleEffect(animateIcon ? 1.0 : 0.9)
                         
@@ -640,71 +640,71 @@ struct WelcomeStepView: View {
                             .scaleEffect(animateIcon ? 1.0 : 0.5)
                     }
                     .opacity(animateContent ? 1 : 0)
-                    .padding(.top, SBSLayout.paddingLarge)
+                    .padding(.top, SBSLayout.space6)
                     
-                    VStack(spacing: SBSLayout.paddingSmall) {
+                    VStack(spacing: SBSLayout.space2) {
                         Text(isOnboarding ? "Welcome to\nTop Set Training" : "New Training Cycle")
                             .font(SBSFonts.largeTitle())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .foregroundStyle(Color.ink)
                             .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
                         
                         Text(isOnboarding 
                              ? "Let's set up your personalized training program. This will only take a minute."
                              : "Ready to start a new cycle? Let's review your setup.")
-                            .font(SBSFonts.legacyBody())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.body())
+                            .foregroundStyle(Color.inkSecondary)
                             .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
-                            .padding(.horizontal, SBSLayout.paddingLarge)
+                            .padding(.horizontal, SBSLayout.space6)
                     }
                     .opacity(animateContent ? 1 : 0)
                     .offset(y: animateContent ? 0 : 20)
                     
                     // Features list
-                    VStack(spacing: SBSLayout.paddingSmall) {
+                    VStack(spacing: SBSLayout.space2) {
                         FeatureRow(icon: "doc.text.fill", title: "Choose your program", description: "Select from available training templates")
                         FeatureRow(icon: "list.bullet.clipboard.fill", title: "Customize exercises", description: "Adjust lifts and accessories for each day")
                         FeatureRow(icon: "scalemass.fill", title: "Set your weights", description: "Enter yours, or start from our suggestions")
                         
                         if isOnboarding {
                             // Reassuring message
-                            HStack(spacing: SBSLayout.paddingSmall) {
+                            HStack(spacing: SBSLayout.space2) {
                                 Image(systemName: "arrow.uturn.backward.circle.fill")
                                     .font(.system(size: 20))
-                                    .foregroundStyle(SBSColors.success)
+                                    .foregroundStyle(Color.success)
 
                                 Text("Don't worry, you can change all of these settings later in the app.")
-                                    .font(SBSFonts.legacyCaption())
-                                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                                    .font(SBSFonts.caption())
+                                    .foregroundStyle(Color.inkSecondary)
                                     .multilineTextAlignment(.center)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
-                            .padding(.top, SBSLayout.paddingSmall)
+                            .padding(.top, SBSLayout.space2)
 
                             // Point new users toward the custom template builder.
-                            HStack(spacing: SBSLayout.paddingSmall) {
+                            HStack(spacing: SBSLayout.space2) {
                                 Image(systemName: "hammer.fill")
                                     .font(.system(size: 20))
                                     .foregroundStyle(Color.orangeText)
 
                                 Text("Prefer your own routine? You can build a custom program anytime in Settings.")
-                                    .font(SBSFonts.legacyCaption())
-                                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                                    .font(SBSFonts.caption())
+                                    .foregroundStyle(Color.inkSecondary)
                                     .multilineTextAlignment(.center)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                         }
                     }
-                    .padding(.horizontal, SBSLayout.paddingLarge)
+                    .padding(.horizontal, SBSLayout.space6)
                     .opacity(animateContent ? 1 : 0)
                     .offset(y: animateContent ? 0 : 30)
                 }
-                .padding(.bottom, SBSLayout.paddingLarge)
+                .padding(.bottom, SBSLayout.space6)
             }
             
             // Action buttons - pinned at bottom
-            VStack(spacing: SBSLayout.paddingSmall) {
+            VStack(spacing: SBSLayout.space2) {
                 // Primary: Get Started
                 Button {
                     Haptics.light()
@@ -714,12 +714,12 @@ struct WelcomeStepView: View {
                         Text(isOnboarding ? "I Know What I Want" : "Get Started")
                         Image(systemName: "arrow.right")
                     }
-                    .font(SBSFonts.legacyButton())
+                    .font(SBSFonts.bodyStrong())
                     .foregroundStyle(Color.orangeInk)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, SBSLayout.paddingMedium)
+                    .padding(.vertical, SBSLayout.space4)
                     .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                             .fill(SBSColors.accentFallback)
                     )
                 }
@@ -733,12 +733,12 @@ struct WelcomeStepView: View {
                             Image(systemName: "sparkles")
                             Text("Help Me Choose a Program")
                         }
-                        .font(SBSFonts.legacyButton())
+                        .font(SBSFonts.bodyStrong())
                         .foregroundStyle(Color.orangeText)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, SBSLayout.paddingMedium)
+                        .padding(.vertical, SBSLayout.space4)
                         .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                                 .strokeBorder(SBSColors.accentFallback, lineWidth: 2)
                         )
                     }
@@ -749,16 +749,16 @@ struct WelcomeStepView: View {
                             onSkip()
                         } label: {
                             Text("Skip for now")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, SBSLayout.paddingSmall)
+                                .padding(.vertical, SBSLayout.space2)
                         }
                     }
                 }
             }
-            .padding(.horizontal, SBSLayout.paddingLarge)
-            .padding(.bottom, SBSLayout.paddingLarge)
+            .padding(.horizontal, SBSLayout.space6)
+            .padding(.bottom, SBSLayout.space6)
             .opacity(animateContent ? 1 : 0)
         }
         .onAppear {
@@ -778,23 +778,23 @@ struct FeatureRow: View {
     let description: String
     
     var body: some View {
-        HStack(spacing: SBSLayout.paddingMedium) {
+        HStack(spacing: SBSLayout.space4) {
             Image(systemName: icon)
                 .font(.system(size: 20))
                 .foregroundStyle(Color.orangeText)
                 .frame(width: 35, height: 40)
                 .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                        .fill(SBSColors.accentFallback.opacity(0.1))
+                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                        .fill(Color.orangeSoft)
                 )
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.ink)
                 Text(description)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             
@@ -802,8 +802,8 @@ struct FeatureRow: View {
         }
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                .fill(SBSColors.surfaceFallback)
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                .fill(Color.surface)
         )
     }
 }
@@ -824,17 +824,17 @@ struct ProgramSelectionStepView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Header
-            VStack(spacing: SBSLayout.paddingSmall) {
+            VStack(spacing: SBSLayout.space2) {
                 Text("Select Program")
-                    .font(SBSFonts.legacyTitle())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.title())
+                    .foregroundStyle(Color.ink)
                 
                 Text("Choose your training template")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
-            .padding(.top, SBSLayout.paddingMedium)
-            .padding(.bottom, SBSLayout.paddingSmall)
+            .padding(.top, SBSLayout.space4)
+            .padding(.bottom, SBSLayout.space2)
             
             // Program selector (new clean design)
             ProgramSelector(
@@ -905,37 +905,37 @@ struct ExerciseReviewStepView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Header
-            VStack(spacing: SBSLayout.paddingSmall) {
+            VStack(spacing: SBSLayout.space2) {
                 Image(systemName: "list.bullet.clipboard.fill")
                     .font(.system(size: 40))
                     .foregroundStyle(Color.orangeText)
                 
                 Text("Review Exercises")
-                    .font(SBSFonts.legacyTitle())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.title())
+                    .foregroundStyle(Color.ink)
                 
                 Text("Customize the lifts for each training day")
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.body())
+                    .foregroundStyle(Color.inkSecondary)
                 
                 // Reassuring message
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.right.circle.fill")
                         .font(.system(size: 12))
-                        .foregroundStyle(SBSColors.success)
+                        .foregroundStyle(Color.success)
                     
                     Text("Exercises can be changed in Settings")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                 }
                 .padding(.top, 4)
             }
-            .padding(.top, SBSLayout.paddingLarge)
-            .padding(.bottom, SBSLayout.paddingMedium)
+            .padding(.top, SBSLayout.space6)
+            .padding(.bottom, SBSLayout.space4)
             
             // Day selector
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: SBSLayout.paddingSmall) {
+                HStack(spacing: SBSLayout.space2) {
                     ForEach(appState.days, id: \.self) { day in
                         DayTab(
                             day: day,
@@ -948,11 +948,11 @@ struct ExerciseReviewStepView: View {
                 }
                 .padding(.horizontal)
             }
-            .padding(.bottom, SBSLayout.paddingSmall)
+            .padding(.bottom, SBSLayout.space2)
             
             // Exercise list
             ScrollView {
-                VStack(spacing: SBSLayout.paddingSmall) {
+                VStack(spacing: SBSLayout.space2) {
                     let items = currentDayItems
                     
                     // Main lifts (includes tm, volume, structured, and linear types)
@@ -1005,19 +1005,19 @@ struct ExerciseReviewStepView: View {
                             Image(systemName: "plus.circle.fill")
                             Text("Add Accessory")
                         }
-                        .font(SBSFonts.legacyBody())
+                        .font(SBSFonts.body())
                         .foregroundStyle(Color.orangeText)
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                                 .strokeBorder(SBSColors.accentFallback.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [5]))
                         )
                     }
                     .padding(.horizontal)
-                    .padding(.top, SBSLayout.paddingSmall)
+                    .padding(.top, SBSLayout.space2)
                 }
-                .padding(.bottom, SBSLayout.paddingLarge)
+                .padding(.bottom, SBSLayout.space6)
             }
             .scrollDismissesKeyboard(.interactively)
             
@@ -1155,49 +1155,49 @@ struct AccessorySetsRepsEditor: View {
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: SBSLayout.paddingLarge) {
+            VStack(spacing: SBSLayout.space6) {
                 // Header with exercise name
-                VStack(spacing: SBSLayout.paddingSmall) {
+                VStack(spacing: SBSLayout.space2) {
                     Image(systemName: "dumbbell.fill")
                         .font(.system(size: 28))
                         .foregroundStyle(SBSColors.accentSecondaryFallback)
                     
                     Text(accessoryName)
-                        .font(SBSFonts.title3())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.heading())
+                        .foregroundStyle(Color.ink)
                         .lineLimit(2)
                         .multilineTextAlignment(.center)
                 }
-                .padding(.top, SBSLayout.paddingMedium)
+                .padding(.top, SBSLayout.space4)
                 
                 // Steppers
-                VStack(spacing: SBSLayout.paddingSmall) {
+                VStack(spacing: SBSLayout.space2) {
                     HStack {
                         Text("Sets")
-                            .font(SBSFonts.legacyBody())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.body())
+                            .foregroundStyle(Color.ink)
                         Spacer()
                         Stepper("\(sets)", value: $sets, in: 1...10)
                             .frame(width: 140)
                     }
                     .padding()
                     .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                            .fill(SBSColors.surfaceFallback)
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                            .fill(Color.surface)
                     )
                     
                     HStack {
                         Text("Reps")
-                            .font(SBSFonts.legacyBody())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.body())
+                            .foregroundStyle(Color.ink)
                         Spacer()
                         Stepper("\(reps)", value: $reps, in: 1...30)
                             .frame(width: 140)
                     }
                     .padding()
                     .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                            .fill(SBSColors.surfaceFallback)
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                            .fill(Color.surface)
                     )
                 }
                 .padding(.horizontal)
@@ -1207,17 +1207,17 @@ struct AccessorySetsRepsEditor: View {
                 // Save button
                 Button(action: onSave) {
                     Text("Save")
-                        .font(SBSFonts.legacyButton())
+                        .font(SBSFonts.bodyStrong())
                         .foregroundStyle(Color.orangeInk)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, SBSLayout.paddingMedium)
+                        .padding(.vertical, SBSLayout.space4)
                         .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                                 .fill(SBSColors.accentFallback)
                         )
                 }
-                .padding(.horizontal, SBSLayout.paddingLarge)
-                .padding(.bottom, SBSLayout.paddingLarge)
+                .padding(.horizontal, SBSLayout.space6)
+                .padding(.bottom, SBSLayout.space6)
             }
             .sbsBackground()
             .navigationTitle("Edit Sets & Reps")
@@ -1244,19 +1244,19 @@ struct DayTab: View {
         Button(action: onTap) {
             VStack(spacing: 4) {
                 Text(title)
-                    .font(SBSFonts.captionBold())
-                    .foregroundStyle(isSelected ? Color.orangeInk : SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.caption().weight(.semibold))
+                    .foregroundStyle(isSelected ? Color.orangeInk : Color.ink)
                 Text(subtitle.replacingOccurrences(of: " Day", with: ""))
-                    .font(SBSFonts.caption2())
-                    .foregroundStyle(isSelected ? Color.orangeInk.opacity(0.8) : SBSColors.textTertiaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(isSelected ? Color.orangeInk.opacity(0.8) : Color.inkSecondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
             }
-            .padding(.horizontal, SBSLayout.paddingMedium)
-            .padding(.vertical, SBSLayout.paddingSmall)
+            .padding(.horizontal, SBSLayout.space4)
+            .padding(.vertical, SBSLayout.space2)
             .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                    .fill(isSelected ? SBSColors.accentFallback : SBSColors.surfaceFallback)
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .fill(isSelected ? SBSColors.accentFallback : Color.surface)
             )
         }
     }
@@ -1268,12 +1268,12 @@ struct SectionHeader: View {
     var body: some View {
         HStack {
             Text(title)
-                .font(SBSFonts.captionBold())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
+                .font(SBSFonts.caption().weight(.semibold))
+                .foregroundStyle(Color.inkSecondary)
             Spacer()
         }
         .padding(.horizontal)
-        .padding(.top, SBSLayout.paddingMedium)
+        .padding(.top, SBSLayout.space4)
     }
 }
 
@@ -1285,23 +1285,23 @@ struct ExerciseItemRow: View {
     var onDelete: (() -> Void)? = nil
     
     var body: some View {
-        HStack(spacing: SBSLayout.paddingMedium) {
+        HStack(spacing: SBSLayout.space4) {
             Image(systemName: icon)
                 .font(.system(size: 18))
                 .foregroundStyle(Color.orangeText)
                 .frame(width: 36, height: 36)
                 .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                        .fill(SBSColors.accentFallback.opacity(0.1))
+                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                        .fill(Color.orangeSoft)
                 )
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(name)
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.body())
+                    .foregroundStyle(Color.ink)
                 Text(subtitle)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
             
             Spacer()
@@ -1312,14 +1312,14 @@ struct ExerciseItemRow: View {
                         Image(systemName: "pencil")
                             .font(.system(size: 12, weight: .medium))
                         Text("Edit")
-                            .font(SBSFonts.captionBold())
+                            .font(SBSFonts.caption().weight(.semibold))
                     }
                     .foregroundStyle(Color.orangeText)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                            .fill(SBSColors.accentFallback.opacity(0.1))
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                            .fill(Color.orangeSoft)
                     )
                 }
             }
@@ -1328,15 +1328,15 @@ struct ExerciseItemRow: View {
                 Button(action: onDelete) {
                     Image(systemName: "trash")
                         .font(.system(size: 14))
-                        .foregroundStyle(SBSColors.error)
+                        .foregroundStyle(Color.danger)
                 }
                 .accessibilityLabel("Delete \(name)")
             }
         }
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                .fill(SBSColors.surfaceFallback)
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                .fill(Color.surface)
         )
         .padding(.horizontal)
     }
@@ -1405,24 +1405,24 @@ struct TrainingMaxesStepView: View {
         VStack(spacing: 0) {
             ScrollViewReader { proxy in
             ScrollView {
-                VStack(spacing: SBSLayout.sectionSpacing) {
+                VStack(spacing: SBSLayout.space6) {
                     // Header
-                    VStack(spacing: SBSLayout.paddingSmall) {
+                    VStack(spacing: SBSLayout.space2) {
                         Image(systemName: "scalemass.fill")
                             .font(.system(size: 40))
                             .foregroundStyle(Color.orangeText)
 
                         Text(heading)
-                            .font(SBSFonts.legacyTitle())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.title())
+                            .foregroundStyle(Color.ink)
 
                         Text(headerSubtitle)
-                            .font(SBSFonts.legacyBody())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.body())
+                            .foregroundStyle(Color.inkSecondary)
                             .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(.top, SBSLayout.paddingLarge)
+                    .padding(.top, SBSLayout.space6)
                     .padding(.horizontal)
 
                     // Units come before any number is entered. Outside onboarding the
@@ -1433,32 +1433,32 @@ struct TrainingMaxesStepView: View {
 
                     // Current TMs notice and option to customize (only for new cycles)
                     if !isOnboarding && appState.hasLoggedData {
-                        VStack(spacing: SBSLayout.paddingSmall) {
+                        VStack(spacing: SBSLayout.space2) {
                             // Notice that current TMs are being applied
                             if carryOverTMs {
-                                HStack(spacing: SBSLayout.paddingSmall) {
+                                HStack(spacing: SBSLayout.space2) {
                                     Image(systemName: "checkmark.circle.fill")
                                         .font(.system(size: 20))
-                                        .foregroundStyle(SBSColors.success)
+                                        .foregroundStyle(Color.success)
 
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("Using Your \(currentValuesName)")
-                                            .font(SBSFonts.bodyBold())
-                                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                                            .font(SBSFonts.bodyStrong())
+                                            .foregroundStyle(Color.ink)
                                         Text("These are pre-filled based on your last cycle. Adjust below if needed.")
-                                            .font(SBSFonts.legacyCaption())
-                                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                                            .font(SBSFonts.caption())
+                                            .foregroundStyle(Color.inkSecondary)
                                     }
 
                                     Spacer()
                                 }
                                 .padding()
                                 .background(
-                                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                                        .fill(SBSColors.success.opacity(0.1))
+                                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                                        .fill(Color.success.opacity(0.1))
                                         .overlay(
-                                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                                                .strokeBorder(SBSColors.success.opacity(0.3), lineWidth: 1)
+                                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                                                .strokeBorder(Color.success.opacity(0.3), lineWidth: 1)
                                         )
                                 )
                             }
@@ -1474,7 +1474,7 @@ struct TrainingMaxesStepView: View {
                                     Image(systemName: carryOverTMs ? "arrow.counterclockwise" : "arrow.uturn.backward.circle.fill")
                                         .font(.system(size: 16))
                                     Text(carryOverTMs ? "Reset to Default Values" : "Use \(currentValuesName)")
-                                        .font(SBSFonts.legacyCaption())
+                                        .font(SBSFonts.caption())
                                 }
                                 .foregroundStyle(Color.orangeText)
                             }
@@ -1484,41 +1484,41 @@ struct TrainingMaxesStepView: View {
                     }
 
                     // Info box
-                    VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                    VStack(alignment: .leading, spacing: SBSLayout.space2) {
                         Label(infoTitle, systemImage: "info.circle.fill")
-                            .font(SBSFonts.captionBold())
+                            .font(SBSFonts.caption().weight(.semibold))
                             .foregroundStyle(SBSColors.accentSecondaryFallback)
 
                         Text(infoBody)
-                            .font(SBSFonts.legacyBody())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.body())
+                            .foregroundStyle(Color.inkSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                             .fill(SBSColors.accentSecondaryFallback.opacity(0.1))
                     )
                     .padding(.horizontal)
 
                     // Reassuring message for onboarding
                     if isOnboarding {
-                        HStack(spacing: SBSLayout.paddingSmall) {
+                        HStack(spacing: SBSLayout.space2) {
                             Image(systemName: "checkmark.seal.fill")
                                 .font(.system(size: 16))
-                                .foregroundStyle(SBSColors.success)
+                                .foregroundStyle(Color.success)
 
                             Text("We've filled in light starter weights. Change any you know, or tap \"Not sure?\" on a lift. You can adjust these anytime in Settings.")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         .padding(.horizontal)
                     }
 
                     // Weight inputs
-                    VStack(spacing: SBSLayout.paddingSmall) {
+                    VStack(spacing: SBSLayout.space2) {
                         ForEach(configuredLifts, id: \.self) { lift in
                             TMInputRow(
                                 liftName: lift,
@@ -1538,7 +1538,7 @@ struct TrainingMaxesStepView: View {
                     }
                     .padding(.horizontal)
                 }
-                .padding(.bottom, SBSLayout.paddingXLarge)
+                .padding(.bottom, SBSLayout.space8)
             }
             .scrollDismissesKeyboard(.interactively)
             .onChange(of: focusedLift) { _, lift in
@@ -1587,7 +1587,7 @@ struct TrainingMaxesStepView: View {
     }
 
     private var unitsControl: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
             Picker("Units", selection: Binding(
                 get: { appState.settings.useMetric },
                 set: { useMetric in
@@ -1601,8 +1601,8 @@ struct TrainingMaxesStepView: View {
             .pickerStyle(.segmented)
 
             Text("Numbers you've typed stay the same. Only the unit changes.")
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal)
@@ -1628,13 +1628,13 @@ struct TMInputRow: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(liftName)
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.ink)
 
                 Spacer()
 
                 Button("Not sure?", action: onNotSure)
-                    .font(SBSFonts.legacyCaption())
+                    .font(SBSFonts.caption())
                     .foregroundStyle(Color.orangeText)
                     .accessibilityLabel("Not sure about \(liftName)?")
             }
@@ -1642,7 +1642,7 @@ struct TMInputRow: View {
             HStack {
                 TextField("Weight", text: $inputText)
                     .keyboardType(.decimalPad)
-                    .font(SBSFonts.legacyNumber())
+                    .font(SBSFonts.number())
                     .focused(focus, equals: liftName)
                     .accessibilityLabel("\(liftName) weight")
                     .onChange(of: isFocused) { _, focused in
@@ -1658,8 +1658,8 @@ struct TMInputRow: View {
                     }
 
                 Text(useMetric ? "kg" : "lb")
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.body())
+                    .foregroundStyle(Color.inkSecondary)
 
                 // Quick adjust buttons
                 HStack(spacing: 8) {
@@ -1668,11 +1668,11 @@ struct TMInputRow: View {
                     } label: {
                         Image(systemName: "minus")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .foregroundStyle(Color.inkSecondary)
                             .frame(width: 32, height: 32)
                             .background(
                                 Circle()
-                                    .fill(SBSColors.backgroundFallback)
+                                    .fill(Color.bg)
                             )
                     }
                     .accessibilityLabel("Decrease \(liftName) weight")
@@ -1682,11 +1682,11 @@ struct TMInputRow: View {
                     } label: {
                         Image(systemName: "plus")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .foregroundStyle(Color.inkSecondary)
                             .frame(width: 32, height: 32)
                             .background(
                                 Circle()
-                                    .fill(SBSColors.backgroundFallback)
+                                    .fill(Color.bg)
                             )
                     }
                     .accessibilityLabel("Increase \(liftName) weight")
@@ -1694,23 +1694,23 @@ struct TMInputRow: View {
             }
             .padding()
             .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                    .fill(SBSColors.surfaceFallback)
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .fill(Color.surface)
                     .overlay(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                             .stroke(borderColor, lineWidth: 2)
                     )
             )
 
             if needsValue {
                 Text("Enter a weight above 0 to continue")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.warning)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.warning)
             }
             if isBodyweightLift {
                 Text("Weight added to your bodyweight. 0 means none.")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
         }
         .onAppear {
@@ -1729,7 +1729,7 @@ struct TMInputRow: View {
     }
 
     private var borderColor: Color {
-        if needsValue { return SBSColors.warning }
+        if needsValue { return Color.warning }
         return isFocused ? SBSColors.accentFallback : Color.clear
     }
 
@@ -1812,25 +1812,25 @@ struct StartingWeightHelpSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: SBSLayout.paddingMedium) {
+                VStack(spacing: SBSLayout.space4) {
                     card(title: "Use a Suggestion", explanation: starterExplanation) {
                         Button {
                             use(starter)
                         } label: {
                             Text("Use \(starter.formattedWeight(useMetric: useMetric))")
-                                .font(SBSFonts.legacyButton())
+                                .font(SBSFonts.bodyStrong())
                                 .foregroundStyle(Color.orangeText)
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, SBSLayout.paddingMedium)
+                                .padding(.vertical, SBSLayout.space4)
                                 .background(
-                                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                                         .strokeBorder(SBSColors.accentFallback, lineWidth: 2)
                                 )
                         }
                     }
 
                     card(title: "Estimate From a Recent Set", explanation: estimateExplanation) {
-                        HStack(spacing: SBSLayout.paddingSmall) {
+                        HStack(spacing: SBSLayout.space2) {
                             TextField("Weight", text: $weightText)
                                 .keyboardType(.decimalPad)
                                 .focused($isEditing)
@@ -1838,8 +1838,8 @@ struct StartingWeightHelpSheet: View {
                                 .accessibilityLabel("Weight lifted")
 
                             Text(useMetric ? "kg for" : "lb for")
-                                .font(SBSFonts.legacyBody())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.body())
+                                .foregroundStyle(Color.inkSecondary)
 
                             TextField("Reps", text: $repsText)
                                 .keyboardType(.numberPad)
@@ -1852,12 +1852,12 @@ struct StartingWeightHelpSheet: View {
                             if let estimate { use(estimate) }
                         } label: {
                             Text(estimate.map { "Use \($0.formattedWeight(useMetric: useMetric))" } ?? "Enter a Weight and Reps")
-                                .font(SBSFonts.legacyButton())
+                                .font(SBSFonts.bodyStrong())
                                 .foregroundStyle(Color.orangeInk)
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, SBSLayout.paddingMedium)
+                                .padding(.vertical, SBSLayout.space4)
                                 .background(
-                                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                                         .fill(SBSColors.accentFallback)
                                 )
                         }
@@ -1895,14 +1895,14 @@ struct StartingWeightHelpSheet: View {
         explanation: String,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
             Text(title)
-                .font(SBSFonts.bodyBold())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .font(SBSFonts.bodyStrong())
+                .foregroundStyle(Color.ink)
 
             Text(explanation)
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             content()
@@ -1910,8 +1910,8 @@ struct StartingWeightHelpSheet: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                .fill(SBSColors.surfaceFallback)
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                .fill(Color.surface)
         )
     }
 }
@@ -1972,30 +1972,30 @@ let isOnboarding: Bool
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(spacing: SBSLayout.sectionSpacing) {
+                VStack(spacing: SBSLayout.space6) {
                     // Header with animation
-                    VStack(spacing: SBSLayout.paddingMedium) {
+                    VStack(spacing: SBSLayout.space4) {
                         ZStack {
                             Circle()
-                                .fill(SBSColors.success.opacity(0.1))
+                                .fill(Color.success.opacity(0.1))
                                 .frame(width: 100, height: 100)
                                 .scaleEffect(animateCheckmark ? 1.0 : 0.5)
                             
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 60))
-                                .foregroundStyle(SBSColors.success)
+                                .foregroundStyle(Color.success)
                                 .scaleEffect(animateCheckmark ? 1.0 : 0.3)
                         }
                         
                         Text(isOnboarding ? "Ready to Begin!" : "Review Your Cycle")
-                            .font(SBSFonts.legacyTitle())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.title())
+                            .foregroundStyle(Color.ink)
                         
                         Text("Here's a summary of your setup")
-                            .font(SBSFonts.legacyBody())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.body())
+                            .foregroundStyle(Color.inkSecondary)
                     }
-                    .padding(.top, SBSLayout.paddingLarge)
+                    .padding(.top, SBSLayout.space6)
                     
                     // Program summary
                     SummaryCard(title: "Program") {
@@ -2003,12 +2003,12 @@ let isOnboarding: Bool
                             Image(systemName: isCustomTemplate ? "square.stack.3d.up.fill" : "doc.text.fill")
                                 .foregroundStyle(Color.orangeText)
                             Text(programName)
-                                .font(SBSFonts.legacyBody())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
+                                .font(SBSFonts.body())
+                                .foregroundStyle(Color.ink)
                             
                             if isCustomTemplate {
                                 Text("Custom")
-                                    .font(SBSFonts.label())
+                                    .font(SBSFonts.caption().weight(.semibold))
                                     .foregroundStyle(.white)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
@@ -2042,11 +2042,11 @@ let isOnboarding: Bool
 if let value = trainingMaxes[lift] {
                                 HStack {
                                     Text(lift)
-                                        .font(SBSFonts.legacyBody())
-                                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                                        .font(SBSFonts.body())
+                                        .foregroundStyle(Color.ink)
                                     Spacer()
                                     Text(value.formattedWeight(useMetric: appState.settings.useMetric))
-                                        .font(SBSFonts.legacyNumber())
+                                        .font(SBSFonts.number())
                                         .foregroundStyle(Color.orangeText)
                                 }
                                 
@@ -2064,18 +2064,18 @@ Divider()
                                 Image(systemName: "pencil.circle.fill")
                                     .foregroundStyle(SBSColors.accentSecondaryFallback)
                                 Text("You've customized \(exerciseCustomizations.count) day(s)")
-                                    .font(SBSFonts.legacyBody())
-                                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                                    .font(SBSFonts.body())
+                                    .foregroundStyle(Color.ink)
                                 Spacer()
                             }
                         }
                     }
                     
                     // Tips
-                    VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                    VStack(alignment: .leading, spacing: SBSLayout.space2) {
                         Label("Pro Tips", systemImage: "lightbulb.fill")
-                            .font(SBSFonts.captionBold())
-                            .foregroundStyle(SBSColors.warning)
+                            .font(SBSFonts.caption().weight(.semibold))
+                            .foregroundStyle(Color.warning)
                         
                         VStack(alignment: .leading, spacing: 8) {
                             TipItem(text: "Log your rep-outs honestly for accurate progression")
@@ -2085,17 +2085,17 @@ Divider()
                     }
                     .padding()
                     .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                            .fill(SBSColors.warning.opacity(0.1))
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                            .fill(Color.warning.opacity(0.1))
                     )
                     .padding(.horizontal)
                 }
-                .padding(.bottom, SBSLayout.paddingXLarge)
+                .padding(.bottom, SBSLayout.space8)
             }
             .scrollDismissesKeyboard(.interactively)
             
             // Complete button
-            VStack(spacing: SBSLayout.paddingMedium) {
+            VStack(spacing: SBSLayout.space4) {
                 Button {
                     Haptics.success()
                     onComplete()
@@ -2104,13 +2104,13 @@ Divider()
                         Text(isOnboarding ? "Start Training" : "Start New Cycle")
                         Image(systemName: "arrow.right.circle.fill")
                     }
-                    .font(SBSFonts.legacyButton())
+                    .font(SBSFonts.bodyStrong())
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, SBSLayout.paddingMedium)
+                    .padding(.vertical, SBSLayout.space4)
                     .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                            .fill(SBSColors.success)
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                            .fill(Color.success)
                     )
                 }
                 
@@ -2118,13 +2118,13 @@ Divider()
                     onBack()
                 } label: {
                     Text("Go Back")
-                        .font(SBSFonts.legacyBody())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.body())
+                        .foregroundStyle(Color.inkSecondary)
                 }
             }
-            .padding(.horizontal, SBSLayout.paddingLarge)
-            .padding(.vertical, SBSLayout.paddingMedium)
-            .background(SBSColors.backgroundFallback)
+            .padding(.horizontal, SBSLayout.space6)
+            .padding(.vertical, SBSLayout.space4)
+            .background(Color.bg)
         }
         .onAppear {
             withAnimation(.spring(response: 0.5, dampingFraction: 0.6).delay(0.2)) {
@@ -2139,19 +2139,19 @@ struct SummaryCard<Content: View>: View {
     @ViewBuilder let content: Content
     
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
+        VStack(alignment: .leading, spacing: SBSLayout.space4) {
             Text(title)
-                .font(SBSFonts.captionBold())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
+                .font(SBSFonts.caption().weight(.semibold))
+                .foregroundStyle(Color.inkSecondary)
             
-            VStack(spacing: SBSLayout.paddingSmall) {
+            VStack(spacing: SBSLayout.space2) {
                 content
             }
         }
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                .fill(SBSColors.surfaceFallback)
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                .fill(Color.surface)
         )
         .padding(.horizontal)
     }
@@ -2164,11 +2164,11 @@ struct SummaryStatItem: View {
     var body: some View {
         VStack(spacing: 4) {
             Text(value)
-                .font(SBSFonts.title2())
+                .font(SBSFonts.heading())
                 .foregroundStyle(Color.orangeText)
             Text(label)
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
         }
         .frame(maxWidth: .infinity)
     }
@@ -2181,12 +2181,12 @@ struct TipItem: View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 12))
-                .foregroundStyle(SBSColors.success)
+                .foregroundStyle(Color.success)
                 .padding(.top, 2)
             
             Text(text)
-                .font(SBSFonts.legacyBody())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
+                .font(SBSFonts.body())
+                .foregroundStyle(Color.inkSecondary)
         }
     }
 }
@@ -2201,7 +2201,7 @@ struct NavigationButtons: View {
     var continueDisabled: Bool = false
     
     var body: some View {
-        HStack(spacing: SBSLayout.paddingMedium) {
+        HStack(spacing: SBSLayout.space4) {
             Button {
                 onBack()
             } label: {
@@ -2209,13 +2209,13 @@ struct NavigationButtons: View {
                     Image(systemName: "arrow.left")
                     Text(backTitle)
                 }
-                .font(SBSFonts.legacyButton())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
+                .font(SBSFonts.bodyStrong())
+                .foregroundStyle(Color.inkSecondary)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, SBSLayout.paddingMedium)
+                .padding(.vertical, SBSLayout.space4)
                 .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                        .fill(SBSColors.surfaceFallback)
+                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                        .fill(Color.surface)
                 )
             }
             
@@ -2227,21 +2227,21 @@ struct NavigationButtons: View {
                     Text(continueTitle)
                     Image(systemName: "arrow.right")
                 }
-                .font(SBSFonts.legacyButton())
+                .font(SBSFonts.bodyStrong())
                 .foregroundStyle(Color.orangeInk)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, SBSLayout.paddingMedium)
+                .padding(.vertical, SBSLayout.space4)
                 .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                         .fill(SBSColors.accentFallback)
                 )
             }
             .disabled(continueDisabled)
             .opacity(continueDisabled ? 0.5 : 1)
         }
-        .padding(.horizontal, SBSLayout.paddingLarge)
-        .padding(.vertical, SBSLayout.paddingMedium)
-        .background(SBSColors.backgroundFallback)
+        .padding(.horizontal, SBSLayout.space6)
+        .padding(.vertical, SBSLayout.space4)
+        .background(Color.bg)
     }
 }
 
@@ -2548,13 +2548,13 @@ struct ProgramDetailView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: SBSLayout.paddingLarge) {
+                VStack(alignment: .leading, spacing: SBSLayout.space6) {
                     // Header
-                    VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                    VStack(alignment: .leading, spacing: SBSLayout.space2) {
                         HStack {
                             Text(program.displayName)
                                 .font(SBSFonts.largeTitle())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
+                                .foregroundStyle(Color.ink)
                             
                             Spacer()
                             
@@ -2563,7 +2563,7 @@ struct ProgramDetailView: View {
                                     .fill(level.color)
                                     .frame(width: 8, height: 8)
                                 Text(level.rawValue)
-                                    .font(SBSFonts.captionBold())
+                                    .font(SBSFonts.caption().weight(.semibold))
                                     .foregroundStyle(level.color)
                             }
                             .padding(.horizontal, 10)
@@ -2575,12 +2575,12 @@ struct ProgramDetailView: View {
                         }
                         
                         Text(program.programDescription)
-                            .font(SBSFonts.legacyBody())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.body())
+                            .foregroundStyle(Color.inkSecondary)
                     }
                     
                     // Quick Stats
-                    HStack(spacing: SBSLayout.paddingMedium) {
+                    HStack(spacing: SBSLayout.space4) {
                         StatCard(
                             icon: "calendar",
                             value: "\(program.days)",
@@ -2602,25 +2602,25 @@ struct ProgramDetailView: View {
                     }
                     
                     // Progression Section
-                    VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                    VStack(alignment: .leading, spacing: SBSLayout.space2) {
                         Label("Progression", systemImage: "arrow.up.right")
-                            .font(SBSFonts.title3())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.heading())
+                            .foregroundStyle(Color.ink)
                         
-                        HStack(spacing: SBSLayout.paddingSmall) {
+                        HStack(spacing: SBSLayout.space2) {
                             Image(systemName: "chart.line.uptrend.xyaxis")
                                 .font(.system(size: 16))
                                 .foregroundStyle(familyColor)
                             
                             Text(progressionType)
-                                .font(SBSFonts.legacyBody())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.body())
+                                .foregroundStyle(Color.inkSecondary)
                         }
                         .padding()
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                                .fill(SBSColors.surfaceFallback)
+                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                                .fill(Color.surface)
                         )
                     }
                     
@@ -2634,15 +2634,15 @@ struct ProgramDetailView: View {
                     
                     // Main Lifts Section
                     if !mainLifts.isEmpty {
-                        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                        VStack(alignment: .leading, spacing: SBSLayout.space2) {
                             Label("Main Lifts", systemImage: "figure.strengthtraining.traditional")
-                                .font(SBSFonts.title3())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
+                                .font(SBSFonts.heading())
+                                .foregroundStyle(Color.ink)
                             
                             FlowLayout(spacing: 8) {
                                 ForEach(mainLifts, id: \.self) { lift in
                                     Text(lift)
-                                        .font(SBSFonts.captionBold())
+                                        .font(SBSFonts.caption().weight(.semibold))
                                         .foregroundStyle(familyColor)
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 6)
@@ -2657,21 +2657,21 @@ struct ProgramDetailView: View {
                     
                     // Accessories Section
                     if !accessoryExercises.isEmpty {
-                        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                        VStack(alignment: .leading, spacing: SBSLayout.space2) {
                             Label("Accessories", systemImage: "plus.circle")
-                                .font(SBSFonts.title3())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
+                                .font(SBSFonts.heading())
+                                .foregroundStyle(Color.ink)
                             
                             FlowLayout(spacing: 8) {
                                 ForEach(accessoryExercises, id: \.self) { exercise in
                                     Text(exercise)
-                                        .font(SBSFonts.legacyCaption())
-                                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                                        .font(SBSFonts.caption())
+                                        .foregroundStyle(Color.inkSecondary)
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 5)
                                         .background(
                                             Capsule()
-                                                .strokeBorder(SBSColors.textTertiaryFallback.opacity(0.3), lineWidth: 1)
+                                                .strokeBorder(Color.inkTertiary.opacity(0.3), lineWidth: 1)
                                         )
                                 }
                             }
@@ -2679,21 +2679,21 @@ struct ProgramDetailView: View {
                     }
                     
                     // Weekly Schedule
-                    VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                    VStack(alignment: .leading, spacing: SBSLayout.space2) {
                         HStack {
                             Label("Weekly Schedule", systemImage: "calendar.badge.clock")
-                                .font(SBSFonts.title3())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
+                                .font(SBSFonts.heading())
+                                .foregroundStyle(Color.ink)
                             
                             Spacer()
                             
                             // Note about percentages
                             Text("% = Training Max")
-                                .font(SBSFonts.caption2())
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
                         }
                         
-                        VStack(spacing: SBSLayout.paddingSmall) {
+                        VStack(spacing: SBSLayout.space2) {
                             ForEach(1...program.days, id: \.self) { day in
                                 DayPreviewCard(
                                     dayNumber: day,
@@ -2710,14 +2710,14 @@ struct ProgramDetailView: View {
                 .padding()
             }
             .scrollDismissesKeyboard(.interactively)
-            .background(SBSColors.backgroundFallback)
+            .background(Color.bg)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") {
                         dismiss()
                     }
-                    .font(SBSFonts.bodyBold())
+                    .font(SBSFonts.bodyStrong())
                     .foregroundStyle(familyColor)
                 }
             }
@@ -2732,31 +2732,31 @@ struct ProgramDetailView: View {
                                 Image(systemName: "play.fill")
                                 Text("Start Cycle with This Program")
                             }
-                            .font(SBSFonts.legacyButton())
+                            .font(SBSFonts.bodyStrong())
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, SBSLayout.paddingMedium)
+                            .padding(.vertical, SBSLayout.space4)
                             .background(
-                                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                                     .fill(familyColor)
                             )
                         }
                     }
                     .padding()
-                    .background(SBSColors.backgroundFallback)
+                    .background(Color.bg)
                 }
             }
             .overlay {
                 if isLoading && effectiveProgramData == nil {
-                    VStack(spacing: SBSLayout.paddingMedium) {
+                    VStack(spacing: SBSLayout.space4) {
                         ProgressView()
                             .tint(familyColor)
                         Text("Loading program...")
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(SBSColors.backgroundFallback)
+                    .background(Color.bg)
                 }
             }
             .task {
@@ -2781,18 +2781,18 @@ struct StatCard: View {
                 .foregroundStyle(color)
             
             Text(value)
-                .font(SBSFonts.title2())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .font(SBSFonts.heading())
+                .foregroundStyle(Color.ink)
             
             Text(label)
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, SBSLayout.paddingMedium)
+        .padding(.vertical, SBSLayout.space4)
         .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                .fill(SBSColors.surfaceFallback)
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                .fill(Color.surface)
         )
     }
 }
@@ -2830,17 +2830,17 @@ struct DayPreviewCard: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
             // Header with day number and title
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Day \(dayNumber)")
-                        .font(SBSFonts.bodyBold())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.ink)
                     
                     if let title = dayTitle {
                         Text(title)
-                            .font(SBSFonts.legacyCaption())
+                            .font(SBSFonts.caption())
                             .foregroundStyle(accentColor)
                     }
                 }
@@ -2848,8 +2848,8 @@ struct DayPreviewCard: View {
                 Spacer()
                 
                 Text("\(mainExercises.count) main • \(accessories.count) acc")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
             
             Divider()
@@ -2870,20 +2870,20 @@ struct DayPreviewCard: View {
                 HStack(alignment: .top, spacing: 6) {
                     Image(systemName: "plus.circle")
                         .font(.system(size: 10))
-                        .foregroundStyle(SBSColors.textTertiaryFallback.opacity(0.6))
+                        .foregroundStyle(Color.inkSecondary.opacity(0.6))
                         .padding(.top, 2)
                     
                     Text(accessories.map { $0.name }.joined(separator: ", "))
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                         .lineLimit(2)
                 }
             }
         }
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                .fill(SBSColors.surfaceFallback)
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                .fill(Color.surface)
         )
     }
 }
@@ -2923,26 +2923,26 @@ struct ExercisePreviewRow: View {
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.lift ?? item.name)
-                        .font(SBSFonts.legacyBody())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.body())
+                        .foregroundStyle(Color.ink)
                     
                     if let info = info {
                         HStack(spacing: 6) {
                             Text(info.setsText)
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
                             
                             Text("@")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
                             
                             Text(info.intensityText)
-                                .font(SBSFonts.captionBold())
+                                .font(SBSFonts.caption().weight(.semibold))
                                 .foregroundStyle(accentColor)
                             
                             if info.hasAMRAP {
                                 Text("AMRAP")
-                                    .font(SBSFonts.label())
+                                    .font(SBSFonts.caption().weight(.semibold))
                                     .foregroundStyle(.white)
                                     .padding(.horizontal, 4)
                                     .padding(.vertical, 1)
@@ -2954,15 +2954,15 @@ struct ExercisePreviewRow: View {
                             
                             if let note = info.noteText {
                                 Text(note)
-                                    .font(SBSFonts.caption2())
-                                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                                    .font(SBSFonts.caption())
+                                    .foregroundStyle(Color.inkSecondary)
                                     .italic()
                             }
                         }
                     } else {
                         Text(compactInfo)
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
                     }
                 }
                 
@@ -2977,7 +2977,7 @@ struct ExercisePreviewRow: View {
                     } label: {
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                            .foregroundStyle(Color.inkTertiary)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(isExpanded ? "Hide set details" : "Show set details")
@@ -3005,7 +3005,7 @@ struct SetPreviewGrid: View {
                 VStack(spacing: 1) {
                     Text(row.reps)
                         .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .foregroundStyle(Color.inkSecondary)
                     
                     Text("\(row.intensity)%")
                         .font(.system(size: 9, design: .monospaced))
@@ -3016,7 +3016,7 @@ struct SetPreviewGrid: View {
                 .padding(.horizontal, 2)
                 .background(
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(SBSColors.backgroundFallback)
+                        .fill(Color.bg)
                 )
             }
         }
@@ -3273,13 +3273,13 @@ struct CustomTemplateDetailView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: SBSLayout.paddingLarge) {
+                VStack(alignment: .leading, spacing: SBSLayout.space6) {
                     // Header
-                    VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                    VStack(alignment: .leading, spacing: SBSLayout.space2) {
                         HStack {
                             Text(template.name)
                                 .font(SBSFonts.largeTitle())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
+                                .foregroundStyle(Color.ink)
                             
                             Spacer()
                             
@@ -3287,7 +3287,7 @@ struct CustomTemplateDetailView: View {
                                 Image(systemName: "square.stack.3d.up.fill")
                                     .font(.system(size: 10))
                                 Text("CUSTOM")
-                                    .font(SBSFonts.captionBold())
+                                    .font(SBSFonts.caption().weight(.semibold))
                             }
                             .foregroundStyle(accentColor)
                             .padding(.horizontal, 10)
@@ -3300,13 +3300,13 @@ struct CustomTemplateDetailView: View {
                         
                         if !template.templateDescription.isEmpty {
                             Text(template.templateDescription)
-                                .font(SBSFonts.legacyBody())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.body())
+                                .foregroundStyle(Color.inkSecondary)
                         }
                     }
                     
                     // Quick Stats
-                    HStack(spacing: SBSLayout.paddingMedium) {
+                    HStack(spacing: SBSLayout.space4) {
                         StatCard(
                             icon: "calendar",
                             value: "\(template.daysPerWeek)",
@@ -3328,25 +3328,25 @@ struct CustomTemplateDetailView: View {
                     }
                     
                     // Progression Section
-                    VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                    VStack(alignment: .leading, spacing: SBSLayout.space2) {
                         Label("Progression", systemImage: "arrow.up.right")
-                            .font(SBSFonts.title3())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.heading())
+                            .foregroundStyle(Color.ink)
                         
-                        HStack(spacing: SBSLayout.paddingSmall) {
+                        HStack(spacing: SBSLayout.space2) {
                             Image(systemName: "chart.line.uptrend.xyaxis")
                                 .font(.system(size: 16))
                                 .foregroundStyle(accentColor)
                             
                             Text(progressionType)
-                                .font(SBSFonts.legacyBody())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.body())
+                                .foregroundStyle(Color.inkSecondary)
                         }
                         .padding()
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                                .fill(SBSColors.surfaceFallback)
+                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                                .fill(Color.surface)
                         )
                     }
                     
@@ -3360,15 +3360,15 @@ struct CustomTemplateDetailView: View {
                     
                     // Main Lifts Section
                     if !mainLifts.isEmpty {
-                        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                        VStack(alignment: .leading, spacing: SBSLayout.space2) {
                             Label("Main Lifts", systemImage: "figure.strengthtraining.traditional")
-                                .font(SBSFonts.title3())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
+                                .font(SBSFonts.heading())
+                                .foregroundStyle(Color.ink)
                             
                             FlowLayout(spacing: 8) {
                                 ForEach(mainLifts, id: \.self) { lift in
                                     Text(lift)
-                                        .font(SBSFonts.captionBold())
+                                        .font(SBSFonts.caption().weight(.semibold))
                                         .foregroundStyle(accentColor)
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 6)
@@ -3383,21 +3383,21 @@ struct CustomTemplateDetailView: View {
                     
                     // Accessories Section
                     if !accessoryExercises.isEmpty {
-                        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                        VStack(alignment: .leading, spacing: SBSLayout.space2) {
                             Label("Accessories", systemImage: "plus.circle")
-                                .font(SBSFonts.title3())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
+                                .font(SBSFonts.heading())
+                                .foregroundStyle(Color.ink)
                             
                             FlowLayout(spacing: 8) {
                                 ForEach(accessoryExercises, id: \.self) { exercise in
                                     Text(exercise)
-                                        .font(SBSFonts.legacyCaption())
-                                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                                        .font(SBSFonts.caption())
+                                        .foregroundStyle(Color.inkSecondary)
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 5)
                                         .background(
                                             Capsule()
-                                                .strokeBorder(SBSColors.textTertiaryFallback.opacity(0.3), lineWidth: 1)
+                                                .strokeBorder(Color.inkTertiary.opacity(0.3), lineWidth: 1)
                                         )
                                 }
                             }
@@ -3405,20 +3405,20 @@ struct CustomTemplateDetailView: View {
                     }
                     
                     // Weekly Schedule
-                    VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                    VStack(alignment: .leading, spacing: SBSLayout.space2) {
                         HStack {
                             Label("Weekly Schedule", systemImage: "calendar.badge.clock")
-                                .font(SBSFonts.title3())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
+                                .font(SBSFonts.heading())
+                                .foregroundStyle(Color.ink)
                             
                             Spacer()
                             
                             Text("% = Training Max")
-                                .font(SBSFonts.caption2())
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
                         }
                         
-                        VStack(spacing: SBSLayout.paddingSmall) {
+                        VStack(spacing: SBSLayout.space2) {
                             ForEach(1...template.daysPerWeek, id: \.self) { day in
                                 DayPreviewCard(
                                     dayNumber: day,
@@ -3435,14 +3435,14 @@ struct CustomTemplateDetailView: View {
                 .padding()
             }
             .scrollDismissesKeyboard(.interactively)
-            .background(SBSColors.backgroundFallback)
+            .background(Color.bg)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") {
                         dismiss()
                     }
-                    .font(SBSFonts.bodyBold())
+                    .font(SBSFonts.bodyStrong())
                     .foregroundStyle(accentColor)
                 }
             }
@@ -3457,18 +3457,18 @@ struct CustomTemplateDetailView: View {
                                 Image(systemName: "play.fill")
                                 Text("Start Cycle with This Template")
                             }
-                            .font(SBSFonts.legacyButton())
+                            .font(SBSFonts.bodyStrong())
                             .foregroundStyle(Color.orangeInk)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, SBSLayout.paddingMedium)
+                            .padding(.vertical, SBSLayout.space4)
                             .background(
-                                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                                     .fill(accentColor)
                             )
                         }
                     }
                     .padding()
-                    .background(SBSColors.backgroundFallback)
+                    .background(Color.bg)
                 }
             }
         }
@@ -3620,10 +3620,10 @@ struct WeeklyVolumeCard: View {
     @State private var expandedGroups: Set<MuscleGroup> = []
     
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
             Label("Weekly Volume", systemImage: "chart.bar.fill")
-                .font(SBSFonts.title3())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .font(SBSFonts.heading())
+                .foregroundStyle(Color.ink)
             
             // Summary bar chart
             VolumeBarChart(volumeByGroup: volumeByGroup)
@@ -3665,24 +3665,24 @@ struct VolumeBarChart: View {
             ForEach(volumeByGroup, id: \.group) { entry in
                 VStack(spacing: 2) {
                     // Bar
-                    RoundedRectangle(cornerRadius: 3)
+                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                         .fill(entry.group.color)
                         .frame(width: barWidth, height: barHeight(for: entry.totalSets))
                     
                     // Label
                     Text("\(entry.totalSets)")
-                        .font(SBSFonts.caption2())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                 }
             }
         }
         .frame(height: 60)
         .frame(maxWidth: .infinity)
-        .padding(.vertical, SBSLayout.paddingSmall)
-        .padding(.horizontal, SBSLayout.paddingMedium)
+        .padding(.vertical, SBSLayout.space2)
+        .padding(.horizontal, SBSLayout.space4)
         .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                .fill(SBSColors.surfaceFallback)
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                .fill(Color.surface)
         )
     }
     
@@ -3715,25 +3715,25 @@ struct VolumeGroupRow: View {
                         .frame(width: 8, height: 8)
                     
                     Text(group.rawValue)
-                        .font(SBSFonts.legacyBody())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.body())
+                        .foregroundStyle(Color.ink)
                     
                     Spacer()
                     
                     Text("\(totalSets) sets/week")
-                        .font(SBSFonts.captionBold())
+                        .font(SBSFonts.caption().weight(.semibold))
                         .foregroundStyle(group.color)
                     
                     if lifts.count > 1 {
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                            .foregroundStyle(Color.inkTertiary)
                     }
                 }
                 .padding(.vertical, 6)
                 .padding(.horizontal, 10)
                 .background(
-                    RoundedRectangle(cornerRadius: 6)
+                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                         .fill(group.color.opacity(0.08))
                 )
             }
@@ -3745,14 +3745,14 @@ struct VolumeGroupRow: View {
                     ForEach(lifts) { lift in
                         HStack {
                             Text(lift.liftName)
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
                             
                             Spacer()
                             
                             Text("\(lift.weeklySets) sets")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
                         }
                         .padding(.horizontal, 18)
                         .padding(.vertical, 2)

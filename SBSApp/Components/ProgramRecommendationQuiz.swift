@@ -25,8 +25,8 @@ struct ProgramRecommendationQuiz: View {
             // Background
             LinearGradient(
                 colors: [
-                    SBSColors.backgroundFallback,
-                    SBSColors.accentFallback.opacity(0.05)
+                    Color.bg,
+                    Color.orangeSoft
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -69,7 +69,7 @@ struct ProgramRecommendationQuiz: View {
                         } label: {
                             Image(systemName: currentQuestion > 0 ? "chevron.left" : "xmark")
                                 .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .foregroundStyle(Color.inkSecondary)
                                 .frame(width: 44, height: 44)
                         }
                         
@@ -81,7 +81,7 @@ struct ProgramRecommendationQuiz: View {
                                 Circle()
                                     .fill(index <= currentQuestion 
                                           ? SBSColors.accentFallback 
-                                          : SBSColors.textTertiaryFallback.opacity(0.3))
+                                          : Color.inkSecondary.opacity(0.3))
                                     .frame(width: 8, height: 8)
                                     .scaleEffect(index == currentQuestion ? 1.2 : 1.0)
                                     .animation(.spring(response: 0.3), value: currentQuestion)
@@ -95,8 +95,8 @@ struct ProgramRecommendationQuiz: View {
                             onDismiss()
                         } label: {
                             Text("Skip")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
                         }
                         .frame(width: 44, height: 44)
                     }
@@ -293,12 +293,12 @@ struct QuestionView: View {
     }
     
     var body: some View {
-        VStack(spacing: SBSLayout.sectionSpacing) {
+        VStack(spacing: SBSLayout.space6) {
             // Question header
-            VStack(spacing: SBSLayout.paddingMedium) {
+            VStack(spacing: SBSLayout.space4) {
                 ZStack {
                     Circle()
-                        .fill(SBSColors.accentFallback.opacity(0.1))
+                        .fill(Color.orangeSoft)
                         .frame(width: 80, height: 80)
                     
                     Image(systemName: question.icon)
@@ -306,24 +306,24 @@ struct QuestionView: View {
                         .foregroundStyle(Color.orangeText)
                 }
                 
-                VStack(spacing: SBSLayout.paddingSmall) {
+                VStack(spacing: SBSLayout.space2) {
                     Text(question.title)
-                        .font(SBSFonts.legacyTitle())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.title())
+                        .foregroundStyle(Color.ink)
                         .multilineTextAlignment(.center)
                     
                     Text(question.subtitle)
-                        .font(SBSFonts.legacyBody())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.body())
+                        .foregroundStyle(Color.inkSecondary)
                         .multilineTextAlignment(.center)
                 }
             }
-            .padding(.top, SBSLayout.paddingLarge)
+            .padding(.top, SBSLayout.space6)
             
             Spacer()
             
             // Options
-            VStack(spacing: SBSLayout.paddingMedium) {
+            VStack(spacing: SBSLayout.space4) {
                 ForEach(Array(question.options.enumerated()), id: \.element.id) { index, option in
                     OptionButton(
                         option: option,
@@ -339,7 +339,7 @@ struct QuestionView: View {
                     )
                 }
             }
-            .padding(.horizontal, SBSLayout.paddingLarge)
+            .padding(.horizontal, SBSLayout.space6)
             
             Spacer()
         }
@@ -360,24 +360,24 @@ struct OptionButton: View {
     
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: SBSLayout.paddingMedium) {
+            HStack(spacing: SBSLayout.space4) {
                 Image(systemName: option.icon)
                     .font(.system(size: 22))
                     .foregroundStyle(isSelected ? Color.orangeInk : Color.orangeText)
                     .frame(width: 44, height: 44)
                     .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                            .fill(isSelected ? SBSColors.accentFallback : SBSColors.accentFallback.opacity(0.1))
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                            .fill(isSelected ? SBSColors.accentFallback : Color.orangeSoft)
                     )
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(option.label)
-                        .font(SBSFonts.bodyBold())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.ink)
                     
                     Text(option.description)
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                 }
                 
                 Spacer()
@@ -390,10 +390,10 @@ struct OptionButton: View {
             }
             .padding()
             .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                    .fill(SBSColors.surfaceFallback)
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .fill(Color.surface)
                     .overlay(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                             .strokeBorder(
                                 isSelected ? SBSColors.accentFallback : Color.clear,
                                 lineWidth: 2
@@ -443,59 +443,59 @@ struct RecommendationResultsView: View {
                 Button(action: onBack) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .foregroundStyle(Color.inkSecondary)
                         .frame(width: 44, height: 44)
                 }
                 
                 Spacer()
                 
                 Text("Recommendations")
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(Color.ink)
                 
                 Spacer()
                 
                 Button(action: onDismiss) {
                     Image(systemName: "xmark")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .foregroundStyle(Color.inkSecondary)
                         .frame(width: 44, height: 44)
                 }
             }
             .padding(.horizontal)
             
             ScrollView {
-                VStack(spacing: SBSLayout.sectionSpacing) {
+                VStack(spacing: SBSLayout.space6) {
                     // Summary card
-                    VStack(spacing: SBSLayout.paddingMedium) {
+                    VStack(spacing: SBSLayout.space4) {
                         Image(systemName: "sparkles")
                             .font(.system(size: 32))
                             .foregroundStyle(Color.orangeText)
                         
                         Text("Based on your answers")
-                            .font(SBSFonts.title2())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.heading())
+                            .foregroundStyle(Color.ink)
                         
                         Text(summaryText)
-                            .font(SBSFonts.legacyBody())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.body())
+                            .foregroundStyle(Color.inkSecondary)
                             .multilineTextAlignment(.center)
                     }
                     .padding()
                     .frame(maxWidth: .infinity)
                     .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                            .fill(SBSColors.surfaceFallback)
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                            .fill(Color.surface)
                     )
                     .padding(.horizontal)
                     .opacity(animateIn ? 1 : 0)
                     .offset(y: animateIn ? 0 : 20)
                     
                     // Recommended programs
-                    VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
+                    VStack(alignment: .leading, spacing: SBSLayout.space4) {
                         Text("Our Top Picks")
-                            .font(SBSFonts.title3())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.heading())
+                            .foregroundStyle(Color.ink)
                             .padding(.horizontal)
                         
                         ForEach(Array(recommendations.prefix(3).enumerated()), id: \.element.programId) { index, recommendation in
@@ -527,10 +527,10 @@ struct RecommendationResultsView: View {
                     
                     // Other options
                     if recommendations.count > 3 {
-                        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
+                        VStack(alignment: .leading, spacing: SBSLayout.space4) {
                             Text("Other Options")
-                                .font(SBSFonts.title3())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
+                                .font(SBSFonts.heading())
+                                .foregroundStyle(Color.ink)
                                 .padding(.horizontal)
                             
                             ForEach(recommendations.dropFirst(3), id: \.programId) { recommendation in
@@ -562,10 +562,10 @@ struct RecommendationResultsView: View {
                             Image(systemName: "list.bullet")
                             Text("Browse All Programs")
                         }
-                        .font(SBSFonts.legacyBody())
+                        .font(SBSFonts.body())
                         .foregroundStyle(Color.orangeText)
                     }
-                    .padding(.vertical, SBSLayout.paddingLarge)
+                    .padding(.vertical, SBSLayout.space6)
                     .opacity(animateIn ? 1 : 0)
                 }
                 .padding(.vertical)
@@ -647,7 +647,7 @@ struct RecommendationCard: View {
                 onSelect()
             }
         }) {
-            VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
+            VStack(alignment: .leading, spacing: SBSLayout.space4) {
                 // Header with badge
                 HStack {
                     if isTopPick && !isLocked {
@@ -688,27 +688,27 @@ struct RecommendationCard: View {
                     }
                     
                     Text("\(Int(recommendation.matchScore))% match")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                 }
                 
                 // Program name
-                HStack(spacing: SBSLayout.paddingSmall) {
+                HStack(spacing: SBSLayout.space2) {
                     Text(recommendation.displayName)
-                        .font(SBSFonts.title2())
-                        .foregroundStyle(isLocked ? SBSColors.textSecondaryFallback : SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.heading())
+                        .foregroundStyle(isLocked ? Color.inkSecondary : Color.ink)
                     
                     if isLocked {
                         Image(systemName: "lock.fill")
                             .font(.system(size: 14))
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                            .foregroundStyle(Color.inkSecondary)
                     }
                 }
                 
                 // Description
                 Text(recommendation.programDescription)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
                     .lineLimit(2)
                 
                 // Tags
@@ -716,12 +716,12 @@ struct RecommendationCard: View {
                     ForEach(recommendation.tags.prefix(3), id: \.self) { tag in
                         Text(tag)
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(isLocked ? SBSColors.textTertiaryFallback : Color.orangeText)
+                            .foregroundStyle(isLocked ? Color.inkSecondary : Color.orangeText)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                             .background(
                                 Capsule()
-                                    .fill((isLocked ? SBSColors.textTertiaryFallback : SBSColors.accentFallback).opacity(0.1))
+                                    .fill((isLocked ? Color.inkTertiary : SBSColors.accentFallback).opacity(0.1))
                             )
                     }
                 }
@@ -733,10 +733,10 @@ struct RecommendationCard: View {
                             HStack(spacing: 6) {
                                 Image(systemName: "checkmark.circle.fill")
                                     .font(.system(size: 12))
-                                    .foregroundStyle(SBSColors.success)
+                                    .foregroundStyle(Color.success)
                                 Text(reason)
-                                    .font(SBSFonts.legacyCaption())
-                                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                                    .font(SBSFonts.caption())
+                                    .foregroundStyle(Color.inkSecondary)
                             }
                         }
                     }
@@ -748,7 +748,7 @@ struct RecommendationCard: View {
                         Image(systemName: "sparkles")
                             .font(.system(size: 12))
                         Text("Upgrade to unlock this program")
-                            .font(SBSFonts.legacyCaption())
+                            .font(SBSFonts.caption())
                     }
                     .foregroundStyle(Color.orangeText)
                 }
@@ -756,10 +756,10 @@ struct RecommendationCard: View {
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                    .fill(SBSColors.surfaceFallback)
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .fill(Color.surface)
                     .overlay(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                             .strokeBorder(
                                 isSelected && !isLocked ? SBSColors.accentFallback : (isTopPick && !isLocked ? SBSColors.accentFallback.opacity(0.3) : Color.clear),
                                 lineWidth: isSelected && !isLocked ? 2 : 1
@@ -814,17 +814,17 @@ struct RecommendationCardCompact: View {
                 onSelect()
             }
         }) {
-            HStack(spacing: SBSLayout.paddingMedium) {
+            HStack(spacing: SBSLayout.space4) {
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: SBSLayout.paddingSmall) {
+                    HStack(spacing: SBSLayout.space2) {
                         Text(recommendation.displayName)
-                            .font(SBSFonts.bodyBold())
-                            .foregroundStyle(isLocked ? SBSColors.textSecondaryFallback : SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.bodyStrong())
+                            .foregroundStyle(isLocked ? Color.inkSecondary : Color.ink)
                         
                         if isLocked {
                             Image(systemName: "lock.fill")
                                 .font(.system(size: 12))
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                                .foregroundStyle(Color.inkSecondary)
                         }
                         
                         if recommendation.isFree {
@@ -835,8 +835,8 @@ struct RecommendationCardCompact: View {
                     }
                     
                     Text("\(recommendation.days) days/week")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                 }
                 
                 Spacer()
@@ -854,8 +854,8 @@ struct RecommendationCardCompact: View {
                 }
                 
                 Text("\(Int(recommendation.matchScore))%")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
                 
                 if isSelected && !isLocked {
                     Image(systemName: "checkmark.circle.fill")
@@ -864,10 +864,10 @@ struct RecommendationCardCompact: View {
             }
             .padding()
             .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                    .fill(SBSColors.surfaceFallback)
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .fill(Color.surface)
                     .overlay(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                             .strokeBorder(
                                 isSelected && !isLocked ? SBSColors.accentFallback : Color.clear,
                                 lineWidth: 2

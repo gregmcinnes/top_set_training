@@ -48,19 +48,19 @@ struct UpgradePrompt: View {
         Button {
             onUpgrade?()
         } label: {
-            HStack(spacing: SBSLayout.paddingSmall) {
+            HStack(spacing: SBSLayout.space2) {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 12))
                 
                 Text("Premium")
-                    .font(SBSFonts.captionBold())
+                    .font(SBSFonts.caption().weight(.semibold))
             }
             .foregroundStyle(Color.orangeText)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(
                 Capsule()
-                    .fill(SBSColors.accentFallback.opacity(0.12))
+                    .fill(Color.orangeSoft)
             )
         }
         .buttonStyle(.plain)
@@ -69,11 +69,11 @@ struct UpgradePrompt: View {
     // MARK: - Card Style
     
     private var cardPrompt: some View {
-        HStack(spacing: SBSLayout.paddingMedium) {
+        HStack(spacing: SBSLayout.space4) {
             // Icon
             ZStack {
                 Circle()
-                    .fill(SBSColors.accentFallback.opacity(0.12))
+                    .fill(Color.orangeSoft)
                     .frame(width: 40, height: 40)
                 
                 Image(systemName: feature.iconName)
@@ -84,12 +84,12 @@ struct UpgradePrompt: View {
             // Text
             VStack(alignment: .leading, spacing: 2) {
                 Text(feature.displayName)
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.ink)
                 
                 Text("Available with Premium")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
             
             Spacer()
@@ -99,7 +99,7 @@ struct UpgradePrompt: View {
                 onUpgrade?()
             } label: {
                 Text("Unlock")
-                    .font(SBSFonts.captionBold())
+                    .font(SBSFonts.caption().weight(.semibold))
                     .foregroundStyle(Color.orangeInk)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
@@ -117,7 +117,7 @@ struct UpgradePrompt: View {
                 } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .foregroundStyle(Color.inkSecondary)
                         .frame(width: 24, height: 24)
                 }
                 .buttonStyle(.plain)
@@ -125,10 +125,10 @@ struct UpgradePrompt: View {
         }
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                .fill(SBSColors.surfaceFallback)
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                .fill(Color.surface)
                 .overlay(
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                         .strokeBorder(SBSColors.accentFallback.opacity(0.2), lineWidth: 1)
                 )
         )
@@ -137,7 +137,7 @@ struct UpgradePrompt: View {
     // MARK: - Banner Style
     
     private var bannerPrompt: some View {
-        HStack(spacing: SBSLayout.paddingMedium) {
+        HStack(spacing: SBSLayout.space4) {
             Image(systemName: "crown.fill")
                 .font(.system(size: 20))
                 .foregroundStyle(
@@ -150,12 +150,12 @@ struct UpgradePrompt: View {
             
             VStack(alignment: .leading, spacing: 2) {
                 Text("Upgrade to Premium")
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.ink)
                 
                 Text("Unlock \(feature.displayName.lowercased()) and more")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
             
             Spacer()
@@ -171,11 +171,11 @@ struct UpgradePrompt: View {
         }
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                 .fill(
                     LinearGradient(
                         colors: [
-                            SBSColors.accentFallback.opacity(0.08),
+                            Color.orangeSoft,
                             SBSColors.accentSecondaryFallback.opacity(0.05)
                         ],
                         startPoint: .leading,
@@ -205,10 +205,10 @@ struct PremiumLockOverlay: View {
             }
             
             // Lock content
-            VStack(spacing: SBSLayout.paddingMedium) {
+            VStack(spacing: SBSLayout.space4) {
                 ZStack {
                     Circle()
-                        .fill(SBSColors.accentFallback.opacity(0.15))
+                        .fill(Color.orangeSoft)
                         .frame(width: 64, height: 64)
                     
                     Image(systemName: "lock.fill")
@@ -218,22 +218,22 @@ struct PremiumLockOverlay: View {
                 
                 VStack(spacing: 4) {
                     Text("Premium Feature")
-                        .font(SBSFonts.bodyBold())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.ink)
                     
                     Text(feature.displayName)
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                 }
                 
                 Button {
                     onTap?()
                 } label: {
-                    HStack(spacing: SBSLayout.paddingSmall) {
+                    HStack(spacing: SBSLayout.space2) {
                         Image(systemName: "crown.fill")
                             .font(.system(size: 12))
                         Text("Unlock")
-                            .font(SBSFonts.captionBold())
+                            .font(SBSFonts.caption().weight(.semibold))
                     }
                     .foregroundStyle(Color.orangeInk)
                     .padding(.horizontal, 20)
@@ -276,7 +276,7 @@ struct PremiumBadge: View {
         .padding(.vertical, isCompact ? 3 : 4)
         .background(
             Capsule()
-                .fill(SBSColors.accentFallback.opacity(0.12))
+                .fill(Color.orangeSoft)
         )
     }
 }
@@ -334,7 +334,7 @@ extension View {
         )
     }
     .padding()
-    .sbsCard()
+    .card()
     .padding()
 }
 

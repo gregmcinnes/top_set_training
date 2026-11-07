@@ -69,33 +69,33 @@ struct AccessoryExercisePickerSheet: View {
         NavigationStack {
             VStack(spacing: 0) {
                 // Search bar
-                HStack(spacing: SBSLayout.paddingSmall) {
+                HStack(spacing: SBSLayout.space2) {
                     Image(systemName: "magnifyingglass")
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .foregroundStyle(Color.inkSecondary)
                     
                     TextField("Search exercises...", text: $searchText)
                         .textFieldStyle(.plain)
-                        .font(SBSFonts.legacyBody())
+                        .font(SBSFonts.body())
                     
                     if !searchText.isEmpty {
                         Button {
                             searchText = ""
                         } label: {
                             Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                                .foregroundStyle(Color.inkSecondary)
                         }
                     }
                 }
                 .padding()
-                .background(SBSColors.surfaceFallback)
-                .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
+                .background(Color.surface)
+                .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
                 .padding(.horizontal)
-                .padding(.top, SBSLayout.paddingSmall)
+                .padding(.top, SBSLayout.space2)
                 
                 // Filter chips
                 if showFilterChips {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: SBSLayout.paddingSmall) {
+                        HStack(spacing: SBSLayout.space2) {
                             FilterChip(
                                 title: "All Exercises",
                                 isSelected: !filterMainLiftsOnly,
@@ -111,12 +111,12 @@ struct AccessoryExercisePickerSheet: View {
                         }
                         .padding(.horizontal)
                     }
-                    .padding(.top, SBSLayout.paddingSmall)
+                    .padding(.top, SBSLayout.space2)
                 }
                 
                 if hasSearchResults {
                     ScrollView {
-                        LazyVStack(spacing: SBSLayout.paddingSmall) {
+                        LazyVStack(spacing: SBSLayout.space2) {
                             // Custom exercises section (if any)
                             if !filteredCustomExercises.isEmpty {
                                 CustomExercisesSection(
@@ -139,7 +139,7 @@ struct AccessoryExercisePickerSheet: View {
                             }
                         }
                         .padding(.horizontal)
-                        .padding(.vertical, SBSLayout.paddingMedium)
+                        .padding(.vertical, SBSLayout.space4)
                     }
                     .scrollDismissesKeyboard(.interactively)
                 } else {
@@ -159,17 +159,17 @@ struct AccessoryExercisePickerSheet: View {
                         Image(systemName: "plus.circle.fill")
                         Text("Add Custom Exercise")
                     }
-                    .font(SBSFonts.bodyBold())
+                    .font(SBSFonts.bodyStrong())
                     .foregroundStyle(Color.orangeText)
                     .frame(maxWidth: .infinity)
                     .padding()
                     .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                             .strokeBorder(SBSColors.accentFallback.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [5]))
                     )
                 }
                 .padding(.horizontal)
-                .padding(.bottom, SBSLayout.paddingMedium)
+                .padding(.bottom, SBSLayout.space4)
             }
             .sbsBackground()
             .navigationTitle(title)
@@ -179,7 +179,7 @@ struct AccessoryExercisePickerSheet: View {
                     Button("Cancel") {
                         onCancel()
                     }
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .foregroundStyle(Color.inkSecondary)
                 }
             }
             .sheet(isPresented: $showingAddCustom) {
@@ -269,35 +269,35 @@ struct BodyPartSection: View {
         VStack(spacing: 0) {
             // Header (tappable to expand/collapse)
             Button(action: onToggle) {
-                HStack(spacing: SBSLayout.paddingSmall) {
+                HStack(spacing: SBSLayout.space2) {
                     // Body part icon
                     Image(systemName: bodyPart.icon)
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(bodyPartColor)
                         .frame(width: 32, height: 32)
                         .background(
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                                 .fill(bodyPartColor.opacity(0.15))
                         )
                     
                     Text(bodyPart.rawValue)
-                        .font(SBSFonts.bodyBold())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.ink)
                     
                     Text("(\(exercises.count))")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                     
                     Spacer()
                     
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .foregroundStyle(Color.inkTertiary)
                 }
                 .padding()
                 .background(
                     RoundedRectangle(cornerRadius: isExpanded ? 12 : SBSLayout.cornerRadiusMedium)
-                        .fill(SBSColors.surfaceFallback)
+                        .fill(Color.surface)
                 )
             }
             .buttonStyle(.plain)
@@ -314,8 +314,8 @@ struct BodyPartSection: View {
                         )
                     }
                 }
-                .background(SBSColors.surfaceFallback.opacity(0.5))
-                .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
+                .background(Color.surface.opacity(0.5))
+                .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
                 .padding(.top, 2)
             }
         }
@@ -332,21 +332,21 @@ struct ExerciseRow: View {
     
     var body: some View {
         Button(action: onSelect) {
-            HStack(spacing: SBSLayout.paddingMedium) {
+            HStack(spacing: SBSLayout.space4) {
                 // Equipment indicator
                 Image(systemName: equipmentIcon)
                     .font(.system(size: 14))
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                    .foregroundStyle(Color.inkSecondary)
                     .frame(width: 24)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(exercise.name)
-                        .font(SBSFonts.legacyBody())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.body())
+                        .foregroundStyle(Color.ink)
                     
                     Text(exercise.equipment.rawValue)
                         .font(.system(size: 11))
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .foregroundStyle(Color.inkSecondary)
                 }
                 
                 Spacer()
@@ -374,7 +374,7 @@ struct ExerciseRow: View {
             .padding(.horizontal)
             .padding(.vertical, 12)
             .background(
-                isSelected ? SBSColors.accentFallback.opacity(0.08) : Color.clear
+                isSelected ? Color.orangeSoft : Color.clear
             )
         }
         .buttonStyle(.plain)
@@ -406,30 +406,30 @@ struct CustomExercisesSection: View {
     var body: some View {
         VStack(spacing: 0) {
             // Header
-            HStack(spacing: SBSLayout.paddingSmall) {
+            HStack(spacing: SBSLayout.space2) {
                 Image(systemName: "star.fill")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(.yellow)
                     .frame(width: 32, height: 32)
                     .background(
-                        RoundedRectangle(cornerRadius: 8)
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                             .fill(Color.yellow.opacity(0.15))
                     )
                 
                 Text("My Exercises")
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.ink)
                 
                 Text("(\(exercises.count))")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
                 
                 Spacer()
             }
             .padding()
             .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(SBSColors.surfaceFallback)
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .fill(Color.surface)
             )
             
             // Exercises
@@ -441,12 +441,12 @@ struct CustomExercisesSection: View {
                         HStack {
                             Image(systemName: "dumbbell.fill")
                                 .font(.system(size: 14))
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                                .foregroundStyle(Color.inkSecondary)
                                 .frame(width: 24)
                             
                             Text(name)
-                                .font(SBSFonts.legacyBody())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
+                                .font(SBSFonts.body())
+                                .foregroundStyle(Color.ink)
                             
                             Spacer()
                             
@@ -469,14 +469,14 @@ struct CustomExercisesSection: View {
                         .padding(.horizontal)
                         .padding(.vertical, 12)
                         .background(
-                            currentExercise == name ? SBSColors.accentFallback.opacity(0.08) : Color.clear
+                            currentExercise == name ? Color.orangeSoft : Color.clear
                         )
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .background(SBSColors.surfaceFallback.opacity(0.5))
-            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
+            .background(Color.surface.opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
             .padding(.top, 2)
         }
     }
@@ -498,48 +498,48 @@ struct AddCustomExerciseSheet: View {
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: SBSLayout.sectionSpacing) {
+            VStack(spacing: SBSLayout.space6) {
                 // Header
-                VStack(spacing: SBSLayout.paddingSmall) {
+                VStack(spacing: SBSLayout.space2) {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 48))
                         .foregroundStyle(Color.orangeText)
                     
                     Text("Add Custom Exercise")
-                        .font(SBSFonts.legacyTitle())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.title())
+                        .foregroundStyle(Color.ink)
                     
                     Text("Create your own exercise to track")
-                        .font(SBSFonts.legacyBody())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.body())
+                        .foregroundStyle(Color.inkSecondary)
                 }
-                .padding(.top, SBSLayout.paddingLarge)
+                .padding(.top, SBSLayout.space6)
                 
                 // Name input
-                VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                VStack(alignment: .leading, spacing: SBSLayout.space2) {
                     Text("Exercise Name")
-                        .font(SBSFonts.captionBold())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption().weight(.semibold))
+                        .foregroundStyle(Color.inkSecondary)
                     
                     TextField("e.g., Chest Flyes, Hip Thrust", text: $name)
-                        .font(SBSFonts.legacyBody())
+                        .font(SBSFonts.body())
                         .padding()
                         .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                                .fill(SBSColors.surfaceFallback)
+                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                                .fill(Color.surface)
                         )
                         .focused($isNameFocused)
                 }
                 .padding(.horizontal)
                 
                 // Body part picker
-                VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                VStack(alignment: .leading, spacing: SBSLayout.space2) {
                     Text("Body Part (optional)")
-                        .font(SBSFonts.captionBold())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption().weight(.semibold))
+                        .foregroundStyle(Color.inkSecondary)
                     
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: SBSLayout.paddingSmall) {
+                        HStack(spacing: SBSLayout.space2) {
                             ForEach(BodyPart.allCases) { part in
                                 BodyPartChip(
                                     bodyPart: part,
@@ -561,18 +561,18 @@ struct AddCustomExerciseSheet: View {
                     onAdd(trimmedName)
                 } label: {
                     Text("Add Exercise")
-                        .font(SBSFonts.legacyButton())
+                        .font(SBSFonts.bodyStrong())
                         .foregroundStyle(Color.orangeInk)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, SBSLayout.paddingMedium)
+                        .padding(.vertical, SBSLayout.space4)
                         .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                                .fill(isValid ? SBSColors.accentFallback : SBSColors.surfaceFallback)
+                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                                .fill(isValid ? SBSColors.accentFallback : Color.surface)
                         )
                 }
                 .disabled(!isValid)
                 .padding(.horizontal)
-                .padding(.bottom, SBSLayout.paddingLarge)
+                .padding(.bottom, SBSLayout.space6)
             }
             .sbsBackground()
             .navigationBarTitleDisplayMode(.inline)
@@ -581,7 +581,7 @@ struct AddCustomExerciseSheet: View {
                     Button("Cancel") {
                         onCancel()
                     }
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .foregroundStyle(Color.inkSecondary)
                 }
             }
             .onAppear {
@@ -629,14 +629,14 @@ struct BodyPartChip: View {
                 Image(systemName: bodyPart.icon)
                     .font(.system(size: 12))
                 Text(bodyPart.rawValue)
-                    .font(SBSFonts.captionBold())
+                    .font(SBSFonts.caption().weight(.semibold))
             }
-            .foregroundStyle(isSelected ? .white : SBSColors.textPrimaryFallback)
+            .foregroundStyle(isSelected ? .white : Color.ink)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(
                 Capsule()
-                    .fill(isSelected ? chipColor : SBSColors.surfaceFallback)
+                    .fill(isSelected ? chipColor : Color.surface)
             )
         }
         .buttonStyle(.plain)
@@ -659,18 +659,18 @@ struct FilterChip: View {
                         .font(.system(size: 12, weight: .medium))
                 }
                 Text(title)
-                    .font(SBSFonts.captionBold())
+                    .font(SBSFonts.caption().weight(.semibold))
             }
-            .foregroundStyle(isSelected ? Color.orangeInk : SBSColors.textPrimaryFallback)
+            .foregroundStyle(isSelected ? Color.orangeInk : Color.ink)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(
                 Capsule()
-                    .fill(isSelected ? SBSColors.accentFallback : SBSColors.surfaceFallback)
+                    .fill(isSelected ? SBSColors.accentFallback : Color.surface)
             )
             .overlay(
                 Capsule()
-                    .strokeBorder(isSelected ? Color.clear : SBSColors.textTertiaryFallback.opacity(0.3), lineWidth: 1)
+                    .strokeBorder(isSelected ? Color.clear : Color.inkTertiary.opacity(0.3), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)

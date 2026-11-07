@@ -63,10 +63,10 @@ struct ProgramSelector: View {
     var body: some View {
         VStack(spacing: 0) {
             // Filter bar
-            VStack(spacing: SBSLayout.paddingMedium) {
+            VStack(spacing: SBSLayout.space4) {
                 // Days filter
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: SBSLayout.paddingSmall) {
+                    HStack(spacing: SBSLayout.space2) {
                         FilterChip(
                             title: "All Days",
                             isSelected: selectedDaysFilter == nil,
@@ -86,7 +86,7 @@ struct ProgramSelector: View {
                 
                 // Level filter
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: SBSLayout.paddingSmall) {
+                    HStack(spacing: SBSLayout.space2) {
                         FilterChip(
                             title: "All Levels",
                             isSelected: selectedLevelFilter == nil,
@@ -105,28 +105,28 @@ struct ProgramSelector: View {
                     .padding(.horizontal)
                 }
             }
-            .padding(.vertical, SBSLayout.paddingMedium)
-            .background(SBSColors.backgroundFallback)
+            .padding(.vertical, SBSLayout.space4)
+            .background(Color.bg)
             
             // Program list
             ScrollView {
-                LazyVStack(spacing: SBSLayout.paddingMedium) {
+                LazyVStack(spacing: SBSLayout.space4) {
 
                     // Quiz prompt (only show if no programs are selected)
                     QuizPromptCard(onTakeQuiz: onTakeQuiz)
                         .padding(.horizontal)
-                        .padding(.top, SBSLayout.paddingMedium)
+                        .padding(.top, SBSLayout.space4)
                     
                     // Disclaimer note
-                    HStack(spacing: SBSLayout.paddingSmall) {
+                    HStack(spacing: SBSLayout.space2) {
                         Image(systemName: "info.circle")
                             .font(.system(size: 12))
                         Text("All programs are based on popular training programs. Some names are changed.")
-                            .font(SBSFonts.legacyCaption())
+                            .font(SBSFonts.caption())
                     }
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                    .foregroundStyle(Color.inkSecondary)
                     .padding(.horizontal)
-                    .padding(.vertical, SBSLayout.paddingSmall)
+                    .padding(.vertical, SBSLayout.space2)
 
                     // Custom templates (if any)
                     if !appState.userData.customTemplates.isEmpty {
@@ -157,34 +157,34 @@ struct ProgramSelector: View {
                     
                     // Empty state
                     if filteredPrograms.isEmpty {
-                        VStack(spacing: SBSLayout.paddingMedium) {
+                        VStack(spacing: SBSLayout.space4) {
                             Image(systemName: "magnifyingglass")
                                 .font(.system(size: 40))
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                                .foregroundStyle(Color.inkSecondary)
                             
                             Text("No programs matched your filters. More coming soon")
-                                .font(SBSFonts.legacyBody())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.body())
+                                .foregroundStyle(Color.inkSecondary)
                                 .multilineTextAlignment(.center)
                             
                             Button("Clear Filters") {
                                 selectedDaysFilter = nil
                                 selectedLevelFilter = nil
                             }
-                            .font(SBSFonts.bodyBold())
+                            .font(SBSFonts.bodyStrong())
                             .foregroundStyle(Color.orangeText)
                         }
-                        .padding(.vertical, SBSLayout.paddingXLarge)
+                        .padding(.vertical, SBSLayout.space8)
                     }
                     
                     // Template Builder prompt
                     TemplateBuilderPromptCard(onBuildTemplate: onBuildTemplate)
-                        .padding(.top, SBSLayout.paddingSmall)
+                        .padding(.top, SBSLayout.space2)
                     
                     
                 }
                 .padding(.horizontal)
-                .padding(.vertical, SBSLayout.paddingMedium)
+                .padding(.vertical, SBSLayout.space4)
             }
         }
         .sheet(isPresented: $showingPaywall) {
@@ -242,16 +242,16 @@ struct ProgramFamilyGroup: View {
             // Family header
             if programs.count > 1 {
                 Button(action: onToggle) {
-                    HStack(spacing: SBSLayout.paddingMedium) {
+                    HStack(spacing: SBSLayout.space4) {
                         // Family name
                         VStack(alignment: .leading, spacing: 2) {
                             Text(family)
-                                .font(SBSFonts.title3())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
+                                .font(SBSFonts.heading())
+                                .foregroundStyle(Color.ink)
                             
                             Text("\(programs.count) variants")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
                         }
                         
                         Spacer()
@@ -259,12 +259,12 @@ struct ProgramFamilyGroup: View {
                         // Chevron
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                            .foregroundStyle(Color.inkTertiary)
                     }
                     .padding()
                     .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                            .fill(hasSelectedProgram ? familyColor.opacity(0.08) : SBSColors.surfaceFallback)
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                            .fill(hasSelectedProgram ? familyColor.opacity(0.08) : Color.surface)
                     )
                 }
                 .buttonStyle(.plain)
@@ -272,7 +272,7 @@ struct ProgramFamilyGroup: View {
             
             // Programs
             if isExpanded || programs.count == 1 {
-                VStack(spacing: SBSLayout.paddingSmall) {
+                VStack(spacing: SBSLayout.space2) {
                     ForEach(programs) { program in
                         let meta = metadata[program.id]
                         let isLocked = isProgramLocked(program.id)
@@ -294,8 +294,8 @@ struct ProgramFamilyGroup: View {
                         )
                     }
                 }
-                .padding(.top, programs.count > 1 ? SBSLayout.paddingSmall : 0)
-                .padding(.leading, programs.count > 1 ? SBSLayout.paddingLarge : 0)
+                .padding(.top, programs.count > 1 ? SBSLayout.space2 : 0)
+                .padding(.leading, programs.count > 1 ? SBSLayout.space6 : 0)
             }
         }
     }
@@ -318,14 +318,14 @@ struct ProgramCard: View {
         HStack(spacing: 0) {
             // Main card content (tappable for selection)
             Button(action: onSelect) {
-                VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                VStack(alignment: .leading, spacing: SBSLayout.space2) {
                     // Header row
                     HStack(alignment: .top) {
                         VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: SBSLayout.paddingSmall) {
+                            HStack(spacing: SBSLayout.space2) {
                                 Text(program.displayName)
-                                    .font(SBSFonts.bodyBold())
-                                    .foregroundStyle(isLocked ? SBSColors.textTertiaryFallback : SBSColors.textPrimaryFallback)
+                                    .font(SBSFonts.bodyStrong())
+                                    .foregroundStyle(isLocked ? Color.inkSecondary : Color.ink)
                                 
                                 if isLocked {
                                     PremiumBadge(isCompact: true)
@@ -341,31 +341,31 @@ struct ProgramCard: View {
                             }
 
                             Text(meta?.shortDescription ?? program.programDescription)
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
                                 .lineLimit(2)
                         }
                         
-                        Spacer(minLength: SBSLayout.paddingMedium)
+                        Spacer(minLength: SBSLayout.space4)
                         
                         // Selection indicator
                         if isLocked {
                             Image(systemName: "lock.fill")
                                 .font(.system(size: 16))
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                                .foregroundStyle(Color.inkSecondary)
                         } else if isSelected {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 24))
                                 .foregroundStyle(Color.orangeText)
                         } else {
                             Circle()
-                                .strokeBorder(SBSColors.textTertiaryFallback, lineWidth: 2)
+                                .strokeBorder(Color.inkTertiary, lineWidth: 2)
                                 .frame(width: 24, height: 24)
                         }
                     }
                     
                     // Badges row with info button
-                    HStack(spacing: SBSLayout.paddingSmall) {
+                    HStack(spacing: SBSLayout.space2) {
                         // Days badge
                         ProgramBadge(
                             icon: "calendar",
@@ -404,10 +404,10 @@ struct ProgramCard: View {
                 }
                 .padding()
                 .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                        .fill(SBSColors.surfaceFallback)
+                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                        .fill(Color.surface)
                         .overlay(
-                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                                 .strokeBorder(
                                     isSelected && !isLocked ? SBSColors.accentFallback : Color.clear,
                                     lineWidth: 2
@@ -505,38 +505,38 @@ struct CustomTemplatesGroup: View {
         VStack(spacing: 0) {
             // Header
             Button(action: onToggle) {
-                HStack(spacing: SBSLayout.paddingMedium) {
+                HStack(spacing: SBSLayout.space4) {
                     Image(systemName: "square.stack.3d.up.fill")
                         .font(.system(size: 20))
                         .foregroundStyle(Color.orangeText)
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text("My Templates")
-                            .font(SBSFonts.title3())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.heading())
+                            .foregroundStyle(Color.ink)
                         
                         Text("\(templates.count) custom")
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
                     }
                     
                     Spacer()
                     
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .foregroundStyle(Color.inkTertiary)
                 }
                 .padding()
                 .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                        .fill(hasSelectedTemplate ? SBSColors.accentFallback.opacity(0.08) : SBSColors.surfaceFallback)
+                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                        .fill(hasSelectedTemplate ? Color.orangeSoft : Color.surface)
                 )
             }
             .buttonStyle(.plain)
             
             // Templates
             if isExpanded {
-                VStack(spacing: SBSLayout.paddingSmall) {
+                VStack(spacing: SBSLayout.space2) {
                     ForEach(templates) { template in
                         let programId = UserData.programId(for: template.id)
                         CustomTemplateRow(
@@ -547,8 +547,8 @@ struct CustomTemplatesGroup: View {
                         )
                     }
                 }
-                .padding(.top, SBSLayout.paddingSmall)
-                .padding(.leading, SBSLayout.paddingLarge)
+                .padding(.top, SBSLayout.space2)
+                .padding(.leading, SBSLayout.space6)
             }
         }
     }
@@ -564,13 +564,13 @@ struct CustomTemplateRow: View {
     
     var body: some View {
         Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+            VStack(alignment: .leading, spacing: SBSLayout.space2) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: SBSLayout.paddingSmall) {
+                        HStack(spacing: SBSLayout.space2) {
                             Text(template.name)
-                                .font(SBSFonts.bodyBold())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
+                                .font(SBSFonts.bodyStrong())
+                                .foregroundStyle(Color.ink)
                             
                             Text("CUSTOM")
                                 .font(.system(size: 9, weight: .bold))
@@ -586,8 +586,8 @@ struct CustomTemplateRow: View {
 
                         if !template.templateDescription.isEmpty {
                             Text(template.templateDescription)
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
                                 .lineLimit(2)
                         }
                     }
@@ -600,13 +600,13 @@ struct CustomTemplateRow: View {
                             .foregroundStyle(Color.orangeText)
                     } else {
                         Circle()
-                            .strokeBorder(SBSColors.textTertiaryFallback, lineWidth: 2)
+                            .strokeBorder(Color.inkTertiary, lineWidth: 2)
                             .frame(width: 24, height: 24)
                     }
                 }
                 
                 // Badges row with info button
-                HStack(spacing: SBSLayout.paddingSmall) {
+                HStack(spacing: SBSLayout.space2) {
                     ProgramBadge(
                         icon: "calendar",
                         label: "\(template.daysPerWeek) Days",
@@ -640,10 +640,10 @@ struct CustomTemplateRow: View {
             }
             .padding()
             .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                    .fill(SBSColors.surfaceFallback)
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .fill(Color.surface)
                     .overlay(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                             .strokeBorder(isSelected ? SBSColors.accentFallback : Color.clear, lineWidth: 2)
                     )
             )
@@ -662,33 +662,33 @@ struct QuizPromptCard: View {
     
     var body: some View {
         Button(action: onTakeQuiz) {
-            HStack(spacing: SBSLayout.paddingMedium) {
+            HStack(spacing: SBSLayout.space4) {
                 Image(systemName: "sparkles")
                     .font(.system(size: 24))
                     .foregroundStyle(Color.orangeText)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Not sure which to pick?")
-                        .font(SBSFonts.bodyBold())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.ink)
                     
                     Text("Take the quiz to find the best program for you")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                 }
                 
                 Spacer()
                 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                    .foregroundStyle(Color.inkTertiary)
             }
             .padding()
             .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                    .fill(SBSColors.accentFallback.opacity(0.08))
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .fill(Color.orangeSoft)
                     .overlay(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                             .strokeBorder(SBSColors.accentFallback.opacity(0.2), lineWidth: 1)
                     )
             )
@@ -704,33 +704,33 @@ struct TemplateBuilderPromptCard: View {
     
     var body: some View {
         Button(action: onBuildTemplate) {
-            HStack(spacing: SBSLayout.paddingMedium) {
+            HStack(spacing: SBSLayout.space4) {
                 Image(systemName: "hammer.fill")
                     .font(.system(size: 24))
                     .foregroundStyle(Color.orangeText)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Not seeing what you want?")
-                        .font(SBSFonts.bodyBold())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.ink)
                     
                     Text("Build your own in the Template Builder")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                 }
                 
                 Spacer()
                 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                    .foregroundStyle(Color.inkTertiary)
             }
             .padding()
             .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                    .fill(SBSColors.accentFallback.opacity(0.08))
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .fill(Color.orangeSoft)
                     .overlay(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                             .strokeBorder(SBSColors.accentFallback.opacity(0.2), lineWidth: 1)
                     )
             )

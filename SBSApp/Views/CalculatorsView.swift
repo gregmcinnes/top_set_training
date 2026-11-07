@@ -8,9 +8,9 @@ struct CalculatorsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: SBSLayout.sectionSpacing) {
+                VStack(spacing: SBSLayout.space6) {
                     // Calculator cards
-                    VStack(spacing: SBSLayout.cardSpacing) {
+                    VStack(spacing: SBSLayout.space3) {
                         NavigationLink {
                             OneRepMaxCalculatorView(useMetric: appState.settings.useMetric)
                         } label: {
@@ -99,10 +99,10 @@ struct CalculatorCard: View {
     let description: String
     
     var body: some View {
-        HStack(spacing: SBSLayout.paddingMedium) {
+        HStack(spacing: SBSLayout.space4) {
             // Icon
             ZStack {
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                     .fill(iconColor.opacity(0.15))
                     .frame(width: 50, height: 50)
                 
@@ -114,12 +114,12 @@ struct CalculatorCard: View {
             // Text
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.ink)
                 
                 Text(description)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
             
             Spacer()
@@ -127,10 +127,10 @@ struct CalculatorCard: View {
             // Chevron
             Image(systemName: "chevron.right")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .foregroundStyle(Color.inkTertiary)
         }
         .padding()
-        .sbsCard()
+        .card()
     }
 }
 
@@ -143,10 +143,10 @@ struct PremiumCalculatorCard: View {
     let description: String
     
     var body: some View {
-        HStack(spacing: SBSLayout.paddingMedium) {
+        HStack(spacing: SBSLayout.space4) {
             // Icon with lock overlay
             ZStack {
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                     .fill(iconColor.opacity(0.1))
                     .frame(width: 50, height: 50)
                 
@@ -167,8 +167,8 @@ struct PremiumCalculatorCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(title)
-                        .font(SBSFonts.bodyBold())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.ink)
                     
                     // Premium badge
                     Text("PRO")
@@ -189,8 +189,8 @@ struct PremiumCalculatorCard: View {
                 }
                 
                 Text(description)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
             
             Spacer()
@@ -202,10 +202,10 @@ struct PremiumCalculatorCard: View {
         }
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                .fill(SBSColors.surfaceFallback)
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                .fill(Color.surface)
                 .overlay(
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                         .stroke(
                             LinearGradient(
                                 colors: [SBSColors.accentFallback.opacity(0.3), SBSColors.accentSecondaryFallback.opacity(0.3)],
@@ -280,7 +280,7 @@ struct OneRepMaxCalculatorView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: SBSLayout.sectionSpacing) {
+            VStack(spacing: SBSLayout.space6) {
                 // Input section
                 inputSection
                 
@@ -293,12 +293,12 @@ struct OneRepMaxCalculatorView: View {
                         focusedField = nil
                     } label: {
                         Text("Calculate")
-                            .font(SBSFonts.legacyButton())
+                            .font(SBSFonts.bodyStrong())
                             .foregroundStyle(Color.orangeInk)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, SBSLayout.paddingMedium)
+                            .padding(.vertical, SBSLayout.space4)
                             .background(SBSColors.accentFallback)
-                            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
+                            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
                     }
                     .padding(.horizontal)
                 }
@@ -328,105 +328,105 @@ struct OneRepMaxCalculatorView: View {
     }
     
     private var inputSection: some View {
-        VStack(spacing: SBSLayout.paddingMedium) {
+        VStack(spacing: SBSLayout.space4) {
             HStack {
                 Text("Enter Your Lift")
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(Color.ink)
                 Spacer()
             }
             
-            HStack(spacing: SBSLayout.paddingMedium) {
+            HStack(spacing: SBSLayout.space4) {
                 // Weight input
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Weight (\(unit))")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                     
                     TextField("0", text: $weight)
-                        .font(SBSFonts.weightLarge())
+                        .font(SBSFonts.numberLarge())
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.center)
                         .focused($focusedField, equals: .weight)
                         .padding()
-                        .background(SBSColors.surfaceFallback)
-                        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall))
+                        .background(Color.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
                 }
                 
                 Text("×")
-                    .font(SBSFonts.legacyTitle())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                    .font(SBSFonts.title())
+                    .foregroundStyle(Color.inkSecondary)
                 
                 // Reps input
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Reps")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                     
                     TextField("0", text: $reps)
-                        .font(SBSFonts.weightLarge())
+                        .font(SBSFonts.numberLarge())
                         .keyboardType(.numberPad)
                         .multilineTextAlignment(.center)
                         .focused($focusedField, equals: .reps)
                         .padding()
-                        .background(SBSColors.surfaceFallback)
-                        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall))
+                        .background(Color.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
                 }
             }
         }
         .padding()
-        .sbsCard()
+        .card()
         .padding(.horizontal)
     }
     
     private var resultsSection: some View {
-        VStack(spacing: SBSLayout.paddingMedium) {
+        VStack(spacing: SBSLayout.space4) {
             // Average estimate (highlighted)
             if let avg = averageE1RM {
                 VStack(spacing: 8) {
                     Text("Estimated 1RM")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                     
                     Text(formatWeight(avg))
                         .font(.system(size: 48, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.orangeText)
                     
                     Text("Average of all formulas")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, SBSLayout.paddingLarge)
+                .padding(.vertical, SBSLayout.space6)
                 .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                        .fill(SBSColors.accentFallback.opacity(0.1))
+                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                        .fill(Color.orangeSoft)
                 )
             }
             
             // Individual formula results
-            VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+            VStack(alignment: .leading, spacing: SBSLayout.space2) {
                 Text("By Formula")
-                    .font(SBSFonts.captionBold())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption().weight(.semibold))
+                    .foregroundStyle(Color.inkSecondary)
                 
                 ForEach(results, id: \.name) { result in
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(result.name)
-                                .font(SBSFonts.bodyBold())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
+                                .font(SBSFonts.bodyStrong())
+                                .foregroundStyle(Color.ink)
                             
                             Text(result.description)
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
                         }
                         
                         Spacer()
                         
                         Text(formatWeight(result.value))
-                            .font(SBSFonts.legacyNumber())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.number())
+                            .foregroundStyle(Color.ink)
                     }
                     .padding(.vertical, 8)
                     
@@ -436,8 +436,8 @@ struct OneRepMaxCalculatorView: View {
                 }
             }
             .padding()
-            .background(SBSColors.surfaceFallback)
-            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
+            .background(Color.surface)
+            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
             
             // Training percentages
             if let avg = averageE1RM {
@@ -449,55 +449,55 @@ struct OneRepMaxCalculatorView: View {
     }
     
     private func trainingPercentagesSection(e1rm: Double) -> some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
             Text("Training Percentages")
-                .font(SBSFonts.captionBold())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
+                .font(SBSFonts.caption().weight(.semibold))
+                .foregroundStyle(Color.inkSecondary)
             
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible()),
                 GridItem(.flexible())
-            ], spacing: SBSLayout.paddingSmall) {
+            ], spacing: SBSLayout.space2) {
                 ForEach([95, 90, 85, 80, 75, 70, 65, 60], id: \.self) { percentage in
                     VStack(spacing: 4) {
                         Text("\(percentage)%")
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
                         
                         Text(formatWeight(e1rm * Double(percentage) / 100.0))
-                            .font(SBSFonts.bodyBold())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.bodyStrong())
+                            .foregroundStyle(Color.ink)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
-                    .background(SBSColors.surfaceElevatedFallback)
-                    .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall))
+                    .background(Color.surfaceRaised)
+                    .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
                 }
             }
         }
         .padding()
-        .background(SBSColors.surfaceFallback)
-        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
+        .background(Color.surface)
+        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
     }
     
     private var infoSection: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
             HStack {
                 Image(systemName: "info.circle.fill")
                     .foregroundStyle(SBSColors.accentSecondaryFallback)
                 Text("How It Works")
-                    .font(SBSFonts.captionBold())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption().weight(.semibold))
+                    .foregroundStyle(Color.inkSecondary)
             }
             
             Text("Enter a weight and the number of reps you completed. The calculator uses multiple formulas to estimate your one-rep max. Results are most accurate for 1-10 reps; higher rep ranges become less reliable.")
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
         }
         .padding()
-        .background(SBSColors.surfaceFallback)
-        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
+        .background(Color.surface)
+        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
         .padding(.horizontal)
     }
     
@@ -572,7 +572,7 @@ struct RPECalculatorView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: SBSLayout.sectionSpacing) {
+            VStack(spacing: SBSLayout.space6) {
                 // E1RM input
                 e1rmInputSection
                 
@@ -601,43 +601,43 @@ struct RPECalculatorView: View {
     }
     
     private var e1rmInputSection: some View {
-        VStack(spacing: SBSLayout.paddingSmall) {
+        VStack(spacing: SBSLayout.space2) {
             HStack {
                 Text("Your Estimated 1RM")
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(Color.ink)
                 Spacer()
             }
             
             HStack {
                 TextField("Enter E1RM", text: $e1rm)
-                    .font(SBSFonts.weightLarge())
+                    .font(SBSFonts.numberLarge())
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.center)
                     .focused($isE1RMFocused)
                 
                 Text(unit)
-                    .font(SBSFonts.title2())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(Color.inkSecondary)
             }
             .padding()
-            .background(SBSColors.surfaceFallback)
-            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
+            .background(Color.surface)
+            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
             
             Text("Use the 1RM Calculator if you don't know your estimated max")
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
         }
         .padding()
-        .sbsCard()
+        .card()
         .padding(.horizontal)
     }
     
     private var repsSection: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
             Text("Target Reps: \(targetReps)")
-                .font(SBSFonts.bodyBold())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .font(SBSFonts.bodyStrong())
+                .foregroundStyle(Color.ink)
             
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -648,35 +648,35 @@ struct RPECalculatorView: View {
                             }
                         } label: {
                             Text("\(rep)")
-                                .font(SBSFonts.bodyBold())
-                                .foregroundStyle(targetReps == rep ? Color.orangeInk : SBSColors.textPrimaryFallback)
+                                .font(SBSFonts.bodyStrong())
+                                .foregroundStyle(targetReps == rep ? Color.orangeInk : Color.ink)
                                 .frame(width: 44, height: 44)
                                 .background(
-                                    targetReps == rep ? SBSColors.accentFallback : SBSColors.surfaceFallback
+                                    targetReps == rep ? SBSColors.accentFallback : Color.surface
                                 )
-                                .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall))
+                                .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
                         }
                     }
                 }
             }
         }
         .padding()
-        .sbsCard()
+        .card()
         .padding(.horizontal)
     }
     
     private var rpeSection: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
             HStack {
                 Text("Target RPE: \(String(format: "%.1f", selectedRPE))")
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.ink)
                 
                 Spacer()
                 
                 Text(rpeDescription(selectedRPE))
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
             
             HStack(spacing: 8) {
@@ -687,28 +687,28 @@ struct RPECalculatorView: View {
                         }
                     } label: {
                         Text(String(format: "%.1f", rpe))
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(selectedRPE == rpe ? .white : SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(selectedRPE == rpe ? .white : Color.ink)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                             .background(
-                                selectedRPE == rpe ? rpeColor(rpe) : SBSColors.surfaceFallback
+                                selectedRPE == rpe ? rpeColor(rpe) : Color.surface
                             )
-                            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall))
+                            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
                     }
                 }
             }
         }
         .padding()
-        .sbsCard()
+        .card()
         .padding(.horizontal)
     }
     
     private func resultSection(weight: Double) -> some View {
         VStack(spacing: 8) {
             Text("Target Weight")
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
             
             Text(formatWeight(weight))
                 .font(.system(size: 48, weight: .bold, design: .rounded))
@@ -716,35 +716,35 @@ struct RPECalculatorView: View {
             
             let percentage = percentageFor(reps: targetReps, rpe: selectedRPE)
             Text("\(Int((percentage * 100).rounded()))% of E1RM for \(targetReps) reps @ RPE \(String(format: "%.1f", selectedRPE))")
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, SBSLayout.paddingLarge)
+        .padding(.vertical, SBSLayout.space6)
         .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                .fill(SBSColors.accentFallback.opacity(0.1))
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                .fill(Color.orangeSoft)
         )
         .padding(.horizontal)
     }
     
     private var rpeTableSection: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
             Text("RPE Reference")
-                .font(SBSFonts.captionBold())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
+                .font(SBSFonts.caption().weight(.semibold))
+                .foregroundStyle(Color.inkSecondary)
             
             VStack(spacing: 8) {
                 ForEach([10.0, 9.5, 9.0, 8.5, 8.0, 7.5, 7.0, 6.5], id: \.self) { rpe in
                     HStack {
                         Text(String(format: "%.1f", rpe))
-                            .font(SBSFonts.bodyBold())
+                            .font(SBSFonts.bodyStrong())
                             .foregroundStyle(rpeColor(rpe))
                             .frame(width: 40)
                         
                         Text(rpeFullDescription(rpe))
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
                         
                         Spacer()
                     }
@@ -753,8 +753,8 @@ struct RPECalculatorView: View {
             }
         }
         .padding()
-        .background(SBSColors.surfaceFallback)
-        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
+        .background(Color.surface)
+        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
         .padding(.horizontal)
     }
     
@@ -842,7 +842,7 @@ struct StandalonePlateCalculatorView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: SBSLayout.sectionSpacing) {
+            VStack(spacing: SBSLayout.space6) {
                 // Weight input
                 weightInputSection
                 
@@ -872,39 +872,39 @@ struct StandalonePlateCalculatorView: View {
     }
     
     private var weightInputSection: some View {
-        VStack(spacing: SBSLayout.paddingSmall) {
+        VStack(spacing: SBSLayout.space2) {
             HStack {
                 Text("Total Weight")
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(Color.ink)
                 Spacer()
             }
             
             HStack {
                 TextField("0", text: $targetWeight)
-                    .font(SBSFonts.weightLarge())
+                    .font(SBSFonts.numberLarge())
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.center)
                     .focused($isWeightFocused)
                 
                 Text(unit)
-                    .font(SBSFonts.title2())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(Color.inkSecondary)
             }
             .padding()
-            .background(SBSColors.surfaceFallback)
-            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
+            .background(Color.surface)
+            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
         }
         .padding()
-        .sbsCard()
+        .card()
         .padding(.horizontal)
     }
     
     private var barWeightSection: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
             Text("Bar Weight: \(formatWeightFromLb(barWeight))")
-                .font(SBSFonts.bodyBold())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .font(SBSFonts.bodyStrong())
+                .foregroundStyle(Color.ink)
 
             HStack(spacing: 8) {
                 ForEach(commonBarWeights, id: \.self) { weight in
@@ -915,14 +915,14 @@ struct StandalonePlateCalculatorView: View {
                         }
                     } label: {
                         Text(formatWeightShortFromLb(weight))
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(isSelected ? Color.orangeInk : SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(isSelected ? Color.orangeInk : Color.ink)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 10)
                             .background(
-                                isSelected ? SBSColors.accentFallback : SBSColors.surfaceFallback
+                                isSelected ? SBSColors.accentFallback : Color.surface
                             )
-                            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall))
+                            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
                     }
                 }
                 
@@ -930,12 +930,12 @@ struct StandalonePlateCalculatorView: View {
             }
         }
         .padding()
-        .sbsCard()
+        .card()
         .padding(.horizontal)
     }
     
     private var barbellSection: some View {
-        VStack(spacing: SBSLayout.paddingMedium) {
+        VStack(spacing: SBSLayout.space4) {
             BarbellView(
                 weight: targetWeightLb,
                 useMetric: useMetric,
@@ -952,31 +952,31 @@ struct StandalonePlateCalculatorView: View {
                 PlateBreakdownView(result: result, useMetric: useMetric)
             } else if targetWeightLb <= barWeight {
                 Text("Bar only - no plates needed")
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.body())
+                    .foregroundStyle(Color.inkSecondary)
             }
 
             if !result.isExact && result.remainder > 0 {
                 HStack(spacing: 6) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(SBSColors.warning)
+                        .foregroundStyle(Color.warning)
                     Text("Unable to make exact weight. Missing \(formatWeightFromLb(result.remainder * 2)) total.")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.warning)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.warning)
                 }
                 .padding(.horizontal)
             }
         }
         .padding()
-        .sbsCard()
+        .card()
         .padding(.horizontal)
     }
     
     private var quickWeightsSection: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
             Text("Quick Select")
-                .font(SBSFonts.captionBold())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
+                .font(SBSFonts.caption().weight(.semibold))
+                .foregroundStyle(Color.inkSecondary)
             
             let quickWeights: [Double] = useMetric
                 ? [60, 80, 100, 120, 140, 160, 180, 200]
@@ -994,19 +994,19 @@ struct StandalonePlateCalculatorView: View {
                         isWeightFocused = false
                     } label: {
                         Text(formatWeightShort(weight))
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.ink)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
-                            .background(SBSColors.surfaceElevatedFallback)
-                            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall))
+                            .background(Color.surfaceRaised)
+                            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
                     }
                 }
             }
         }
         .padding()
-        .background(SBSColors.surfaceFallback)
-        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
+        .background(Color.surface)
+        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
         .padding(.horizontal)
     }
     
@@ -1050,8 +1050,8 @@ struct PlateBreakdownView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Load per side:")
-                .font(SBSFonts.captionBold())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
+                .font(SBSFonts.caption().weight(.semibold))
+                .foregroundStyle(Color.inkSecondary)
             
             // Group plates by weight
             let grouped = Dictionary(grouping: result.platesPerSide) { $0.weight }
@@ -1063,8 +1063,8 @@ struct PlateBreakdownView: View {
                         HStack(spacing: 4) {
                             if plates.count > 1 {
                                 Text("\(plates.count)×")
-                                    .font(SBSFonts.legacyCaption())
-                                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                                    .font(SBSFonts.caption())
+                                    .foregroundStyle(Color.inkSecondary)
                             }
                             
                             RoundedRectangle(cornerRadius: 2)
@@ -1072,8 +1072,8 @@ struct PlateBreakdownView: View {
                                 .frame(width: 12, height: 20)
                             
                             Text(plate.displayWeight(useMetric: useMetric))
-                                .font(SBSFonts.captionBold())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
+                                .font(SBSFonts.caption().weight(.semibold))
+                                .foregroundStyle(Color.ink)
                         }
                     }
                 }
@@ -1117,7 +1117,7 @@ struct TrainingMaxCalculatorView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: SBSLayout.sectionSpacing) {
+            VStack(spacing: SBSLayout.space6) {
                 // Actual max input
                 actualMaxSection
                 
@@ -1148,51 +1148,51 @@ struct TrainingMaxCalculatorView: View {
     }
     
     private var actualMaxSection: some View {
-        VStack(spacing: SBSLayout.paddingSmall) {
+        VStack(spacing: SBSLayout.space2) {
             HStack {
                 Text("Your Actual 1RM")
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(Color.ink)
                 Spacer()
             }
             
             HStack {
                 TextField("Enter 1RM", text: $actualMax)
-                    .font(SBSFonts.weightLarge())
+                    .font(SBSFonts.numberLarge())
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.center)
                     .focused($isMaxFocused)
                 
                 Text(unit)
-                    .font(SBSFonts.title2())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(Color.inkSecondary)
             }
             .padding()
-            .background(SBSColors.surfaceFallback)
-            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
+            .background(Color.surface)
+            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
             
             Text("Your tested or estimated one-rep max")
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
         }
         .padding()
-        .sbsCard()
+        .card()
         .padding(.horizontal)
     }
     
     private var tmPercentageSection: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
             HStack {
                 Text("TM Percentage: \(String(format: "%g", tmPercentage))%")
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.ink)
                 
                 Spacer()
             }
             
             // Slider
             Slider(value: $tmPercentage, in: 80...100, step: 2.5)
-                .tint(SBSColors.accentFallback)
+                .tint(Color.orangeText)
             
             // Quick select buttons
             HStack(spacing: 8) {
@@ -1203,14 +1203,14 @@ struct TrainingMaxCalculatorView: View {
                         }
                     } label: {
                         Text("\(String(format: "%g", preset.value))%")
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(tmPercentage == preset.value ? Color.orangeInk : SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(tmPercentage == preset.value ? Color.orangeInk : Color.ink)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                             .background(
-                                tmPercentage == preset.value ? SBSColors.accentFallback : SBSColors.surfaceFallback
+                                tmPercentage == preset.value ? SBSColors.accentFallback : Color.surface
                             )
-                            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall))
+                            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
                     }
                 }
             }
@@ -1218,21 +1218,21 @@ struct TrainingMaxCalculatorView: View {
             // Show which program uses this percentage
             if let matchingPreset = tmPercentages.first(where: { $0.value == tmPercentage }) {
                 Text(matchingPreset.program)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
                     .padding(.top, 4)
             }
         }
         .padding()
-        .sbsCard()
+        .card()
         .padding(.horizontal)
     }
     
     private func trainingMaxResultSection(tm: Double) -> some View {
         VStack(spacing: 8) {
             Text("Training Max")
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
             
             Text(formatWeight(tm))
                 .font(.system(size: 48, weight: .bold, design: .rounded))
@@ -1240,24 +1240,24 @@ struct TrainingMaxCalculatorView: View {
             
             if let max = actualMaxValue {
                 Text("\(String(format: "%g", tmPercentage))% of \(formatWeight(max))")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, SBSLayout.paddingLarge)
+        .padding(.vertical, SBSLayout.space6)
         .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                .fill(SBSColors.accentFallback.opacity(0.1))
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                .fill(Color.orangeSoft)
         )
         .padding(.horizontal)
     }
     
     private func percentageChartSection(tm: Double) -> some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
             Text("Percentage Chart (of TM)")
-                .font(SBSFonts.captionBold())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
+                .font(SBSFonts.caption().weight(.semibold))
+                .foregroundStyle(Color.inkSecondary)
             
             // Two-column layout
             LazyVGrid(columns: [
@@ -1269,32 +1269,32 @@ struct TrainingMaxCalculatorView: View {
                     
                     HStack {
                         Text("\(percentage)%")
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
                             .frame(width: 40, alignment: .leading)
                         
                         Spacer()
                         
                         Text(formatWeight(weight))
-                            .font(SBSFonts.bodyBold())
-                            .foregroundStyle(percentage == 100 ? Color.orangeText : SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.bodyStrong())
+                            .foregroundStyle(percentage == 100 ? Color.orangeText : Color.ink)
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
                     .background(
                         percentage == 100 
-                            ? SBSColors.accentFallback.opacity(0.1) 
-                            : SBSColors.surfaceElevatedFallback
+                            ? Color.orangeSoft 
+                            : Color.surfaceRaised
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall))
+                    .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
                 }
             }
             
             // Common rep schemes
             VStack(alignment: .leading, spacing: 8) {
                 Text("Common Programming")
-                    .font(SBSFonts.captionBold())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption().weight(.semibold))
+                    .foregroundStyle(Color.inkSecondary)
                     .padding(.top, 8)
                 
                 programmingRow(name: "5/3/1 Week 1 (5s)", percentage: 85, tm: tm)
@@ -1304,8 +1304,8 @@ struct TrainingMaxCalculatorView: View {
             }
         }
         .padding()
-        .background(SBSColors.surfaceFallback)
-        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
+        .background(Color.surface)
+        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
         .padding(.horizontal)
     }
     
@@ -1314,40 +1314,40 @@ struct TrainingMaxCalculatorView: View {
         
         return HStack {
             Text(name)
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
             
             Spacer()
             
             Text("\(percentage)%")
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
             
             Text(formatWeight(weight))
-                .font(SBSFonts.captionBold())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .font(SBSFonts.caption().weight(.semibold))
+                .foregroundStyle(Color.ink)
                 .frame(width: 70, alignment: .trailing)
         }
         .padding(.vertical, 4)
     }
     
     private var infoSection: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
             HStack {
                 Image(systemName: "info.circle.fill")
                     .foregroundStyle(SBSColors.accentSecondaryFallback)
                 Text("What is a Training Max?")
-                    .font(SBSFonts.captionBold())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption().weight(.semibold))
+                    .foregroundStyle(Color.inkSecondary)
             }
             
             Text("A Training Max (TM) is a percentage of your true 1RM used for programming. Using a TM (typically 85-90%) instead of your actual max allows for better bar speed, reduced injury risk, and room to progress over time. Most percentage-based programs calculate weights from your TM, not your true max.")
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
         }
         .padding()
-        .background(SBSColors.surfaceFallback)
-        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
+        .background(Color.surface)
+        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
         .padding(.horizontal)
     }
     
@@ -1750,7 +1750,7 @@ struct StrengthScoresView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: SBSLayout.sectionSpacing) {
+            VStack(spacing: SBSLayout.space6) {
                 // Input mode picker
                 if hasPRData {
                     inputModePicker
@@ -1774,12 +1774,12 @@ struct StrengthScoresView: View {
                         focusedField = nil
                     } label: {
                         Text("Calculate Scores")
-                            .font(SBSFonts.legacyButton())
+                            .font(SBSFonts.bodyStrong())
                             .foregroundStyle(Color.orangeInk)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, SBSLayout.paddingMedium)
+                            .padding(.vertical, SBSLayout.space4)
                             .background(SBSColors.accentFallback)
-                            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
+                            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
                     }
                     .padding(.horizontal)
                 }
@@ -1826,11 +1826,11 @@ struct StrengthScoresView: View {
     }
     
     private var inputModePicker: some View {
-        VStack(spacing: SBSLayout.paddingSmall) {
+        VStack(spacing: SBSLayout.space2) {
             HStack {
                 Text("Input Source")
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(Color.ink)
                 Spacer()
             }
             
@@ -1844,15 +1844,15 @@ struct StrengthScoresView: View {
                 .pickerStyle(.segmented)
             } else {
                 // Free users see custom selected with locked "From PRs" option
-                HStack(spacing: SBSLayout.paddingSmall) {
+                HStack(spacing: SBSLayout.space2) {
                     // Custom button (always selected for free users)
                     Text("Custom")
-                        .font(SBSFonts.captionBold())
+                        .font(SBSFonts.caption().weight(.semibold))
                         .foregroundStyle(Color.orangeInk)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
                         .background(
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                                 .fill(SBSColors.accentFallback)
                         )
                     
@@ -1864,36 +1864,36 @@ struct StrengthScoresView: View {
                             Image(systemName: "lock.fill")
                                 .font(.system(size: 10))
                             Text("From PRs")
-                                .font(SBSFonts.captionBold())
+                                .font(SBSFonts.caption().weight(.semibold))
                             PremiumBadge(isCompact: true)
                         }
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .foregroundStyle(Color.inkSecondary)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                         .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(SBSColors.surfaceFallback)
+                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                                .fill(Color.surface)
                         )
                     }
                     .buttonStyle(.plain)
                 }
                 
                 Text("Upgrade to auto-import your personal records")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
         }
         .padding()
-        .sbsCard()
+        .card()
         .padding(.horizontal)
     }
     
     private var genderPicker: some View {
-        VStack(spacing: SBSLayout.paddingSmall) {
+        VStack(spacing: SBSLayout.space2) {
             HStack {
                 Text("Category")
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(Color.ink)
                 Spacer()
             }
             
@@ -1905,59 +1905,59 @@ struct StrengthScoresView: View {
             .pickerStyle(.segmented)
             
             Text("Competition category for formula coefficients")
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
         }
         .padding()
-        .sbsCard()
+        .card()
         .padding(.horizontal)
     }
     
     private var bodyweightSection: some View {
-        VStack(spacing: SBSLayout.paddingSmall) {
+        VStack(spacing: SBSLayout.space2) {
             HStack {
                 Text("Bodyweight")
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(Color.ink)
                 Spacer()
             }
             
             HStack {
                 TextField("0", text: $bodyweight)
-                    .font(SBSFonts.weightLarge())
+                    .font(SBSFonts.numberLarge())
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.center)
                     .focused($focusedField, equals: .bodyweight)
                     .padding()
-                    .background(SBSColors.surfaceElevatedFallback)
-                    .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall))
+                    .background(Color.surfaceRaised)
+                    .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
                 
                 Text(unit)
-                    .font(SBSFonts.title2())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(Color.inkSecondary)
                     .frame(width: 40)
             }
         }
         .padding()
-        .sbsCard()
+        .card()
         .padding(.horizontal)
     }
     
     private var liftsSection: some View {
-        VStack(spacing: SBSLayout.paddingMedium) {
+        VStack(spacing: SBSLayout.space4) {
             HStack {
                 Text("Powerlifting Total")
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(Color.ink)
                 Spacer()
                 
                 if inputMode == .fromPRs {
                     Text("From PRs")
-                        .font(SBSFonts.legacyCaption())
+                        .font(SBSFonts.caption())
                         .foregroundStyle(Color.orangeText)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(SBSColors.accentFallback.opacity(0.15))
+                        .background(Color.orangeSoft)
                         .clipShape(Capsule())
                 }
             }
@@ -1994,25 +1994,25 @@ struct StrengthScoresView: View {
             
             HStack {
                 Text("Total")
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.ink)
                 
                 Spacer()
                 
                 let displayTotal = squat + bench + deadlift
                 if displayTotal > 0 {
                     Text("\(formatWeight(displayTotal)) \(unit)")
-                        .font(SBSFonts.weight())
+                        .font(SBSFonts.number())
                         .foregroundStyle(Color.orangeText)
                 } else {
                     Text("-- \(unit)")
-                        .font(SBSFonts.weight())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .font(SBSFonts.number())
+                        .foregroundStyle(Color.inkSecondary)
                 }
             }
         }
         .padding()
-        .sbsCard()
+        .card()
         .padding(.horizontal)
     }
     
@@ -2023,43 +2023,43 @@ struct StrengthScoresView: View {
         inputBinding: Binding<String>,
         field: LiftField
     ) -> some View {
-        HStack(spacing: SBSLayout.paddingMedium) {
+        HStack(spacing: SBSLayout.space4) {
             Image(systemName: icon)
                 .font(.system(size: 18))
                 .foregroundStyle(Color.orangeText)
                 .frame(width: 24)
             
             Text(label)
-                .font(SBSFonts.legacyBody())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .font(SBSFonts.body())
+                .foregroundStyle(Color.ink)
             
             Spacer()
             
             if let value = value {
                 // PR value display
                 Text(value)
-                    .font(SBSFonts.legacyNumber())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.number())
+                    .foregroundStyle(Color.ink)
                 
                 Text(unit)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             } else {
                 // Custom input
                 TextField("0", text: inputBinding)
-                    .font(SBSFonts.legacyNumber())
+                    .font(SBSFonts.number())
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .focused($focusedField, equals: field)
                     .frame(width: 80)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(SBSColors.surfaceElevatedFallback)
-                    .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall))
+                    .background(Color.surfaceRaised)
+                    .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
                 
                 Text(unit)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
                     .frame(width: 24)
             }
         }
@@ -2076,21 +2076,21 @@ struct StrengthScoresView: View {
     }
     
     private var resultsSection: some View {
-        VStack(spacing: SBSLayout.paddingMedium) {
+        VStack(spacing: SBSLayout.space4) {
             // Header with total summary
             VStack(spacing: 4) {
                 Text("Your Strength Scores")
-                    .font(SBSFonts.title2())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(Color.ink)
                 
                 Text("Total: \(formatWeight(total)) kg @ \(formatWeight(bodyweightKg)) kg BW")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
             .padding(.bottom, 8)
             
             // Score cards
-            VStack(spacing: SBSLayout.paddingMedium) {
+            VStack(spacing: SBSLayout.space4) {
                 if let wilks = wilksScore {
                     scoreCard(
                         name: "WILKS",
@@ -2123,7 +2123,7 @@ struct StrengthScoresView: View {
             }
         }
         .padding()
-        .sbsCard()
+        .card()
         .padding(.horizontal)
         .transition(.opacity.combined(with: .move(edge: .bottom)))
     }
@@ -2135,7 +2135,7 @@ struct StrengthScoresView: View {
         color: Color,
         rating: (text: String, color: Color)
     ) -> some View {
-        HStack(spacing: SBSLayout.paddingMedium) {
+        HStack(spacing: SBSLayout.space4) {
             // Score circle
             ZStack {
                 Circle()
@@ -2156,13 +2156,13 @@ struct StrengthScoresView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(name)
-                        .font(SBSFonts.bodyBold())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.ink)
                     
                     Spacer()
                     
                     Text(rating.text)
-                        .font(SBSFonts.captionBold())
+                        .font(SBSFonts.caption().weight(.semibold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
@@ -2171,18 +2171,18 @@ struct StrengthScoresView: View {
                 }
                 
                 Text(description)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
                 
                 // Score breakdown
                 Text(String(format: "%.2f points", score))
-                    .font(SBSFonts.legacyNumber())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.number())
+                    .foregroundStyle(Color.ink)
             }
         }
         .padding()
-        .background(SBSColors.surfaceElevatedFallback)
-        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
+        .background(Color.surfaceRaised)
+        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
     }
     
     // Rating helpers based on common competition standards
@@ -2219,12 +2219,12 @@ struct StrengthScoresView: View {
     }
     
     private var infoSection: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
+        VStack(alignment: .leading, spacing: SBSLayout.space4) {
             Text("About These Scores")
-                .font(SBSFonts.title3())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .font(SBSFonts.heading())
+                .foregroundStyle(Color.ink)
             
-            VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+            VStack(alignment: .leading, spacing: SBSLayout.space2) {
                 infoItem(
                     title: "WILKS",
                     description: "The original powerlifting scoring formula, widely used since 1994. Compares lifters across different bodyweights."
@@ -2244,23 +2244,23 @@ struct StrengthScoresView: View {
             Divider()
             
             Text("All formulas use your SBD total and bodyweight to calculate a standardized score, allowing fair comparison between lifters of different sizes.")
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
         }
         .padding()
-        .sbsCard()
+        .card()
         .padding(.horizontal)
     }
     
     private func infoItem(title: String, description: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(SBSFonts.captionBold())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .font(SBSFonts.caption().weight(.semibold))
+                .foregroundStyle(Color.ink)
             
             Text(description)
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
         }
     }
     

@@ -55,9 +55,9 @@ struct TemplateBuilderView: View {
             // Background
             LinearGradient(
                 colors: [
-                    SBSColors.backgroundFallback,
-                    SBSColors.backgroundFallback.opacity(0.95),
-                    SBSColors.accentFallback.opacity(0.05)
+                    Color.bg,
+                    Color.bg.opacity(0.95),
+                    Color.orangeSoft
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -116,7 +116,7 @@ struct TemplateBuilderView: View {
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 28))
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                            .foregroundStyle(Color.inkSecondary)
                     }
                     .padding()
                 }
@@ -149,7 +149,7 @@ struct TemplateStepProgressView: View {
                 HStack(spacing: 4) {
                     ZStack {
                         Circle()
-                            .fill(step.rawValue <= currentStep.rawValue ? SBSColors.accentFallback : SBSColors.surfaceFallback)
+                            .fill(step.rawValue <= currentStep.rawValue ? SBSColors.accentFallback : Color.surface)
                             .frame(width: 28, height: 28)
                         
                         if step.rawValue < currentStep.rawValue {
@@ -159,19 +159,19 @@ struct TemplateStepProgressView: View {
                         } else {
                             Text("\(step.rawValue + 1)")
                                 .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(step.rawValue <= currentStep.rawValue ? Color.orangeInk : SBSColors.textTertiaryFallback)
+                                .foregroundStyle(step.rawValue <= currentStep.rawValue ? Color.orangeInk : Color.inkSecondary)
                         }
                     }
                     
                     if step != TemplateBuilderView.TemplateBuilderStep.allCases.last {
                         Rectangle()
-                            .fill(step.rawValue < currentStep.rawValue ? SBSColors.accentFallback : SBSColors.surfaceFallback)
+                            .fill(step.rawValue < currentStep.rawValue ? SBSColors.accentFallback : Color.surface)
                             .frame(height: 2)
                     }
                 }
             }
         }
-        .padding(.vertical, SBSLayout.paddingSmall)
+        .padding(.vertical, SBSLayout.space2)
     }
 }
 
@@ -193,77 +193,77 @@ struct BasicsStepView: View {
     
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: SBSLayout.sectionSpacing) {
+            VStack(alignment: .leading, spacing: SBSLayout.space6) {
                 // Header
-                VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                VStack(alignment: .leading, spacing: SBSLayout.space2) {
                     Text("Template Basics")
-                        .font(SBSFonts.legacyTitle())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.title())
+                        .foregroundStyle(Color.ink)
                     
                     Text("Give your template a name and configure the basic structure.")
-                        .font(SBSFonts.legacyBody())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.body())
+                        .foregroundStyle(Color.inkSecondary)
                 }
-                .padding(.top, SBSLayout.paddingLarge)
+                .padding(.top, SBSLayout.space6)
                 
                 // Name
-                VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                VStack(alignment: .leading, spacing: SBSLayout.space2) {
                     Text("Template Name")
-                        .font(SBSFonts.captionBold())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption().weight(.semibold))
+                        .foregroundStyle(Color.inkSecondary)
                     
                     TextField("e.g., My Upper/Lower Split", text: $template.name)
-                        .font(SBSFonts.legacyBody())
+                        .font(SBSFonts.body())
                         .textFieldStyle(.plain)
                         .padding()
                         .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                                .fill(SBSColors.surfaceFallback)
+                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                                .fill(Color.surface)
                         )
                         .focused($focusedField, equals: .name)
                 }
                 
                 // Description
-                VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                VStack(alignment: .leading, spacing: SBSLayout.space2) {
                     Text("Description (Optional)")
-                        .font(SBSFonts.captionBold())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption().weight(.semibold))
+                        .foregroundStyle(Color.inkSecondary)
                     
                     TextField("Describe your program...", text: $template.templateDescription, axis: .vertical)
-                        .font(SBSFonts.legacyBody())
+                        .font(SBSFonts.body())
                         .textFieldStyle(.plain)
                         .lineLimit(3...6)
                         .padding()
                         .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                                .fill(SBSColors.surfaceFallback)
+                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                                .fill(Color.surface)
                         )
                         .focused($focusedField, equals: .description)
                 }
                 
                 // Mode Selection
-                VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                VStack(alignment: .leading, spacing: SBSLayout.space2) {
                     Text("Template Mode")
-                        .font(SBSFonts.captionBold())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption().weight(.semibold))
+                        .foregroundStyle(Color.inkSecondary)
                     
                     ForEach(TemplateMode.allCases, id: \.self) { mode in
                         Button {
                             template.mode = mode
                         } label: {
-                            HStack(spacing: SBSLayout.paddingMedium) {
+                            HStack(spacing: SBSLayout.space4) {
                                 Image(systemName: template.mode == mode ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(template.mode == mode ? Color.orangeText : SBSColors.textTertiaryFallback)
+                                    .foregroundStyle(template.mode == mode ? Color.orangeText : Color.inkSecondary)
                                     .font(.title2)
                                 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(mode.displayName)
-                                        .font(SBSFonts.bodyBold())
-                                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                                        .font(SBSFonts.bodyStrong())
+                                        .foregroundStyle(Color.ink)
                                     
                                     Text(mode.description)
-                                        .font(SBSFonts.legacyCaption())
-                                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                                        .font(SBSFonts.caption())
+                                        .foregroundStyle(Color.inkSecondary)
                                         .multilineTextAlignment(.leading)
                                 }
                                 
@@ -271,11 +271,11 @@ struct BasicsStepView: View {
                             }
                             .padding()
                             .background(
-                                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                                    .fill(template.mode == mode ? SBSColors.accentFallback.opacity(0.1) : SBSColors.surfaceFallback)
+                                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                                    .fill(template.mode == mode ? Color.orangeSoft : Color.surface)
                             )
                             .overlay(
-                                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                                     .strokeBorder(template.mode == mode ? SBSColors.accentFallback : Color.clear, lineWidth: 2)
                             )
                         }
@@ -283,12 +283,12 @@ struct BasicsStepView: View {
                 }
                 
                 // Days per week
-                VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                VStack(alignment: .leading, spacing: SBSLayout.space2) {
                     Text("Days per Week")
-                        .font(SBSFonts.captionBold())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption().weight(.semibold))
+                        .foregroundStyle(Color.inkSecondary)
                     
-                    HStack(spacing: SBSLayout.paddingSmall) {
+                    HStack(spacing: SBSLayout.space2) {
                         ForEach(1...7, id: \.self) { day in
                             Button {
                                 template.daysPerWeek = day
@@ -296,38 +296,38 @@ struct BasicsStepView: View {
                                 ensureDayStructure()
                             } label: {
                                 Text("\(day)")
-                                    .font(SBSFonts.bodyBold())
+                                    .font(SBSFonts.bodyStrong())
                                     .frame(width: 40, height: 40)
                                     .background(
                                         Circle()
-                                            .fill(template.daysPerWeek == day ? SBSColors.accentFallback : SBSColors.surfaceFallback)
+                                            .fill(template.daysPerWeek == day ? SBSColors.accentFallback : Color.surface)
                                     )
-                                    .foregroundStyle(template.daysPerWeek == day ? Color.orangeInk : SBSColors.textPrimaryFallback)
+                                    .foregroundStyle(template.daysPerWeek == day ? Color.orangeInk : Color.ink)
                             }
                         }
                     }
                 }
                 
                 // Number of weeks
-                VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                VStack(alignment: .leading, spacing: SBSLayout.space2) {
                     Text("Program Length")
-                        .font(SBSFonts.captionBold())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption().weight(.semibold))
+                        .foregroundStyle(Color.inkSecondary)
                     
-                    HStack(spacing: SBSLayout.paddingMedium) {
+                    HStack(spacing: SBSLayout.space4) {
                         ForEach([4, 8, 12, 16, 20], id: \.self) { weekCount in
                             Button {
                                 template.weeks = Array(1...weekCount)
                             } label: {
                                 Text("\(weekCount)w")
-                                    .font(SBSFonts.captionBold())
+                                    .font(SBSFonts.caption().weight(.semibold))
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 8)
                                     .background(
                                         Capsule()
-                                            .fill(template.weeks.count == weekCount ? SBSColors.accentFallback : SBSColors.surfaceFallback)
+                                            .fill(template.weeks.count == weekCount ? SBSColors.accentFallback : Color.surface)
                                     )
-                                    .foregroundStyle(template.weeks.count == weekCount ? Color.orangeInk : SBSColors.textPrimaryFallback)
+                                    .foregroundStyle(template.weeks.count == weekCount ? Color.orangeInk : Color.ink)
                             }
                         }
                     }
@@ -359,7 +359,7 @@ struct BasicsStepView: View {
                 .disabled(!canContinue)
             }
             .padding()
-            .background(SBSColors.backgroundFallback)
+            .background(Color.bg)
         }
     }
     
@@ -392,21 +392,21 @@ struct DaysStepView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Header
-            VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+            VStack(alignment: .leading, spacing: SBSLayout.space2) {
                 Text("Configure Days")
-                    .font(SBSFonts.legacyTitle())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.title())
+                    .foregroundStyle(Color.ink)
                 
                 Text("Select each day to add exercises.")
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.body())
+                    .foregroundStyle(Color.inkSecondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
             
             // Day selector
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: SBSLayout.paddingSmall) {
+                HStack(spacing: SBSLayout.space2) {
                     ForEach(1...template.daysPerWeek, id: \.self) { day in
                         TemplateDayTab(
                             day: day,
@@ -420,7 +420,7 @@ struct DaysStepView: View {
             }
             
             Divider()
-                .padding(.top, SBSLayout.paddingSmall)
+                .padding(.top, SBSLayout.space2)
             
             // Exercise list for selected day
             DayExerciseListView(
@@ -436,7 +436,7 @@ struct DaysStepView: View {
             }
             
             // Navigation
-            HStack(spacing: SBSLayout.paddingMedium) {
+            HStack(spacing: SBSLayout.space4) {
                 Button {
                     onBack()
                 } label: {
@@ -455,7 +455,7 @@ struct DaysStepView: View {
                 .disabled(!hasAtLeastOneExercise)
             }
             .padding()
-            .background(SBSColors.backgroundFallback)
+            .background(Color.bg)
         }
     }
     
@@ -479,18 +479,18 @@ struct TemplateDayTab: View {
         Button(action: onTap) {
             VStack(spacing: 4) {
                 Text("Day \(day)")
-                    .font(SBSFonts.captionBold())
-                    .foregroundStyle(isSelected ? Color.orangeInk : SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.caption().weight(.semibold))
+                    .foregroundStyle(isSelected ? Color.orangeInk : Color.ink)
                 
                 Text("\(exerciseCount) ex")
                     .font(.system(size: 10))
-                    .foregroundStyle(isSelected ? Color.orangeInk.opacity(0.8) : SBSColors.textTertiaryFallback)
+                    .foregroundStyle(isSelected ? Color.orangeInk.opacity(0.8) : Color.inkSecondary)
             }
-            .padding(.horizontal, SBSLayout.paddingMedium)
-            .padding(.vertical, SBSLayout.paddingSmall)
+            .padding(.horizontal, SBSLayout.space4)
+            .padding(.vertical, SBSLayout.space2)
             .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                    .fill(isSelected ? SBSColors.accentFallback : SBSColors.surfaceFallback)
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .fill(isSelected ? SBSColors.accentFallback : Color.surface)
             )
         }
     }
@@ -513,14 +513,14 @@ struct DayExerciseListView: View {
         List {
             if exercises.isEmpty {
                 Section {
-                    VStack(spacing: SBSLayout.paddingMedium) {
+                    VStack(spacing: SBSLayout.space4) {
                         Image(systemName: "figure.strengthtraining.traditional")
                             .font(.system(size: 40))
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                            .foregroundStyle(Color.inkSecondary)
                         
                         Text("No exercises yet")
-                            .font(SBSFonts.legacyBody())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.body())
+                            .foregroundStyle(Color.inkSecondary)
                         
                         Button {
                             showingExercisePicker = true
@@ -530,7 +530,7 @@ struct DayExerciseListView: View {
                         .buttonStyle(SBSLegacySecondaryButtonStyle())
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, SBSLayout.paddingLarge)
+                    .padding(.vertical, SBSLayout.space6)
                 }
             } else {
                 Section {
@@ -646,7 +646,7 @@ struct ExerciseRowView: View {
         switch item.type {
         case .tm: return SBSColors.accentSecondaryFallback
         case .volume: return SBSColors.accentFallback
-        case .accessory: return SBSColors.textSecondaryFallback
+        case .accessory: return Color.inkSecondary
         case .structured: return SBSColors.accentFallback
         case .linear: return .green
         }
@@ -659,10 +659,10 @@ struct ExerciseRowView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.name)
-                        .font(SBSFonts.legacyBody())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.body())
+                        .foregroundStyle(Color.ink)
                     
-                    HStack(spacing: SBSLayout.paddingSmall) {
+                    HStack(spacing: SBSLayout.space2) {
                         Text(typeLabel)
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(typeColor)
@@ -675,16 +675,16 @@ struct ExerciseRowView: View {
                         
                         if item.type == .accessory {
                             Text("\(item.defaultSets ?? 4)x\(item.defaultReps ?? 10)")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
                         } else if item.type == .linear {
                             Text("\(item.sets ?? 5)x\(item.reps ?? 5)")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
                         } else if let setsDetail = item.setsDetail {
                             Text("\(setsDetail.count) sets")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
                         }
                     }
                 }
@@ -693,7 +693,7 @@ struct ExerciseRowView: View {
                 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12))
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                    .foregroundStyle(Color.inkTertiary)
             }
             .padding(.vertical, 2)
         }
@@ -760,32 +760,32 @@ struct TemplateExercisePickerSheet: View {
                     // Exercise selection with styled sections
                     VStack(spacing: 0) {
                         // Search bar
-                        HStack(spacing: SBSLayout.paddingSmall) {
+                        HStack(spacing: SBSLayout.space2) {
                             Image(systemName: "magnifyingglass")
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                                .foregroundStyle(Color.inkSecondary)
                             
                             TextField("Search exercises...", text: $searchText)
                                 .textFieldStyle(.plain)
-                                .font(SBSFonts.legacyBody())
+                                .font(SBSFonts.body())
                             
                             if !searchText.isEmpty {
                                 Button {
                                     searchText = ""
                                 } label: {
                                     Image(systemName: "xmark.circle.fill")
-                                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                                        .foregroundStyle(Color.inkSecondary)
                                 }
                             }
                         }
                         .padding()
-                        .background(SBSColors.surfaceFallback)
-                        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
+                        .background(Color.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
                         .padding(.horizontal)
-                        .padding(.top, SBSLayout.paddingSmall)
+                        .padding(.top, SBSLayout.space2)
                         
                         if !filteredExercises.isEmpty {
                             ScrollView {
-                                LazyVStack(spacing: SBSLayout.paddingSmall) {
+                                LazyVStack(spacing: SBSLayout.space2) {
                                     ForEach(sortedBodyParts) { bodyPart in
                                         BodyPartSection(
                                             bodyPart: bodyPart,
@@ -803,7 +803,7 @@ struct TemplateExercisePickerSheet: View {
                                     }
                                 }
                                 .padding(.horizontal)
-                                .padding(.vertical, SBSLayout.paddingMedium)
+                                .padding(.vertical, SBSLayout.space4)
                             }
                             .scrollDismissesKeyboard(.interactively)
                         } else {
@@ -905,7 +905,7 @@ struct TemplateExercisePickerSheet: View {
                     Text("Exercise")
                     Spacer()
                     Text(selectedExercise?.name ?? "")
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .foregroundStyle(Color.inkSecondary)
                 }
             }
             
@@ -952,10 +952,10 @@ struct TemplateExercisePickerSheet: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(typeName(for: type))
-                                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                                        .foregroundStyle(Color.ink)
                                     Text(typeShortDescription(for: type))
-                                        .font(SBSFonts.legacyCaption())
-                                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                                        .font(SBSFonts.caption())
+                                        .foregroundStyle(Color.inkSecondary)
                                 }
                                 
                                 Spacer()
@@ -1188,11 +1188,11 @@ struct ExerciseEditorSheet: View {
                 Section {
                     HStack {
                         Text("Exercise")
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .foregroundStyle(Color.inkSecondary)
                         Spacer()
                         Text(item.name)
-                            .font(SBSFonts.bodyBold())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.bodyStrong())
+                            .foregroundStyle(Color.ink)
                     }
                 }
                 
@@ -1241,11 +1241,11 @@ struct ExerciseEditorSheet: View {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(typeName(for: type))
-                                            .font(SBSFonts.legacyBody())
-                                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                                            .font(SBSFonts.body())
+                                            .foregroundStyle(Color.ink)
                                         Text(typeShortDescription(for: type))
-                                            .font(SBSFonts.legacyCaption())
-                                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                                            .font(SBSFonts.caption())
+                                            .foregroundStyle(Color.inkSecondary)
                                     }
                                     
                                     Spacer()
@@ -1477,14 +1477,14 @@ struct SetDesignerRow: View {
                 HStack {
                     HStack(spacing: 6) {
                         Text("Set \(setNumber)")
-                            .font(SBSFonts.legacyBody())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.body())
+                            .foregroundStyle(Color.ink)
                         
                         // Progression set indicator (only for autoregulated)
                         if showProgressionOption && isProgressionSet {
                             Image(systemName: "star.fill")
                                 .font(.system(size: 12))
-                                .foregroundStyle(SBSColors.warning)
+                                .foregroundStyle(Color.warning)
                         }
                     }
                     
@@ -1492,43 +1492,43 @@ struct SetDesignerRow: View {
                     
                     HStack(spacing: 4) {
                         Text("\(Int(intensityPercent))%")
-                            .font(SBSFonts.captionBold())
+                            .font(SBSFonts.caption().weight(.semibold))
                             .foregroundStyle(Color.orangeText)
                         
                         Text("×")
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                            .foregroundStyle(Color.inkSecondary)
                         
                         Text("\(reps)\(isAMRAP ? "+" : "")")
-                            .font(SBSFonts.captionBold())
-                            .foregroundStyle(isAMRAP ? SBSColors.success : SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.caption().weight(.semibold))
+                            .foregroundStyle(isAMRAP ? Color.success : Color.inkSecondary)
                     }
                     
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.system(size: 12))
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .foregroundStyle(Color.inkTertiary)
                 }
             }
             .buttonStyle(.plain)
             
             // Expanded editing controls
             if isExpanded {
-                VStack(spacing: SBSLayout.paddingMedium) {
+                VStack(spacing: SBSLayout.space4) {
                     // Intensity slider
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
                             Text("Intensity")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
                             Spacer()
                             Text("\(Int(intensityPercent))% of TM")
-                                .font(SBSFonts.captionBold())
+                                .font(SBSFonts.caption().weight(.semibold))
                                 .foregroundStyle(Color.orangeText)
                         }
                         
                         Slider(value: $intensityPercent, in: 50...100, step: 5) { _ in
                             saveChanges()
                         }
-                        .tint(SBSColors.accentFallback)
+                        .tint(Color.orangeText)
                     }
                     
                     // Reps stepper
@@ -1540,10 +1540,10 @@ struct SetDesignerRow: View {
                     Toggle(isOn: $isAMRAP) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("AMRAP")
-                                .font(SBSFonts.legacyBody())
+                                .font(SBSFonts.body())
                             Text("Do as many reps as possible")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
                         }
                     }
                     .onChange(of: isAMRAP) { _, _ in
@@ -1557,23 +1557,23 @@ struct SetDesignerRow: View {
                         } label: {
                             HStack {
                                 Image(systemName: isProgressionSet ? "star.fill" : "star")
-                                    .foregroundStyle(isProgressionSet ? SBSColors.warning : SBSColors.textTertiaryFallback)
+                                    .foregroundStyle(isProgressionSet ? Color.warning : Color.inkSecondary)
                                 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(isProgressionSet ? "Progression Set" : "Use for Progression")
-                                        .font(SBSFonts.legacyBody())
-                                        .foregroundStyle(isProgressionSet ? SBSColors.warning : SBSColors.textPrimaryFallback)
+                                        .font(SBSFonts.body())
+                                        .foregroundStyle(isProgressionSet ? Color.warning : Color.ink)
                                     
                                     Text(isProgressionSet ? "This set determines your TM adjustment" : "Make this set determine TM changes")
-                                        .font(SBSFonts.legacyCaption())
-                                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                                        .font(SBSFonts.caption())
+                                        .foregroundStyle(Color.inkSecondary)
                                 }
                                 
                                 Spacer()
                                 
                                 if isProgressionSet {
                                     Image(systemName: "checkmark")
-                                        .foregroundStyle(SBSColors.warning)
+                                        .foregroundStyle(Color.warning)
                                 }
                             }
                         }
@@ -1581,8 +1581,8 @@ struct SetDesignerRow: View {
                         .padding(.vertical, 4)
                         .padding(.horizontal, 8)
                         .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(isProgressionSet ? SBSColors.warning.opacity(0.1) : Color.clear)
+                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                                .fill(isProgressionSet ? Color.warning.opacity(0.1) : Color.clear)
                         )
                     }
                     
@@ -1592,13 +1592,13 @@ struct SetDesignerRow: View {
                             onDelete()
                         } label: {
                             Label("Remove Set", systemImage: "trash")
-                                .font(SBSFonts.legacyCaption())
+                                .font(SBSFonts.caption())
                         }
                         .buttonStyle(.borderless)
                     }
                 }
-                .padding(.top, SBSLayout.paddingSmall)
-                .padding(.leading, SBSLayout.paddingMedium)
+                .padding(.top, SBSLayout.space2)
+                .padding(.leading, SBSLayout.space4)
             }
         }
     }
@@ -1626,81 +1626,81 @@ struct ExerciseTypeInfoSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: SBSLayout.sectionSpacing) {
+                VStack(alignment: .leading, spacing: SBSLayout.space6) {
                     // Icon and title
-                    HStack(spacing: SBSLayout.paddingMedium) {
+                    HStack(spacing: SBSLayout.space4) {
                         Image(systemName: iconName)
                             .font(.system(size: 32))
                             .foregroundStyle(iconColor)
                             .frame(width: 56, height: 56)
                             .background(
-                                RoundedRectangle(cornerRadius: 12)
+                                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                                     .fill(iconColor.opacity(0.15))
                             )
                         
                         VStack(alignment: .leading, spacing: 4) {
                             Text(title)
-                                .font(SBSFonts.title2())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
+                                .font(SBSFonts.heading())
+                                .foregroundStyle(Color.ink)
                             
                             Text(subtitle)
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
                         }
                     }
                     .padding(.top)
                     
                     // Description
                     Text(description)
-                        .font(SBSFonts.legacyBody())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.body())
+                        .foregroundStyle(Color.inkSecondary)
                     
                     // How it works
-                    VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                    VStack(alignment: .leading, spacing: SBSLayout.space2) {
                         Text("How It Works")
-                            .font(SBSFonts.bodyBold())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.bodyStrong())
+                            .foregroundStyle(Color.ink)
                         
                         ForEach(howItWorks, id: \.self) { point in
-                            HStack(alignment: .top, spacing: SBSLayout.paddingSmall) {
+                            HStack(alignment: .top, spacing: SBSLayout.space2) {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(SBSColors.success)
+                                    .foregroundStyle(Color.success)
                                     .font(.system(size: 14))
                                     .padding(.top, 2)
                                 
                                 Text(point)
-                                    .font(SBSFonts.legacyBody())
-                                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                                    .font(SBSFonts.body())
+                                    .foregroundStyle(Color.inkSecondary)
                             }
                         }
                     }
                     
                     // Best for
-                    VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                    VStack(alignment: .leading, spacing: SBSLayout.space2) {
                         Text("Best For")
-                            .font(SBSFonts.bodyBold())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.bodyStrong())
+                            .foregroundStyle(Color.ink)
                         
                         Text(bestFor)
-                            .font(SBSFonts.legacyBody())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.body())
+                            .foregroundStyle(Color.inkSecondary)
                     }
                     
                     // Example
                     if let example = example {
-                        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                        VStack(alignment: .leading, spacing: SBSLayout.space2) {
                             Text("Example")
-                                .font(SBSFonts.bodyBold())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
+                                .font(SBSFonts.bodyStrong())
+                                .foregroundStyle(Color.ink)
                             
                             Text(example)
-                                .font(SBSFonts.legacyBody())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.body())
+                                .foregroundStyle(Color.inkSecondary)
                                 .padding()
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .background(
-                                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                                        .fill(SBSColors.surfaceFallback)
+                                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                                        .fill(Color.surface)
                                 )
                         }
                     }
@@ -1735,7 +1735,7 @@ struct ExerciseTypeInfoSheet: View {
     
     private var iconColor: Color {
         switch type {
-        case .accessory: return SBSColors.textSecondaryFallback
+        case .accessory: return Color.inkSecondary
         case .linear: return .green
         case .structured: return SBSColors.accentFallback
         case .volume: return SBSColors.accentFallback
@@ -1859,18 +1859,18 @@ struct ExercisesStepView: View {
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(alignment: .leading, spacing: SBSLayout.sectionSpacing) {
+                VStack(alignment: .leading, spacing: SBSLayout.space6) {
                     // Header
-                    VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                    VStack(alignment: .leading, spacing: SBSLayout.space2) {
                         Text("Review Exercises")
-                            .font(SBSFonts.legacyTitle())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.title())
+                            .foregroundStyle(Color.ink)
                         
                         Text("Review the exercises you've added to each day.")
-                            .font(SBSFonts.legacyBody())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.body())
+                            .foregroundStyle(Color.inkSecondary)
                     }
-                    .padding(.top, SBSLayout.paddingLarge)
+                    .padding(.top, SBSLayout.space6)
                     
                     // Summary by day
                     ForEach(1...template.daysPerWeek, id: \.self) { day in
@@ -1882,20 +1882,20 @@ struct ExercisesStepView: View {
                     
                     // Tracked lifts
                     if !template.trackedLifts.isEmpty {
-                        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                        VStack(alignment: .leading, spacing: SBSLayout.space2) {
                             Text("Lifts Requiring Training Maxes")
-                                .font(SBSFonts.captionBold())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.caption().weight(.semibold))
+                                .foregroundStyle(Color.inkSecondary)
                             
-                            FlowLayout(spacing: SBSLayout.paddingSmall) {
+                            FlowLayout(spacing: SBSLayout.space2) {
                                 ForEach(template.trackedLifts, id: \.self) { lift in
                                     Text(lift)
-                                        .font(SBSFonts.legacyCaption())
+                                        .font(SBSFonts.caption())
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 6)
                                         .background(
                                             Capsule()
-                                                .fill(SBSColors.accentFallback.opacity(0.15))
+                                                .fill(Color.orangeSoft)
                                         )
                                         .foregroundStyle(Color.orangeText)
                                 }
@@ -1910,7 +1910,7 @@ struct ExercisesStepView: View {
             .scrollDismissesKeyboard(.interactively)
             
             // Navigation
-            HStack(spacing: SBSLayout.paddingMedium) {
+            HStack(spacing: SBSLayout.space4) {
                 Button {
                     onBack()
                 } label: {
@@ -1934,7 +1934,7 @@ struct ExercisesStepView: View {
                 .buttonStyle(SBSLegacyPrimaryButtonStyle())
             }
             .padding()
-            .background(SBSColors.backgroundFallback)
+            .background(Color.bg)
         }
     }
 }
@@ -1944,26 +1944,26 @@ struct DaySummaryCard: View {
     let exercises: [DayItem]
     
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
             Text("Day \(day)")
-                .font(SBSFonts.bodyBold())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .font(SBSFonts.bodyStrong())
+                .foregroundStyle(Color.ink)
             
             if exercises.isEmpty {
                 Text("No exercises")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             } else {
                 ForEach(Array(exercises.enumerated()), id: \.offset) { index, exercise in
                     HStack {
                         Text("\(index + 1).")
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
                             .frame(width: 20)
                         
                         Text(exercise.name)
-                            .font(SBSFonts.legacyBody())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.body())
+                            .foregroundStyle(Color.inkSecondary)
                         
                         Spacer()
                     }
@@ -1972,8 +1972,8 @@ struct DaySummaryCard: View {
         }
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                .fill(SBSColors.surfaceFallback)
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                .fill(Color.surface)
         )
     }
 }
@@ -2042,36 +2042,36 @@ struct ReviewStepView: View {
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(alignment: .leading, spacing: SBSLayout.sectionSpacing) {
+                VStack(alignment: .leading, spacing: SBSLayout.space6) {
                     // Header
-                    VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                    VStack(alignment: .leading, spacing: SBSLayout.space2) {
                         Text("Review Template")
-                            .font(SBSFonts.legacyTitle())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.title())
+                            .foregroundStyle(Color.ink)
                         
                         Text("Review your template before saving.")
-                            .font(SBSFonts.legacyBody())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.body())
+                            .foregroundStyle(Color.inkSecondary)
                     }
-                    .padding(.top, SBSLayout.paddingLarge)
+                    .padding(.top, SBSLayout.space6)
                     
                     // Template summary card
-                    VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
+                    VStack(alignment: .leading, spacing: SBSLayout.space4) {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(template.name)
-                                    .font(SBSFonts.title2())
-                                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                                    .font(SBSFonts.heading())
+                                    .foregroundStyle(Color.ink)
                                 
-                                HStack(spacing: SBSLayout.paddingSmall) {
+                                HStack(spacing: SBSLayout.space2) {
                                     Text(template.mode.displayName)
                                         .font(.system(size: 11, weight: .semibold))
-                                        .foregroundStyle(template.mode == .advanced ? SBSColors.accentSecondaryFallback : SBSColors.textSecondaryFallback)
+                                        .foregroundStyle(template.mode == .advanced ? SBSColors.accentSecondaryFallback : Color.inkSecondary)
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 3)
                                         .background(
                                             Capsule()
-                                                .fill(template.mode == .advanced ? SBSColors.accentSecondaryFallback.opacity(0.15) : SBSColors.surfaceFallback)
+                                                .fill(template.mode == .advanced ? SBSColors.accentSecondaryFallback.opacity(0.15) : Color.surface)
                                         )
                                     
                                     Text("Custom")
@@ -2081,7 +2081,7 @@ struct ReviewStepView: View {
                                         .padding(.vertical, 3)
                                         .background(
                                             Capsule()
-                                                .fill(SBSColors.accentFallback.opacity(0.15))
+                                                .fill(Color.orangeSoft)
                                         )
                                 }
                             }
@@ -2101,14 +2101,14 @@ struct ReviewStepView: View {
                         
                         if !template.templateDescription.isEmpty {
                             Text(template.templateDescription)
-                                .font(SBSFonts.legacyBody())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .font(SBSFonts.body())
+                                .foregroundStyle(Color.inkSecondary)
                         }
                         
                         Divider()
                         
                         // Stats
-                        HStack(spacing: SBSLayout.paddingLarge) {
+                        HStack(spacing: SBSLayout.space6) {
                             TemplateStatItem(label: "Days/Week", value: "\(template.daysPerWeek)")
                             TemplateStatItem(label: "Weeks", value: "\(template.weeks.count)")
                             TemplateStatItem(label: "Exercises", value: "\(totalExercises)")
@@ -2116,50 +2116,50 @@ struct ReviewStepView: View {
                     }
                     .padding()
                     .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                            .fill(SBSColors.surfaceFallback)
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                            .fill(Color.surface)
                     )
                     
                     // Validation
-                    VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+                    VStack(alignment: .leading, spacing: SBSLayout.space2) {
                         if template.isValid {
-                            HStack(spacing: SBSLayout.paddingSmall) {
+                            HStack(spacing: SBSLayout.space2) {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(SBSColors.success)
+                                    .foregroundStyle(Color.success)
                                 Text("Template is ready to save")
-                                    .font(SBSFonts.legacyBody())
-                                    .foregroundStyle(SBSColors.success)
+                                    .font(SBSFonts.body())
+                                    .foregroundStyle(Color.success)
                             }
                         } else {
-                            HStack(spacing: SBSLayout.paddingSmall) {
+                            HStack(spacing: SBSLayout.space2) {
                                 Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundStyle(SBSColors.error)
+                                    .foregroundStyle(Color.danger)
                                 Text("Template has issues that need to be fixed")
-                                    .font(SBSFonts.legacyBody())
-                                    .foregroundStyle(SBSColors.error)
+                                    .font(SBSFonts.body())
+                                    .foregroundStyle(Color.danger)
                             }
                             
                             // Show specific validation errors
                             ForEach(template.validationWarnings, id: \.self) { warning in
-                                HStack(alignment: .top, spacing: SBSLayout.paddingSmall) {
+                                HStack(alignment: .top, spacing: SBSLayout.space2) {
                                     Image(systemName: "exclamationmark.circle")
-                                        .foregroundStyle(SBSColors.error)
+                                        .foregroundStyle(Color.danger)
                                         .font(.system(size: 14))
                                         .padding(.top, 2)
                                     
                                     Text(warning)
-                                        .font(SBSFonts.legacyCaption())
-                                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                                        .font(SBSFonts.caption())
+                                        .foregroundStyle(Color.inkSecondary)
                                 }
-                                .padding(.leading, SBSLayout.paddingMedium)
+                                .padding(.leading, SBSLayout.space4)
                             }
                         }
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                            .fill(template.isValid ? SBSColors.success.opacity(0.1) : SBSColors.error.opacity(0.1))
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                            .fill(template.isValid ? Color.success.opacity(0.1) : Color.danger.opacity(0.1))
                     )
                     
                     Spacer(minLength: 100)
@@ -2169,7 +2169,7 @@ struct ReviewStepView: View {
             .scrollDismissesKeyboard(.interactively)
             
             // Navigation
-            HStack(spacing: SBSLayout.paddingMedium) {
+            HStack(spacing: SBSLayout.space4) {
                 Button {
                     onBack()
                 } label: {
@@ -2188,7 +2188,7 @@ struct ReviewStepView: View {
                 .disabled(!template.isValid)
             }
             .padding()
-            .background(SBSColors.backgroundFallback)
+            .background(Color.bg)
         }
     }
 }
@@ -2200,12 +2200,12 @@ struct TemplateStatItem: View {
     var body: some View {
         VStack(spacing: 2) {
             Text(value)
-                .font(SBSFonts.title2())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .font(SBSFonts.heading())
+                .foregroundStyle(Color.ink)
             
             Text(label)
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
         }
     }
 }

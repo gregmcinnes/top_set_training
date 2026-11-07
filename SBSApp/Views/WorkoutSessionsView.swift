@@ -18,7 +18,7 @@ struct HistoryLinkRow: View {
     let subtitle: String
 
     var body: some View {
-        HStack(spacing: SBSLayout.paddingMedium) {
+        HStack(spacing: SBSLayout.space4) {
             Image(systemName: systemImage)
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(Color.orangeText)
@@ -26,22 +26,22 @@ struct HistoryLinkRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.ink)
 
                 Text(subtitle)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
 
             Spacer()
 
             Image(systemName: "chevron.right")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .foregroundStyle(Color.inkTertiary)
         }
         .padding()
-        .sbsCard()
+        .card()
         .contentShape(Rectangle())
     }
 }
@@ -52,7 +52,7 @@ struct HistoryLockedCyclesRow: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: SBSLayout.paddingMedium) {
+            HStack(spacing: SBSLayout.space4) {
                 Image(systemName: "clock.arrow.circlepath")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(Color.orangeText)
@@ -60,12 +60,12 @@ struct HistoryLockedCyclesRow: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("View Past Cycles")
-                        .font(SBSFonts.bodyBold())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.ink)
 
                     Text("Unlock full workout history with Premium")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                 }
 
                 Spacer()
@@ -73,7 +73,7 @@ struct HistoryLockedCyclesRow: View {
                 PremiumBadge(isCompact: false)
             }
             .padding()
-            .sbsCard()
+            .card()
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("historyLockedCyclesRow")
@@ -103,7 +103,7 @@ struct WorkoutSessionsView: View {
         )
 
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
+            LazyVStack(alignment: .leading, spacing: SBSLayout.space4) {
                 if list.isEmpty {
                     emptyState(hasLockedCycles: list.lockedCycleCount > 0)
                 }
@@ -132,8 +132,8 @@ struct WorkoutSessionsView: View {
 
                 if !list.isEmpty {
                     Text("Shows the results saved for each workout. For lifts with rep-out sets, that's the rep-out sets.")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                 }
             }
             .padding()
@@ -175,16 +175,16 @@ struct WorkoutSessionsView: View {
     private func sectionHeader(_ section: HistorySessionSection) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(section.isCurrent ? "Cycle \(section.cycleNumber) (Current)" : "Cycle \(section.cycleNumber)")
-                .font(SBSFonts.captionBold())
+                .font(SBSFonts.caption().weight(.semibold))
                 .foregroundStyle(SBSColors.accentSecondaryFallback)
 
             if let programName = section.programName, !programName.isEmpty {
                 Text(programName)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
         }
-        .padding(.top, SBSLayout.paddingSmall)
+        .padding(.top, SBSLayout.space2)
     }
 
     /// Cycles from before per-session records still have their summary
@@ -213,19 +213,19 @@ struct WorkoutSessionRow: View {
     }
 
     var body: some View {
-        HStack(spacing: SBSLayout.paddingMedium) {
+        HStack(spacing: SBSLayout.space4) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(session.title)
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.ink)
 
                 Text(metadata)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
 
                 Text(session.exerciseNames.joined(separator: ", "))
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
             }
@@ -234,10 +234,10 @@ struct WorkoutSessionRow: View {
 
             Image(systemName: "chevron.right")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .foregroundStyle(Color.inkTertiary)
         }
         .padding()
-        .sbsCard()
+        .card()
         .contentShape(Rectangle())
     }
 }
@@ -250,7 +250,7 @@ struct WorkoutSessionDetailView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
+            LazyVStack(alignment: .leading, spacing: SBSLayout.space4) {
                 header
 
                 ForEach(session.exercises) { exercise in
@@ -259,9 +259,9 @@ struct WorkoutSessionDetailView: View {
 
                 if !session.accessories.isEmpty {
                     Text("Accessories")
-                        .font(SBSFonts.title3())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                        .padding(.top, SBSLayout.paddingSmall)
+                        .font(SBSFonts.heading())
+                        .foregroundStyle(Color.ink)
+                        .padding(.top, SBSLayout.space2)
 
                     ForEach(session.accessories) { accessory in
                         accessoryCard(accessory)
@@ -278,19 +278,19 @@ struct WorkoutSessionDetailView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(session.date.formatted(date: .long, time: .shortened))
-                .font(SBSFonts.bodyBold())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .font(SBSFonts.bodyStrong())
+                .foregroundStyle(Color.ink)
 
             let details = [session.programName, session.positionLabel ?? ""].filter { !$0.isEmpty }
             if !details.isEmpty {
                 Text(details.joined(separator: " · "))
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .sbsCard()
+        .card()
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("historySessionDetail")
     }
@@ -299,8 +299,8 @@ struct WorkoutSessionDetailView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(accessory.name)
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.ink)
 
                 Spacer()
 
@@ -310,19 +310,19 @@ struct WorkoutSessionDetailView: View {
                     reps: accessory.reps,
                     useMetric: useMetric
                 ))
-                .font(SBSFonts.legacyBody())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
+                .font(SBSFonts.body())
+                .foregroundStyle(Color.inkSecondary)
             }
 
             if let note = accessory.note {
                 Text(note)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .sbsCard()
+        .card()
     }
 }
 
@@ -343,18 +343,18 @@ private struct WorkoutSessionExerciseCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
             HStack(alignment: .firstTextBaseline) {
                 Text(exercise.name)
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.ink)
 
                 Spacer()
 
                 if let trainingMaxText {
                     Text(trainingMaxText)
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                 }
             }
 
@@ -363,20 +363,20 @@ private struct WorkoutSessionExerciseCard: View {
             }
 
             if let note = exercise.note {
-                HStack(alignment: .top, spacing: SBSLayout.paddingSmall) {
+                HStack(alignment: .top, spacing: SBSLayout.space2) {
                     Image(systemName: "note.text")
                         .font(.system(size: 12))
                         .foregroundStyle(SBSColors.accentSecondaryFallback)
 
                     Text(note)
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .sbsCard()
+        .card()
     }
 
     private func setLine(_ line: HistorySetLine) -> some View {
@@ -384,27 +384,27 @@ private struct WorkoutSessionExerciseCard: View {
         return HStack {
             if line.isAMRAP {
                 Text("\(weight) × \(line.reps) reps")
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.body())
+                    .foregroundStyle(Color.inkSecondary)
             } else {
                 Text("\(line.count) × \(line.reps) · \(weight)")
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.body())
+                    .foregroundStyle(Color.inkSecondary)
             }
 
             Spacer()
 
             if line.missed {
-                resultBadge("Missed", color: SBSColors.warning)
+                resultBadge("Missed", color: Color.warning)
             } else if line.isAMRAP {
-                resultBadge("Target \(line.targetReps)+", color: line.reps >= line.targetReps ? SBSColors.success : SBSColors.warning)
+                resultBadge("Target \(line.targetReps)+", color: line.reps >= line.targetReps ? Color.success : Color.warning)
             }
         }
     }
 
     private func resultBadge(_ text: String, color: Color) -> some View {
         Text(text)
-            .font(SBSFonts.legacyCaption())
+            .font(SBSFonts.caption())
             .foregroundStyle(color)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
@@ -433,7 +433,7 @@ struct AccessoryHistoryView: View {
         )
 
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+            LazyVStack(alignment: .leading, spacing: SBSLayout.space2) {
                 if groups.isEmpty {
                     ContentUnavailableView {
                         Label("No Accessories This Cycle", systemImage: "dumbbell")
@@ -477,15 +477,15 @@ private struct AccessoryHistoryCard: View {
     private var earlierEntries: ArraySlice<AccessoryRecord> { group.entries.dropFirst() }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() }
             } label: {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(group.name)
-                            .font(SBSFonts.bodyBold())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.bodyStrong())
+                            .foregroundStyle(Color.ink)
 
                         if let latest = group.latest {
                             entryText(latest)
@@ -497,7 +497,7 @@ private struct AccessoryHistoryCard: View {
                     if !earlierEntries.isEmpty {
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                            .foregroundStyle(Color.inkTertiary)
                     }
                 }
                 .contentShape(Rectangle())
@@ -514,13 +514,13 @@ private struct AccessoryHistoryCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .sbsCard()
+        .card()
     }
 
     private func entryText(_ entry: AccessoryRecord) -> some View {
         let result = accessoryResultText(weight: entry.weight, sets: entry.sets, reps: entry.reps, useMetric: useMetric)
         return Text("\(entry.date.historyDateText): \(result)")
-            .font(SBSFonts.legacyCaption())
-            .foregroundStyle(SBSColors.textSecondaryFallback)
+            .font(SBSFonts.caption())
+            .foregroundStyle(Color.inkSecondary)
     }
 }

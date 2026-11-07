@@ -154,10 +154,14 @@ enum PlateText {
 /// The live set card and history rows show this; the full barbell is BarbellView.
 struct PlateStrip: View {
     let plates: [Plate]
+    /// Height of the tallest plate. History rows pass `rowHeight`.
+    var height: CGFloat = PlateStrip.maxHeight
 
     static let maxHeight: CGFloat = 26
-    private let plateWidth: CGFloat = 8
-    private let spacing: CGFloat = 3
+    /// The strip in a list row's supporting line
+    static let rowHeight: CGFloat = 14
+    private var plateWidth: CGFloat { height < Self.maxHeight ? 5 : 8 }
+    private var spacing: CGFloat { height < Self.maxHeight ? 2 : 3 }
 
     var body: some View {
         HStack(alignment: .bottom, spacing: spacing) {
@@ -165,8 +169,8 @@ struct PlateStrip: View {
                 // Bar only: a short length of shaft
                 Rectangle()
                     .fill(Color.bar)
-                    .frame(width: 40, height: 4)
-                    .frame(height: Self.maxHeight, alignment: .center)
+                    .frame(width: height * 1.5, height: height < Self.maxHeight ? 3 : 4)
+                    .frame(height: height, alignment: .center)
             } else {
                 ForEach(Array(plates.sorted { $0.weight > $1.weight }.enumerated()), id: \.offset) { _, plate in
                     RoundedRectangle(cornerRadius: 1)
@@ -177,11 +181,11 @@ struct PlateStrip: View {
                                     .strokeBorder(Color.ink, lineWidth: SBSLayout.strokeHairline)
                             }
                         }
-                        .frame(width: plateWidth, height: (Self.maxHeight * plate.height).rounded())
+                        .frame(width: plateWidth, height: (height * plate.height).rounded())
                 }
             }
         }
-        .frame(height: Self.maxHeight, alignment: .bottom)
+        .frame(height: height, alignment: .bottom)
         .accessibilityHidden(true)
     }
 }

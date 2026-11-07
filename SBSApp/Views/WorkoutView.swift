@@ -422,77 +422,69 @@ struct WorkoutProgressHeader: View {
     let setInfo: String
     var isAccessory: Bool = false
     var heartRate: Double? = nil
-    
+
     var body: some View {
-        VStack(spacing: SBSLayout.paddingSmall) {
-            // Progress bar
+        VStack(spacing: SBSLayout.space2) {
+            // Progress: ink on a hairline track. Orange is kept for the primary action.
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Rectangle()
-                        .fill(SBSColors.surfaceFallback)
-                    
+                        .fill(Color.hairline)
                     Rectangle()
-                        .fill(
-                            LinearGradient(
-                                colors: isAccessory 
-                                    ? [SBSColors.accentSecondaryFallback, SBSColors.success]
-                                    : [SBSColors.accentFallback, SBSColors.success],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
+                        .fill(Color.ink)
                         .frame(width: geo.size.width * progress)
-                        .animation(.easeInOut(duration: 0.3), value: progress)
+                        .animation(.easeOut(duration: 0.25), value: progress)
                 }
             }
             .frame(height: 4)
-            
-            HStack {
+            .accessibilityHidden(true)
+
+            HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: SBSLayout.paddingSmall) {
-                        if isAccessory {
-                            Image(systemName: "dumbbell.fill")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.accentSecondaryFallback)
-                        }
-                        
-                        Text(exerciseName)
-                            .font(SBSFonts.title3())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
-                            .lineLimit(2)
+                    if isAccessory {
+                        Text("Accessory")
+                            .eyebrowText()
+                            .foregroundStyle(Color.inkSecondary)
                     }
-                    
+
+                    Text(exerciseName)
+                        .font(SBSFonts.heading())
+                        .foregroundStyle(Color.ink)
+                        .lineLimit(2)
+
                     Text(setInfo)
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.numberSmall())
+                        .foregroundStyle(Color.inkSecondary)
                 }
-                
+
                 Spacer()
-                
+
                 // Heart rate from Apple Watch (if available)
                 if let hr = heartRate {
-                    HStack(spacing: 4) {
+                    HStack(spacing: SBSLayout.space1) {
                         Image(systemName: "heart.fill")
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(.red)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.danger)
                         Text("\(Int(hr))")
-                            .font(SBSFonts.captionBold())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.numberSmall())
+                            .foregroundStyle(Color.ink)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(SBSColors.surfaceFallback.opacity(0.8))
-                    .clipShape(Capsule())
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Heart rate \(Int(hr))")
                 }
-                
+
                 Text("\(Int(progress * 100))%")
-                    .font(SBSFonts.captionBold())
-                    .foregroundStyle(isAccessory ? SBSColors.accentSecondaryFallback : Color.orangeText)
+                    .font(SBSFonts.numberSmall())
+                    .foregroundStyle(Color.inkSecondary)
+                    .accessibilityLabel("\(Int(progress * 100)) percent done")
             }
-            .padding(.horizontal)
-            .padding(.bottom, SBSLayout.paddingSmall)
+            .padding(.horizontal, SBSLayout.space4)
+            .padding(.bottom, SBSLayout.space2)
         }
-        .background(SBSColors.surfaceFallback)
+        .background(Color.surface)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color.hairline).frame(height: SBSLayout.strokeHairline)
+        }
     }
 }
 
@@ -511,6 +503,8 @@ struct CurrentSetView: View {
     var onWeightTap: (() -> Void)?
     var onMarkEasy: (() -> Void)?
     var personalRecordE1RM: (String) -> Double? = { _ in nil }
+    var flashToken: UUID? = nil
+    var onFlashDone: (() -> Void)? = nil
 
     @State private var setToUndo: Int?
 
@@ -524,7 +518,7 @@ struct CurrentSetView: View {
         }
         return sets[workoutState.currentSetNumber - 1]
     }
-    
+
     /// Weight to display for current set
     private var currentWeight: Double {
         if let structuredSet = currentStructuredSet {
@@ -532,7 +526,7 @@ struct CurrentSetView: View {
         }
         return workoutState.currentExercise?.weight ?? 0
     }
-    
+
     /// Reps to display for current set
     private var currentReps: Int {
         if let structuredSet = currentStructuredSet {
@@ -540,7 +534,7 @@ struct CurrentSetView: View {
         }
         return workoutState.currentExercise?.repsPerSet ?? 0
     }
-    
+
     /// Is current set an AMRAP?
     private var isCurrentAMRAP: Bool {
         if let structuredSet = currentStructuredSet {
@@ -548,7 +542,7 @@ struct CurrentSetView: View {
         }
         return workoutState.isCurrentSetRepOut
     }
-    
+
     /// Reps that would set a new E1RM PR on the current AMRAP set, if within
     /// reach (5 reps past the AMRAP target). nil = no hint.
     private var prHintReps: Int? {
@@ -588,331 +582,67 @@ struct CurrentSetView: View {
         }
         return nil
     }
-    
+
+    /// "Set 3 of 5 · last set", "Accessory · set 2 of 3", "Set 5 of 5 · AMRAP"
+    private func eyebrow(for exercise: WorkoutExercise) -> String {
+        let position = "set \(workoutState.currentSetNumber) of \(exercise.totalSets)"
+        if exercise.isAccessory {
+            return "Accessory · \(position)"
+        }
+        var parts = ["Set \(workoutState.currentSetNumber) of \(exercise.totalSets)"]
+        if isCurrentAMRAP {
+            parts.append(currentReps == 1 && currentStructuredSet != nil ? "heavy single" : "AMRAP")
+        } else if workoutState.currentSetNumber == exercise.totalSets {
+            parts.append("last set")
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    /// "× 5", "× 10+"
+    private func scheme(for exercise: WorkoutExercise) -> String {
+        if exercise.isAccessory || exercise.isLinear {
+            return "× \(exercise.repsPerSet)"
+        }
+        if currentStructuredSet != nil {
+            return isCurrentAMRAP ? "× \(currentReps)+" : "× \(currentReps)"
+        }
+        return workoutState.isCurrentSetRepOut ? "× \(exercise.repOutTarget)+" : "× \(exercise.repsPerSet)"
+    }
+
+    private func displayWeight(for exercise: WorkoutExercise) -> Double {
+        currentStructuredSet?.weight ?? exercise.weight
+    }
+
     var body: some View {
-        VStack(spacing: SBSLayout.paddingLarge) {
-            Spacer()
-            
+        Group {
             if let exercise = workoutState.currentExercise {
-                // Set indicators
-                if exercise.isStructured, let sets = exercise.structuredSetInfo {
-                    StructuredSetIndicatorStrip(
-                        sets: sets,
-                        currentSet: workoutState.currentSetNumber,
-                        completedSets: workoutState.completedSets[exercise.id] ?? [],
-                        useMetric: useMetric,
-                        onCompletedTap: { setToUndo = $0 }
-                    )
-                } else {
-                    SetIndicatorStrip(
-                        totalSets: exercise.totalSets,
-                        currentSet: workoutState.currentSetNumber,
-                        completedSets: workoutState.completedSets[exercise.id] ?? [],
-                        failedSets: workoutState.failedSets[exercise.id] ?? [],
-                        onCompletedTap: { setToUndo = $0 },
-                        repsPerSet: exercise.repsPerSet,
-                        repOutTarget: exercise.repOutTarget,
-                        isRepOutSet: exercise.isRepOutSet,
-                        isAccessory: exercise.isAccessory
-                    )
+                ScrollView {
+                    VStack(alignment: .leading, spacing: SBSLayout.space4) {
+                        setGrid(for: exercise)
+
+                        LiveSetCard(
+                            eyebrow: eyebrow(for: exercise),
+                            badge: exercise.isAccessory ? nil : intensityText,
+                            weight: displayWeight(for: exercise),
+                            useMetric: useMetric,
+                            scheme: scheme(for: exercise),
+                            showPlates: !exercise.isAccessory && showPlateCalculator && displayWeight(for: exercise) >= barWeight,
+                            barWeight: barWeight,
+                            onUnlockTap: onUnlockTap,
+                            onWeightTap: onWeightTap,
+                            flashToken: flashToken,
+                            onFlashDone: onFlashDone
+                        )
+                        // Room for the hard shadow inside the gutter
+                        .padding(.trailing, SBSLayout.hardShadowOffset)
+
+                        hints(for: exercise)
+                    }
+                    .padding(SBSLayout.space4)
                 }
-                
-                if exercise.isAccessory {
-                    // Accessory display
-                    VStack(spacing: SBSLayout.paddingMedium) {
-                        // Accessory badge
-                        HStack(spacing: SBSLayout.paddingSmall) {
-                            Image(systemName: "dumbbell.fill")
-                                .font(SBSFonts.legacyBody())
-                                .foregroundStyle(SBSColors.accentSecondaryFallback)
-
-                            Text("ACCESSORY")
-                                .font(SBSFonts.captionBold())
-                                .foregroundStyle(SBSColors.accentSecondaryFallback)
-                        }
-                        .padding(.horizontal, SBSLayout.paddingMedium)
-                        .padding(.vertical, SBSLayout.paddingSmall)
-                        .background(
-                            Capsule()
-                                .fill(SBSColors.accentSecondaryFallback.opacity(0.15))
-                        )
-
-                        // Weight (tappable to edit; shown even if 0 for bodyweight)
-                        PrescriptionHero(
-                            weight: exercise.weight.formattedWeight(useMetric: useMetric),
-                            reps: "\(exercise.repsPerSet)",
-                            repsLabel: "reps",
-                            weightColor: SBSColors.accentSecondaryFallback,
-                            repsColor: SBSColors.textPrimaryFallback,
-                            onWeightTap: onWeightTap
-                        )
-
-                        if exercise.lastWasEasy == true {
-                            HStack(spacing: 4) {
-                                Image(systemName: "hand.thumbsup.fill")
-                                    .font(SBSFonts.legacyCaption())
-                                Text("Last time was easy, go heavier")
-                                    .font(SBSFonts.legacyCaption())
-                            }
-                            .foregroundStyle(SBSColors.success)
-                            .padding(.horizontal, SBSLayout.paddingMedium)
-                            .padding(.vertical, SBSLayout.paddingSmall)
-                            .background(
-                                Capsule()
-                                    .fill(SBSColors.success.opacity(0.15))
-                            )
-                        }
-
-                        if workoutState.currentSetNumber == exercise.totalSets {
-                            Button(action: { onMarkEasy?() }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: exercise.markedEasy ? "hand.thumbsup.fill" : "hand.thumbsup")
-                                        .font(SBSFonts.legacyCaption())
-                                    Text(exercise.markedEasy ? "Marked easy" : "That was easy?")
-                                        .font(SBSFonts.legacyCaption())
-                                }
-                                .foregroundStyle(exercise.markedEasy ? SBSColors.success : SBSColors.textSecondaryFallback)
-                                .padding(.horizontal, SBSLayout.paddingMedium)
-                                .padding(.vertical, SBSLayout.paddingSmall)
-                                .background(
-                                    Capsule()
-                                        .fill(exercise.markedEasy ? SBSColors.success.opacity(0.15) : SBSColors.surfaceFallback)
-                                        .overlay(
-                                            Capsule()
-                                                .strokeBorder(
-                                                    exercise.markedEasy ? SBSColors.success.opacity(0.4) : SBSColors.textTertiaryFallback.opacity(0.3),
-                                                    lineWidth: 1
-                                                )
-                                        )
-                                )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                } else if exercise.isStructured {
-                    // nSuns display - show current set's weight and reps
-                    VStack(spacing: SBSLayout.paddingMedium) {
-                        // Intensity badge
-                        if let intensity = intensityText {
-                            Text(intensity)
-                                .font(SBSFonts.captionBold())
-                                .foregroundStyle(SBSColors.warning)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(
-                                    Capsule()
-                                        .fill(SBSColors.warning.opacity(0.15))
-                                )
-                        }
-                        
-                        // Weight for THIS set (tappable to override)
-                        PrescriptionHero(
-                            weight: currentWeight.formattedWeight(useMetric: useMetric),
-                            reps: isCurrentAMRAP ? "\(currentReps)+" : "\(currentReps)",
-                            repsLabel: isCurrentAMRAP ? "reps (AMRAP)" : "reps",
-                            weightColor: isCurrentAMRAP ? SBSColors.warning : Color.orangeText,
-                            repsColor: isCurrentAMRAP ? SBSColors.warning : SBSColors.textPrimaryFallback,
-                            onWeightTap: onWeightTap
-                        )
-
-                        // Plate Calculator
-                        if showPlateCalculator && currentWeight >= barWeight {
-                            PremiumBarbellView(
-                                weight: currentWeight,
-                                useMetric: useMetric,
-                                barWeight: barWeight,
-                                showLabels: true,
-                                compact: false,
-                                onUnlockTap: onUnlockTap
-                            )
-                            .padding(.horizontal, SBSLayout.paddingMedium)
-                        }
-                        
-                        lastTimeLabel(for: exercise)
-
-                        if isCurrentAMRAP {
-                            Text(currentReps == 1 ? "Heavy single - go for it!" : "AMRAP set - push it!")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.warning)
-                                .padding(.horizontal, SBSLayout.paddingMedium)
-                                .padding(.vertical, SBSLayout.paddingSmall)
-                                .background(
-                                    Capsule()
-                                        .fill(SBSColors.warning.opacity(0.15))
-                                )
-                        }
-
-                        if let prReps = prHintReps {
-                            Text("\(prReps) reps would be a new 1RM!")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.warning)
-                                .padding(.horizontal, SBSLayout.paddingMedium)
-                                .padding(.vertical, SBSLayout.paddingSmall)
-                                .background(
-                                    Capsule()
-                                        .fill(SBSColors.warning.opacity(0.15))
-                                )
-                        }
-                    }
-                } else if exercise.isLinear {
-                    // Linear progression display
-                    VStack(spacing: SBSLayout.paddingMedium) {
-                        // Intensity badge
-                        if let intensity = intensityText {
-                            Text(intensity)
-                                .font(SBSFonts.captionBold())
-                                .foregroundStyle(Color.orangeText)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(
-                                    Capsule()
-                                        .fill(SBSColors.accentFallback.opacity(0.15))
-                                )
-                        }
-
-                        // Weight (tappable to override)
-                        PrescriptionHero(
-                            weight: exercise.weight.formattedWeight(useMetric: useMetric),
-                            reps: "\(exercise.repsPerSet)",
-                            repsLabel: "reps",
-                            weightColor: Color.orangeText,
-                            repsColor: SBSColors.textPrimaryFallback,
-                            onWeightTap: onWeightTap
-                        )
-
-                        // Plate Calculator - visual barbell
-                        if showPlateCalculator && exercise.weight >= barWeight {
-                            PremiumBarbellView(
-                                weight: exercise.weight,
-                                useMetric: useMetric,
-                                barWeight: barWeight,
-                                showLabels: true,
-                                compact: false,
-                                onUnlockTap: onUnlockTap
-                            )
-                            .padding(.horizontal, SBSLayout.paddingMedium)
-                        }
-
-                        lastTimeLabel(for: exercise)
-
-                        // Deload warning
-                        if let info = exercise.linearInfo, info.isDeloadPending {
-                            HStack(spacing: SBSLayout.paddingSmall) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .font(SBSFonts.legacyCaption())
-                                
-                                Text("Deload pending (\(info.consecutiveFailures) failures)")
-                                    .font(SBSFonts.legacyCaption())
-                            }
-                            .foregroundStyle(SBSColors.warning)
-                            .padding(.horizontal, SBSLayout.paddingMedium)
-                            .padding(.vertical, SBSLayout.paddingSmall)
-                            .background(
-                                Capsule()
-                                    .fill(SBSColors.warning.opacity(0.15))
-                            )
-                        }
-                    }
-                } else {
-                    // Standard volume display
-                    VStack(spacing: SBSLayout.paddingMedium) {
-                        // Intensity badge
-                        if let intensity = intensityText {
-                            Text(intensity)
-                                .font(SBSFonts.captionBold())
-                                .foregroundStyle(Color.orangeText)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(
-                                    Capsule()
-                                        .fill(SBSColors.accentFallback.opacity(0.15))
-                                )
-                        }
-
-                        // Weight (tappable to override)
-                        PrescriptionHero(
-                            weight: exercise.weight.formattedWeight(useMetric: useMetric),
-                            reps: workoutState.isCurrentSetRepOut ? "\(exercise.repOutTarget)+" : "\(exercise.repsPerSet)",
-                            repsLabel: workoutState.isCurrentSetRepOut ? "reps (AMRAP)" : "reps",
-                            weightColor: Color.orangeText,
-                            repsColor: workoutState.isCurrentSetRepOut ? SBSColors.success : SBSColors.textPrimaryFallback,
-                            onWeightTap: onWeightTap
-                        )
-
-                        // Plate Calculator - visual barbell
-                        if showPlateCalculator && exercise.weight >= barWeight {
-                            PremiumBarbellView(
-                                weight: exercise.weight,
-                                useMetric: useMetric,
-                                barWeight: barWeight,
-                                showLabels: true,
-                                compact: false,
-                                onUnlockTap: onUnlockTap
-                            )
-                            .padding(.horizontal, SBSLayout.paddingMedium)
-                        }
-                        
-                        lastTimeLabel(for: exercise)
-
-                        if workoutState.isCurrentSetRepOut {
-                            Text("Last set! Go for max reps")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.success)
-                                .padding(.horizontal, SBSLayout.paddingMedium)
-                                .padding(.vertical, SBSLayout.paddingSmall)
-                                .background(
-                                    Capsule()
-                                        .fill(SBSColors.success.opacity(0.15))
-                                )
-                        }
-
-                        if let prReps = prHintReps {
-                            Text("\(prReps) reps would be a new 1RM!")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.success)
-                                .padding(.horizontal, SBSLayout.paddingMedium)
-                                .padding(.vertical, SBSLayout.paddingSmall)
-                                .background(
-                                    Capsule()
-                                        .fill(SBSColors.success.opacity(0.15))
-                                )
-                        }
-                    }
-                }
-                
-                Spacer()
-                
-                // Complete button
-                Button(action: onComplete) {
-                    HStack(spacing: SBSLayout.paddingSmall) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(SBSFonts.legacyTitle())
-                        
-                        Text(isCurrentAMRAP ? "Log Reps" : "Complete Set")
-                            .font(SBSFonts.legacyButton())
-                    }
-                    .foregroundStyle(buttonLabelColor)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, SBSLayout.paddingMedium + 4)
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusLarge)
-                            .fill(buttonColor)
-                    )
-                }
-                .padding(.horizontal, SBSLayout.paddingLarge)
-                .padding(.bottom, exercise.isLinear ? 0 : SBSLayout.paddingXLarge)
-
-                // Only linear lifts progress from each set's result. Elsewhere a set's
-                // reps don't change anything, and an AMRAP asks for its count anyway.
-                if exercise.isLinear {
-                    Button("Missed Reps") {
-                        onMissed?()
-                    }
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                    .frame(minHeight: 44)
-                    .padding(.bottom, SBSLayout.paddingMedium)
-                    .disabled(workoutState.isSetCompleted(workoutState.currentSetNumber))
+                .scrollBounceBehavior(.basedOnSize)
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    actions(for: exercise)
                 }
             }
         }
@@ -932,165 +662,236 @@ struct CurrentSetView: View {
     }
 
     @ViewBuilder
-    private func lastTimeLabel(for exercise: WorkoutExercise) -> some View {
-        if let text = lastTime(exercise) {
-            Text(text)
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textSecondaryFallback)
+    private func setGrid(for exercise: WorkoutExercise) -> some View {
+        if exercise.isStructured, let sets = exercise.structuredSetInfo {
+            StructuredSetIndicatorStrip(
+                sets: sets,
+                currentSet: workoutState.currentSetNumber,
+                completedSets: workoutState.completedSets[exercise.id] ?? [],
+                useMetric: useMetric,
+                loggedReps: workoutState.structuredLoggedReps[exercise.id] ?? [:],
+                onCompletedTap: { setToUndo = $0 }
+            )
+        } else {
+            SetIndicatorStrip(
+                totalSets: exercise.totalSets,
+                currentSet: workoutState.currentSetNumber,
+                completedSets: workoutState.completedSets[exercise.id] ?? [],
+                failedSets: workoutState.failedSets[exercise.id] ?? [],
+                onCompletedTap: { setToUndo = $0 },
+                repsPerSet: exercise.repsPerSet,
+                repOutTarget: exercise.repOutTarget,
+                isRepOutSet: exercise.isRepOutSet,
+                isAccessory: exercise.isAccessory
+            )
         }
-    }
-    
-    /// Label on buttonColor: orange-ink on the orange fill, never white on orange.
-    /// Mirrors buttonColor's branches.
-    private var buttonLabelColor: Color {
-        if let exercise = workoutState.currentExercise, exercise.isStructured {
-            return isCurrentAMRAP ? .white : Color.orangeInk
-        }
-        if workoutState.isCurrentSetRepOut || workoutState.isCurrentExerciseAccessory {
-            return .white
-        }
-        return Color.orangeInk
     }
 
-    private var buttonColor: Color {
-        if let exercise = workoutState.currentExercise, exercise.isStructured {
-            return isCurrentAMRAP ? SBSColors.warning : SBSColors.accentFallback
+    /// Supporting lines under the card: last time, the AMRAP and PR hints, warnings
+    @ViewBuilder
+    private func hints(for exercise: WorkoutExercise) -> some View {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            if let text = lastTime(exercise) {
+                Text(text)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
+            }
+
+            if exercise.isAccessory {
+                if exercise.lastWasEasy == true {
+                    Label("Last time was easy, go heavier", systemImage: "hand.thumbsup")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.success)
+                }
+
+                if workoutState.currentSetNumber == exercise.totalSets {
+                    Button(action: { onMarkEasy?() }) {
+                        Label(exercise.markedEasy ? "Marked easy" : "That was easy?",
+                              systemImage: exercise.markedEasy ? "hand.thumbsup.fill" : "hand.thumbsup")
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.ink)
+                            .padding(.horizontal, SBSLayout.space3)
+                            .frame(minHeight: 36)
+                            .selectionCell(exercise.markedEasy)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(exercise.markedEasy ? .isSelected : [])
+                }
+            } else {
+                if isCurrentAMRAP {
+                    // The AMRAP hint is the one place orange-soft sits behind text
+                    Text(amrapHint)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.ink)
+                        .padding(.horizontal, SBSLayout.space3)
+                        .padding(.vertical, SBSLayout.space2)
+                        .background(Color.orangeSoft, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+                }
+
+                if let prReps = prHintReps {
+                    Text("\(prReps) reps would be a new 1RM")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.orangeText)
+                }
+
+                if exercise.isLinear, let info = exercise.linearInfo, info.isDeloadPending {
+                    Label("Deload pending (\(info.consecutiveFailures) failures)", systemImage: "exclamationmark.triangle")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.warning)
+                }
+            }
         }
-        if workoutState.isCurrentSetRepOut {
-            return SBSColors.success
-        } else if workoutState.isCurrentExerciseAccessory {
-            return SBSColors.accentSecondaryFallback
-        } else {
-            return SBSColors.accentFallback
+    }
+
+    private var amrapHint: String {
+        if currentStructuredSet != nil {
+            return currentReps == 1 ? "Heavy single. Go for it." : "AMRAP set. Push it."
         }
+        return "Last set! Go for max reps"
+    }
+
+    /// The primary action, pinned above the home indicator so it never scrolls away
+    private func actions(for exercise: WorkoutExercise) -> some View {
+        VStack(spacing: SBSLayout.space2) {
+            Button(action: onComplete) {
+                Text(isCurrentAMRAP ? "Log Reps" : "Complete Set")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(SBSPrimaryButtonStyle())
+            // The style uppercases what it shows; VoiceOver and Voice Control get the words
+            .accessibilityLabel(isCurrentAMRAP ? "Log Reps" : "Complete Set")
+
+            // Only linear lifts progress from each set's result. Elsewhere a set's
+            // reps don't change anything, and an AMRAP asks for its count anyway.
+            if exercise.isLinear {
+                Button {
+                    onMissed?()
+                } label: {
+                    Text("Missed Reps")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(SBSSecondaryButtonStyle())
+                .accessibilityLabel("Missed Reps")
+                .disabled(workoutState.isSetCompleted(workoutState.currentSetNumber))
+            }
+        }
+        .padding(.horizontal, SBSLayout.space4)
+        // Room for the primary button's hard shadow
+        .padding(.trailing, SBSLayout.hardShadowOffset)
+        .padding(.top, SBSLayout.space3)
+        .padding(.bottom, SBSLayout.space3)
+        .background(Color.bg)
     }
 }
 
-// MARK: - Prescription Hero
+// MARK: - Set Grid
 
-/// The two numbers a lifter needs from across the room: the weight and the reps
-struct PrescriptionHero: View {
-    let weight: String
-    let reps: String
-    let repsLabel: String
-    let weightColor: Color
-    let repsColor: Color
-    var onWeightTap: (() -> Void)?
+/// One set in the set grid: weight or reps over a second line. The glyph and the
+/// word carry the state; colour only reinforces it.
+struct SetGridCell: View {
+    enum Status { case done, failed, current, pending }
 
-    @ScaledMetric(relativeTo: .largeTitle) private var weightSize: CGFloat = 60
-    @ScaledMetric(relativeTo: .largeTitle) private var repsSize: CGFloat = 40
+    let top: String
+    let bottom: String
+    let status: Status
+    let accessibilityText: String
 
     var body: some View {
         VStack(spacing: 2) {
-            Button {
-                onWeightTap?()
-            } label: {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(weight)
-                        .font(.system(size: weightSize, weight: .bold, design: .rounded))
-                        .foregroundStyle(weightColor)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.5)
+            Text(top)
+                .font(SBSFonts.number())
+                .foregroundStyle(status == .pending ? Color.inkSecondary : Color.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
 
-                    Image(systemName: "pencil.circle")
-                        .font(SBSFonts.title3())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
-                }
-            }
-            .accessibilityLabel("Edit weight, \(weight)")
-            .padding(.horizontal, SBSLayout.paddingLarge)
+            bottomLine
+                .font(SBSFonts.numberSmall())
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity, minHeight: 52)
+        .padding(.horizontal, SBSLayout.space1)
+        .padding(.vertical, SBSLayout.space2)
+        .background(background, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+        .overlay(
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                .strokeBorder(status == .current ? Color.orangeText : Color.hairline, lineWidth: SBSLayout.strokeHairline)
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityText)
+        .accessibilityAddTraits(status == .current ? .isSelected : [])
+    }
 
-            HStack(alignment: .firstTextBaseline, spacing: SBSLayout.paddingSmall) {
-                Text(reps)
-                    .font(.system(size: repsSize, weight: .bold, design: .rounded))
-                    .foregroundStyle(repsColor)
+    @ViewBuilder
+    private var bottomLine: some View {
+        switch status {
+        case .done:
+            (Text(Image(systemName: "checkmark")) + Text(" \(bottom)"))
+                .foregroundStyle(Color.success)
+        case .failed:
+            (Text(Image(systemName: "xmark")) + Text(" \(bottom)"))
+                .foregroundStyle(Color.danger)
+        case .current:
+            Text(bottom).foregroundStyle(Color.ink)
+        case .pending:
+            Text(bottom).foregroundStyle(Color.inkSecondary)
+        }
+    }
 
-                Text(repsLabel)
-                    .font(SBSFonts.title2())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
-            }
+    private var background: Color {
+        switch status {
+        case .done, .failed: .surfaceRaised
+        case .current: .orangeSoft
+        case .pending: .surface
         }
     }
 }
 
-// MARK: - nSuns Set Indicator Strip
+/// Five cells to a row at most; six or more sets wrap.
+private func setGridColumns(count: Int) -> [GridItem] {
+    Array(repeating: GridItem(.flexible(), spacing: SBSLayout.space2), count: max(1, min(count, 5)))
+}
+
+// MARK: - Structured Set Grid
 
 struct StructuredSetIndicatorStrip: View {
     let sets: [StructuredSetInfo]
     let currentSet: Int  // 1-indexed
     let completedSets: Set<Int>  // 1-indexed set numbers
     let useMetric: Bool
+    /// Logged AMRAP reps by set index
+    var loggedReps: [Int: Int] = [:]
     var onCompletedTap: ((Int) -> Void)?
-    
-    var body: some View {
-        GeometryReader { geometry in
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    ForEach(sets, id: \.setIndex) { setInfo in
-                        let setNumber = setInfo.setIndex + 1  // Convert to 1-indexed
-                        CompletedSetTapTarget(
-                            setNumber: setNumber,
-                            isCompleted: completedSets.contains(setNumber),
-                            onTap: onCompletedTap
-                        ) {
-                            StructuredSetIndicator(
-                                setInfo: setInfo,
-                                isCompleted: completedSets.contains(setNumber),
-                                isCurrent: setNumber == currentSet,
-                                useMetric: useMetric
-                            )
-                        }
-                    }
-                }
-                .padding(.horizontal, SBSLayout.paddingLarge)
-                .frame(minWidth: geometry.size.width)
-            }
-        }
-        .frame(height: 58)  // Circle (40) + spacing (2) + label (~16)
-    }
-}
 
-struct StructuredSetIndicator: View {
-    let setInfo: StructuredSetInfo
-    let isCompleted: Bool
-    let isCurrent: Bool
-    let useMetric: Bool
-    
     var body: some View {
-        VStack(spacing: 2) {
-            ZStack {
-                Circle()
-                    .fill(backgroundColor)
-                    .frame(width: 40, height: 40)
-                
-                if isCompleted {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(.white)
-                } else {
-                    VStack(spacing: 0) {
-                        Text(setInfo.isAMRAP ? "\(setInfo.targetReps)+" : "\(setInfo.targetReps)")
-                            .font(SBSFonts.captionBold())
-                            .foregroundStyle(isCurrent ? (setInfo.isAMRAP ? .white : Color.orangeInk) : (setInfo.isAMRAP ? SBSColors.warning : SBSColors.textSecondaryFallback))
-                    }
+        LazyVGrid(columns: setGridColumns(count: sets.count), spacing: SBSLayout.space2) {
+            ForEach(sets, id: \.setIndex) { setInfo in
+                let setNumber = setInfo.setIndex + 1  // Convert to 1-indexed
+                let isCompleted = completedSets.contains(setNumber)
+                CompletedSetTapTarget(
+                    setNumber: setNumber,
+                    isCompleted: isCompleted,
+                    onTap: onCompletedTap
+                ) {
+                    cell(setInfo, setNumber: setNumber, isCompleted: isCompleted)
                 }
             }
-            
-            // Weight label
-            Text(setInfo.weight.formattedWeightShort(useMetric: useMetric))
-                .font(SBSFonts.label())
-                .foregroundStyle(isCurrent ? (setInfo.isAMRAP ? SBSColors.warning : Color.orangeText) : SBSColors.textTertiaryFallback)
         }
     }
-    
-    private var backgroundColor: Color {
-        if isCompleted {
-            return SBSColors.success
-        } else if isCurrent {
-            return setInfo.isAMRAP ? SBSColors.warning : SBSColors.accentFallback
-        } else {
-            return setInfo.isAMRAP ? SBSColors.warning.opacity(0.2) : SBSColors.surfaceFallback
-        }
+
+    private func cell(_ setInfo: StructuredSetInfo, setNumber: Int, isCompleted: Bool) -> SetGridCell {
+        let weight = setInfo.weight.formattedWeightShort(useMetric: useMetric)
+        let target = setInfo.isAMRAP ? "\(setInfo.targetReps)+" : "\(setInfo.targetReps)"
+        let logged = loggedReps[setInfo.setIndex]
+        let status: SetGridCell.Status = isCompleted ? .done : (setNumber == currentSet ? .current : .pending)
+        let bottom = isCompleted ? "\(logged ?? setInfo.targetReps)" : "× \(target)"
+        let state = isCompleted ? "done" : (status == .current ? "current" : "to do")
+        return SetGridCell(
+            top: weight,
+            bottom: bottom,
+            status: status,
+            accessibilityText: "Set \(setNumber), \(weight) \(useMetric ? "kilograms" : "pounds"), \(target) reps, \(state)"
+        )
     }
 }
 
@@ -1116,7 +917,7 @@ struct CompletedSetTapTarget<Content: View>: View {
     }
 }
 
-// MARK: - Set Indicator Strip
+// MARK: - Volume Set Grid
 
 struct SetIndicatorStrip: View {
     let totalSets: Int
@@ -1128,86 +929,31 @@ struct SetIndicatorStrip: View {
     let repOutTarget: Int
     let isRepOutSet: (Int) -> Bool
     var isAccessory: Bool = false
-    
-    var body: some View {
-        GeometryReader { geometry in
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: SBSLayout.paddingSmall) {
-                    ForEach(1...totalSets, id: \.self) { setNumber in
-                        let isAmrap = isRepOutSet(setNumber)
-                        let reps = isAmrap ? repOutTarget : repsPerSet
-                        CompletedSetTapTarget(
-                            setNumber: setNumber,
-                            isCompleted: completedSets.contains(setNumber),
-                            onTap: onCompletedTap
-                        ) {
-                            SetIndicator(
-                                setNumber: setNumber,
-                                reps: reps,
-                                isAmrap: isAmrap,
-                                isCompleted: completedSets.contains(setNumber),
-                                isCurrent: setNumber == currentSet,
-                                isFailed: failedSets.contains(setNumber),
-                                isAccessory: isAccessory
-                            )
-                        }
-                    }
-                }
-                .padding(.horizontal, SBSLayout.paddingLarge)
-                .frame(minWidth: geometry.size.width)
-            }
-        }
-        .frame(height: 64)  // Circle (44) + spacing (4) + label (~16)
-    }
-}
 
-struct SetIndicator: View {
-    let setNumber: Int
-    let reps: Int
-    let isAmrap: Bool
-    let isCompleted: Bool
-    let isCurrent: Bool
-    var isFailed: Bool = false
-    var isAccessory: Bool = false
-    
     var body: some View {
-        VStack(spacing: 4) {
-            ZStack {
-                Circle()
-                    .fill(backgroundColor)
-                    .frame(width: 44, height: 44)
-                
-                if isCompleted {
-                    Image(systemName: isFailed ? "xmark" : "checkmark")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.white)
-                } else {
-                    // Show rep count with + only for AMRAP sets
-                    Text(isAmrap && !isAccessory ? "\(reps)+" : "\(reps)")
-                        .font(SBSFonts.bodyBold())
-                        .foregroundStyle(isCurrent && !isAccessory && !isAmrap ? Color.orangeInk : (isCurrent ? .white : SBSColors.textSecondaryFallback))
+        LazyVGrid(columns: setGridColumns(count: totalSets), spacing: SBSLayout.space2) {
+            ForEach(1...max(1, totalSets), id: \.self) { setNumber in
+                let isAmrap = isRepOutSet(setNumber) && !isAccessory
+                let reps = isAmrap ? "\(repOutTarget)+" : "\(repsPerSet)"
+                let isCompleted = completedSets.contains(setNumber)
+                let isFailed = failedSets.contains(setNumber)
+                let status: SetGridCell.Status = isFailed ? .failed
+                    : isCompleted ? .done
+                    : setNumber == currentSet ? .current : .pending
+                let state = isFailed ? "missed reps" : isCompleted ? "done" : (status == .current ? "current" : "to do")
+                CompletedSetTapTarget(
+                    setNumber: setNumber,
+                    isCompleted: isCompleted,
+                    onTap: onCompletedTap
+                ) {
+                    SetGridCell(
+                        top: reps,
+                        bottom: isFailed ? "missed" : "set \(setNumber)",
+                        status: status,
+                        accessibilityText: "Set \(setNumber), \(reps) reps, \(state)"
+                    )
                 }
             }
-            
-            // Show set number label below
-            Text("Set \(setNumber)")
-                .font(SBSFonts.label())
-                .foregroundStyle(isCurrent ? (isAccessory ? SBSColors.accentSecondaryFallback : isAmrap ? SBSColors.success : Color.orangeText) : SBSColors.textTertiaryFallback)
-        }
-    }
-    
-    private var backgroundColor: Color {
-        if isFailed {
-            return SBSColors.warning
-        } else if isCompleted {
-            return SBSColors.success
-        } else if isCurrent {
-            if isAccessory {
-                return SBSColors.accentSecondaryFallback
-            }
-            return isAmrap ? SBSColors.success : SBSColors.accentFallback
-        } else {
-            return SBSColors.surfaceFallback
         }
     }
 }

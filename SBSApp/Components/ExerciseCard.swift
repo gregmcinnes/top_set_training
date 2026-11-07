@@ -1,5 +1,166 @@
 import SwiftUI
 
+// MARK: - Live Set Card
+
+/// The one set the lifter is about to do, and the only card on a screen with the
+/// signature treatment (2px rule, square corners, hard shadow). One per screen: the
+/// current set while lifting, the next set while resting.
+///
+/// The card computes nothing: the caller hands it the labels, the weight and the scheme.
+struct LiveSetCard: View {
+    /// "Set 3 of 5 · last set", passed in sentence case
+    let eyebrow: String
+    /// Trailing tag on the eyebrow row: "85% TM", "Adjusted"
+    var badge: String? = nil
+    let weight: Double
+    let useMetric: Bool
+    /// "× 5", "× 5+"
+    let scheme: String
+    var showPlates: Bool = false
+    var barWeight: Double = 45
+    var onUnlockTap: (() -> Void)? = nil
+    var onWeightTap: (() -> Void)? = nil
+    /// A new value flashes the card orange once (a PR was just logged)
+    var flashToken: UUID? = nil
+    var onFlashDone: (() -> Void)? = nil
+
+    @State private var flashOpacity: Double = 0
+
+    private var weightText: String { weight.formattedWeightShort(useMetric: useMetric) }
+    private var unit: String { useMetric ? "kg" : "lb" }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: SBSLayout.space1) {
+            HStack(alignment: .center, spacing: SBSLayout.space2) {
+                Text(eyebrow)
+                    .eyebrowText()
+                    .foregroundStyle(Color.inkSecondary)
+                    .lineLimit(2)
+                Spacer(minLength: SBSLayout.space2)
+                if let badge {
+                    SBSBadge(text: badge)
+                }
+            }
+
+            weightRow
+
+            Text(scheme)
+                .font(SBSFonts.number())
+                .foregroundStyle(Color.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+
+            if showPlates {
+                PremiumPlateLoadSummary(
+                    weight: weight,
+                    barWeight: barWeight,
+                    useMetric: useMetric,
+                    onUnlockTap: onUnlockTap
+                )
+            }
+        }
+        .padding(SBSLayout.space4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay {
+            // The PR flash: orange across the whole card for 600ms, then it settles
+            Color.orangeFill
+                .opacity(flashOpacity)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+        .signatureCard()
+        .task(id: flashToken) {
+            guard flashToken != nil else { return }
+            flashOpacity = 1
+            withAnimation(.easeOut(duration: 0.6)) { flashOpacity = 0 }
+            try? await Task.sleep(for: .milliseconds(600))
+            onFlashDone?()
+        }
+    }
+
+    @ViewBuilder
+    private var weightRow: some View {
+        let row = HStack(alignment: .firstTextBaseline, spacing: 6) {
+            // The hero: may shrink at large text sizes, never wraps
+            Text(weightText)
+                .font(SBSFonts.workingWeight())
+                .tracking(-0.68)
+                .foregroundStyle(Color.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.4)
+                .layoutPriority(1)
+
+            Text(unit)
+                .font(SBSFonts.numberUnit())
+                .foregroundStyle(Color.inkSecondary)
+                .fixedSize()
+
+            if onWeightTap != nil {
+                Image(systemName: "pencil")
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.inkSecondary)
+                    .padding(.leading, SBSLayout.space1)
+            }
+
+            Spacer(minLength: 0)
+        }
+
+        if let onWeightTap {
+            Button(action: onWeightTap) { row.contentShape(Rectangle()) }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Edit weight, \(weightText) \(unit)")
+        } else {
+            row
+                .accessibilityElement(children: .combine)
+        }
+    }
+}
+
+// MARK: - Card Pieces
+
+/// A 1px hairline across a card
+private struct HairlineDivider: View {
+    var body: some View {
+        Rectangle()
+            .fill(Color.hairline)
+            .frame(height: SBSLayout.strokeHairline)
+    }
+}
+
+/// The square tile a card logs from. Unlogged it's a hairline surface with "+ Log";
+/// logged it's raised and the content carries the result with a glyph. Orange stays
+/// off these tiles: a list of cards would otherwise be a wall of orange.
+private struct LogTile<Content: View>: View {
+    let isLogged: Bool
+    var width: CGFloat = 72
+    var height: CGFloat = 72
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(spacing: SBSLayout.space1) {
+            content()
+        }
+        .frame(minWidth: width, minHeight: height)
+        .background(isLogged ? Color.surfaceRaised : Color.surface, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+        .overlay(
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                .strokeBorder(Color.hairline, lineWidth: SBSLayout.strokeHairline)
+        )
+    }
+}
+
+/// "+ LOG", the unlogged face of a log tile
+private struct LogPrompt: View {
+    var body: some View {
+        Image(systemName: "plus")
+            .font(SBSFonts.bodyStrong())
+            .foregroundStyle(Color.ink)
+        Text("Log")
+            .eyebrowText()
+            .foregroundStyle(Color.ink)
+    }
+}
+
 // MARK: - Training Max Card
 
 struct TMCard: View {
@@ -9,65 +170,55 @@ struct TMCard: View {
     let useMetric: Bool
     var barWeight: Double = 45
     var showPlateCalculator: Bool = true
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
-            // Header
-            HStack {
+        VStack(alignment: .leading, spacing: SBSLayout.space3) {
+            HStack(alignment: .firstTextBaseline) {
                 Text(name)
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(Color.ink)
+
                 Spacer()
-                
-                Text("TM")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(SBSColors.backgroundFallback)
-                    )
+
+                SBSBadge(text: "TM")
             }
-            
-            // Values
-            HStack(spacing: SBSLayout.paddingLarge) {
-                // Training Max
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Training Max")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
-                    
+
+            HStack(alignment: .top, spacing: SBSLayout.space6) {
+                VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                    Text("Training max")
+                        .eyebrowText()
+                        .foregroundStyle(Color.inkSecondary)
+
                     Text(trainingMax.formattedWeight(useMetric: useMetric))
-                        .font(SBSFonts.weight())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.numberLarge())
+                        .tracking(-0.84)
+                        .foregroundStyle(Color.ink)
                 }
-                
-                Divider()
-                    .frame(height: 40)
-                
-                // Top Single @8
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Single @8")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
-                    
+
+                Rectangle()
+                    .fill(Color.hairline)
+                    .frame(width: SBSLayout.strokeHairline, height: 44)
+
+                VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                    Text("Single @ 8")
+                        .eyebrowText()
+                        .foregroundStyle(Color.inkSecondary)
+
                     Text(topSingleAt8.formattedWeight(useMetric: useMetric))
-                        .font(SBSFonts.weight())
-                        .foregroundStyle(Color.orangeText)
+                        .font(SBSFonts.numberLarge())
+                        .tracking(-0.84)
+                        .foregroundStyle(Color.ink)
                 }
-                
+
                 Spacer()
             }
-            
-            // Plate calculator for single @8
+
             if showPlateCalculator && topSingleAt8 >= barWeight {
                 PlateListView(weight: topSingleAt8, barWeight: barWeight, useMetric: useMetric)
             }
         }
-        .padding(SBSLayout.paddingMedium)
-        .sbsCard()
+        .padding(SBSLayout.space4)
+        .card()
     }
 }
 
@@ -90,122 +241,99 @@ struct VolumeCard: View {
     var intensity: Double? = nil  // Percentage of training max (0.0-1.0)
     let onLogTap: () -> Void
     var onWeightTap: (() -> Void)? = nil
-    
+
     private var hasNote: Bool {
         guard let note = loggedNote else { return false }
         return !note.isEmpty
     }
-    
+
     private var intensityBadgeText: String {
         guard let intensity = intensity, intensity > 0 else {
-            return "VOLUME"
+            return "Volume"
         }
         let percentage = Int(round(intensity * 100))
         return "\(percentage)% TM"
     }
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-            // Header
-            HStack {
+        VStack(alignment: .leading, spacing: SBSLayout.space3) {
+            HStack(alignment: .firstTextBaseline) {
                 Text(name)
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(Color.ink)
+
                 Spacer()
-                
-                Text(intensityBadgeText)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(Color.orangeText)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(SBSColors.accentFallback.opacity(0.15))
-                    )
+
+                SBSBadge(text: intensityBadgeText)
             }
-            
-            // Prescription
-            HStack(alignment: .bottom, spacing: SBSLayout.paddingSmall) {
-                // Sets x Reps
+
+            // Prescription: "4 × 8 @ 130 lb"
+            HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space2) {
                 Text("\(sets) × \(repsPerSet)")
-                    .font(SBSFonts.weightLarge())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                
+                    .font(SBSFonts.numberLarge())
+                    .tracking(-0.84)
+                    .foregroundStyle(Color.ink)
+
                 Text("@")
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                
-                // Weight (tappable)
+                    .font(SBSFonts.number())
+                    .foregroundStyle(Color.inkSecondary)
+
                 Button(action: { onWeightTap?() }) {
-                    HStack(spacing: 4) {
+                    HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space1) {
                         Text(weight.formattedWeight(useMetric: useMetric))
-                            .font(SBSFonts.weightLarge())
-                            .foregroundStyle(isWeightOverridden ? SBSColors.warning : Color.orangeText)
-                        
-                        if isWeightOverridden {
-                            Image(systemName: "pencil.circle.fill")
-                                .font(.system(size: 16))
-                                .foregroundStyle(SBSColors.warning)
-                        } else {
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
-                        }
+                            .font(SBSFonts.numberLarge())
+                            .tracking(-0.84)
+                            .foregroundStyle(isWeightOverridden ? Color.warning : Color.ink)
+
+                        Image(systemName: isWeightOverridden ? "pencil" : "chevron.right")
+                            .font(SBSFonts.caption().weight(.semibold))
+                            .foregroundStyle(isWeightOverridden ? Color.warning : Color.inkSecondary)
                     }
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Edit weight, \(weight.formattedWeight(useMetric: useMetric))\(isWeightOverridden ? ", adjusted" : "")")
             }
-            
-            // Show original weight if overridden
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+
             if isWeightOverridden, let calculated = calculatedWeight {
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.turn.up.right")
-                        .font(.system(size: 10))
-                    Text("Recommended: \(calculated.formattedWeight(useMetric: useMetric))")
-                        .font(SBSFonts.legacyCaption())
-                }
-                .foregroundStyle(SBSColors.textTertiaryFallback)
+                Label("Recommended: \(calculated.formattedWeight(useMetric: useMetric))", systemImage: "arrow.turn.up.right")
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
-            
-            // Plate Calculator (compact)
+
             if showPlateCalculator && weight >= barWeight {
                 PlateListView(weight: weight, barWeight: barWeight, useMetric: useMetric)
             }
-            
-            // Note preview (if present)
+
             if hasNote, let note = loggedNote {
                 NotePreview(note: note)
             }
-            
-            Divider()
-            
-            // Rep-out target and logging
+
+            HairlineDivider()
+
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Rep-out Target")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
-                    
-                    HStack(spacing: 4) {
-                        Image(systemName: "target")
-                            .font(.system(size: 14))
+                VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                    Text("Rep-out target")
+                        .eyebrowText()
+                        .foregroundStyle(Color.inkSecondary)
+
+                    HStack(spacing: SBSLayout.space1) {
                         Text("\(repOutTarget)+ reps")
-                            .font(SBSFonts.bodyBold())
-                        
-                        // Note indicator
+                            .font(SBSFonts.number())
+                            .foregroundStyle(Color.ink)
+
                         if hasNote {
                             Image(systemName: "note.text")
-                                .font(.system(size: 12))
-                                .foregroundStyle(SBSColors.accentSecondaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
+                                .accessibilityLabel("Has a note")
                         }
                     }
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
-                
+
                 Spacer()
-                
-                // Log button
+
                 LogButton(
                     loggedReps: loggedReps,
                     tmDelta: tmDelta,
@@ -213,8 +341,8 @@ struct VolumeCard: View {
                 )
             }
         }
-        .padding(SBSLayout.paddingMedium)
-        .sbsCard()
+        .padding(SBSLayout.space4)
+        .card()
     }
 }
 
@@ -224,41 +352,34 @@ struct LogButton: View {
     let loggedReps: Int?
     let tmDelta: Double?
     let onTap: () -> Void
-    
+
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 4) {
+            LogTile(isLogged: loggedReps != nil) {
                 if let reps = loggedReps {
-                    // Logged state
-                    Text("\(reps)")
-                        .font(SBSFonts.weight())
-                        .foregroundStyle(.white)
-                    
+                    HStack(spacing: 2) {
+                        Image(systemName: "checkmark")
+                            .font(SBSFonts.caption().weight(.bold))
+                            .foregroundStyle(Color.success)
+                        Text("\(reps)")
+                            .font(SBSFonts.number())
+                            .foregroundStyle(Color.ink)
+                    }
+
                     if let delta = tmDelta {
                         Text(deltaText(delta))
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(.white.opacity(0.8))
+                            .font(SBSFonts.numberSmall())
+                            .foregroundStyle(delta < 0 ? Color.danger : (delta > 0 ? Color.success : Color.inkSecondary))
                     }
                 } else {
-                    // Not logged state
-                    Image(systemName: "plus")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(Color.orangeInk)
-                    
-                    Text("Log")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(Color.orangeInk.opacity(0.8))
+                    LogPrompt()
                 }
             }
-            .frame(width: 72, height: 72)
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                    .fill(loggedReps != nil ? SBSColors.success : SBSColors.accentFallback)
-            )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(loggedReps.map { "Logged \($0) reps, edit" } ?? "Log reps")
     }
-    
+
     private func deltaText(_ delta: Double) -> String {
         let pct = delta * 100
         if pct >= 0 {
@@ -274,36 +395,37 @@ struct LogButton: View {
 struct NotePreview: View {
     let note: String
     @State private var isExpanded: Bool = false
-    
+
     var body: some View {
         Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.easeOut(duration: 0.2)) {
                 isExpanded.toggle()
             }
         } label: {
-            HStack(alignment: .top, spacing: SBSLayout.paddingSmall) {
+            HStack(alignment: .top, spacing: SBSLayout.space2) {
                 Image(systemName: "note.text")
-                    .font(.system(size: 12))
-                    .foregroundStyle(SBSColors.accentSecondaryFallback)
-                
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
+
                 Text(note)
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.ink)
                     .lineLimit(isExpanded ? nil : 2)
                     .multilineTextAlignment(.leading)
-                
+
                 Spacer()
-                
+
                 if note.count > 60 {
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                 }
             }
-            .padding(SBSLayout.paddingSmall)
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                    .fill(SBSColors.accentSecondaryFallback.opacity(0.08))
+            .padding(SBSLayout.space2)
+            .background(Color.surfaceRaised, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+            .overlay(
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .strokeBorder(Color.hairline, lineWidth: SBSLayout.strokeHairline)
             )
         }
         .buttonStyle(.plain)
@@ -312,6 +434,8 @@ struct NotePreview: View {
 
 // MARK: - Structured Card
 
+/// A structured lift in the session list. Never the live set (that's LiveSetCard on
+/// the workout screen), so it's an ordinary hairline card.
 struct StructuredCard: View {
     let name: String
     let lift: String
@@ -322,52 +446,40 @@ struct StructuredCard: View {
     var barWeight: Double = 45
     var showPlateCalculator: Bool = true
     let onSetTap: (Int) -> Void  // Called with set index for AMRAP sets
-    
+
     /// Find the "1+" set (usually the heavy single) - this is the primary AMRAP
     private var primaryAMRAPIndex: Int? {
         sets.first { $0.isAMRAP && $0.targetReps == 1 }?.setIndex
     }
-    
+
     /// Check if all AMRAP sets are logged
     private var isFullyLogged: Bool {
         let amrapSets = sets.filter { $0.isAMRAP }
         guard !amrapSets.isEmpty else { return false }
         return amrapSets.allSatisfy { $0.loggedReps != nil }
     }
-    
+
     /// Get the 1+ set reps (for display)
     private var onePlusReps: Int? {
         guard let index = primaryAMRAPIndex else { return nil }
         return sets[index].loggedReps
     }
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-            // Header
-            HStack {
+        VStack(alignment: .leading, spacing: SBSLayout.space3) {
+            HStack(alignment: .firstTextBaseline) {
                 Text(name)
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(Color.ink)
+
                 Spacer()
-                
-                Text("TM: \(trainingMax.formattedWeight(useMetric: useMetric))")
-                    .font(SBSFonts.captionBold())
-                    .foregroundStyle(SBSColors.warning)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(
-                        Capsule()
-                            .fill(SBSColors.warning.opacity(0.15))
-                    )
+
+                Text("TM \(trainingMax.formattedWeight(useMetric: useMetric))")
+                    .font(SBSFonts.numberSmall())
+                    .foregroundStyle(Color.inkSecondary)
             }
-            
-            // Sets grid
-            LazyVGrid(columns: [
-                GridItem(.flexible(), spacing: 8),
-                GridItem(.flexible(), spacing: 8),
-                GridItem(.flexible(), spacing: 8)
-            ], spacing: 8) {
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: SBSLayout.space2), count: 3), spacing: SBSLayout.space2) {
                 ForEach(sets, id: \.setIndex) { setInfo in
                     StructuredSetCell(
                         setInfo: setInfo,
@@ -380,123 +492,110 @@ struct StructuredCard: View {
                     )
                 }
             }
-            
-            // Plate calculator for heaviest set (usually set index 2, the 1+ set)
-            if showPlateCalculator, let heaviestSet = sets.max(by: { $0.weight < $1.weight }) {
-                if heaviestSet.weight >= barWeight {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Heavy single plates:")
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
-                        
-                        PlateListView(weight: heaviestSet.weight, barWeight: barWeight, useMetric: useMetric)
-                    }
+
+            // Plates for the heaviest set (usually the 1+ set)
+            if showPlateCalculator, let heaviestSet = sets.max(by: { $0.weight < $1.weight }),
+               heaviestSet.weight >= barWeight {
+                VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                    Text("Heavy single")
+                        .eyebrowText()
+                        .foregroundStyle(Color.inkSecondary)
+
+                    PlateListView(weight: heaviestSet.weight, barWeight: barWeight, useMetric: useMetric)
                 }
             }
-            
-            // Status indicator
-            HStack {
+
+            Group {
                 if isFullyLogged {
-                    Label("All AMRAP sets logged", systemImage: "checkmark.circle.fill")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.success)
+                    Label("All AMRAP sets logged", systemImage: "checkmark")
+                        .foregroundStyle(Color.success)
                 } else if let reps = onePlusReps {
-                    Label("1+ set: \(reps) reps", systemImage: "flame.fill")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.warning)
+                    Label("1+ set: \(reps) reps", systemImage: "flame")
+                        .foregroundStyle(Color.ink)
                 } else {
                     Label("Tap AMRAP sets to log reps", systemImage: "hand.tap")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .foregroundStyle(Color.inkSecondary)
                 }
-                
-                Spacer()
             }
+            .font(SBSFonts.caption())
         }
-        .padding(SBSLayout.paddingMedium)
-        .sbsCard()
+        .padding(SBSLayout.space4)
+        .card()
     }
 }
 
 // MARK: - Structured Set Cell
 
+/// A set in the session list's grid. Unlogged AMRAPs are what to act on, so they
+/// take the orange-soft cell; logged sets show their reps with a check.
 struct StructuredSetCell: View {
     let setInfo: StructuredSetInfo
     let useMetric: Bool
     let onTap: () -> Void
-    
+
     private var intensityText: String {
         "\(Int(setInfo.intensity * 100))%"
     }
-    
+
     private var repsText: String {
         if setInfo.isAMRAP {
             return "\(setInfo.targetReps)+"
         }
         return "\(setInfo.targetReps)"
     }
-    
+
     private var isLogged: Bool {
         setInfo.isAMRAP && setInfo.loggedReps != nil
     }
-    
+
+    private var isOpenAMRAP: Bool {
+        setInfo.isAMRAP && !isLogged
+    }
+
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 4) {
-                // Weight
+            VStack(spacing: 2) {
                 Text(setInfo.weight.formattedWeightShort(useMetric: useMetric))
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(isLogged ? .white : (setInfo.isAMRAP ? SBSColors.warning : SBSColors.textPrimaryFallback))
-                
-                // Reps (or logged reps for AMRAP)
+                    .font(SBSFonts.number())
+                    .foregroundStyle(Color.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+
                 if let logged = setInfo.loggedReps {
-                    Text("\(logged) reps")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(.white.opacity(0.9))
+                    (Text(Image(systemName: "checkmark")) + Text(" \(logged) reps"))
+                        .font(SBSFonts.numberSmall())
+                        .foregroundStyle(Color.success)
                 } else {
                     Text("× \(repsText)")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(setInfo.isAMRAP ? SBSColors.warning : SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.numberSmall())
+                        .foregroundStyle(Color.ink)
                 }
-                
-                // Intensity indicator
+
                 Text(intensityText)
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(isLogged ? .white.opacity(0.7) : SBSColors.textTertiaryFallback)
+                    .font(SBSFonts.numberSmall())
+                    .foregroundStyle(Color.inkSecondary)
             }
+            .lineLimit(1)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .padding(.horizontal, 6)
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                    .fill(backgroundColor)
-            )
+            .padding(.vertical, SBSLayout.space2)
+            .padding(.horizontal, SBSLayout.space1)
+            .background(backgroundColor, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
             .overlay(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                    .strokeBorder(borderColor, lineWidth: setInfo.isAMRAP ? 2 : 0)
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .strokeBorder(isOpenAMRAP ? Color.orangeText : Color.hairline, lineWidth: SBSLayout.strokeHairline)
             )
         }
         .buttonStyle(.plain)
         .disabled(!setInfo.isAMRAP)
     }
-    
+
     private var backgroundColor: Color {
         if isLogged {
-            return SBSColors.success
-        } else if setInfo.isAMRAP {
-            return SBSColors.warning.opacity(0.1)
+            return .surfaceRaised
+        } else if isOpenAMRAP {
+            return .orangeSoft
         } else {
-            return SBSColors.surfaceFallback
-        }
-    }
-    
-    private var borderColor: Color {
-        if isLogged {
-            return .clear
-        } else if setInfo.isAMRAP {
-            return SBSColors.warning.opacity(0.5)
-        } else {
-            return .clear
+            return .surface
         }
     }
 }
@@ -510,95 +609,72 @@ struct AccessoryCard: View {
     let lastLog: AccessoryLog?
     let useMetric: Bool
     let onLogTap: () -> Void
-    
+
     private var hasNote: Bool {
         guard let note = lastLog?.note else { return false }
         return !note.isEmpty
     }
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
-            // Header
-            HStack {
-                Image(systemName: "dumbbell.fill")
-                    .font(.system(size: 14))
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
-                
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            Text("Accessory")
+                .eyebrowText()
+                .foregroundStyle(Color.inkSecondary)
+
+            HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space2) {
                 Text(name)
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                
-                // Note indicator
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(Color.ink)
+
                 if hasNote {
                     Image(systemName: "note.text")
-                        .font(.system(size: 12))
-                        .foregroundStyle(SBSColors.accentSecondaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
+                        .accessibilityLabel("Has a note")
                 }
-                
+
                 Spacer()
-                
-                Text("ACCESSORY")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(SBSColors.backgroundFallback)
-                    )
             }
-            
-            // Prescription and weight log
+
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    // Sets x Reps
+                VStack(alignment: .leading, spacing: SBSLayout.space1) {
                     Text("\(sets) × \(reps)")
-                        .font(SBSFonts.weight())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
-                    
-                    // Last weight used
+                        .font(SBSFonts.number())
+                        .foregroundStyle(Color.ink)
+
                     if let log = lastLog {
-                        HStack(spacing: 4) {
-                            Image(systemName: "clock.arrow.circlepath")
-                                .font(.system(size: 12))
-                            Text(log.weight > 0 ? "Last: \(log.weight.formattedWeightShort(useMetric: useMetric))" : "Last: no added weight")
-                                .font(SBSFonts.legacyCaption())
-                        }
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        Label(log.weight > 0 ? "Last: \(log.weight.formattedWeightShort(useMetric: useMetric))" : "Last: no added weight",
+                              systemImage: "clock.arrow.circlepath")
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
 
                         if log.wasEasy == true {
-                            HStack(spacing: 4) {
-                                Image(systemName: "hand.thumbsup.fill")
-                                    .font(.system(size: 11))
-                                Text("Last time was easy, go heavier")
-                                    .font(SBSFonts.legacyCaption())
-                            }
-                            .foregroundStyle(SBSColors.success)
+                            Label("Last time was easy, go heavier", systemImage: "hand.thumbsup")
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.success)
                         }
                     } else {
                         Text("No weight logged")
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
                     }
                 }
-                
+
                 Spacer()
-                
-                // Log button
+
                 AccessoryLogButton(
                     lastLog: lastLog,
                     useMetric: useMetric,
                     onTap: onLogTap
                 )
             }
-            
-            // Note preview (if present)
+
             if hasNote, let note = lastLog?.note {
                 NotePreview(note: note)
             }
         }
-        .padding(SBSLayout.paddingMedium)
-        .sbsCard()
+        .padding(SBSLayout.space4)
+        .card()
     }
 }
 
@@ -608,37 +684,25 @@ struct AccessoryLogButton: View {
     let lastLog: AccessoryLog?
     let useMetric: Bool
     let onTap: () -> Void
-    
+
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 4) {
+            LogTile(isLogged: lastLog != nil, width: 64, height: 56) {
                 if let log = lastLog {
-                    // Logged state - show weight
                     Text(log.weight.formattedWeightShort(useMetric: useMetric))
-                        .font(SBSFonts.bodyBold())
-                        .foregroundStyle(.white)
-                    
+                        .font(SBSFonts.number())
+                        .foregroundStyle(Color.ink)
+
                     Text("Edit")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(.white.opacity(0.8))
+                        .eyebrowText()
+                        .foregroundStyle(Color.inkSecondary)
                 } else {
-                    // Not logged state
-                    Image(systemName: "plus")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.white)
-                    
-                    Text("Log")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(.white.opacity(0.8))
+                    LogPrompt()
                 }
             }
-            .frame(width: 64, height: 56)
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                    .fill(lastLog != nil ? SBSColors.accentSecondaryFallback : SBSColors.surfaceFallback)
-            )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(lastLog.map { "Logged \($0.weight.formattedWeightShort(useMetric: useMetric)), edit" } ?? "Log accessory")
     }
 }
 
@@ -651,89 +715,67 @@ struct LinearCard: View {
     var barWeight: Double = 45
     var showPlateCalculator: Bool = true
     let onLogTap: () -> Void
-    
+
     private var isLogged: Bool {
         info.logEntry != nil
     }
-    
+
     private var wasSuccessful: Bool {
         info.logEntry?.completed ?? false
     }
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-            // Header
-            HStack {
-                Text(name)
-                    .font(SBSFonts.title3())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                
-                Spacer()
-            }
-            
-            // Prescription
-            HStack(alignment: .bottom, spacing: SBSLayout.paddingSmall) {
-                // Sets x Reps
+        VStack(alignment: .leading, spacing: SBSLayout.space3) {
+            Text(name)
+                .font(SBSFonts.heading())
+                .foregroundStyle(Color.ink)
+
+            // "5 × 5 @ 135 lb"
+            HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space2) {
                 Text("\(info.sets) × \(info.reps)")
-                    .font(SBSFonts.weightLarge())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                
+                    .font(SBSFonts.numberLarge())
+                    .tracking(-0.84)
+                    .foregroundStyle(Color.ink)
+
                 Text("@")
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                
-                // Weight
+                    .font(SBSFonts.number())
+                    .foregroundStyle(Color.inkSecondary)
+
                 Text(info.weight.formattedWeight(useMetric: useMetric))
-                    .font(SBSFonts.weightLarge())
-                    .foregroundStyle(Color.orangeText)
-                
+                    .font(SBSFonts.numberLarge())
+                    .tracking(-0.84)
+                    .foregroundStyle(Color.ink)
+
                 Spacer()
             }
-            
-            // Plate calculator
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+
             if showPlateCalculator && info.weight >= barWeight {
                 PlateListView(weight: info.weight, barWeight: barWeight, useMetric: useMetric)
             }
-            
-            // Failure warning if applicable
+
             if info.isDeloadPending && !isLogged {
-                HStack(spacing: SBSLayout.paddingSmall) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 12))
-                    
-                    Text("Deload pending (\(info.consecutiveFailures) failures)")
-                        .font(SBSFonts.legacyCaption())
-                }
-                .foregroundStyle(SBSColors.warning)
-                .padding(.horizontal, SBSLayout.paddingMedium)
-                .padding(.vertical, SBSLayout.paddingSmall)
-                .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                        .fill(SBSColors.warning.opacity(0.1))
-                )
+                Label("Deload pending (\(info.consecutiveFailures) failures)", systemImage: "exclamationmark.triangle")
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.warning)
             }
-            
-            Divider()
-            
-            // Progression info and log button
+
+            HairlineDivider()
+
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Next Session")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
-                    
-                    HStack(spacing: 4) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 14))
-                        Text("+\(info.increment.formattedWeight(useMetric: useMetric)) on success")
-                            .font(SBSFonts.legacyCaption())
-                    }
-                    .foregroundStyle(SBSColors.success)
+                VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                    Text("Next session")
+                        .eyebrowText()
+                        .foregroundStyle(Color.inkSecondary)
+
+                    Label("+\(info.increment.formattedWeight(useMetric: useMetric)) on success", systemImage: "plus")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.success)
                 }
-                
+
                 Spacer()
-                
-                // Log button
+
                 LinearLogButton(
                     isLogged: isLogged,
                     wasSuccessful: wasSuccessful,
@@ -741,8 +783,8 @@ struct LinearCard: View {
                 )
             }
         }
-        .padding(SBSLayout.paddingMedium)
-        .sbsCard()
+        .padding(SBSLayout.space4)
+        .card()
     }
 }
 
@@ -752,57 +794,48 @@ struct LinearLogButton: View {
     let isLogged: Bool
     let wasSuccessful: Bool
     let onTap: () -> Void
-    
+
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 4) {
+            LogTile(isLogged: isLogged) {
                 if isLogged {
-                    // Logged state
                     Image(systemName: wasSuccessful ? "checkmark" : "xmark")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(.white)
-                    
+                        .font(SBSFonts.bodyStrong().weight(.bold))
+                        .foregroundStyle(wasSuccessful ? Color.success : Color.danger)
+
                     Text(wasSuccessful ? "Done" : "Failed")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(.white.opacity(0.8))
+                        .eyebrowText()
+                        .foregroundStyle(wasSuccessful ? Color.success : Color.danger)
                 } else {
-                    // Not logged state
-                    Image(systemName: "plus")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(Color.orangeInk)
-                    
-                    Text("Log")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(Color.orangeInk.opacity(0.8))
+                    LogPrompt()
                 }
             }
-            .frame(width: 72, height: 72)
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                    .fill(buttonColor)
-            )
         }
         .buttonStyle(.plain)
-    }
-    
-    private var buttonColor: Color {
-        if isLogged {
-            return wasSuccessful ? SBSColors.success : SBSColors.error
-        }
-        return SBSColors.accentFallback
+        .accessibilityLabel(isLogged ? (wasSuccessful ? "Done, edit" : "Failed, edit") : "Log result")
     }
 }
 
 #Preview {
     ScrollView {
         VStack(spacing: 16) {
+            LiveSetCard(
+                eyebrow: "Set 3 of 5 · last set",
+                badge: "85% TM",
+                weight: 335,
+                useMetric: false,
+                scheme: "× 5",
+                showPlates: true,
+                onWeightTap: {}
+            )
+
             TMCard(
                 name: "Squat TM",
                 trainingMax: 172,
                 topSingleAt8: 155,
                 useMetric: false
             )
-            
+
             VolumeCard(
                 name: "Squat",
                 weight: 130,
@@ -815,7 +848,7 @@ struct LinearLogButton: View {
                 onLogTap: {},
                 onWeightTap: {}
             )
-            
+
             VolumeCard(
                 name: "Push Press (Overridden)",
                 weight: 90,
@@ -830,7 +863,7 @@ struct LinearLogButton: View {
                 onLogTap: {},
                 onWeightTap: {}
             )
-            
+
             AccessoryCard(
                 name: "Cable Rows",
                 sets: 4,
@@ -852,4 +885,3 @@ struct LinearLogButton: View {
     }
     .sbsBackground()
 }
-

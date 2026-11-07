@@ -613,7 +613,7 @@ struct SessionAccessoryActions: View {
             Image(systemName: systemImage)
                 .font(.system(size: 14, weight: .semibold))
             Text(title)
-                .font(SBSFonts.button())
+                .font(SBSFonts.legacyButton())
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
@@ -640,11 +640,11 @@ struct SessionHeader: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(dayTitle)
-                        .font(SBSFonts.title())
+                        .font(SBSFonts.legacyTitle())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                     
                     Text("Week \(week) • Day \(day)")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
                 
@@ -682,11 +682,11 @@ struct SessionHeaderWithWorkout: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(dayTitle)
-                        .font(SBSFonts.title())
+                        .font(SBSFonts.legacyTitle())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                     
                     Text("Week \(week) • Day \(day)")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
                 
@@ -715,7 +715,7 @@ struct SessionHeaderWithWorkout: View {
                     .font(.system(size: 14, weight: .semibold))
 
                 Text(title)
-                    .font(SBSFonts.button())
+                    .font(SBSFonts.legacyButton())
             }
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
@@ -736,7 +736,7 @@ struct SessionHeaderWithWorkout: View {
                     .font(.system(size: 14, weight: .semibold))
 
                 Text("Workout Complete")
-                    .font(SBSFonts.button())
+                    .font(SBSFonts.legacyButton())
             }
             .foregroundStyle(SBSColors.success)
             .frame(maxWidth: .infinity)
@@ -748,7 +748,7 @@ struct SessionHeaderWithWorkout: View {
             .accessibilityElement(children: .combine)
 
             Button("Redo Workout", action: onRedoWorkout)
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textSecondaryFallback)
                 .frame(minHeight: 44)
         }
@@ -785,12 +785,12 @@ struct RepLogSheet: View {
                 // Lift name header
                 VStack(spacing: 4) {
                     Text(liftName)
-                        .font(SBSFonts.title())
+                        .font(SBSFonts.legacyTitle())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                     
                     if let setLabel {
                         Text(setLabel)
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.warning)
                             .padding(.horizontal, SBSLayout.paddingMedium)
                             .padding(.vertical, SBSLayout.paddingSmall)
@@ -801,7 +801,7 @@ struct RepLogSheet: View {
                     }
 
                     Text("How many reps on your AMRAP set?")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
                 .padding(.top)
@@ -815,7 +815,7 @@ struct RepLogSheet: View {
                                 .foregroundStyle(SBSColors.textTertiaryFallback)
                             
                             TextField("Add a note (optional)", text: $note, axis: .vertical)
-                                .font(SBSFonts.body())
+                                .font(SBSFonts.legacyBody())
                                 .foregroundStyle(SBSColors.textPrimaryFallback)
                                 .lineLimit(1...3)
                                 .focused($isNoteFocused)
@@ -851,7 +851,7 @@ struct RepLogSheet: View {
                                 Image(systemName: "plus.circle")
                                     .font(.system(size: 14))
                                 Text("Add note")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                             }
                             .foregroundStyle(SBSColors.accentFallback)
                         }
@@ -933,11 +933,11 @@ struct AccessoryLogSheet: View {
                 // Header
                 VStack(spacing: 4) {
                     Text(accessoryName)
-                        .font(SBSFonts.title())
+                        .font(SBSFonts.legacyTitle())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                     
                     Text("Log your weight for this accessory")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
                 .padding(.top)
@@ -993,7 +993,7 @@ struct AccessoryLogSheet: View {
                                         .font(SBSFonts.bodyBold())
                                         .foregroundStyle(SBSColors.textPrimaryFallback)
                                     Text("We'll prompt you to push it next time")
-                                        .font(SBSFonts.caption())
+                                        .font(SBSFonts.legacyCaption())
                                         .foregroundStyle(SBSColors.textSecondaryFallback)
                                 }
                             }
@@ -1010,7 +1010,7 @@ struct AccessoryLogSheet: View {
                         VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
                             if showingNoteField || !note.isEmpty {
                                 Text("Note")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                                     .foregroundStyle(SBSColors.textSecondaryFallback)
                                 
                                 HStack {
@@ -1019,7 +1019,7 @@ struct AccessoryLogSheet: View {
                                         .foregroundStyle(SBSColors.textTertiaryFallback)
                                     
                                     TextField("Add a note (optional)", text: $note, axis: .vertical)
-                                        .font(SBSFonts.body())
+                                        .font(SBSFonts.legacyBody())
                                         .foregroundStyle(SBSColors.textPrimaryFallback)
                                         .lineLimit(1...4)
                                     
@@ -1049,7 +1049,7 @@ struct AccessoryLogSheet: View {
                                         Image(systemName: "plus.circle")
                                             .font(.system(size: 14))
                                         Text("Add note")
-                                            .font(SBSFonts.caption())
+                                            .font(SBSFonts.legacyCaption())
                                     }
                                     .foregroundStyle(SBSColors.accentFallback)
                                 }
@@ -1132,14 +1132,14 @@ struct AccessoryWeightSheet: View {
             VStack(spacing: SBSLayout.paddingLarge) {
                 VStack(spacing: 4) {
                     Text(accessoryName)
-                        .font(SBSFonts.title())
+                        .font(SBSFonts.legacyTitle())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                         .lineLimit(2)
                         .minimumScaleFactor(0.75)
                         .multilineTextAlignment(.center)
 
                     Text("Set your weight for this accessory")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
                 .padding(.top)
@@ -1212,7 +1212,7 @@ struct QuickWeightButton: View {
                 Text(label)
                     .font(SBSFonts.captionBold())
                 Text(weight.formattedWeightShort(useMetric: useMetric))
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             .foregroundStyle(SBSColors.accentFallback)
@@ -1244,7 +1244,7 @@ struct DayNavigator: View {
                     Image(systemName: "chevron.left")
                     Text("Day \(currentDay - 1)")
                 }
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
             }
             .disabled(currentDay <= 1)
             .opacity(currentDay <= 1 ? 0.3 : 1)
@@ -1260,7 +1260,7 @@ struct DayNavigator: View {
                     Text("Day \(currentDay + 1)")
                     Image(systemName: "chevron.right")
                 }
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
             }
             .disabled(currentDay >= totalDays)
             .opacity(currentDay >= totalDays ? 0.3 : 1)
@@ -1301,7 +1301,7 @@ struct WeightOverrideSheet: View {
                 // Header
                 VStack(spacing: 4) {
                     Text(liftName)
-                        .font(SBSFonts.title())
+                        .font(SBSFonts.legacyTitle())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
 
                     if let prescribedReps {
@@ -1311,7 +1311,7 @@ struct WeightOverrideSheet: View {
                     }
 
                     Text("Override the recommended weight")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
                 .padding(.top)
@@ -1319,7 +1319,7 @@ struct WeightOverrideSheet: View {
                 // Recommended weight display
                 VStack(spacing: SBSLayout.paddingSmall) {
                     Text("Recommended")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
 
                     Text(calculatedWeight.formattedWeight(useMetric: useMetric))
@@ -1371,7 +1371,7 @@ struct WeightOverrideSheet: View {
                     Image(systemName: "info.circle")
                         .font(.system(size: 14))
                     Text("Weight changes will cascade to future weeks")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                 }
                 .foregroundStyle(SBSColors.textTertiaryFallback)
                 .padding(.top, SBSLayout.paddingMedium)
@@ -1503,7 +1503,7 @@ struct LinearLogSheet: View {
                             
                             if entry.deloadApplied {
                                 Text("Deload was applied")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                                     .foregroundStyle(SBSColors.warning)
                             }
                         }
@@ -1513,7 +1513,7 @@ struct LinearLogSheet: View {
                         Button("Clear") {
                             onClear()
                         }
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                     }
                     .padding()
@@ -1535,7 +1535,7 @@ struct LinearLogSheet: View {
                                     .foregroundStyle(SBSColors.warning)
                                 
                                 Text("You've failed \(consecutiveFailures) time\(consecutiveFailures == 1 ? "" : "s"). One more failure triggers a 10% deload.")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                                     .foregroundStyle(SBSColors.textSecondaryFallback)
                             }
                         }
@@ -1550,7 +1550,7 @@ struct LinearLogSheet: View {
                     // Progression info
                     VStack(spacing: SBSLayout.paddingSmall) {
                         Text("Did you complete all \(sets) sets of \(reps) reps?")
-                            .font(SBSFonts.body())
+                            .font(SBSFonts.legacyBody())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                             .multilineTextAlignment(.center)
                         
@@ -1560,7 +1560,7 @@ struct LinearLogSheet: View {
                                     .font(SBSFonts.captionBold())
                                     .foregroundStyle(SBSColors.success)
                                 Text("+\(increment.formattedWeight(useMetric: useMetric)) next time")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                                     .foregroundStyle(SBSColors.textSecondaryFallback)
                             }
                             
@@ -1571,7 +1571,7 @@ struct LinearLogSheet: View {
                                     .font(SBSFonts.captionBold())
                                     .foregroundStyle(SBSColors.error)
                                 Text("Same weight")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                                     .foregroundStyle(SBSColors.textSecondaryFallback)
                             }
                         }
@@ -1595,7 +1595,7 @@ struct LinearLogSheet: View {
                                     .font(.system(size: 20))
                                 
                                 Text("Yes - Completed All Reps")
-                                    .font(SBSFonts.button())
+                                    .font(SBSFonts.legacyButton())
                             }
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
@@ -1612,7 +1612,7 @@ struct LinearLogSheet: View {
                                     .font(.system(size: 20))
                                 
                                 Text("No - Missed Reps")
-                                    .font(SBSFonts.button())
+                                    .font(SBSFonts.legacyButton())
                             }
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
@@ -1668,11 +1668,11 @@ struct AccessoryEditorSheet: View {
                             .foregroundStyle(SBSColors.textTertiaryFallback)
                         
                         Text("No Accessories")
-                            .font(SBSFonts.title())
+                            .font(SBSFonts.legacyTitle())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
                         
                         Text("Add accessories to customize your workout")
-                            .font(SBSFonts.body())
+                            .font(SBSFonts.legacyBody())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                             .multilineTextAlignment(.center)
                         
@@ -1714,7 +1714,7 @@ struct AccessoryEditorSheet: View {
                                 .font(.system(size: 20))
 
                             Text("Add Accessory")
-                                .font(SBSFonts.button())
+                                .font(SBSFonts.legacyButton())
                         }
                         .foregroundStyle(SBSColors.accentSecondaryFallback)
                         .frame(maxWidth: .infinity)
@@ -1730,7 +1730,7 @@ struct AccessoryEditorSheet: View {
                         onDismiss()
                     } label: {
                         Text("Save")
-                            .font(SBSFonts.button())
+                            .font(SBSFonts.legacyButton())
                             .foregroundStyle(hasChanges ? .white : SBSColors.textTertiaryFallback)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, SBSLayout.paddingMedium)
@@ -1856,7 +1856,7 @@ struct AccessoryEditRow: View {
                 // Sets stepper
                 HStack(spacing: SBSLayout.paddingSmall) {
                     Text("Sets:")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                         .frame(width: 40, alignment: .leading)
                     
@@ -1875,7 +1875,7 @@ struct AccessoryEditRow: View {
                 // Reps stepper
                 HStack(spacing: SBSLayout.paddingSmall) {
                     Text("Reps:")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                         .frame(width: 40, alignment: .leading)
                     

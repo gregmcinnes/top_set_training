@@ -37,7 +37,7 @@ enum SBSFonts {
     }
 
     // Section headers
-    static func title() -> Font {
+    static func legacyTitle() -> Font {
         // Was 22pt bold rounded -> .title2
         .system(.title2, design: .rounded, weight: .bold)
     }
@@ -53,7 +53,7 @@ enum SBSFonts {
     }
 
     // Body text
-    static func body() -> Font {
+    static func legacyBody() -> Font {
         // Was 17pt regular default -> .body
         .system(.body, design: .default, weight: .regular)
     }
@@ -74,13 +74,13 @@ enum SBSFonts {
         .system(.largeTitle, design: .monospaced, weight: .bold)
     }
 
-    static func number() -> Font {
+    static func legacyNumber() -> Font {
         // Was 20pt semibold monospaced -> .title3
         .system(.title3, design: .monospaced, weight: .semibold)
     }
 
     // Small text
-    static func caption() -> Font {
+    static func legacyCaption() -> Font {
         // Was 13pt medium default -> .footnote (13)
         .system(.footnote, design: .default, weight: .medium)
     }
@@ -113,7 +113,7 @@ enum SBSFonts {
     }
 
     // Button text
-    static func button() -> Font {
+    static func legacyButton() -> Font {
         // Was 17pt semibold rounded -> .body
         .system(.body, design: .rounded, weight: .semibold)
     }
@@ -173,12 +173,12 @@ extension View {
 
 // MARK: - Button Styles
 
-struct SBSPrimaryButtonStyle: ButtonStyle {
+struct SBSLegacyPrimaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) var isEnabled
     
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(SBSFonts.button())
+            .font(SBSFonts.legacyButton())
             .foregroundStyle(.white)
             .padding(.horizontal, SBSLayout.paddingLarge)
             .padding(.vertical, SBSLayout.paddingMedium)
@@ -191,10 +191,10 @@ struct SBSPrimaryButtonStyle: ButtonStyle {
     }
 }
 
-struct SBSSecondaryButtonStyle: ButtonStyle {
+struct SBSLegacySecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(SBSFonts.button())
+            .font(SBSFonts.legacyButton())
             .foregroundStyle(SBSColors.accentFallback)
             .padding(.horizontal, SBSLayout.paddingLarge)
             .padding(.vertical, SBSLayout.paddingMedium)
@@ -207,7 +207,7 @@ struct SBSSecondaryButtonStyle: ButtonStyle {
     }
 }
 
-struct SBSNumberPadButtonStyle: ButtonStyle {
+struct SBSLegacyNumberPadButtonStyle: ButtonStyle {
     let isHighlighted: Bool
     
     init(isHighlighted: Bool = false) {
@@ -216,7 +216,7 @@ struct SBSNumberPadButtonStyle: ButtonStyle {
     
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(SBSFonts.number())
+            .font(SBSFonts.legacyNumber())
             .foregroundStyle(isHighlighted ? .white : SBSColors.textPrimaryFallback)
             .frame(width: 64, height: 64)
             .background(

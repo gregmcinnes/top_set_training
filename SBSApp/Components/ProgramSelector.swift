@@ -122,7 +122,7 @@ struct ProgramSelector: View {
                         Image(systemName: "info.circle")
                             .font(.system(size: 12))
                         Text("All programs are based on popular training programs. Some names are changed.")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                     }
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                     .padding(.horizontal)
@@ -163,7 +163,7 @@ struct ProgramSelector: View {
                                 .foregroundStyle(SBSColors.textTertiaryFallback)
                             
                             Text("No programs matched your filters. More coming soon")
-                                .font(SBSFonts.body())
+                                .font(SBSFonts.legacyBody())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                                 .multilineTextAlignment(.center)
                             
@@ -250,7 +250,7 @@ struct ProgramFamilyGroup: View {
                                 .foregroundStyle(SBSColors.textPrimaryFallback)
                             
                             Text("\(programs.count) variants")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                         }
                         
@@ -341,7 +341,7 @@ struct ProgramCard: View {
                             }
 
                             Text(meta?.shortDescription ?? program.programDescription)
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                                 .lineLimit(2)
                         }
@@ -516,7 +516,7 @@ struct CustomTemplatesGroup: View {
                             .foregroundStyle(SBSColors.textPrimaryFallback)
                         
                         Text("\(templates.count) custom")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                     }
                     
@@ -586,7 +586,7 @@ struct CustomTemplateRow: View {
 
                         if !template.templateDescription.isEmpty {
                             Text(template.templateDescription)
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                                 .lineLimit(2)
                         }
@@ -673,7 +673,7 @@ struct QuizPromptCard: View {
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                     
                     Text("Take the quiz to find the best program for you")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
                 
@@ -715,7 +715,7 @@ struct TemplateBuilderPromptCard: View {
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                     
                     Text("Build your own in the Template Builder")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
                 

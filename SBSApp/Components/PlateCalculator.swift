@@ -264,7 +264,7 @@ struct BarbellView: View {
             // Bar weight
             VStack(spacing: 2) {
                 Text("Bar")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                 Text(formatWeight(barWeight))
                     .font(SBSFonts.captionBold())
@@ -277,7 +277,7 @@ struct BarbellView: View {
             // Per side
             VStack(spacing: 2) {
                 Text("Each side")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                 Text(formatWeight(max(0, weight - barWeight) / 2))
                     .font(SBSFonts.captionBold())
@@ -290,7 +290,7 @@ struct BarbellView: View {
             // Total
             VStack(spacing: 2) {
                 Text("Total")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                 Text(formatWeight(max(weight, barWeight)))
                     .font(SBSFonts.captionBold())
@@ -383,7 +383,7 @@ struct PlateLegendView: View {
                             .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
                         
                         Text(plate.displayWeight(useMetric: useMetric))
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
                     }
                 }
@@ -412,7 +412,7 @@ struct PlateListView: View {
     var body: some View {
         if result.platesPerSide.isEmpty {
             Text("Bar only")
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textSecondaryFallback)
         } else {
             // Group plates by weight, sorted largest first (closest to bar)
@@ -421,7 +421,7 @@ struct PlateListView: View {
             
             HStack(spacing: 4) {
                 Text("Load:")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                 
                 ForEach(sortedWeights, id: \.self) { weight in
@@ -429,7 +429,7 @@ struct PlateListView: View {
                         HStack(spacing: 2) {
                             if plates.count > 1 {
                                 Text("\(plates.count)×")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                                     .foregroundStyle(SBSColors.textSecondaryFallback)
                             }
                             
@@ -445,7 +445,7 @@ struct PlateListView: View {
                         
                         if weight != sortedWeights.last {
                             Text("+")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.textTertiaryFallback)
                         }
                     }
@@ -659,12 +659,12 @@ struct PlateCalculatorInfoView: View {
             }
             
             Text("Never Calculate Plates Again")
-                .font(SBSFonts.title())
+                .font(SBSFonts.legacyTitle())
                 .foregroundStyle(SBSColors.textPrimaryFallback)
                 .multilineTextAlignment(.center)
             
             Text("See exactly which plates to load on each side of the barbell, with competition-style color coding.")
-                .font(SBSFonts.body())
+                .font(SBSFonts.legacyBody())
                 .foregroundStyle(SBSColors.textSecondaryFallback)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
@@ -713,7 +713,7 @@ struct PlateCalculatorInfoView: View {
                         .foregroundStyle(.yellow)
                     
                     Text("Try the full Plate Calculator in the **Calculators** tab!")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
                 .padding(.top, SBSLayout.paddingSmall)
@@ -739,7 +739,7 @@ struct PlateCalculatorInfoView: View {
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
                 Text(description)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
         }
@@ -769,7 +769,7 @@ struct PlateCalculatorInfoView: View {
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
                 Text("• \(description)")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             
@@ -809,7 +809,7 @@ struct PlateCalculatorInfoView: View {
                     Image(systemName: "crown.fill")
                         .font(.system(size: 16))
                     Text("Unlock Plate Calculator")
-                        .font(SBSFonts.button())
+                        .font(SBSFonts.legacyButton())
                 }
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
@@ -826,7 +826,7 @@ struct PlateCalculatorInfoView: View {
             .buttonStyle(.plain)
             
             Text("Included with Premium • \(storeManager.premiumPriceString)")
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
         }
         .padding()

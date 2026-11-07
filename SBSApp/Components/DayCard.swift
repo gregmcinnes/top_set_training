@@ -21,7 +21,7 @@ struct DayCard: View {
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                     
                     Text(lifts.isEmpty ? "No exercises" : lifts.joined(separator: " • "))
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
@@ -111,7 +111,7 @@ struct LogStatusBadge: View {
                 .font(.system(size: 12, weight: .semibold))
             
             Text(statusText)
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
         }
         .foregroundStyle(statusColor)
         .padding(.horizontal, 10)

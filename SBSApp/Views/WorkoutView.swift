@@ -452,7 +452,7 @@ struct WorkoutProgressHeader: View {
                     HStack(spacing: SBSLayout.paddingSmall) {
                         if isAccessory {
                             Image(systemName: "dumbbell.fill")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.accentSecondaryFallback)
                         }
                         
@@ -463,7 +463,7 @@ struct WorkoutProgressHeader: View {
                     }
                     
                     Text(setInfo)
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
                 
@@ -473,7 +473,7 @@ struct WorkoutProgressHeader: View {
                 if let hr = heartRate {
                     HStack(spacing: 4) {
                         Image(systemName: "heart.fill")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(.red)
                         Text("\(Int(hr))")
                             .font(SBSFonts.captionBold())
@@ -623,7 +623,7 @@ struct CurrentSetView: View {
                         // Accessory badge
                         HStack(spacing: SBSLayout.paddingSmall) {
                             Image(systemName: "dumbbell.fill")
-                                .font(SBSFonts.body())
+                                .font(SBSFonts.legacyBody())
                                 .foregroundStyle(SBSColors.accentSecondaryFallback)
 
                             Text("ACCESSORY")
@@ -650,9 +650,9 @@ struct CurrentSetView: View {
                         if exercise.lastWasEasy == true {
                             HStack(spacing: 4) {
                                 Image(systemName: "hand.thumbsup.fill")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                                 Text("Last time was easy, go heavier")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                             }
                             .foregroundStyle(SBSColors.success)
                             .padding(.horizontal, SBSLayout.paddingMedium)
@@ -667,9 +667,9 @@ struct CurrentSetView: View {
                             Button(action: { onMarkEasy?() }) {
                                 HStack(spacing: 4) {
                                     Image(systemName: exercise.markedEasy ? "hand.thumbsup.fill" : "hand.thumbsup")
-                                        .font(SBSFonts.caption())
+                                        .font(SBSFonts.legacyCaption())
                                     Text(exercise.markedEasy ? "Marked easy" : "That was easy?")
-                                        .font(SBSFonts.caption())
+                                        .font(SBSFonts.legacyCaption())
                                 }
                                 .foregroundStyle(exercise.markedEasy ? SBSColors.success : SBSColors.textSecondaryFallback)
                                 .padding(.horizontal, SBSLayout.paddingMedium)
@@ -732,7 +732,7 @@ struct CurrentSetView: View {
 
                         if isCurrentAMRAP {
                             Text(currentReps == 1 ? "Heavy single - go for it!" : "AMRAP set - push it!")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.warning)
                                 .padding(.horizontal, SBSLayout.paddingMedium)
                                 .padding(.vertical, SBSLayout.paddingSmall)
@@ -744,7 +744,7 @@ struct CurrentSetView: View {
 
                         if let prReps = prHintReps {
                             Text("\(prReps) reps would be a new 1RM!")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.warning)
                                 .padding(.horizontal, SBSLayout.paddingMedium)
                                 .padding(.vertical, SBSLayout.paddingSmall)
@@ -799,10 +799,10 @@ struct CurrentSetView: View {
                         if let info = exercise.linearInfo, info.isDeloadPending {
                             HStack(spacing: SBSLayout.paddingSmall) {
                                 Image(systemName: "exclamationmark.triangle.fill")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                                 
                                 Text("Deload pending (\(info.consecutiveFailures) failures)")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                             }
                             .foregroundStyle(SBSColors.warning)
                             .padding(.horizontal, SBSLayout.paddingMedium)
@@ -856,7 +856,7 @@ struct CurrentSetView: View {
 
                         if workoutState.isCurrentSetRepOut {
                             Text("Last set! Go for max reps")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.success)
                                 .padding(.horizontal, SBSLayout.paddingMedium)
                                 .padding(.vertical, SBSLayout.paddingSmall)
@@ -868,7 +868,7 @@ struct CurrentSetView: View {
 
                         if let prReps = prHintReps {
                             Text("\(prReps) reps would be a new 1RM!")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.success)
                                 .padding(.horizontal, SBSLayout.paddingMedium)
                                 .padding(.vertical, SBSLayout.paddingSmall)
@@ -886,10 +886,10 @@ struct CurrentSetView: View {
                 Button(action: onComplete) {
                     HStack(spacing: SBSLayout.paddingSmall) {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(SBSFonts.title())
+                            .font(SBSFonts.legacyTitle())
                         
                         Text(isCurrentAMRAP ? "Log Reps" : "Complete Set")
-                            .font(SBSFonts.button())
+                            .font(SBSFonts.legacyButton())
                     }
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -935,7 +935,7 @@ struct CurrentSetView: View {
     private func lastTimeLabel(for exercise: WorkoutExercise) -> some View {
         if let text = lastTime(exercise) {
             Text(text)
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textSecondaryFallback)
         }
     }
@@ -1266,7 +1266,7 @@ struct TimerView: View {
                         .accessibilityValue(timerAccessibilityValue)
 
                     Text(hasSuperset ? "SUPERSET" : "REST")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(hasSuperset ? SBSColors.accentSecondaryFallback : SBSColors.textSecondaryFallback)
 
                     if workoutState.timerDuration > 0 {
@@ -1358,7 +1358,7 @@ struct TimerView: View {
             if let onUndo {
                 Button(action: onUndo) {
                     Label("Undo Last Set", systemImage: "arrow.uturn.backward")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                         .frame(minHeight: 44)
                 }
@@ -1474,7 +1474,7 @@ struct NextSetPreview: View {
     var body: some View {
         VStack(spacing: compact ? 4 : SBSLayout.paddingSmall) {
             Text("NEXT UP")
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
             
             VStack(spacing: 0) {
@@ -1488,14 +1488,14 @@ struct NextSetPreview: View {
                             }
                             
                             Text(exerciseName)
-                                .font(compact ? SBSFonts.body() : SBSFonts.bodyBold())
+                                .font(compact ? SBSFonts.legacyBody() : SBSFonts.bodyBold())
                                 .foregroundStyle(SBSColors.textPrimaryFallback)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.75)
                         }
                         
                         Text("Set \(setNumber) of \(totalSets)")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                     }
                     
@@ -1508,7 +1508,7 @@ struct NextSetPreview: View {
                             .foregroundStyle(isAccessory ? SBSColors.accentSecondaryFallback : SBSColors.accentFallback)
                         
                         Text("×")
-                            .font(SBSFonts.body())
+                            .font(SBSFonts.legacyBody())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                         
                         Text(reps)
@@ -1574,7 +1574,7 @@ struct SupersetAccessoryCard: View {
                 VStack(alignment: .leading, spacing: compact ? 2 : 4) {
                     HStack(spacing: SBSLayout.paddingSmall) {
                         Image(systemName: "dumbbell.fill")
-                            .font(SBSFonts.body())
+                            .font(SBSFonts.legacyBody())
                             .foregroundStyle(SBSColors.accentSecondaryFallback)
                         
                         Text(accessory.name)
@@ -1586,7 +1586,7 @@ struct SupersetAccessoryCard: View {
                     
                     // Sets and reps info
                     Text("\(accessory.sets) × \(accessory.reps) reps")
-                        .font(compact ? SBSFonts.caption() : SBSFonts.body())
+                        .font(compact ? SBSFonts.legacyCaption() : SBSFonts.legacyBody())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
 
                     if accessory.lastWasEasy == true {
@@ -1594,7 +1594,7 @@ struct SupersetAccessoryCard: View {
                             Image(systemName: "hand.thumbsup.fill")
                                 .font(SBSFonts.caption2())
                             Text("Last time was easy, go heavier")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                         }
                         .foregroundStyle(SBSColors.success)
                     }
@@ -1612,7 +1612,7 @@ struct SupersetAccessoryCard: View {
                                 .foregroundStyle(SBSColors.accentSecondaryFallback)
                             
                             Text(useMetric ? "kg" : "lb")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.textTertiaryFallback)
                             
                             Image(systemName: "chevron.right")
@@ -1627,7 +1627,7 @@ struct SupersetAccessoryCard: View {
                                 .foregroundStyle(SBSColors.accentSecondaryFallback)
                             
                             Text("Add Weight")
-                                .font(compact ? SBSFonts.caption() : SBSFonts.body())
+                                .font(compact ? SBSFonts.legacyCaption() : SBSFonts.legacyBody())
                                 .foregroundStyle(SBSColors.accentSecondaryFallback)
                         }
                         .padding(.horizontal, compact ? 8 : 12)
@@ -1809,7 +1809,7 @@ struct WorkoutCompleteView: View {
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 if let note {
                     Text(note)
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
             }
@@ -1827,7 +1827,7 @@ struct WorkoutCompleteView: View {
         VStack(spacing: SBSLayout.paddingSmall) {
             Button(action: onDone) {
                 Text("Done")
-                    .font(SBSFonts.button())
+                    .font(SBSFonts.legacyButton())
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, SBSLayout.paddingMedium + 2)
@@ -1849,7 +1849,7 @@ struct WorkoutCompleteView: View {
                     }
                 }
             }
-            .font(SBSFonts.caption())
+            .font(SBSFonts.legacyCaption())
             .foregroundStyle(SBSColors.textSecondaryFallback)
             .frame(minHeight: 44)
         }
@@ -1869,7 +1869,7 @@ private struct StatBubble: View {
         VStack(spacing: 4) {
             HStack(spacing: 4) {
                 Image(systemName: icon)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.accentFallback)
                 
                 Text(value)
@@ -1971,7 +1971,7 @@ struct ExercisePickerSheet: View {
                                         .foregroundStyle(SBSColors.textPrimaryFallback)
 
                                     Text("You can add accessory exercises to each day via Settings → Day Accessories")
-                                        .font(SBSFonts.caption())
+                                        .font(SBSFonts.legacyCaption())
                                         .foregroundStyle(SBSColors.textSecondaryFallback)
                                 }
                             }
@@ -1989,7 +1989,7 @@ struct ExercisePickerSheet: View {
                             showingFinishConfirm = true
                         } label: {
                             Text("Finish Workout")
-                                .font(SBSFonts.button())
+                                .font(SBSFonts.legacyButton())
                                 .foregroundStyle(SBSColors.accentFallback)
                                 .frame(maxWidth: .infinity, minHeight: 44)
                         }
@@ -2039,10 +2039,10 @@ private struct WorkoutOverviewSummary: View {
         VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
             HStack(alignment: .firstTextBaseline) {
                 Text("\(Int(progress * 100))%")
-                    .font(SBSFonts.title())
+                    .font(SBSFonts.legacyTitle())
                     .foregroundStyle(SBSColors.accentFallback)
                 Text("complete")
-                    .font(SBSFonts.body())
+                    .font(SBSFonts.legacyBody())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                 Spacer()
                 if prCount > 0 {
@@ -2091,7 +2091,7 @@ private struct WorkoutOverviewSummary: View {
                 .font(SBSFonts.bodyBold())
                 .foregroundStyle(SBSColors.textPrimaryFallback)
             Text(label)
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
         }
     }
@@ -2157,7 +2157,7 @@ struct ExercisePickerRow: View {
                     HStack(spacing: SBSLayout.paddingSmall) {
                         if exercise.isAccessory {
                             Image(systemName: "dumbbell.fill")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.accentSecondaryFallback)
                         }
 
@@ -2170,23 +2170,23 @@ struct ExercisePickerRow: View {
 
                     HStack(spacing: SBSLayout.paddingSmall) {
                         Text(exercise.weight.formattedWeightShort(useMetric: useMetric))
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(exercise.isAccessory ? SBSColors.accentSecondaryFallback : SBSColors.accentFallback)
 
                         Text("·")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textTertiaryFallback)
 
                         Text(repsLabel)
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
 
                         Text("·")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textTertiaryFallback)
 
                         Text("\(completedSets)/\(exercise.totalSets) sets")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(isComplete ? SBSColors.success : SBSColors.textSecondaryFallback)
                     }
 
@@ -2195,7 +2195,7 @@ struct ExercisePickerRow: View {
                             Image(systemName: "flame.fill")
                                 .font(SBSFonts.caption2())
                             Text("AMRAP: \(amrap.reps) reps @ \(amrap.weight.formattedWeightShort(useMetric: useMetric))")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                         }
                         .foregroundStyle(SBSColors.success)
                     }
@@ -2228,7 +2228,7 @@ struct ExercisePickerRow: View {
                 }
 
                 Image(systemName: "chevron.right")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
             }
             .padding(.vertical, SBSLayout.paddingSmall)

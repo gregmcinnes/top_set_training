@@ -88,7 +88,7 @@ struct UpgradePrompt: View {
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
                 Text("Available with Premium")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             
@@ -154,7 +154,7 @@ struct UpgradePrompt: View {
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
                 Text("Unlock \(feature.displayName.lowercased()) and more")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             
@@ -222,7 +222,7 @@ struct PremiumLockOverlay: View {
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                     
                     Text(feature.displayName)
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
                 

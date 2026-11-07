@@ -21,7 +21,7 @@ struct TMCard: View {
                 Spacer()
                 
                 Text("TM")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
@@ -36,7 +36,7 @@ struct TMCard: View {
                 // Training Max
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Training Max")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                     
                     Text(trainingMax.formattedWeight(useMetric: useMetric))
@@ -50,7 +50,7 @@ struct TMCard: View {
                 // Top Single @8
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Single @8")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                     
                     Text(topSingleAt8.formattedWeight(useMetric: useMetric))
@@ -115,7 +115,7 @@ struct VolumeCard: View {
                 Spacer()
                 
                 Text(intensityBadgeText)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.accentFallback)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
@@ -133,7 +133,7 @@ struct VolumeCard: View {
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
                 Text("@")
-                    .font(SBSFonts.body())
+                    .font(SBSFonts.legacyBody())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                 
                 // Weight (tappable)
@@ -163,7 +163,7 @@ struct VolumeCard: View {
                     Image(systemName: "arrow.turn.up.right")
                         .font(.system(size: 10))
                     Text("Recommended: \(calculated.formattedWeight(useMetric: useMetric))")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                 }
                 .foregroundStyle(SBSColors.textTertiaryFallback)
             }
@@ -184,7 +184,7 @@ struct VolumeCard: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Rep-out Target")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                     
                     HStack(spacing: 4) {
@@ -236,7 +236,7 @@ struct LogButton: View {
                     
                     if let delta = tmDelta {
                         Text(deltaText(delta))
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(.white.opacity(0.8))
                     }
                 } else {
@@ -246,7 +246,7 @@ struct LogButton: View {
                         .foregroundStyle(.white)
                     
                     Text("Log")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(.white.opacity(0.8))
                 }
             }
@@ -287,7 +287,7 @@ struct NotePreview: View {
                     .foregroundStyle(SBSColors.accentSecondaryFallback)
                 
                 Text(note)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                     .lineLimit(isExpanded ? nil : 2)
                     .multilineTextAlignment(.leading)
@@ -386,7 +386,7 @@ struct StructuredCard: View {
                 if heaviestSet.weight >= barWeight {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Heavy single plates:")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textTertiaryFallback)
                         
                         PlateListView(weight: heaviestSet.weight, barWeight: barWeight, useMetric: useMetric)
@@ -398,15 +398,15 @@ struct StructuredCard: View {
             HStack {
                 if isFullyLogged {
                     Label("All AMRAP sets logged", systemImage: "checkmark.circle.fill")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.success)
                 } else if let reps = onePlusReps {
                     Label("1+ set: \(reps) reps", systemImage: "flame.fill")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.warning)
                 } else {
                     Label("Tap AMRAP sets to log reps", systemImage: "hand.tap")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                 }
                 
@@ -451,11 +451,11 @@ struct StructuredSetCell: View {
                 // Reps (or logged reps for AMRAP)
                 if let logged = setInfo.loggedReps {
                     Text("\(logged) reps")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(.white.opacity(0.9))
                 } else {
                     Text("× \(repsText)")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(setInfo.isAMRAP ? SBSColors.warning : SBSColors.textSecondaryFallback)
                 }
                 
@@ -538,7 +538,7 @@ struct AccessoryCard: View {
                 Spacer()
                 
                 Text("ACCESSORY")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
@@ -562,7 +562,7 @@ struct AccessoryCard: View {
                             Image(systemName: "clock.arrow.circlepath")
                                 .font(.system(size: 12))
                             Text(log.weight > 0 ? "Last: \(log.weight.formattedWeightShort(useMetric: useMetric))" : "Last: no added weight")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                         }
                         .foregroundStyle(SBSColors.textTertiaryFallback)
 
@@ -571,13 +571,13 @@ struct AccessoryCard: View {
                                 Image(systemName: "hand.thumbsup.fill")
                                     .font(.system(size: 11))
                                 Text("Last time was easy, go heavier")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                             }
                             .foregroundStyle(SBSColors.success)
                         }
                     } else {
                         Text("No weight logged")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textTertiaryFallback)
                     }
                 }
@@ -619,7 +619,7 @@ struct AccessoryLogButton: View {
                         .foregroundStyle(.white)
                     
                     Text("Edit")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(.white.opacity(0.8))
                 } else {
                     // Not logged state
@@ -628,7 +628,7 @@ struct AccessoryLogButton: View {
                         .foregroundStyle(.white)
                     
                     Text("Log")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(.white.opacity(0.8))
                 }
             }
@@ -679,7 +679,7 @@ struct LinearCard: View {
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
                 Text("@")
-                    .font(SBSFonts.body())
+                    .font(SBSFonts.legacyBody())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                 
                 // Weight
@@ -702,7 +702,7 @@ struct LinearCard: View {
                         .font(.system(size: 12))
                     
                     Text("Deload pending (\(info.consecutiveFailures) failures)")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                 }
                 .foregroundStyle(SBSColors.warning)
                 .padding(.horizontal, SBSLayout.paddingMedium)
@@ -719,14 +719,14 @@ struct LinearCard: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Next Session")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                     
                     HStack(spacing: 4) {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 14))
                         Text("+\(info.increment.formattedWeight(useMetric: useMetric)) on success")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                     }
                     .foregroundStyle(SBSColors.success)
                 }
@@ -763,7 +763,7 @@ struct LinearLogButton: View {
                         .foregroundStyle(.white)
                     
                     Text(wasSuccessful ? "Done" : "Failed")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(.white.opacity(0.8))
                 } else {
                     // Not logged state
@@ -772,7 +772,7 @@ struct LinearLogButton: View {
                         .foregroundStyle(.white)
                     
                     Text("Log")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(.white.opacity(0.8))
                 }
             }

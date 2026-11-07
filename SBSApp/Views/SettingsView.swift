@@ -182,7 +182,7 @@ struct SettingsView: View {
                                         .foregroundStyle(SBSColors.textPrimaryFallback)
                                     
                                     Text("Unlock all programs & features")
-                                        .font(SBSFonts.caption())
+                                        .font(SBSFonts.legacyCaption())
                                         .foregroundStyle(SBSColors.textSecondaryFallback)
                                 }
                                 
@@ -361,7 +361,7 @@ struct SettingsView: View {
                             // Preview of current barbell
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(platePreviewLabel)
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                                     .foregroundStyle(SBSColors.textTertiaryFallback)
                                 
                                 BarbellView(
@@ -401,7 +401,7 @@ struct SettingsView: View {
                                 ZStack {
                                     VStack(alignment: .leading, spacing: 8) {
                                         Text(platePreviewLabel)
-                                            .font(SBSFonts.caption())
+                                            .font(SBSFonts.legacyCaption())
                                             .foregroundStyle(SBSColors.textTertiaryFallback)
                                         
                                         BarbellView(
@@ -536,15 +536,15 @@ struct SettingsView: View {
                                 Spacer()
                                 if appState.settings.healthKitEnabled && HealthKitManager.shared.isAuthorized {
                                     Label("Connected", systemImage: "checkmark.circle.fill")
-                                        .font(SBSFonts.caption())
+                                        .font(SBSFonts.legacyCaption())
                                         .foregroundStyle(.green)
                                 } else if appState.settings.healthKitEnabled {
                                     Label("Pending", systemImage: "exclamationmark.circle.fill")
-                                        .font(SBSFonts.caption())
+                                        .font(SBSFonts.legacyCaption())
                                         .foregroundStyle(.orange)
                                 } else {
                                     Text("Disabled")
-                                        .font(SBSFonts.caption())
+                                        .font(SBSFonts.legacyCaption())
                                         .foregroundStyle(SBSColors.textSecondaryFallback)
                                 }
                             }
@@ -553,7 +553,7 @@ struct SettingsView: View {
                             if appState.settings.healthKitEnabled {
                                 VStack(alignment: .leading, spacing: 8) {
                                     Text("Data Accessed via HealthKit:")
-                                        .font(SBSFonts.caption())
+                                        .font(SBSFonts.legacyCaption())
                                         .foregroundStyle(SBSColors.textSecondaryFallback)
                                     
                                     VStack(alignment: .leading, spacing: 4) {
@@ -562,7 +562,7 @@ struct SettingsView: View {
                                         Label("Body Weight (read)", systemImage: "scalemass.fill")
                                         Label("Heart Rate (read, via Watch)", systemImage: "heart.fill")
                                     }
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                                     .foregroundStyle(SBSColors.textSecondaryFallback)
                                 }
                                 .padding(.vertical, 4)
@@ -589,7 +589,7 @@ struct SettingsView: View {
                                         .foregroundStyle(SBSColors.textPrimaryFallback)
                                     
                                     Text("Premium Feature")
-                                        .font(SBSFonts.caption())
+                                        .font(SBSFonts.legacyCaption())
                                         .foregroundStyle(SBSColors.accentFallback)
                                 }
                                 
@@ -721,7 +721,7 @@ struct SettingsView: View {
                                     .foregroundStyle(SBSColors.textPrimaryFallback)
                                 
                                 Text(templateCountText)
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                                     .foregroundStyle(SBSColors.textSecondaryFallback)
                             }
                             
@@ -772,7 +772,7 @@ struct SettingsView: View {
                             }
                             if !appState.cycleHistory.isEmpty {
                                 Text("\(appState.cycleHistory.count)")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                                     .foregroundStyle(SBSColors.textSecondaryFallback)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 2)
@@ -940,7 +940,7 @@ struct SettingsView: View {
                                     .foregroundStyle(SBSColors.textPrimaryFallback)
                                 
                                 Text("Rest timer built for strength training")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                                     .foregroundStyle(SBSColors.textSecondaryFallback)
                             }
                             
@@ -967,7 +967,7 @@ struct SettingsView: View {
                                     .foregroundStyle(SBSColors.textPrimaryFallback)
                                 
                                 Text("Strength calculators & tools")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                                     .foregroundStyle(SBSColors.textSecondaryFallback)
                             }
                             
@@ -1273,7 +1273,7 @@ struct TMEditRow: View {
                         suppressNextCommit = inputText != resetText
                         inputText = resetText
                     }
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.accentFallback)
                 }
             }
@@ -1281,7 +1281,7 @@ struct TMEditRow: View {
             HStack {
                 TextField("Weight", text: $inputText)
                     .keyboardType(.decimalPad)
-                    .font(SBSFonts.number())
+                    .font(SBSFonts.legacyNumber())
                     .focused($isFocused)
                     .onChange(of: inputText) { _, newValue in
                         if suppressNextCommit {
@@ -1295,7 +1295,7 @@ struct TMEditRow: View {
                     }
                 
                 Text(useMetric ? "kg" : "lb")
-                    .font(SBSFonts.body())
+                    .font(SBSFonts.legacyBody())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             .padding()
@@ -1430,7 +1430,7 @@ struct AdjustmentRow: View {
     var body: some View {
         HStack {
             Text(label)
-                .font(SBSFonts.body())
+                .font(SBSFonts.legacyBody())
             
             Spacer()
             
@@ -1438,7 +1438,7 @@ struct AdjustmentRow: View {
                 TextField("0", text: $inputText)
                     // Not .decimalPad: it has no minus key, and these values can be negative
                     .keyboardType(.numbersAndPunctuation)
-                    .font(SBSFonts.number())
+                    .font(SBSFonts.legacyNumber())
                     .multilineTextAlignment(.trailing)
                     .frame(width: 60)
                     .focused($isFocused)
@@ -1448,7 +1448,7 @@ struct AdjustmentRow: View {
                     }
                 
                 Text("%")
-                    .font(SBSFonts.body())
+                    .font(SBSFonts.legacyBody())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             .padding(.horizontal, 8)
@@ -1633,12 +1633,12 @@ struct MainLiftRow: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.name)
-                        .font(SBSFonts.body())
+                        .font(SBSFonts.legacyBody())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                     
                     if let subtitle = liftSubtitle {
                         Text(subtitle)
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textTertiaryFallback)
                     }
                 }
@@ -1699,7 +1699,7 @@ struct AccessoryRow: View {
                 .buttonStyle(.borderedProminent)
             } else {
                 Text(name)
-                    .font(SBSFonts.body())
+                    .font(SBSFonts.legacyBody())
                 
                 Spacer()
                 
@@ -1815,10 +1815,10 @@ struct ReviewerLoginView: View {
                     .foregroundStyle(SBSColors.accentFallback)
                 
                 Text("Reviewer Access")
-                    .font(SBSFonts.title())
+                    .font(SBSFonts.legacyTitle())
                 
                 Text("Enter your credentials to unlock premium features for review.")
-                    .font(SBSFonts.body())
+                    .font(SBSFonts.legacyBody())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
@@ -1846,7 +1846,7 @@ struct ReviewerLoginView: View {
                 
                 if showError {
                     Text("Invalid credentials")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.error)
                 }
                 

@@ -56,7 +56,7 @@ struct PastCyclesView: View {
                 .foregroundStyle(SBSColors.textPrimaryFallback)
             
             Text("When you complete a training cycle and start a new one, your history will appear here.")
-                .font(SBSFonts.body())
+                .font(SBSFonts.legacyBody())
                 .foregroundStyle(SBSColors.textSecondaryFallback)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, SBSLayout.paddingLarge)
@@ -133,7 +133,7 @@ struct CycleRowView: View {
 
                     if let programName = cycle.programName, !programName.isEmpty {
                         Text(programName)
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                     }
                 }
@@ -160,11 +160,11 @@ struct CycleRowView: View {
             
             HStack(spacing: SBSLayout.paddingMedium) {
                 Label(dateFormatter.string(from: cycle.startDate), systemImage: "calendar")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                 
                 Label(durationText, systemImage: "clock")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             
@@ -174,7 +174,7 @@ struct CycleRowView: View {
                     ForEach(cycle.summaryLifts, id: \.self) { lift in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(ExerciseLibrary.shortName(for: lift))
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.textTertiaryFallback)
                             Text((cycle.endingMaxes[lift] ?? 0).formattedWeightShort(useMetric: useMetric))
                                 .font(SBSFonts.captionBold())
@@ -251,7 +251,7 @@ struct CycleDetailView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Duration")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                     Text("\(cycle.lastCompletedWeek) week\(cycle.lastCompletedWeek == 1 ? "" : "s")")
                         .font(SBSFonts.title3())
@@ -262,10 +262,10 @@ struct CycleDetailView: View {
                 
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("Completed")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                     Text(dateFormatter.string(from: cycle.endDate))
-                        .font(SBSFonts.body())
+                        .font(SBSFonts.legacyBody())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                 }
             }
@@ -275,10 +275,10 @@ struct CycleDetailView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Started")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                     Text(dateFormatter.string(from: cycle.startDate))
-                        .font(SBSFonts.body())
+                        .font(SBSFonts.legacyBody())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                 }
                 
@@ -286,7 +286,7 @@ struct CycleDetailView: View {
                 
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("Total Workouts")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                     Text("\(totalLoggedWorkouts)")
                         .font(SBSFonts.title3())
@@ -447,14 +447,14 @@ struct CycleDetailView: View {
 
                         if performance.labelsByWeek.isEmpty {
                             Text("No logs recorded")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.textTertiaryFallback)
                         } else {
                             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 10), spacing: 4) {
                                 ForEach(1...weekCount, id: \.self) { week in
                                     if let label = performance.labelsByWeek[week] {
                                         Text(label)
-                                            .font(SBSFonts.caption())
+                                            .font(SBSFonts.legacyCaption())
                                             .foregroundStyle(SBSColors.textPrimaryFallback)
                                             .frame(width: 28, height: 28)
                                             .background(
@@ -463,7 +463,7 @@ struct CycleDetailView: View {
                                             )
                                     } else {
                                         Text("-")
-                                            .font(SBSFonts.caption())
+                                            .font(SBSFonts.legacyCaption())
                                             .foregroundStyle(SBSColors.textTertiaryFallback)
                                             .frame(width: 28, height: 28)
                                             .background(
@@ -506,7 +506,7 @@ struct TMProgressionRow: View {
     var body: some View {
         HStack {
             Text(liftName)
-                .font(SBSFonts.body())
+                .font(SBSFonts.legacyBody())
                 .foregroundStyle(SBSColors.textPrimaryFallback)
                 .frame(width: 100, alignment: .leading)
             
@@ -515,10 +515,10 @@ struct TMProgressionRow: View {
             // Start TM
             VStack(alignment: .trailing, spacing: 2) {
                 Text("Start")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                 Text(startTM.formattedWeightShort(useMetric: useMetric))
-                    .font(SBSFonts.number())
+                    .font(SBSFonts.legacyNumber())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             
@@ -530,10 +530,10 @@ struct TMProgressionRow: View {
             // End TM
             VStack(alignment: .trailing, spacing: 2) {
                 Text(endLabel)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                 Text(endTM.formattedWeightShort(useMetric: useMetric))
-                    .font(SBSFonts.number())
+                    .font(SBSFonts.legacyNumber())
                     .foregroundStyle(SBSColors.accentFallback)
             }
             

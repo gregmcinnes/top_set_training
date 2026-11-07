@@ -209,7 +209,7 @@ struct PaywallView: View {
                     .foregroundStyle(SBSColors.textPrimaryFallback)
 
                 Text("Get the most out of your training")
-                    .font(SBSFonts.body())
+                    .font(SBSFonts.legacyBody())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                     .multilineTextAlignment(.center)
             }
@@ -293,7 +293,7 @@ struct PaywallView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(SBSColors.warning)
             Text("Couldn't load pricing.")
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textSecondaryFallback)
 
             Spacer()
@@ -334,7 +334,7 @@ struct PaywallView: View {
                         Text(selectedPlan == .lifetime ? "Unlock Forever" : "Subscribe Now")
                     }
                 }
-                .font(SBSFonts.button())
+                .font(SBSFonts.legacyButton())
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, SBSLayout.paddingMedium + 4)
@@ -354,13 +354,13 @@ struct PaywallView: View {
 
             if selectedPlan != .lifetime {
                 Text("Cancel anytime. Subscription auto-renews.")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                     .multilineTextAlignment(.center)
             }
 
             Text("By purchasing, you agree to our [Terms of Use](https://gregorymcinnes.com/terms) and [Privacy Policy](https://gregorymcinnes.com/apps/top-set-training/).")
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
                 .multilineTextAlignment(.center)
                 .tint(SBSColors.accentFallback)
@@ -382,7 +382,7 @@ struct PaywallView: View {
                             .controlSize(.small)
                     }
                     Text("Restore Purchases")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.accentFallback)
                 }
             }
@@ -392,7 +392,7 @@ struct PaywallView: View {
                 showRedeemSheet = true
             } label: {
                 Text("Redeem Code")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.accentFallback)
             }
             .disabled(isBusy)
@@ -523,7 +523,7 @@ private struct PlanOptionCard: View {
                 }
 
                 Text(plan.subtitle)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
 
@@ -539,7 +539,7 @@ private struct PlanOptionCard: View {
 
                     if !plan.periodLabel.isEmpty {
                         Text(plan.periodLabel)
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                     }
                 } else {
@@ -587,7 +587,7 @@ private struct PremiumFeatureRow: View {
                     .foregroundStyle(SBSColors.textPrimaryFallback)
 
                 Text(feature.featureDescription)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                     .lineLimit(2)
             }
@@ -613,12 +613,12 @@ struct FeatureComparisonRow: View {
     var body: some View {
         HStack {
             Text(feature)
-                .font(SBSFonts.body())
+                .font(SBSFonts.legacyBody())
                 .foregroundStyle(SBSColors.textPrimaryFallback)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(freeValue)
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textSecondaryFallback)
                 .frame(width: 60)
 

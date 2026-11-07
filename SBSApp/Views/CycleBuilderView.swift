@@ -214,7 +214,7 @@ onComplete: completeCycleSetup
                         .tint(.white)
                     
                     Text("Loading program...")
-                        .font(SBSFonts.body())
+                        .font(SBSFonts.legacyBody())
                         .foregroundStyle(.white)
                 }
                 .padding(SBSLayout.paddingLarge)
@@ -652,7 +652,7 @@ struct WelcomeStepView: View {
                         Text(isOnboarding 
                              ? "Let's set up your personalized training program. This will only take a minute."
                              : "Ready to start a new cycle? Let's review your setup.")
-                            .font(SBSFonts.body())
+                            .font(SBSFonts.legacyBody())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                             .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
@@ -675,7 +675,7 @@ struct WelcomeStepView: View {
                                     .foregroundStyle(SBSColors.success)
 
                                 Text("Don't worry, you can change all of these settings later in the app.")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                                     .foregroundStyle(SBSColors.textSecondaryFallback)
                                     .multilineTextAlignment(.center)
                                     .fixedSize(horizontal: false, vertical: true)
@@ -689,7 +689,7 @@ struct WelcomeStepView: View {
                                     .foregroundStyle(SBSColors.accentFallback)
 
                                 Text("Prefer your own routine? You can build a custom program anytime in Settings.")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                                     .foregroundStyle(SBSColors.textSecondaryFallback)
                                     .multilineTextAlignment(.center)
                                     .fixedSize(horizontal: false, vertical: true)
@@ -714,7 +714,7 @@ struct WelcomeStepView: View {
                         Text(isOnboarding ? "I Know What I Want" : "Get Started")
                         Image(systemName: "arrow.right")
                     }
-                    .font(SBSFonts.button())
+                    .font(SBSFonts.legacyButton())
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, SBSLayout.paddingMedium)
@@ -733,7 +733,7 @@ struct WelcomeStepView: View {
                             Image(systemName: "sparkles")
                             Text("Help Me Choose a Program")
                         }
-                        .font(SBSFonts.button())
+                        .font(SBSFonts.legacyButton())
                         .foregroundStyle(SBSColors.accentFallback)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, SBSLayout.paddingMedium)
@@ -749,7 +749,7 @@ struct WelcomeStepView: View {
                             onSkip()
                         } label: {
                             Text("Skip for now")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, SBSLayout.paddingSmall)
@@ -793,7 +793,7 @@ struct FeatureRow: View {
                     .font(SBSFonts.bodyBold())
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 Text(description)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -826,11 +826,11 @@ struct ProgramSelectionStepView: View {
             // Header
             VStack(spacing: SBSLayout.paddingSmall) {
                 Text("Select Program")
-                    .font(SBSFonts.title())
+                    .font(SBSFonts.legacyTitle())
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
                 Text("Choose your training template")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             .padding(.top, SBSLayout.paddingMedium)
@@ -911,11 +911,11 @@ struct ExerciseReviewStepView: View {
                     .foregroundStyle(SBSColors.accentFallback)
                 
                 Text("Review Exercises")
-                    .font(SBSFonts.title())
+                    .font(SBSFonts.legacyTitle())
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
                 Text("Customize the lifts for each training day")
-                    .font(SBSFonts.body())
+                    .font(SBSFonts.legacyBody())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                 
                 // Reassuring message
@@ -925,7 +925,7 @@ struct ExerciseReviewStepView: View {
                         .foregroundStyle(SBSColors.success)
                     
                     Text("Exercises can be changed in Settings")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                 }
                 .padding(.top, 4)
@@ -1005,7 +1005,7 @@ struct ExerciseReviewStepView: View {
                             Image(systemName: "plus.circle.fill")
                             Text("Add Accessory")
                         }
-                        .font(SBSFonts.body())
+                        .font(SBSFonts.legacyBody())
                         .foregroundStyle(SBSColors.accentFallback)
                         .frame(maxWidth: .infinity)
                         .padding()
@@ -1174,7 +1174,7 @@ struct AccessorySetsRepsEditor: View {
                 VStack(spacing: SBSLayout.paddingSmall) {
                     HStack {
                         Text("Sets")
-                            .font(SBSFonts.body())
+                            .font(SBSFonts.legacyBody())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
                         Spacer()
                         Stepper("\(sets)", value: $sets, in: 1...10)
@@ -1188,7 +1188,7 @@ struct AccessorySetsRepsEditor: View {
                     
                     HStack {
                         Text("Reps")
-                            .font(SBSFonts.body())
+                            .font(SBSFonts.legacyBody())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
                         Spacer()
                         Stepper("\(reps)", value: $reps, in: 1...30)
@@ -1207,7 +1207,7 @@ struct AccessorySetsRepsEditor: View {
                 // Save button
                 Button(action: onSave) {
                     Text("Save")
-                        .font(SBSFonts.button())
+                        .font(SBSFonts.legacyButton())
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, SBSLayout.paddingMedium)
@@ -1297,10 +1297,10 @@ struct ExerciseItemRow: View {
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(name)
-                    .font(SBSFonts.body())
+                    .font(SBSFonts.legacyBody())
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 Text(subtitle)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
             }
             
@@ -1413,11 +1413,11 @@ struct TrainingMaxesStepView: View {
                             .foregroundStyle(SBSColors.accentFallback)
 
                         Text(heading)
-                            .font(SBSFonts.title())
+                            .font(SBSFonts.legacyTitle())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
 
                         Text(headerSubtitle)
-                            .font(SBSFonts.body())
+                            .font(SBSFonts.legacyBody())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                             .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
@@ -1446,7 +1446,7 @@ struct TrainingMaxesStepView: View {
                                             .font(SBSFonts.bodyBold())
                                             .foregroundStyle(SBSColors.textPrimaryFallback)
                                         Text("These are pre-filled based on your last cycle. Adjust below if needed.")
-                                            .font(SBSFonts.caption())
+                                            .font(SBSFonts.legacyCaption())
                                             .foregroundStyle(SBSColors.textSecondaryFallback)
                                     }
 
@@ -1474,7 +1474,7 @@ struct TrainingMaxesStepView: View {
                                     Image(systemName: carryOverTMs ? "arrow.counterclockwise" : "arrow.uturn.backward.circle.fill")
                                         .font(.system(size: 16))
                                     Text(carryOverTMs ? "Reset to Default Values" : "Use \(currentValuesName)")
-                                        .font(SBSFonts.caption())
+                                        .font(SBSFonts.legacyCaption())
                                 }
                                 .foregroundStyle(SBSColors.accentFallback)
                             }
@@ -1490,7 +1490,7 @@ struct TrainingMaxesStepView: View {
                             .foregroundStyle(SBSColors.accentSecondaryFallback)
 
                         Text(infoBody)
-                            .font(SBSFonts.body())
+                            .font(SBSFonts.legacyBody())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -1510,7 +1510,7 @@ struct TrainingMaxesStepView: View {
                                 .foregroundStyle(SBSColors.success)
 
                             Text("We've filled in light starter weights. Change any you know, or tap \"Not sure?\" on a lift. You can adjust these anytime in Settings.")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -1601,7 +1601,7 @@ struct TrainingMaxesStepView: View {
             .pickerStyle(.segmented)
 
             Text("Numbers you've typed stay the same. Only the unit changes.")
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -1634,7 +1634,7 @@ struct TMInputRow: View {
                 Spacer()
 
                 Button("Not sure?", action: onNotSure)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.accentFallback)
                     .accessibilityLabel("Not sure about \(liftName)?")
             }
@@ -1642,7 +1642,7 @@ struct TMInputRow: View {
             HStack {
                 TextField("Weight", text: $inputText)
                     .keyboardType(.decimalPad)
-                    .font(SBSFonts.number())
+                    .font(SBSFonts.legacyNumber())
                     .focused(focus, equals: liftName)
                     .accessibilityLabel("\(liftName) weight")
                     .onChange(of: isFocused) { _, focused in
@@ -1658,7 +1658,7 @@ struct TMInputRow: View {
                     }
 
                 Text(useMetric ? "kg" : "lb")
-                    .font(SBSFonts.body())
+                    .font(SBSFonts.legacyBody())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
 
                 // Quick adjust buttons
@@ -1704,12 +1704,12 @@ struct TMInputRow: View {
 
             if needsValue {
                 Text("Enter a weight above 0 to continue")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.warning)
             }
             if isBodyweightLift {
                 Text("Weight added to your bodyweight. 0 means none.")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
             }
         }
@@ -1818,7 +1818,7 @@ struct StartingWeightHelpSheet: View {
                             use(starter)
                         } label: {
                             Text("Use \(starter.formattedWeight(useMetric: useMetric))")
-                                .font(SBSFonts.button())
+                                .font(SBSFonts.legacyButton())
                                 .foregroundStyle(SBSColors.accentFallback)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, SBSLayout.paddingMedium)
@@ -1838,7 +1838,7 @@ struct StartingWeightHelpSheet: View {
                                 .accessibilityLabel("Weight lifted")
 
                             Text(useMetric ? "kg for" : "lb for")
-                                .font(SBSFonts.body())
+                                .font(SBSFonts.legacyBody())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
 
                             TextField("Reps", text: $repsText)
@@ -1852,7 +1852,7 @@ struct StartingWeightHelpSheet: View {
                             if let estimate { use(estimate) }
                         } label: {
                             Text(estimate.map { "Use \($0.formattedWeight(useMetric: useMetric))" } ?? "Enter a Weight and Reps")
-                                .font(SBSFonts.button())
+                                .font(SBSFonts.legacyButton())
                                 .foregroundStyle(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, SBSLayout.paddingMedium)
@@ -1901,7 +1901,7 @@ struct StartingWeightHelpSheet: View {
                 .foregroundStyle(SBSColors.textPrimaryFallback)
 
             Text(explanation)
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textSecondaryFallback)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -1988,11 +1988,11 @@ let isOnboarding: Bool
                         }
                         
                         Text(isOnboarding ? "Ready to Begin!" : "Review Your Cycle")
-                            .font(SBSFonts.title())
+                            .font(SBSFonts.legacyTitle())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
                         
                         Text("Here's a summary of your setup")
-                            .font(SBSFonts.body())
+                            .font(SBSFonts.legacyBody())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                     }
                     .padding(.top, SBSLayout.paddingLarge)
@@ -2003,7 +2003,7 @@ let isOnboarding: Bool
                             Image(systemName: isCustomTemplate ? "square.stack.3d.up.fill" : "doc.text.fill")
                                 .foregroundStyle(SBSColors.accentFallback)
                             Text(programName)
-                                .font(SBSFonts.body())
+                                .font(SBSFonts.legacyBody())
                                 .foregroundStyle(SBSColors.textPrimaryFallback)
                             
                             if isCustomTemplate {
@@ -2042,11 +2042,11 @@ let isOnboarding: Bool
 if let value = trainingMaxes[lift] {
                                 HStack {
                                     Text(lift)
-                                        .font(SBSFonts.body())
+                                        .font(SBSFonts.legacyBody())
                                         .foregroundStyle(SBSColors.textPrimaryFallback)
                                     Spacer()
                                     Text(value.formattedWeight(useMetric: appState.settings.useMetric))
-                                        .font(SBSFonts.number())
+                                        .font(SBSFonts.legacyNumber())
                                         .foregroundStyle(SBSColors.accentFallback)
                                 }
                                 
@@ -2064,7 +2064,7 @@ Divider()
                                 Image(systemName: "pencil.circle.fill")
                                     .foregroundStyle(SBSColors.accentSecondaryFallback)
                                 Text("You've customized \(exerciseCustomizations.count) day(s)")
-                                    .font(SBSFonts.body())
+                                    .font(SBSFonts.legacyBody())
                                     .foregroundStyle(SBSColors.textPrimaryFallback)
                                 Spacer()
                             }
@@ -2104,7 +2104,7 @@ Divider()
                         Text(isOnboarding ? "Start Training" : "Start New Cycle")
                         Image(systemName: "arrow.right.circle.fill")
                     }
-                    .font(SBSFonts.button())
+                    .font(SBSFonts.legacyButton())
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, SBSLayout.paddingMedium)
@@ -2118,7 +2118,7 @@ Divider()
                     onBack()
                 } label: {
                     Text("Go Back")
-                        .font(SBSFonts.body())
+                        .font(SBSFonts.legacyBody())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
             }
@@ -2167,7 +2167,7 @@ struct SummaryStatItem: View {
                 .font(SBSFonts.title2())
                 .foregroundStyle(SBSColors.accentFallback)
             Text(label)
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
         }
         .frame(maxWidth: .infinity)
@@ -2185,7 +2185,7 @@ struct TipItem: View {
                 .padding(.top, 2)
             
             Text(text)
-                .font(SBSFonts.body())
+                .font(SBSFonts.legacyBody())
                 .foregroundStyle(SBSColors.textSecondaryFallback)
         }
     }
@@ -2209,7 +2209,7 @@ struct NavigationButtons: View {
                     Image(systemName: "arrow.left")
                     Text(backTitle)
                 }
-                .font(SBSFonts.button())
+                .font(SBSFonts.legacyButton())
                 .foregroundStyle(SBSColors.textSecondaryFallback)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, SBSLayout.paddingMedium)
@@ -2227,7 +2227,7 @@ struct NavigationButtons: View {
                     Text(continueTitle)
                     Image(systemName: "arrow.right")
                 }
-                .font(SBSFonts.button())
+                .font(SBSFonts.legacyButton())
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, SBSLayout.paddingMedium)
@@ -2575,7 +2575,7 @@ struct ProgramDetailView: View {
                         }
                         
                         Text(program.programDescription)
-                            .font(SBSFonts.body())
+                            .font(SBSFonts.legacyBody())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                     }
                     
@@ -2613,7 +2613,7 @@ struct ProgramDetailView: View {
                                 .foregroundStyle(familyColor)
                             
                             Text(progressionType)
-                                .font(SBSFonts.body())
+                                .font(SBSFonts.legacyBody())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                         }
                         .padding()
@@ -2665,7 +2665,7 @@ struct ProgramDetailView: View {
                             FlowLayout(spacing: 8) {
                                 ForEach(accessoryExercises, id: \.self) { exercise in
                                     Text(exercise)
-                                        .font(SBSFonts.caption())
+                                        .font(SBSFonts.legacyCaption())
                                         .foregroundStyle(SBSColors.textSecondaryFallback)
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 5)
@@ -2732,7 +2732,7 @@ struct ProgramDetailView: View {
                                 Image(systemName: "play.fill")
                                 Text("Start Cycle with This Program")
                             }
-                            .font(SBSFonts.button())
+                            .font(SBSFonts.legacyButton())
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, SBSLayout.paddingMedium)
@@ -2752,7 +2752,7 @@ struct ProgramDetailView: View {
                         ProgressView()
                             .tint(familyColor)
                         Text("Loading program...")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -2785,7 +2785,7 @@ struct StatCard: View {
                 .foregroundStyle(SBSColors.textPrimaryFallback)
             
             Text(label)
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
         }
         .frame(maxWidth: .infinity)
@@ -2840,7 +2840,7 @@ struct DayPreviewCard: View {
                     
                     if let title = dayTitle {
                         Text(title)
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(accentColor)
                     }
                 }
@@ -2848,7 +2848,7 @@ struct DayPreviewCard: View {
                 Spacer()
                 
                 Text("\(mainExercises.count) main • \(accessories.count) acc")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
             }
             
@@ -2874,7 +2874,7 @@ struct DayPreviewCard: View {
                         .padding(.top, 2)
                     
                     Text(accessories.map { $0.name }.joined(separator: ", "))
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                         .lineLimit(2)
                 }
@@ -2923,17 +2923,17 @@ struct ExercisePreviewRow: View {
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.lift ?? item.name)
-                        .font(SBSFonts.body())
+                        .font(SBSFonts.legacyBody())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                     
                     if let info = info {
                         HStack(spacing: 6) {
                             Text(info.setsText)
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                             
                             Text("@")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.textTertiaryFallback)
                             
                             Text(info.intensityText)
@@ -2961,7 +2961,7 @@ struct ExercisePreviewRow: View {
                         }
                     } else {
                         Text(compactInfo)
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                     }
                 }
@@ -3300,7 +3300,7 @@ struct CustomTemplateDetailView: View {
                         
                         if !template.templateDescription.isEmpty {
                             Text(template.templateDescription)
-                                .font(SBSFonts.body())
+                                .font(SBSFonts.legacyBody())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                         }
                     }
@@ -3339,7 +3339,7 @@ struct CustomTemplateDetailView: View {
                                 .foregroundStyle(accentColor)
                             
                             Text(progressionType)
-                                .font(SBSFonts.body())
+                                .font(SBSFonts.legacyBody())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                         }
                         .padding()
@@ -3391,7 +3391,7 @@ struct CustomTemplateDetailView: View {
                             FlowLayout(spacing: 8) {
                                 ForEach(accessoryExercises, id: \.self) { exercise in
                                     Text(exercise)
-                                        .font(SBSFonts.caption())
+                                        .font(SBSFonts.legacyCaption())
                                         .foregroundStyle(SBSColors.textSecondaryFallback)
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 5)
@@ -3457,7 +3457,7 @@ struct CustomTemplateDetailView: View {
                                 Image(systemName: "play.fill")
                                 Text("Start Cycle with This Template")
                             }
-                            .font(SBSFonts.button())
+                            .font(SBSFonts.legacyButton())
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, SBSLayout.paddingMedium)
@@ -3715,7 +3715,7 @@ struct VolumeGroupRow: View {
                         .frame(width: 8, height: 8)
                     
                     Text(group.rawValue)
-                        .font(SBSFonts.body())
+                        .font(SBSFonts.legacyBody())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                     
                     Spacer()
@@ -3745,13 +3745,13 @@ struct VolumeGroupRow: View {
                     ForEach(lifts) { lift in
                         HStack {
                             Text(lift.liftName)
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                             
                             Spacer()
                             
                             Text("\(lift.weeklySets) sets")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.textTertiaryFallback)
                         }
                         .padding(.horizontal, 18)

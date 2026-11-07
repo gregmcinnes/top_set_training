@@ -118,7 +118,7 @@ struct CalculatorCard: View {
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
                 Text(description)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             
@@ -189,7 +189,7 @@ struct PremiumCalculatorCard: View {
                 }
                 
                 Text(description)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             
@@ -293,7 +293,7 @@ struct OneRepMaxCalculatorView: View {
                         focusedField = nil
                     } label: {
                         Text("Calculate")
-                            .font(SBSFonts.button())
+                            .font(SBSFonts.legacyButton())
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, SBSLayout.paddingMedium)
@@ -340,7 +340,7 @@ struct OneRepMaxCalculatorView: View {
                 // Weight input
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Weight (\(unit))")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                     
                     TextField("0", text: $weight)
@@ -354,13 +354,13 @@ struct OneRepMaxCalculatorView: View {
                 }
                 
                 Text("×")
-                    .font(SBSFonts.title())
+                    .font(SBSFonts.legacyTitle())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                 
                 // Reps input
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Reps")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                     
                     TextField("0", text: $reps)
@@ -385,7 +385,7 @@ struct OneRepMaxCalculatorView: View {
             if let avg = averageE1RM {
                 VStack(spacing: 8) {
                     Text("Estimated 1RM")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                     
                     Text(formatWeight(avg))
@@ -393,7 +393,7 @@ struct OneRepMaxCalculatorView: View {
                         .foregroundStyle(SBSColors.accentFallback)
                     
                     Text("Average of all formulas")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                 }
                 .frame(maxWidth: .infinity)
@@ -418,14 +418,14 @@ struct OneRepMaxCalculatorView: View {
                                 .foregroundStyle(SBSColors.textPrimaryFallback)
                             
                             Text(result.description)
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.textTertiaryFallback)
                         }
                         
                         Spacer()
                         
                         Text(formatWeight(result.value))
-                            .font(SBSFonts.number())
+                            .font(SBSFonts.legacyNumber())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
                     }
                     .padding(.vertical, 8)
@@ -462,7 +462,7 @@ struct OneRepMaxCalculatorView: View {
                 ForEach([95, 90, 85, 80, 75, 70, 65, 60], id: \.self) { percentage in
                     VStack(spacing: 4) {
                         Text("\(percentage)%")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                         
                         Text(formatWeight(e1rm * Double(percentage) / 100.0))
@@ -492,7 +492,7 @@ struct OneRepMaxCalculatorView: View {
             }
             
             Text("Enter a weight and the number of reps you completed. The calculator uses multiple formulas to estimate your one-rep max. Results are most accurate for 1-10 reps; higher rep ranges become less reliable.")
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
         }
         .padding()
@@ -625,7 +625,7 @@ struct RPECalculatorView: View {
             .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
             
             Text("Use the 1RM Calculator if you don't know your estimated max")
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
         }
         .padding()
@@ -675,7 +675,7 @@ struct RPECalculatorView: View {
                 Spacer()
                 
                 Text(rpeDescription(selectedRPE))
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             
@@ -687,7 +687,7 @@ struct RPECalculatorView: View {
                         }
                     } label: {
                         Text(String(format: "%.1f", rpe))
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(selectedRPE == rpe ? .white : SBSColors.textPrimaryFallback)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
@@ -707,7 +707,7 @@ struct RPECalculatorView: View {
     private func resultSection(weight: Double) -> some View {
         VStack(spacing: 8) {
             Text("Target Weight")
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textSecondaryFallback)
             
             Text(formatWeight(weight))
@@ -716,7 +716,7 @@ struct RPECalculatorView: View {
             
             let percentage = percentageFor(reps: targetReps, rpe: selectedRPE)
             Text("\(Int((percentage * 100).rounded()))% of E1RM for \(targetReps) reps @ RPE \(String(format: "%.1f", selectedRPE))")
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
         }
         .frame(maxWidth: .infinity)
@@ -743,7 +743,7 @@ struct RPECalculatorView: View {
                             .frame(width: 40)
                         
                         Text(rpeFullDescription(rpe))
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                         
                         Spacer()
@@ -915,7 +915,7 @@ struct StandalonePlateCalculatorView: View {
                         }
                     } label: {
                         Text(formatWeightShortFromLb(weight))
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(isSelected ? .white : SBSColors.textPrimaryFallback)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 10)
@@ -952,7 +952,7 @@ struct StandalonePlateCalculatorView: View {
                 PlateBreakdownView(result: result, useMetric: useMetric)
             } else if targetWeightLb <= barWeight {
                 Text("Bar only - no plates needed")
-                    .font(SBSFonts.body())
+                    .font(SBSFonts.legacyBody())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
 
@@ -961,7 +961,7 @@ struct StandalonePlateCalculatorView: View {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(SBSColors.warning)
                     Text("Unable to make exact weight. Missing \(formatWeightFromLb(result.remainder * 2)) total.")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.warning)
                 }
                 .padding(.horizontal)
@@ -994,7 +994,7 @@ struct StandalonePlateCalculatorView: View {
                         isWeightFocused = false
                     } label: {
                         Text(formatWeightShort(weight))
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
@@ -1063,7 +1063,7 @@ struct PlateBreakdownView: View {
                         HStack(spacing: 4) {
                             if plates.count > 1 {
                                 Text("\(plates.count)×")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                                     .foregroundStyle(SBSColors.textSecondaryFallback)
                             }
                             
@@ -1172,7 +1172,7 @@ struct TrainingMaxCalculatorView: View {
             .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
             
             Text("Your tested or estimated one-rep max")
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
         }
         .padding()
@@ -1203,7 +1203,7 @@ struct TrainingMaxCalculatorView: View {
                         }
                     } label: {
                         Text("\(String(format: "%g", preset.value))%")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(tmPercentage == preset.value ? .white : SBSColors.textPrimaryFallback)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
@@ -1218,7 +1218,7 @@ struct TrainingMaxCalculatorView: View {
             // Show which program uses this percentage
             if let matchingPreset = tmPercentages.first(where: { $0.value == tmPercentage }) {
                 Text(matchingPreset.program)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                     .padding(.top, 4)
             }
@@ -1231,7 +1231,7 @@ struct TrainingMaxCalculatorView: View {
     private func trainingMaxResultSection(tm: Double) -> some View {
         VStack(spacing: 8) {
             Text("Training Max")
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textSecondaryFallback)
             
             Text(formatWeight(tm))
@@ -1240,7 +1240,7 @@ struct TrainingMaxCalculatorView: View {
             
             if let max = actualMaxValue {
                 Text("\(String(format: "%g", tmPercentage))% of \(formatWeight(max))")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
             }
         }
@@ -1269,7 +1269,7 @@ struct TrainingMaxCalculatorView: View {
                     
                     HStack {
                         Text("\(percentage)%")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                             .frame(width: 40, alignment: .leading)
                         
@@ -1314,13 +1314,13 @@ struct TrainingMaxCalculatorView: View {
         
         return HStack {
             Text(name)
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textSecondaryFallback)
             
             Spacer()
             
             Text("\(percentage)%")
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
             
             Text(formatWeight(weight))
@@ -1342,7 +1342,7 @@ struct TrainingMaxCalculatorView: View {
             }
             
             Text("A Training Max (TM) is a percentage of your true 1RM used for programming. Using a TM (typically 85-90%) instead of your actual max allows for better bar speed, reduced injury risk, and room to progress over time. Most percentage-based programs calculate weights from your TM, not your true max.")
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
         }
         .padding()
@@ -1774,7 +1774,7 @@ struct StrengthScoresView: View {
                         focusedField = nil
                     } label: {
                         Text("Calculate Scores")
-                            .font(SBSFonts.button())
+                            .font(SBSFonts.legacyButton())
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, SBSLayout.paddingMedium)
@@ -1879,7 +1879,7 @@ struct StrengthScoresView: View {
                 }
                 
                 Text("Upgrade to auto-import your personal records")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
             }
         }
@@ -1905,7 +1905,7 @@ struct StrengthScoresView: View {
             .pickerStyle(.segmented)
             
             Text("Competition category for formula coefficients")
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
         }
         .padding()
@@ -1953,7 +1953,7 @@ struct StrengthScoresView: View {
                 
                 if inputMode == .fromPRs {
                     Text("From PRs")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.accentFallback)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
@@ -2030,7 +2030,7 @@ struct StrengthScoresView: View {
                 .frame(width: 24)
             
             Text(label)
-                .font(SBSFonts.body())
+                .font(SBSFonts.legacyBody())
                 .foregroundStyle(SBSColors.textPrimaryFallback)
             
             Spacer()
@@ -2038,16 +2038,16 @@ struct StrengthScoresView: View {
             if let value = value {
                 // PR value display
                 Text(value)
-                    .font(SBSFonts.number())
+                    .font(SBSFonts.legacyNumber())
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
                 Text(unit)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             } else {
                 // Custom input
                 TextField("0", text: inputBinding)
-                    .font(SBSFonts.number())
+                    .font(SBSFonts.legacyNumber())
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .focused($focusedField, equals: field)
@@ -2058,7 +2058,7 @@ struct StrengthScoresView: View {
                     .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall))
                 
                 Text(unit)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                     .frame(width: 24)
             }
@@ -2084,7 +2084,7 @@ struct StrengthScoresView: View {
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
                 Text("Total: \(formatWeight(total)) kg @ \(formatWeight(bodyweightKg)) kg BW")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             .padding(.bottom, 8)
@@ -2171,12 +2171,12 @@ struct StrengthScoresView: View {
                 }
                 
                 Text(description)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                 
                 // Score breakdown
                 Text(String(format: "%.2f points", score))
-                    .font(SBSFonts.number())
+                    .font(SBSFonts.legacyNumber())
                     .foregroundStyle(SBSColors.textPrimaryFallback)
             }
         }
@@ -2244,7 +2244,7 @@ struct StrengthScoresView: View {
             Divider()
             
             Text("All formulas use your SBD total and bodyweight to calculate a standardized score, allowing fair comparison between lifters of different sizes.")
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
         }
         .padding()
@@ -2259,7 +2259,7 @@ struct StrengthScoresView: View {
                 .foregroundStyle(SBSColors.textPrimaryFallback)
             
             Text(description)
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textSecondaryFallback)
         }
     }

@@ -290,7 +290,7 @@ struct NextWorkoutCard: View {
                     .foregroundStyle(SBSColors.textPrimaryFallback)
 
                 Text(lifts.isEmpty ? "No exercises" : lifts.joined(separator: " • "))
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                     .lineLimit(2)
             }
@@ -299,7 +299,7 @@ struct NextWorkoutCard: View {
                 Text(actionTitle)
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(SBSPrimaryButtonStyle())
+            .buttonStyle(SBSLegacyPrimaryButtonStyle())
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -354,7 +354,7 @@ struct CycleCompletionCard: View {
                         .foregroundStyle(SBSColors.textPrimaryFallback)
 
                     Text(sessionsText)
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
 
@@ -367,7 +367,7 @@ struct CycleCompletionCard: View {
 
             if summary.gains.isEmpty {
                 Text(noGainsText)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             } else {
                 gainsList
@@ -378,11 +378,11 @@ struct CycleCompletionCard: View {
                     Text("Quick Repeat")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(SBSPrimaryButtonStyle())
+                .buttonStyle(SBSLegacyPrimaryButtonStyle())
 
                 Button(action: onCustomize) {
                     Text("Customize")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, SBSLayout.paddingSmall)
@@ -411,14 +411,14 @@ struct CycleCompletionCard: View {
             ForEach(summary.gains.prefix(maximumGainRows), id: \.lift) { gain in
                 HStack(spacing: SBSLayout.paddingSmall) {
                     Text(gain.lift)
-                        .font(SBSFonts.body())
+                        .font(SBSFonts.legacyBody())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                         .lineLimit(1)
 
                     Spacer()
 
                     Text(gain.to.formattedWeight(useMetric: useMetric))
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
 
                     Text("+\(gain.gain.formattedWeight(useMetric: useMetric))")
@@ -429,7 +429,7 @@ struct CycleCompletionCard: View {
 
             if summary.gains.count > maximumGainRows {
                 Text("and \(summary.gains.count - maximumGainRows) more")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
             }
         }
@@ -444,7 +444,7 @@ struct WeekProgressBar: View {
         VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
             HStack {
                 Text("Program Progress")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                 
                 Spacer()
@@ -557,7 +557,7 @@ struct StatItem: View {
                 .foregroundStyle(SBSColors.textPrimaryFallback)
             
             Text(label)
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
         }
         .frame(maxWidth: .infinity)

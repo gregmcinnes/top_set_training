@@ -133,11 +133,11 @@ struct TemplateListView: View {
             
             VStack(spacing: SBSLayout.paddingSmall) {
                 Text("No Templates Yet")
-                    .font(SBSFonts.title())
+                    .font(SBSFonts.legacyTitle())
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
                 Text("Create your own custom workout program with exercises, sets, reps, and progression rules.")
-                    .font(SBSFonts.body())
+                    .font(SBSFonts.legacyBody())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, SBSLayout.paddingLarge)
@@ -148,7 +148,7 @@ struct TemplateListView: View {
             } label: {
                 Label("Create Template", systemImage: "plus")
             }
-            .buttonStyle(SBSPrimaryButtonStyle())
+            .buttonStyle(SBSLegacyPrimaryButtonStyle())
             .padding(.top, SBSLayout.paddingMedium)
             
             Spacer()
@@ -228,7 +228,7 @@ struct TemplateListView: View {
                     .foregroundStyle(SBSColors.accentFallback)
                 
                 Text("Free users can save 1 template")
-                    .font(SBSFonts.body())
+                    .font(SBSFonts.legacyBody())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             
@@ -238,7 +238,7 @@ struct TemplateListView: View {
                 Text("Upgrade for Unlimited")
                     .font(SBSFonts.captionBold())
             }
-            .buttonStyle(SBSSecondaryButtonStyle())
+            .buttonStyle(SBSLegacySecondaryButtonStyle())
         }
         .padding()
         .background(
@@ -266,11 +266,11 @@ struct TemplateListView: View {
             
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(templates.count) / \(FreeTierLimits.maxSavedTemplates) Template Used")
-                    .font(SBSFonts.body())
+                    .font(SBSFonts.legacyBody())
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
                 Text(canCreateTemplate ? "You can create 1 more" : "Upgrade for unlimited templates")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             
@@ -337,7 +337,7 @@ struct TemplateRow: View {
                     
                     if !template.templateDescription.isEmpty {
                         Text(template.templateDescription)
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                             .lineLimit(2)
                     }
@@ -352,7 +352,7 @@ struct TemplateRow: View {
                 Label(weeksDescription, systemImage: "clock")
                 Label("\(exerciseCount) exercises", systemImage: "figure.strengthtraining.traditional")
             }
-            .font(SBSFonts.caption())
+            .font(SBSFonts.legacyCaption())
             .foregroundStyle(SBSColors.textTertiaryFallback)
             
             // Last updated
@@ -369,7 +369,7 @@ struct TemplateRow: View {
                         onEdit()
                     } label: {
                         Label("Edit", systemImage: "pencil")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                     }
                     .buttonStyle(.borderless)
                     
@@ -377,7 +377,7 @@ struct TemplateRow: View {
                         onDelete()
                     } label: {
                         Label("Delete", systemImage: "trash")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                     }
                     .buttonStyle(.borderless)
                 }

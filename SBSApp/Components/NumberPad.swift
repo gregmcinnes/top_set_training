@@ -62,7 +62,7 @@ struct NumberPad: View {
                                 .foregroundStyle(displayColor)
                             
                             Text("reps")
-                                .font(SBSFonts.body())
+                                .font(SBSFonts.legacyBody())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                         }
                     } else {
@@ -75,7 +75,7 @@ struct NumberPad: View {
                 // TM Impact and Target in side column
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Target: \(target)")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                     
                     if let v = value {
@@ -93,7 +93,7 @@ struct NumberPad: View {
                             .foregroundStyle(SBSColors.warning)
                         } else {
                             Text("\(needed) reps = new 1RM")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.warning)
                         }
                     }
@@ -218,7 +218,7 @@ struct WeightPad: View {
                             .minimumScaleFactor(0.6)
 
                         Text(useMetric ? "kg" : "lb")
-                            .font(SBSFonts.body())
+                            .font(SBSFonts.legacyBody())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                     }
                 }
@@ -366,7 +366,7 @@ struct TMImpactPreviewCompact: View {
                 .font(.system(size: 12, weight: .semibold))
             
             Text(impactText)
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
         }
         .foregroundStyle(impactColor)
     }

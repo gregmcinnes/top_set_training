@@ -26,7 +26,7 @@ struct ResumeWorkoutBar: View {
                             .lineLimit(1)
 
                         Text(subtitle)
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                             .lineLimit(1)
                     }

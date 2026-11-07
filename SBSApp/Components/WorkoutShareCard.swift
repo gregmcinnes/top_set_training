@@ -113,11 +113,11 @@ struct WorkoutShareCard: View {
             // Date and workout info
             VStack(spacing: 4) {
                 Text(dateFormatter.string(from: summary.date))
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(hasPRs ? Color.orange : SBSColors.textSecondaryFallback)
                 
                 Text(summary.dayTitle)
-                    .font(compact ? SBSFonts.title() : SBSFonts.display())
+                    .font(compact ? SBSFonts.legacyTitle() : SBSFonts.display())
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
                 HStack(spacing: SBSLayout.paddingSmall) {
@@ -129,7 +129,7 @@ struct WorkoutShareCard: View {
                         Text("•")
                             .foregroundStyle(SBSColors.textTertiaryFallback)
                         Text(programName)
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textTertiaryFallback)
                             .lineLimit(1)
                     }
@@ -178,11 +178,11 @@ struct WorkoutShareCard: View {
                 
                 HStack {
                     Image(systemName: "dumbbell.fill")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.accentSecondaryFallback)
                     
                     Text("\(accessories.count) accessories completed")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                     
                     Spacer()
@@ -236,7 +236,7 @@ struct WorkoutShareCard: View {
             
             // Total sets
             Text("\(summary.totalSets) sets completed")
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
         }
         .padding(.horizontal, SBSLayout.paddingLarge)
@@ -270,7 +270,7 @@ private struct ShareCardExerciseRow: View {
                 // Sets x Reps info
                 HStack(spacing: 4) {
                     Text("\(exercise.sets) × \(exercise.reps)")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                     
                     if exercise.isAMRAP {
@@ -349,7 +349,7 @@ private struct ShareCardPRRow: View {
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
                 Text("\(pr.weight.formattedWeightShort(useMetric: useMetric)) × \(pr.reps) reps")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             
@@ -474,10 +474,10 @@ struct WorkoutShareSheet: View {
                     ) {
                         HStack(spacing: SBSLayout.paddingSmall) {
                             Image(systemName: "square.and.arrow.up")
-                                .font(SBSFonts.button())
+                                .font(SBSFonts.legacyButton())
                             
                             Text("Share Workout")
-                                .font(SBSFonts.button())
+                                .font(SBSFonts.legacyButton())
                         }
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
@@ -666,7 +666,7 @@ struct ProgressShareCard: View {
             // Program and cycle info
             VStack(spacing: 4) {
                 Text(summary.programName)
-                    .font(compact ? SBSFonts.title2() : SBSFonts.title())
+                    .font(compact ? SBSFonts.title2() : SBSFonts.legacyTitle())
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
@@ -680,7 +680,7 @@ struct ProgressShareCard: View {
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                     
                     Text(summary.isComplete ? "Completed" : "In Progress")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(summary.isComplete ? SBSColors.success : SBSColors.textSecondaryFallback)
                 }
                 
@@ -745,7 +745,7 @@ struct ProgressShareCard: View {
                 Spacer()
                 
                 Text(String(format: "%.0f%% complete", summary.progressPercent))
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
             }
             .padding(.horizontal, SBSLayout.paddingLarge)
@@ -764,7 +764,7 @@ struct ProgressShareCard: View {
                 VStack(spacing: 2) {
                     HStack(spacing: 2) {
                         Image(systemName: isPositiveProgress ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
-                            .font(SBSFonts.body())
+                            .font(SBSFonts.legacyBody())
                         Text(String(format: "%.1f%%", summary.averageGainPercent))
                             .font(SBSFonts.title3())
                     }
@@ -791,7 +791,7 @@ struct ProgressShareCard: View {
                     VStack(spacing: 2) {
                         HStack(spacing: 2) {
                             Image(systemName: "trophy.fill")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(.yellow)
                             Text("\(summary.personalRecords.count)")
                                 .font(SBSFonts.title3())
@@ -827,7 +827,7 @@ struct ProgressShareCard: View {
             
             HStack {
                 Image(systemName: "trophy.fill")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(
                         LinearGradient(colors: [.yellow, .orange], startPoint: .top, endPoint: .bottom)
                     )
@@ -845,13 +845,13 @@ struct ProgressShareCard: View {
                 ForEach(summary.personalRecords) { pr in
                     HStack {
                         Text(pr.liftName)
-                            .font(SBSFonts.body())
+                            .font(SBSFonts.legacyBody())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
                         
                         Spacer()
                         
                         Text("\(pr.weight.formattedWeightShort(useMetric: useMetric)) × \(pr.reps)")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                         
                         Text("→")
@@ -892,7 +892,7 @@ struct ProgressShareCard: View {
             Spacer()
             
             Text("\(summary.weeksCompleted) weeks of gains")
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
         }
         .padding(.horizontal, SBSLayout.paddingLarge)
@@ -915,7 +915,7 @@ private struct LiftProgressRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(lift.name)
-                        .font(compact ? SBSFonts.body() : SBSFonts.bodyBold())
+                        .font(compact ? SBSFonts.legacyBody() : SBSFonts.bodyBold())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                     
                     if hasPR {
@@ -935,7 +935,7 @@ private struct LiftProgressRow: View {
             // TM progression
             HStack(spacing: 6) {
                 Text(lift.startingTM.formattedWeightShort(useMetric: useMetric))
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                 
                 Image(systemName: "arrow.right")
@@ -1035,10 +1035,10 @@ struct ProgressShareSheet: View {
                     ) {
                         HStack(spacing: SBSLayout.paddingSmall) {
                             Image(systemName: "square.and.arrow.up")
-                                .font(SBSFonts.button())
+                                .font(SBSFonts.legacyButton())
                             
                             Text("Share Progress")
-                                .font(SBSFonts.button())
+                                .font(SBSFonts.legacyButton())
                         }
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
@@ -1339,13 +1339,13 @@ struct LiftProgressShareCard: View {
             
             // Lift name
             Text(summary.liftName)
-                .font(compact ? SBSFonts.title() : SBSFonts.display())
+                .font(compact ? SBSFonts.legacyTitle() : SBSFonts.display())
                 .foregroundStyle(SBSColors.textPrimaryFallback)
             
             // Date range
             HStack(spacing: SBSLayout.paddingSmall) {
                 Text(dateFormatter.string(from: summary.startDate))
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                 
                 Text("→")
@@ -1374,7 +1374,7 @@ struct LiftProgressShareCard: View {
             // Starting E1RM
             VStack(alignment: .leading, spacing: 2) {
                 Text("Started")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                 
                 Text("\(Int(summary.startE1RM.rounded())) \(summary.unit)")
@@ -1394,12 +1394,12 @@ struct LiftProgressShareCard: View {
             // Current E1RM
             VStack(alignment: .trailing, spacing: 2) {
                 Text("Current")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                 
                 HStack(spacing: 6) {
                     Text("\(Int(summary.currentE1RM.rounded())) \(summary.unit)")
-                        .font(compact ? SBSFonts.title3() : SBSFonts.title())
+                        .font(compact ? SBSFonts.title3() : SBSFonts.legacyTitle())
                         .foregroundStyle(SBSColors.accentFallback)
                     
                     // Gain indicator
@@ -1440,7 +1440,7 @@ struct LiftProgressShareCard: View {
             Spacer()
             
             Text("Estimated 1RM Progress")
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
         }
         .padding(.horizontal, SBSLayout.paddingLarge)

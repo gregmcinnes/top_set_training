@@ -126,7 +126,7 @@ struct PRCelebrationView: View {
                         )
                     
                     Text(liftName)
-                        .font(SBSFonts.title())
+                        .font(SBSFonts.legacyTitle())
                         .foregroundStyle(.white)
                 }
                 .opacity(showContent ? 1 : 0)
@@ -152,7 +152,7 @@ struct PRCelebrationView: View {
                     // New E1RM
                     VStack(spacing: 4) {
                         Text("Estimated 1RM")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(.white.opacity(0.7))
                         
                         Text(newE1RM.formattedWeight(useMetric: useMetric))
@@ -171,7 +171,7 @@ struct PRCelebrationView: View {
                                 .foregroundStyle(Color.green)
                             
                             Text("(+\(String(format: "%.1f", percent))%)")
-                                .font(SBSFonts.body())
+                                .font(SBSFonts.legacyBody())
                                 .foregroundStyle(.white.opacity(0.7))
                         }
                         .padding(.horizontal, SBSLayout.paddingMedium)
@@ -182,7 +182,7 @@ struct PRCelebrationView: View {
                         )
                     } else {
                         Text("First recorded PR!")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(.white.opacity(0.7))
                             .padding(.horizontal, SBSLayout.paddingMedium)
                             .padding(.vertical, SBSLayout.paddingSmall)
@@ -201,7 +201,7 @@ struct PRCelebrationView: View {
                 VStack(spacing: SBSLayout.paddingSmall) {
                     Button(action: dismissWithAnimation) {
                         Text("Continue")
-                            .font(SBSFonts.button())
+                            .font(SBSFonts.legacyButton())
                             .foregroundStyle(.black)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, SBSLayout.paddingMedium)
@@ -227,7 +227,7 @@ struct PRCelebrationView: View {
                             Image(systemName: "square.and.arrow.up")
                             Text("Share this PR")
                         }
-                        .font(SBSFonts.button())
+                        .font(SBSFonts.legacyButton())
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, SBSLayout.paddingMedium)

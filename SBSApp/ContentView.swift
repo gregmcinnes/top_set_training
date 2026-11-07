@@ -210,11 +210,11 @@ struct LoadingView: View {
             
             VStack(spacing: SBSLayout.paddingSmall) {
                 Text("Loading...")
-                    .font(SBSFonts.title())
+                    .font(SBSFonts.legacyTitle())
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
                 Text("Preparing your workout")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             
@@ -245,11 +245,11 @@ struct ErrorView: View {
             
             VStack(spacing: SBSLayout.paddingSmall) {
                 Text("Unable to Load")
-                    .font(SBSFonts.title())
+                    .font(SBSFonts.legacyTitle())
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
                 Text(message)
-                    .font(SBSFonts.body())
+                    .font(SBSFonts.legacyBody())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
@@ -258,7 +258,7 @@ struct ErrorView: View {
             Button("Try Again") {
                 onRetry()
             }
-            .buttonStyle(SBSPrimaryButtonStyle())
+            .buttonStyle(SBSLegacyPrimaryButtonStyle())
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sbsBackground()

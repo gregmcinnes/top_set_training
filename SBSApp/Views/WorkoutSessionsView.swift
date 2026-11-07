@@ -30,7 +30,7 @@ struct HistoryLinkRow: View {
                     .foregroundStyle(SBSColors.textPrimaryFallback)
 
                 Text(subtitle)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
 
@@ -64,7 +64,7 @@ struct HistoryLockedCyclesRow: View {
                         .foregroundStyle(SBSColors.textPrimaryFallback)
 
                     Text("Unlock full workout history with Premium")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
 
@@ -132,7 +132,7 @@ struct WorkoutSessionsView: View {
 
                 if !list.isEmpty {
                     Text("Shows the results saved for each workout. For lifts with rep-out sets, that's the rep-out sets.")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                 }
             }
@@ -180,7 +180,7 @@ struct WorkoutSessionsView: View {
 
             if let programName = section.programName, !programName.isEmpty {
                 Text(programName)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
             }
         }
@@ -220,11 +220,11 @@ struct WorkoutSessionRow: View {
                     .foregroundStyle(SBSColors.textPrimaryFallback)
 
                 Text(metadata)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
 
                 Text(session.exerciseNames.joined(separator: ", "))
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
@@ -284,7 +284,7 @@ struct WorkoutSessionDetailView: View {
             let details = [session.programName, session.positionLabel ?? ""].filter { !$0.isEmpty }
             if !details.isEmpty {
                 Text(details.joined(separator: " · "))
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
         }
@@ -310,13 +310,13 @@ struct WorkoutSessionDetailView: View {
                     reps: accessory.reps,
                     useMetric: useMetric
                 ))
-                .font(SBSFonts.body())
+                .font(SBSFonts.legacyBody())
                 .foregroundStyle(SBSColors.textSecondaryFallback)
             }
 
             if let note = accessory.note {
                 Text(note)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
         }
@@ -353,7 +353,7 @@ private struct WorkoutSessionExerciseCard: View {
 
                 if let trainingMaxText {
                     Text(trainingMaxText)
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                 }
             }
@@ -369,7 +369,7 @@ private struct WorkoutSessionExerciseCard: View {
                         .foregroundStyle(SBSColors.accentSecondaryFallback)
 
                     Text(note)
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
             }
@@ -384,11 +384,11 @@ private struct WorkoutSessionExerciseCard: View {
         return HStack {
             if line.isAMRAP {
                 Text("\(weight) × \(line.reps) reps")
-                    .font(SBSFonts.body())
+                    .font(SBSFonts.legacyBody())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             } else {
                 Text("\(line.count) × \(line.reps) · \(weight)")
-                    .font(SBSFonts.body())
+                    .font(SBSFonts.legacyBody())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
 
@@ -404,7 +404,7 @@ private struct WorkoutSessionExerciseCard: View {
 
     private func resultBadge(_ text: String, color: Color) -> some View {
         Text(text)
-            .font(SBSFonts.caption())
+            .font(SBSFonts.legacyCaption())
             .foregroundStyle(color)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
@@ -520,7 +520,7 @@ private struct AccessoryHistoryCard: View {
     private func entryText(_ entry: AccessoryRecord) -> some View {
         let result = accessoryResultText(weight: entry.weight, sets: entry.sets, reps: entry.reps, useMetric: useMetric)
         return Text("\(entry.date.historyDateText): \(result)")
-            .font(SBSFonts.caption())
+            .font(SBSFonts.legacyCaption())
             .foregroundStyle(SBSColors.textSecondaryFallback)
     }
 }

@@ -323,7 +323,7 @@ struct HistoryView: View {
         } label: {
             HStack(spacing: 4) {
                 Text(ageCategory == .allAges ? "All Ages" : ageCategory.displayName)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                 Image(systemName: "chevron.down")
                     .font(.system(size: 8, weight: .bold))
             }
@@ -359,7 +359,7 @@ struct HistoryView: View {
                 Image(systemName: liftSortMode.systemImage)
                     .font(.system(size: 10, weight: .semibold))
                 Text(liftSortMode.rawValue)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                 Image(systemName: "chevron.down")
                     .font(.system(size: 8, weight: .bold))
             }
@@ -387,7 +387,7 @@ struct HistoryView: View {
                 Image(systemName: "square.and.arrow.up")
                     .font(.system(size: 12))
                 Text("Share Progress")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
             }
             .foregroundStyle(SBSColors.accentFallback)
             .padding(.horizontal, 12)
@@ -411,7 +411,7 @@ struct HistoryView: View {
                 Image(systemName: "scalemass")
                     .font(.system(size: 12))
                 Text("Set bodyweight for strength scores")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                 Image(systemName: "chevron.right")
                     .font(.system(size: 10))
             }
@@ -437,7 +437,7 @@ struct HistoryView: View {
                 Image(systemName: showStrengthScore ? "medal.fill" : "medal")
                     .font(.system(size: 12))
                 Text(showStrengthScore ? "Hide Score" : "Show Score")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
             }
             .foregroundStyle(showStrengthScore ? selectedStrengthFormula.color : SBSColors.textSecondaryFallback)
             .padding(.horizontal, 12)
@@ -472,7 +472,7 @@ struct HistoryView: View {
         } label: {
             HStack(spacing: 4) {
                 Text(selectedStrengthFormula.rawValue)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                 Image(systemName: "chevron.down")
                     .font(.system(size: 8, weight: .bold))
             }
@@ -495,7 +495,7 @@ struct HistoryView: View {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 10))
                 Text("Strength Scores")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                 PremiumBadge(isCompact: true)
             }
             .foregroundStyle(SBSColors.textTertiaryFallback)
@@ -1288,7 +1288,7 @@ struct VolumeByBodyPartCard: View {
 
             if rows.isEmpty {
                 Text("Log a workout to see your volume.")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                     .padding(.vertical, SBSLayout.paddingSmall)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -1333,7 +1333,7 @@ struct VolumeByBodyPartCard: View {
         } label: {
             HStack(spacing: 4) {
                 Text(period.rawValue)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                 Image(systemName: "chevron.down")
                     .font(.system(size: 8, weight: .bold))
             }
@@ -1355,7 +1355,7 @@ private struct VolumeRow: View {
     var body: some View {
         HStack(spacing: SBSLayout.paddingSmall) {
             Text(label)
-                .font(SBSFonts.body())
+                .font(SBSFonts.legacyBody())
                 .foregroundStyle(SBSColors.textPrimaryFallback)
                 .frame(width: 90, alignment: .leading)
 
@@ -1536,7 +1536,7 @@ struct ProgressChart: View {
                             .foregroundStyle(SBSColors.textPrimaryFallback)
                         
                         Text(displayMode == .e1rm ? "Based on completed sets" : progressKind.chartSubtitle)
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textTertiaryFallback)
                     }
                     
@@ -1644,7 +1644,7 @@ struct ProgressChart: View {
                         AxisValueLabel {
                             if let val = value.as(Double.self) {
                                 Text("\(Int(val))")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                             }
                         }
                     }
@@ -1664,7 +1664,7 @@ struct ProgressChart: View {
                             
                             if displayMode == .e1rm, let weight = selected.weight, let reps = selected.reps {
                                 Text("\(weight.formattedWeight(useMetric: useMetric)) × \(reps) reps")
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                                     .foregroundStyle(SBSColors.textSecondaryFallback)
                             }
                         }
@@ -1686,17 +1686,17 @@ struct ProgressChart: View {
                 // Single data point - show info instead of chart
                 VStack(spacing: 8) {
                     Text("Complete more weeks to see progress chart")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                     
                     if let single = chartDataPoints.first {
                         if displayMode == .e1rm, let weight = single.weight, let reps = single.reps {
                             Text("\(single.date, format: .dateTime.month(.abbreviated).day()): \(weight.formattedWeight(useMetric: useMetric)) × \(reps) reps")
-                                .font(SBSFonts.body())
+                                .font(SBSFonts.legacyBody())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                         } else {
                             Text("\(single.date, format: .dateTime.month(.abbreviated).day()): \(progressKind == .workingWeight ? "" : "TM ")\(single.value.formattedWeight(useMetric: useMetric))")
-                                .font(SBSFonts.body())
+                                .font(SBSFonts.legacyBody())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                         }
                     }
@@ -1706,7 +1706,7 @@ struct ProgressChart: View {
             } else {
                 VStack(spacing: SBSLayout.paddingSmall) {
                     Text(displayMode == .e1rm && !tmData.isEmpty ? "No rep results for this lift yet" : "No completed workouts yet")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
 
                     if let onGoToWorkout {
@@ -1765,7 +1765,7 @@ struct StatBox: View {
     var body: some View {
         VStack(spacing: 4) {
             Text(label)
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
             
             Text(value)
@@ -1805,7 +1805,7 @@ struct LogHistoryList: View {
 
                 if !logs.isEmpty {
                     Text("Your top set each week, by estimated 1RM")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                 }
             }
@@ -1813,7 +1813,7 @@ struct LogHistoryList: View {
             if logs.isEmpty {
                 VStack(spacing: SBSLayout.paddingSmall) {
                     Text("No workouts recorded yet")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
 
                     if let onGoToWorkout {
@@ -1837,7 +1837,7 @@ struct LogHistoryList: View {
                                     
                                     if let programName = cycleGroup.programName {
                                         Text(programName)
-                                            .font(SBSFonts.caption())
+                                            .font(SBSFonts.legacyCaption())
                                             .foregroundStyle(SBSColors.textTertiaryFallback)
                                     }
                                 }
@@ -1888,7 +1888,7 @@ struct LogHistoryList: View {
                                 .foregroundStyle(SBSColors.textPrimaryFallback)
                             
                             Text("Unlock full workout history with Premium")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                         }
                         
@@ -1954,7 +1954,7 @@ struct LogHistoryRow: View {
 
                     if let date {
                         Text(date.historyDateText)
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textTertiaryFallback)
                     }
                 }
@@ -1962,7 +1962,7 @@ struct LogHistoryRow: View {
                 Spacer()
                 
                 Text(diffText)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(resultColor)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
@@ -1975,7 +1975,7 @@ struct LogHistoryRow: View {
             HStack {
                 // Weight × Reps
                 Text("\(weight.formattedWeight(useMetric: useMetric)) × \(reps) reps")
-                    .font(SBSFonts.body())
+                    .font(SBSFonts.legacyBody())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                 
                 Spacer()
@@ -1983,7 +1983,7 @@ struct LogHistoryRow: View {
                 // Estimated 1RM. Not for a missed session, whose rep count is assumed.
                 if !missedTarget {
                     Text("Est. 1RM: \(e1rm.formattedWeight(useMetric: useMetric))")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.accentFallback)
                 }
 }
@@ -2001,7 +2001,7 @@ struct LogHistoryRow: View {
                             .foregroundStyle(SBSColors.accentSecondaryFallback)
                         
                         Text(note)
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                             .lineLimit(isNoteExpanded ? nil : 2)
                             .multilineTextAlignment(.leading)
@@ -2092,7 +2092,7 @@ struct CurrentCycleTMProgressCard: View {
                     }
 
                     Text("Cycle \(appState.currentCycleNumber) • Week \(currentWeek)")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
 
@@ -2125,11 +2125,11 @@ struct CurrentCycleTMProgressCard: View {
                     ForEach(summary.lifts) { progress in
                         VStack(spacing: 4) {
                             Text(ExerciseLibrary.shortName(for: progress.lift))
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.textTertiaryFallback)
 
                             Text(progress.current.formattedWeightShort(useMetric: appState.settings.useMetric))
-                                .font(SBSFonts.number())
+                                .font(SBSFonts.legacyNumber())
                                 .foregroundStyle(SBSColors.textPrimaryFallback)
 
                             changeLabel(progress)
@@ -2141,7 +2141,7 @@ struct CurrentCycleTMProgressCard: View {
                 HStack {
                     Spacer()
                     Text("Tap for details")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .semibold))
@@ -2150,7 +2150,7 @@ struct CurrentCycleTMProgressCard: View {
             } else {
                 // No data yet
                 Text(summary.emptyMessage)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                     .multilineTextAlignment(.center)
                     .padding(.vertical, SBSLayout.paddingSmall)
@@ -2170,19 +2170,19 @@ struct CurrentCycleTMProgressCard: View {
     private func changeLabel(_ progress: LiftCycleProgress) -> some View {
         if progress.kind == .fixedTrainingMax {
             Text("Fixed")
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
         } else if progress.hasChange {
             HStack(spacing: 1) {
                 Image(systemName: progress.gain > 0 ? "arrow.up" : "arrow.down")
                     .font(.system(size: 8, weight: .bold))
                 Text(abs(progress.gain).formattedWeightShort(useMetric: appState.settings.useMetric))
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
             }
             .foregroundStyle(progress.gain > 0 ? SBSColors.success : SBSColors.error)
         } else {
             Text("No change")
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
         }
     }
@@ -2258,7 +2258,7 @@ struct TMProgressDetailView: View {
                     .font(.system(size: 16, weight: .semibold))
                 
                 Text(hasPRs ? "Share Your Progress" : "Share Progress")
-                    .font(SBSFonts.button())
+                    .font(SBSFonts.legacyButton())
             }
             .foregroundStyle(hasPRs ? .black : .white)
             .frame(maxWidth: .infinity)
@@ -2317,7 +2317,7 @@ struct TMProgressDetailView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Current Cycle")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                     Text("Cycle \(appState.currentCycleNumber)")
                         .font(SBSFonts.title2())
@@ -2328,10 +2328,10 @@ struct TMProgressDetailView: View {
                 
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("Progress")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                     Text("Week \(currentWeek) of \(appState.weeks.max() ?? 20)")
-                        .font(SBSFonts.body())
+                        .font(SBSFonts.legacyBody())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                 }
             }
@@ -2340,7 +2340,7 @@ struct TMProgressDetailView: View {
             
             if summary.isFixedThroughCycle {
                 Text(summary.explanation)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
@@ -2355,7 +2355,7 @@ struct TMProgressDetailView: View {
                             .foregroundStyle(SBSColors.textPrimaryFallback)
 
                         Text(summary.averageLabel)
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textTertiaryFallback)
                     }
                     .frame(maxWidth: .infinity)
@@ -2371,7 +2371,7 @@ struct TMProgressDetailView: View {
                             .foregroundStyle(SBSColors.textPrimaryFallback)
 
                         Text(summary.totalLabel)
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                             .foregroundStyle(SBSColors.textTertiaryFallback)
                     }
                     .frame(maxWidth: .infinity)
@@ -2404,7 +2404,7 @@ struct TMProgressDetailView: View {
 
                 if !summary.isFixedThroughCycle {
                     Text(summary.explanation)
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                 }
             }
@@ -2438,7 +2438,7 @@ struct TMProgressDetailView: View {
             
             if liftsWithPRs.isEmpty {
                 Text("Complete workouts to track your personal records")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                     .padding()
                     .frame(maxWidth: .infinity)
@@ -2502,7 +2502,7 @@ struct CurrentCycleTMRow: View {
                 // Start → Current
                 HStack(spacing: SBSLayout.paddingSmall) {
                     Text(startTM.formattedWeightShort(useMetric: useMetric))
-                        .font(SBSFonts.body())
+                        .font(SBSFonts.legacyBody())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
 
                     Image(systemName: "arrow.right")
@@ -2574,7 +2574,7 @@ struct PRRow: View {
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
                 Text("\(pr.weight.formattedWeightShort(useMetric: useMetric)) × \(pr.reps) reps")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             
@@ -2582,11 +2582,11 @@ struct PRRow: View {
             
             VStack(alignment: .trailing, spacing: 2) {
                 Text("Est. 1RM")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                 
                 Text(pr.estimatedOneRM.formattedWeight(useMetric: useMetric))
-                    .font(SBSFonts.number())
+                    .font(SBSFonts.legacyNumber())
                     .foregroundStyle(SBSColors.success)
             }
         }
@@ -2766,7 +2766,7 @@ struct StrengthScoreCard: View {
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                     
                     Text(formula.description)
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                 }
                 
@@ -2807,11 +2807,11 @@ struct StrengthScoreCard: View {
                     
                     if totalDisplay > 0 {
                         Text(formatWeight(totalDisplay))
-                            .font(SBSFonts.number())
+                            .font(SBSFonts.legacyNumber())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
                     } else {
                         Text("--")
-                            .font(SBSFonts.number())
+                            .font(SBSFonts.legacyNumber())
                             .foregroundStyle(SBSColors.textTertiaryFallback)
                     }
                 }
@@ -2823,12 +2823,12 @@ struct StrengthScoreCard: View {
                 Image(systemName: "scalemass")
                     .font(.system(size: 10))
                 Text("@ \(formatWeight(useMetric ? bodyweightKg : bodyweightKg * 2.20462)) \(unit) BW")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                 
                 Spacer()
                 
                 Text(isMale ? "Men's" : "Women's")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
             }
             .foregroundStyle(SBSColors.textTertiaryFallback)
         }
@@ -2846,7 +2846,7 @@ struct StrengthScoreCard: View {
     private func liftColumn(name: String, value: Double, hasData: Bool) -> some View {
         VStack(spacing: 4) {
             Text(name)
-                .font(SBSFonts.caption())
+                .font(SBSFonts.legacyCaption())
                 .foregroundStyle(SBSColors.textSecondaryFallback)
             
             if hasData {

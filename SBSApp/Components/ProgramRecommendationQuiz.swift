@@ -95,7 +95,7 @@ struct ProgramRecommendationQuiz: View {
                             onDismiss()
                         } label: {
                             Text("Skip")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.legacyCaption())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                         }
                         .frame(width: 44, height: 44)
@@ -308,12 +308,12 @@ struct QuestionView: View {
                 
                 VStack(spacing: SBSLayout.paddingSmall) {
                     Text(question.title)
-                        .font(SBSFonts.title())
+                        .font(SBSFonts.legacyTitle())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                         .multilineTextAlignment(.center)
                     
                     Text(question.subtitle)
-                        .font(SBSFonts.body())
+                        .font(SBSFonts.legacyBody())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                         .multilineTextAlignment(.center)
                 }
@@ -376,7 +376,7 @@ struct OptionButton: View {
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                     
                     Text(option.description)
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
                 
@@ -477,7 +477,7 @@ struct RecommendationResultsView: View {
                             .foregroundStyle(SBSColors.textPrimaryFallback)
                         
                         Text(summaryText)
-                            .font(SBSFonts.body())
+                            .font(SBSFonts.legacyBody())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
                             .multilineTextAlignment(.center)
                     }
@@ -562,7 +562,7 @@ struct RecommendationResultsView: View {
                             Image(systemName: "list.bullet")
                             Text("Browse All Programs")
                         }
-                        .font(SBSFonts.body())
+                        .font(SBSFonts.legacyBody())
                         .foregroundStyle(SBSColors.accentFallback)
                     }
                     .padding(.vertical, SBSLayout.paddingLarge)
@@ -688,7 +688,7 @@ struct RecommendationCard: View {
                     }
                     
                     Text("\(Int(recommendation.matchScore))% match")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
                 
@@ -707,7 +707,7 @@ struct RecommendationCard: View {
                 
                 // Description
                 Text(recommendation.programDescription)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                     .lineLimit(2)
                 
@@ -735,7 +735,7 @@ struct RecommendationCard: View {
                                     .font(.system(size: 12))
                                     .foregroundStyle(SBSColors.success)
                                 Text(reason)
-                                    .font(SBSFonts.caption())
+                                    .font(SBSFonts.legacyCaption())
                                     .foregroundStyle(SBSColors.textSecondaryFallback)
                             }
                         }
@@ -748,7 +748,7 @@ struct RecommendationCard: View {
                         Image(systemName: "sparkles")
                             .font(.system(size: 12))
                         Text("Upgrade to unlock this program")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.legacyCaption())
                     }
                     .foregroundStyle(SBSColors.accentFallback)
                 }
@@ -835,7 +835,7 @@ struct RecommendationCardCompact: View {
                     }
                     
                     Text("\(recommendation.days) days/week")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
                 
@@ -854,7 +854,7 @@ struct RecommendationCardCompact: View {
                 }
                 
                 Text("\(Int(recommendation.matchScore))%")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
                 
                 if isSelected && !isLocked {

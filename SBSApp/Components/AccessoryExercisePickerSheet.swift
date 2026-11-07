@@ -75,7 +75,7 @@ struct AccessoryExercisePickerSheet: View {
                     
                     TextField("Search exercises...", text: $searchText)
                         .textFieldStyle(.plain)
-                        .font(SBSFonts.body())
+                        .font(SBSFonts.legacyBody())
                     
                     if !searchText.isEmpty {
                         Button {
@@ -285,7 +285,7 @@ struct BodyPartSection: View {
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                     
                     Text("(\(exercises.count))")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.legacyCaption())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                     
                     Spacer()
@@ -341,7 +341,7 @@ struct ExerciseRow: View {
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(exercise.name)
-                        .font(SBSFonts.body())
+                        .font(SBSFonts.legacyBody())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                     
                     Text(exercise.equipment.rawValue)
@@ -421,7 +421,7 @@ struct CustomExercisesSection: View {
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
                 Text("(\(exercises.count))")
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                 
                 Spacer()
@@ -445,7 +445,7 @@ struct CustomExercisesSection: View {
                                 .frame(width: 24)
                             
                             Text(name)
-                                .font(SBSFonts.body())
+                                .font(SBSFonts.legacyBody())
                                 .foregroundStyle(SBSColors.textPrimaryFallback)
                             
                             Spacer()
@@ -506,11 +506,11 @@ struct AddCustomExerciseSheet: View {
                         .foregroundStyle(SBSColors.accentFallback)
                     
                     Text("Add Custom Exercise")
-                        .font(SBSFonts.title())
+                        .font(SBSFonts.legacyTitle())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                     
                     Text("Create your own exercise to track")
-                        .font(SBSFonts.body())
+                        .font(SBSFonts.legacyBody())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
                 .padding(.top, SBSLayout.paddingLarge)
@@ -522,7 +522,7 @@ struct AddCustomExerciseSheet: View {
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                     
                     TextField("e.g., Chest Flyes, Hip Thrust", text: $name)
-                        .font(SBSFonts.body())
+                        .font(SBSFonts.legacyBody())
                         .padding()
                         .background(
                             RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
@@ -561,7 +561,7 @@ struct AddCustomExerciseSheet: View {
                     onAdd(trimmedName)
                 } label: {
                     Text("Add Exercise")
-                        .font(SBSFonts.button())
+                        .font(SBSFonts.legacyButton())
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, SBSLayout.paddingMedium)

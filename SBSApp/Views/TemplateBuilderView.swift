@@ -52,23 +52,16 @@ struct TemplateBuilderView: View {
     
     var body: some View {
         ZStack {
-            // Background
-            LinearGradient(
-                colors: [
-                    Color.bg,
-                    Color.bg.opacity(0.95),
-                    Color.orangeSoft
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            Color.bg
+                .ignoresSafeArea()
             
             VStack(spacing: 0) {
                 // Progress indicator
                 TemplateStepProgressView(currentStep: currentStep)
-                    .padding(.horizontal)
-                    .padding(.top, 8)
+                    .padding(.leading)
+                    // Clear of the close button
+                    .padding(.trailing, 56)
+                    .padding(.top, SBSLayout.space2)
                 
                 // Content
                 TabView(selection: $currentStep) {
@@ -114,11 +107,14 @@ struct TemplateBuilderView: View {
                     Button {
                         onCancel()
                     } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(Color.inkSecondary)
+                        Image(systemName: "xmark")
+                            .font(SBSFonts.bodyStrong().weight(.bold))
+                            .foregroundStyle(Color.ink)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
-                    .padding()
+                    .accessibilityLabel("Close")
+                    .padding(.horizontal, SBSLayout.space2)
                 }
                 Spacer()
             }
@@ -144,34 +140,41 @@ struct TemplateStepProgressView: View {
     let currentStep: TemplateBuilderView.TemplateBuilderStep
     
     var body: some View {
+        // Done steps are ink, the current one orange, the rest hairline cells
         HStack(spacing: 0) {
             ForEach(TemplateBuilderView.TemplateBuilderStep.allCases, id: \.rawValue) { step in
-                HStack(spacing: 4) {
+                let isDone = step.rawValue < currentStep.rawValue
+                let isCurrent = step == currentStep
+                HStack(spacing: SBSLayout.space1) {
                     ZStack {
-                        Circle()
-                            .fill(step.rawValue <= currentStep.rawValue ? SBSColors.accentFallback : Color.surface)
-                            .frame(width: 28, height: 28)
-                        
-                        if step.rawValue < currentStep.rawValue {
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                            .fill(isCurrent ? Color.orangeFill : (isDone ? Color.ink : Color.surface))
+                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                            .strokeBorder(isCurrent || isDone ? Color.clear : Color.hairline, lineWidth: SBSLayout.strokeHairline)
+
+                        if isDone {
                             Image(systemName: "checkmark")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(Color.orangeInk)
+                                .font(SBSFonts.numberSmall().weight(.bold))
+                                .foregroundStyle(Color.bg)
                         } else {
                             Text("\(step.rawValue + 1)")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(step.rawValue <= currentStep.rawValue ? Color.orangeInk : Color.inkSecondary)
+                                .font(SBSFonts.numberSmall().weight(.bold))
+                                .foregroundStyle(isCurrent ? Color.orangeInk : Color.inkSecondary)
                         }
                     }
-                    
+                    .frame(width: 28, height: 28)
+
                     if step != TemplateBuilderView.TemplateBuilderStep.allCases.last {
                         Rectangle()
-                            .fill(step.rawValue < currentStep.rawValue ? SBSColors.accentFallback : Color.surface)
-                            .frame(height: 2)
+                            .fill(isDone ? Color.ink : Color.hairline)
+                            .frame(height: SBSLayout.strokeHairline)
                     }
                 }
             }
         }
         .padding(.vertical, SBSLayout.space2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Step \(currentStep.rawValue + 1) of \(TemplateBuilderView.TemplateBuilderStep.allCases.count), \(currentStep.title)")
     }
 }
 
@@ -208,127 +211,117 @@ struct BasicsStepView: View {
                 
                 // Name
                 VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                    Text("Template Name")
-                        .font(SBSFonts.caption().weight(.semibold))
-                        .foregroundStyle(Color.inkSecondary)
-                    
+                    SBSSectionEyebrow("Template Name")
+
                     TextField("e.g., My Upper/Lower Split", text: $template.name)
                         .font(SBSFonts.body())
+                        .foregroundStyle(Color.ink)
                         .textFieldStyle(.plain)
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                .fill(Color.surface)
-                        )
+                        .frame(minHeight: 32)
+                        .sbsFieldCell()
                         .focused($focusedField, equals: .name)
                 }
-                
+
                 // Description
                 VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                    Text("Description (Optional)")
-                        .font(SBSFonts.caption().weight(.semibold))
-                        .foregroundStyle(Color.inkSecondary)
-                    
+                    SBSSectionEyebrow("Description (Optional)")
+
                     TextField("Describe your program...", text: $template.templateDescription, axis: .vertical)
                         .font(SBSFonts.body())
+                        .foregroundStyle(Color.ink)
                         .textFieldStyle(.plain)
                         .lineLimit(3...6)
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                .fill(Color.surface)
-                        )
+                        .padding(.vertical, SBSLayout.space1)
+                        .sbsFieldCell()
                         .focused($focusedField, equals: .description)
                 }
-                
+
                 // Mode Selection
                 VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                    Text("Template Mode")
-                        .font(SBSFonts.caption().weight(.semibold))
-                        .foregroundStyle(Color.inkSecondary)
-                    
+                    SBSSectionEyebrow("Template Mode")
+
                     ForEach(TemplateMode.allCases, id: \.self) { mode in
+                        let isSelected = template.mode == mode
                         Button {
                             template.mode = mode
                         } label: {
-                            HStack(spacing: SBSLayout.space4) {
-                                Image(systemName: template.mode == mode ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(template.mode == mode ? Color.orangeText : Color.inkSecondary)
-                                    .font(.title2)
-                                
+                            HStack(alignment: .top, spacing: SBSLayout.space3) {
+                                Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+                                    .font(SBSFonts.heading())
+                                    .foregroundStyle(isSelected ? Color.orangeText : Color.inkSecondary)
+                                    .accessibilityHidden(true)
+
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(mode.displayName)
                                         .font(SBSFonts.bodyStrong())
                                         .foregroundStyle(Color.ink)
-                                    
+
                                     Text(mode.description)
                                         .font(SBSFonts.caption())
                                         .foregroundStyle(Color.inkSecondary)
                                         .multilineTextAlignment(.leading)
                                 }
-                                
-                                Spacer()
+
+                                Spacer(minLength: 0)
                             }
                             .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                    .fill(template.mode == mode ? Color.orangeSoft : Color.surface)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                    .strokeBorder(template.mode == mode ? SBSColors.accentFallback : Color.clear, lineWidth: 2)
-                            )
+                            .selectionCell(isSelected)
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
                     }
                 }
-                
+
                 // Days per week
                 VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                    Text("Days per Week")
-                        .font(SBSFonts.caption().weight(.semibold))
-                        .foregroundStyle(Color.inkSecondary)
-                    
-                    HStack(spacing: SBSLayout.space2) {
+                    SBSSectionEyebrow("Days per Week")
+
+                    HStack(spacing: SBSLayout.space1) {
                         ForEach(1...7, id: \.self) { day in
+                            let isSelected = template.daysPerWeek == day
                             Button {
                                 template.daysPerWeek = day
                                 // Trim or add days as needed
                                 ensureDayStructure()
                             } label: {
                                 Text("\(day)")
-                                    .font(SBSFonts.bodyStrong())
-                                    .frame(width: 40, height: 40)
-                                    .background(
-                                        Circle()
-                                            .fill(template.daysPerWeek == day ? SBSColors.accentFallback : Color.surface)
-                                    )
-                                    .foregroundStyle(template.daysPerWeek == day ? Color.orangeInk : Color.ink)
+                                    .font(SBSFonts.number())
+                                    .foregroundStyle(Color.ink)
+                                    .minimumScaleFactor(0.6)
+                                    .frame(maxWidth: .infinity, minHeight: 44)
+                                    .selectionCell(isSelected)
+                                    .contentShape(Rectangle())
                             }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("\(day) days per week")
+                            .accessibilityAddTraits(isSelected ? [.isSelected] : [])
                         }
                     }
                 }
-                
+
                 // Number of weeks
                 VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                    Text("Program Length")
-                        .font(SBSFonts.caption().weight(.semibold))
-                        .foregroundStyle(Color.inkSecondary)
-                    
-                    HStack(spacing: SBSLayout.space4) {
+                    SBSSectionEyebrow("Program Length")
+
+                    HStack(spacing: SBSLayout.space1) {
                         ForEach([4, 8, 12, 16, 20], id: \.self) { weekCount in
+                            let isSelected = template.weeks.count == weekCount
                             Button {
                                 template.weeks = Array(1...weekCount)
                             } label: {
-                                Text("\(weekCount)w")
-                                    .font(SBSFonts.caption().weight(.semibold))
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        Capsule()
-                                            .fill(template.weeks.count == weekCount ? SBSColors.accentFallback : Color.surface)
-                                    )
-                                    .foregroundStyle(template.weeks.count == weekCount ? Color.orangeInk : Color.ink)
+                                Text("\(weekCount) wk")
+                                    .font(SBSFonts.numberSmall().weight(.semibold))
+                                    .foregroundStyle(Color.ink)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.6)
+                                    .frame(maxWidth: .infinity, minHeight: 44)
+                                    .selectionCell(isSelected)
+                                    .contentShape(Rectangle())
                             }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("\(weekCount) weeks")
+                            .accessibilityAddTraits(isSelected ? [.isSelected] : [])
                         }
                     }
                 }
@@ -352,13 +345,15 @@ struct BasicsStepView: View {
                     ensureDayStructure()
                     onContinue()
                 } label: {
-                    Text("Continue")
+                    SBSButtonTitle("Continue")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(SBSLegacyPrimaryButtonStyle())
+                .buttonStyle(SBSPrimaryButtonStyle())
                 .disabled(!canContinue)
             }
             .padding()
+            // Room for the hard shadow
+            .padding(.trailing, SBSLayout.hardShadowOffset)
             .background(Color.bg)
         }
     }
@@ -419,7 +414,7 @@ struct DaysStepView: View {
                 .padding(.horizontal)
             }
             
-            Divider()
+            SBSRowDivider()
                 .padding(.top, SBSLayout.space2)
             
             // Exercise list for selected day
@@ -440,21 +435,23 @@ struct DaysStepView: View {
                 Button {
                     onBack()
                 } label: {
-                    Text("Back")
+                    SBSButtonTitle("Back")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(SBSLegacySecondaryButtonStyle())
-                
+                .buttonStyle(SBSSecondaryButtonStyle())
+
                 Button {
                     onContinue()
                 } label: {
-                    Text("Continue")
+                    SBSButtonTitle("Continue")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(SBSLegacyPrimaryButtonStyle())
+                .buttonStyle(SBSPrimaryButtonStyle())
                 .disabled(!hasAtLeastOneExercise)
             }
             .padding()
+            // Room for the hard shadow
+            .padding(.trailing, SBSLayout.hardShadowOffset)
             .background(Color.bg)
         }
     }
@@ -477,22 +474,23 @@ struct TemplateDayTab: View {
     
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 4) {
-                Text("Day \(day)")
-                    .font(SBSFonts.caption().weight(.semibold))
-                    .foregroundStyle(isSelected ? Color.orangeInk : Color.ink)
-                
+            VStack(spacing: 2) {
+                SBSEyebrow("Day \(day)")
+                    .foregroundStyle(Color.ink)
+
                 Text("\(exerciseCount) ex")
-                    .font(.system(size: 10))
-                    .foregroundStyle(isSelected ? Color.orangeInk.opacity(0.8) : Color.inkSecondary)
+                    .font(SBSFonts.numberSmall())
+                    .foregroundStyle(Color.inkSecondary)
             }
             .padding(.horizontal, SBSLayout.space4)
             .padding(.vertical, SBSLayout.space2)
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                    .fill(isSelected ? SBSColors.accentFallback : Color.surface)
-            )
+            .frame(minHeight: 44)
+            .selectionCell(isSelected)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Day \(day), \(exerciseCount) exercise\(exerciseCount == 1 ? "" : "s")")
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 }
 
@@ -515,23 +513,30 @@ struct DayExerciseListView: View {
                 Section {
                     VStack(spacing: SBSLayout.space4) {
                         Image(systemName: "figure.strengthtraining.traditional")
-                            .font(.system(size: 40))
+                            .font(SBSFonts.titleLarge())
                             .foregroundStyle(Color.inkSecondary)
-                        
+                            .accessibilityHidden(true)
+
                         Text("No exercises yet")
                             .font(SBSFonts.body())
                             .foregroundStyle(Color.inkSecondary)
-                        
+
                         Button {
                             showingExercisePicker = true
                         } label: {
-                            Label("Add Exercise", systemImage: "plus.circle.fill")
+                            HStack(spacing: SBSLayout.space2) {
+                                Image(systemName: "plus")
+                                    .font(SBSFonts.button())
+                                    .accessibilityHidden(true)
+                                SBSButtonTitle("Add Exercise")
+                            }
                         }
-                        .buttonStyle(SBSLegacySecondaryButtonStyle())
+                        .buttonStyle(SBSSecondaryButtonStyle())
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, SBSLayout.space6)
                 }
+                .sbsListRows()
             } else {
                 Section {
                     ForEach(Array(exercises.enumerated()), id: \.offset) { index, item in
@@ -553,14 +558,17 @@ struct DayExerciseListView: View {
                     Button {
                         showingExercisePicker = true
                     } label: {
-                        Label("Add Exercise", systemImage: "plus.circle.fill")
+                        Label("Add Exercise", systemImage: "plus")
+                            .font(SBSFonts.bodyStrong())
+                            .foregroundStyle(Color.orangeText)
                     }
                 } header: {
-                    Text("Day \(day) Exercises")
+                    SBSListHeader("Day \(day) Exercises")
                 }
+                .sbsListRows()
             }
         }
-        .listStyle(.insetGrouped)
+        .sbsGroupedList()
         .sheet(isPresented: $showingExercisePicker) {
             TemplateExercisePickerSheet(
                 mode: template.mode,
@@ -642,60 +650,36 @@ struct ExerciseRowView: View {
         }
     }
     
-    private var typeColor: Color {
-        switch item.type {
-        case .tm: return SBSColors.accentSecondaryFallback
-        case .volume: return SBSColors.accentFallback
-        case .accessory: return Color.inkSecondary
-        case .structured: return SBSColors.accentFallback
-        case .linear: return .green
-        }
-    }
-    
     var body: some View {
         Button {
             onEdit()
         } label: {
             HStack {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: SBSLayout.space1) {
                     Text(item.name)
-                        .font(SBSFonts.body())
+                        .font(SBSFonts.bodyStrong())
                         .foregroundStyle(Color.ink)
-                    
+
+                    // The type is named by a neutral badge: the word does the work
                     HStack(spacing: SBSLayout.space2) {
-                        Text(typeLabel)
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(typeColor)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(
-                                Capsule()
-                                    .fill(typeColor.opacity(0.15))
-                            )
-                        
+                        SBSBadge(text: typeLabel)
+
                         if item.type == .accessory {
-                            Text("\(item.defaultSets ?? 4)x\(item.defaultReps ?? 10)")
-                                .font(SBSFonts.caption())
-                                .foregroundStyle(Color.inkSecondary)
+                            SBSRowSubtitle("\(item.defaultSets ?? 4) × \(item.defaultReps ?? 10)")
                         } else if item.type == .linear {
-                            Text("\(item.sets ?? 5)x\(item.reps ?? 5)")
-                                .font(SBSFonts.caption())
-                                .foregroundStyle(Color.inkSecondary)
+                            SBSRowSubtitle("\(item.sets ?? 5) × \(item.reps ?? 5)")
                         } else if let setsDetail = item.setsDetail {
-                            Text("\(setsDetail.count) sets")
-                                .font(SBSFonts.caption())
-                                .foregroundStyle(Color.inkSecondary)
+                            SBSRowSubtitle("\(setsDetail.count) sets")
                         }
                     }
                 }
-                
-                Spacer()
-                
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color.inkTertiary)
+
+                Spacer(minLength: SBSLayout.space2)
+
+                SBSChevron()
             }
             .padding(.vertical, 2)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -762,30 +746,34 @@ struct TemplateExercisePickerSheet: View {
                         // Search bar
                         HStack(spacing: SBSLayout.space2) {
                             Image(systemName: "magnifyingglass")
+                                .font(SBSFonts.body())
                                 .foregroundStyle(Color.inkSecondary)
-                            
+                                .accessibilityHidden(true)
+
                             TextField("Search exercises...", text: $searchText)
                                 .textFieldStyle(.plain)
                                 .font(SBSFonts.body())
-                            
+                                .foregroundStyle(Color.ink)
+
                             if !searchText.isEmpty {
                                 Button {
                                     searchText = ""
                                 } label: {
                                     Image(systemName: "xmark.circle.fill")
+                                        .font(SBSFonts.body())
                                         .foregroundStyle(Color.inkSecondary)
                                 }
+                                .accessibilityLabel("Clear search")
                             }
                         }
-                        .padding()
-                        .background(Color.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+                        .frame(minHeight: 32)
+                        .sbsFieldCell()
                         .padding(.horizontal)
                         .padding(.top, SBSLayout.space2)
-                        
+
                         if !filteredExercises.isEmpty {
                             ScrollView {
-                                LazyVStack(spacing: SBSLayout.space2) {
+                                LazyVStack(spacing: SBSLayout.space3) {
                                     ForEach(sortedBodyParts) { bodyPart in
                                         BodyPartSection(
                                             bodyPart: bodyPart,
@@ -901,13 +889,16 @@ struct TemplateExercisePickerSheet: View {
     private var exerciseConfigView: some View {
         List {
             Section {
-                HStack {
+                SBSAdaptiveStack {
                     Text("Exercise")
-                    Spacer()
-                    Text(selectedExercise?.name ?? "")
                         .foregroundStyle(Color.inkSecondary)
+                    Spacer(minLength: 0)
+                    Text(selectedExercise?.name ?? "")
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.ink)
                 }
             }
+            .sbsListRows()
             
             if mode == .advanced {
                 Section {
@@ -965,23 +956,30 @@ struct TemplateExercisePickerSheet: View {
                                     showingTypeInfo = type
                                 } label: {
                                     Image(systemName: "info.circle")
-                                        .foregroundStyle(SBSColors.accentSecondaryFallback)
+                                        .font(SBSFonts.body())
+                                        .foregroundStyle(Color.inkSecondary)
+                                        .frame(minWidth: 44, minHeight: 44)
                                 }
                                 .buttonStyle(.borderless)
-                                
+                                .accessibilityLabel("About \(typeName(for: type))")
+
                                 if selectedType == type {
                                     Image(systemName: "checkmark")
+                                        .font(SBSFonts.bodyStrong().weight(.bold))
                                         .foregroundStyle(Color.orangeText)
+                                        .accessibilityHidden(true)
                                 }
                             }
                         }
                         .buttonStyle(.borderless)
+                        .accessibilityAddTraits(selectedType == type ? [.isSelected] : [])
                     }
                 } header: {
-                    Text("Exercise Type")
+                    SBSListHeader("Exercise Type")
                 } footer: {
-                    Text("Tap ⓘ for detailed information about each type.")
+                    SBSListFooter("Tap ⓘ for detailed information about each type.")
                 }
+                .sbsListRows()
             }
             
             // Set Designer - shown for ALL progression types
@@ -1017,23 +1015,27 @@ struct TemplateExercisePickerSheet: View {
                         isAMRAP: false
                     ))
                 } label: {
-                    Label("Add Set", systemImage: "plus.circle.fill")
+                    Label("Add Set", systemImage: "plus")
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.orangeText)
                 }
             } header: {
-                Text("Set Design")
+                SBSListHeader("Set Design")
             } footer: {
                 switch selectedType {
                 case .accessory:
-                    Text("Design your sets. Weight is logged manually each session.")
+                    SBSListFooter("Design your sets. Weight is logged manually each session.")
                 case .linear:
-                    Text("Complete all sets at prescribed reps → weight increases next session.")
+                    SBSListFooter("Complete all sets at prescribed reps → weight increases next session.")
                 case .structured:
-                    Text("AMRAP sets (marked +) let you do max reps. The ⭐ progression set determines your TM adjustment.")
+                    SBSListFooter("AMRAP sets (marked +) let you do max reps. The starred progression set determines your TM adjustment.")
                 default:
-                    Text("Configure your sets below.")
+                    SBSListFooter("Configure your sets below.")
                 }
             }
+            .sbsListRows()
         }
+        .sbsGroupedList()
         .sheet(item: $showingTypeInfo) { type in
             ExerciseTypeInfoSheet(type: type)
         }
@@ -1183,18 +1185,19 @@ struct ExerciseEditorSheet: View {
     
     var body: some View {
         NavigationStack {
-            Form {
+            List {  // A List, not a Form: sbsGroupedList squares it
                 // Exercise name (read-only)
                 Section {
-                    HStack {
+                    SBSAdaptiveStack {
                         Text("Exercise")
                             .foregroundStyle(Color.inkSecondary)
-                        Spacer()
+                        Spacer(minLength: 0)
                         Text(item.name)
                             .font(SBSFonts.bodyStrong())
                             .foregroundStyle(Color.ink)
                     }
                 }
+                .sbsListRows()
                 
                 // Type selection (only in advanced mode)
                 if mode == .advanced {
@@ -1254,20 +1257,27 @@ struct ExerciseEditorSheet: View {
                                         showingTypeInfo = type
                                     } label: {
                                         Image(systemName: "info.circle")
-                                            .foregroundStyle(Color.orangeText)
+                                            .font(SBSFonts.body())
+                                            .foregroundStyle(Color.inkSecondary)
+                                            .frame(minWidth: 44, minHeight: 44)
                                     }
                                     .buttonStyle(.borderless)
-                                    
+                                    .accessibilityLabel("About \(typeName(for: type))")
+
                                     if selectedType == type {
                                         Image(systemName: "checkmark")
+                                            .font(SBSFonts.bodyStrong().weight(.bold))
                                             .foregroundStyle(Color.orangeText)
+                                            .accessibilityHidden(true)
                                     }
                                 }
                             }
+                            .accessibilityAddTraits(selectedType == type ? [.isSelected] : [])
                         }
                     } header: {
-                        Text("Exercise Type")
+                        SBSListHeader("Exercise Type")
                     }
+                    .sbsListRows()
                 }
                 
                 // Set Designer - shown for ALL progression types
@@ -1303,36 +1313,44 @@ struct ExerciseEditorSheet: View {
                             isAMRAP: false
                         ))
                     } label: {
-                        Label("Add Set", systemImage: "plus.circle.fill")
+                        Label("Add Set", systemImage: "plus")
+                            .font(SBSFonts.bodyStrong())
+                            .foregroundStyle(Color.orangeText)
                     }
                 } header: {
-                    Text("Set Design")
+                    SBSListHeader("Set Design")
                 } footer: {
                     switch selectedType {
                     case .accessory:
-                        Text("Design your sets. Weight is logged manually each session.")
+                        SBSListFooter("Design your sets. Weight is logged manually each session.")
                     case .linear:
-                        Text("Complete all sets at prescribed reps → weight increases next session.")
+                        SBSListFooter("Complete all sets at prescribed reps → weight increases next session.")
                     case .structured:
-                        Text("AMRAP sets (marked +) let you do max reps. The ⭐ progression set determines your TM adjustment.")
+                        SBSListFooter("AMRAP sets (marked +) let you do max reps. The starred progression set determines your TM adjustment.")
                     default:
-                        Text("Configure your sets below.")
+                        SBSListFooter("Configure your sets below.")
                     }
                 }
-                
+                .sbsListRows()
+
                 // Delete exercise section
                 Section {
                     Button(role: .destructive) {
                         showingDeleteConfirmation = true
                     } label: {
-                        HStack {
+                        HStack(spacing: SBSLayout.space2) {
                             Image(systemName: "trash")
+                                .accessibilityHidden(true)
                             Text("Delete Exercise")
                         }
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.danger)
                         .frame(maxWidth: .infinity)
                     }
                 }
+                .sbsListRows()
             }
+            .sbsGroupedList()
             .navigationTitle("Edit Exercise")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -1475,38 +1493,33 @@ struct SetDesignerRow: View {
                 }
             } label: {
                 HStack {
-                    HStack(spacing: 6) {
+                    HStack(spacing: SBSLayout.space2) {
                         Text("Set \(setNumber)")
-                            .font(SBSFonts.body())
+                            .font(SBSFonts.bodyStrong())
                             .foregroundStyle(Color.ink)
-                        
+
                         // Progression set indicator (only for autoregulated)
                         if showProgressionOption && isProgressionSet {
                             Image(systemName: "star.fill")
-                                .font(.system(size: 12))
-                                .foregroundStyle(Color.warning)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.ink)
+                                .accessibilityLabel("Progression set")
                         }
                     }
-                    
-                    Spacer()
-                    
-                    HStack(spacing: 4) {
-                        Text("\(Int(intensityPercent))%")
-                            .font(SBSFonts.caption().weight(.semibold))
-                            .foregroundStyle(Color.orangeText)
-                        
-                        Text("×")
-                            .foregroundStyle(Color.inkSecondary)
-                        
-                        Text("\(reps)\(isAMRAP ? "+" : "")")
-                            .font(SBSFonts.caption().weight(.semibold))
-                            .foregroundStyle(isAMRAP ? Color.success : Color.inkSecondary)
-                    }
-                    
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color.inkTertiary)
+
+                    Spacer(minLength: SBSLayout.space2)
+
+                    // Values are ink; an AMRAP set reads "5+"
+                    Text("\(Int(intensityPercent))% × \(reps)\(isAMRAP ? "+" : "")")
+                        .font(SBSFonts.number())
+                        .foregroundStyle(Color.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+
+                    SBSChevron(systemName: isExpanded ? "chevron.up" : "chevron.down")
                 }
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             
@@ -1514,85 +1527,92 @@ struct SetDesignerRow: View {
             if isExpanded {
                 VStack(spacing: SBSLayout.space4) {
                     // Intensity slider
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text("Intensity")
-                                .font(SBSFonts.caption())
+                    VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                        SBSAdaptiveStack(alignment: .firstTextBaseline) {
+                            SBSEyebrow("Intensity")
                                 .foregroundStyle(Color.inkSecondary)
-                            Spacer()
+                            Spacer(minLength: 0)
                             Text("\(Int(intensityPercent))% of TM")
-                                .font(SBSFonts.caption().weight(.semibold))
-                                .foregroundStyle(Color.orangeText)
+                                .font(SBSFonts.numberSmall().weight(.semibold))
+                                .foregroundStyle(Color.ink)
                         }
-                        
+
                         Slider(value: $intensityPercent, in: 50...100, step: 5) { _ in
                             saveChanges()
                         }
-                        .tint(Color.orangeText)
+                        .tint(Color.orangeFill)
                     }
-                    
+
                     // Reps stepper
-                    Stepper("Target Reps: \(reps)", value: $reps, in: 1...20) { _ in
-                        saveChanges()
-                    }
-                    
+                    SBSStepperRow(title: "Target reps", value: $reps, range: 1...20, compact: true)
+                        .onChange(of: reps) { _, _ in
+                            saveChanges()
+                        }
+
                     // AMRAP toggle
                     Toggle(isOn: $isAMRAP) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("AMRAP")
-                                .font(SBSFonts.body())
+                                .font(SBSFonts.bodyStrong())
+                                .foregroundStyle(Color.ink)
                             Text("Do as many reps as possible")
                                 .font(SBSFonts.caption())
                                 .foregroundStyle(Color.inkSecondary)
                         }
                     }
+                    .toggleStyle(SBSToggleStyle())
                     .onChange(of: isAMRAP) { _, _ in
                         saveChanges()
                     }
-                    
+
                     // Progression set button (only for autoregulated)
                     if showProgressionOption {
                         Button {
                             onSetAsProgression()
                         } label: {
-                            HStack {
+                            HStack(spacing: SBSLayout.space3) {
                                 Image(systemName: isProgressionSet ? "star.fill" : "star")
-                                    .foregroundStyle(isProgressionSet ? Color.warning : Color.inkSecondary)
-                                
+                                    .font(SBSFonts.body())
+                                    .foregroundStyle(isProgressionSet ? Color.orangeText : Color.inkSecondary)
+                                    .accessibilityHidden(true)
+
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(isProgressionSet ? "Progression Set" : "Use for Progression")
-                                        .font(SBSFonts.body())
-                                        .foregroundStyle(isProgressionSet ? Color.warning : Color.ink)
-                                    
+                                        .font(SBSFonts.bodyStrong())
+                                        .foregroundStyle(Color.ink)
+
                                     Text(isProgressionSet ? "This set determines your TM adjustment" : "Make this set determine TM changes")
                                         .font(SBSFonts.caption())
                                         .foregroundStyle(Color.inkSecondary)
+                                        .multilineTextAlignment(.leading)
                                 }
-                                
-                                Spacer()
-                                
+
+                                Spacer(minLength: 0)
+
                                 if isProgressionSet {
                                     Image(systemName: "checkmark")
-                                        .foregroundStyle(Color.warning)
+                                        .font(SBSFonts.bodyStrong().weight(.bold))
+                                        .foregroundStyle(Color.orangeText)
+                                        .accessibilityHidden(true)
                                 }
                             }
+                            .padding(SBSLayout.space3)
+                            .selectionCell(isProgressionSet)
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.borderless)
-                        .padding(.vertical, 4)
-                        .padding(.horizontal, 8)
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                .fill(isProgressionSet ? Color.warning.opacity(0.1) : Color.clear)
-                        )
+                        .accessibilityAddTraits(isProgressionSet ? [.isSelected] : [])
                     }
-                    
+
                     // Delete button
                     if !isOnlySet {
                         Button(role: .destructive) {
                             onDelete()
                         } label: {
                             Label("Remove Set", systemImage: "trash")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.caption().weight(.semibold))
+                                .foregroundStyle(Color.danger)
+                                .frame(minHeight: 44)
                         }
                         .buttonStyle(.borderless)
                     }
@@ -1630,14 +1650,12 @@ struct ExerciseTypeInfoSheet: View {
                     // Icon and title
                     HStack(spacing: SBSLayout.space4) {
                         Image(systemName: iconName)
-                            .font(.system(size: 32))
-                            .foregroundStyle(iconColor)
+                            .font(SBSFonts.title())
+                            .foregroundStyle(Color.ink)
                             .frame(width: 56, height: 56)
-                            .background(
-                                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                    .fill(iconColor.opacity(0.15))
-                            )
-                        
+                            .card()
+                            .accessibilityHidden(true)
+
                         VStack(alignment: .leading, spacing: 4) {
                             Text(title)
                                 .font(SBSFonts.heading())
@@ -1657,16 +1675,14 @@ struct ExerciseTypeInfoSheet: View {
                     
                     // How it works
                     VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                        Text("How It Works")
-                            .font(SBSFonts.bodyStrong())
-                            .foregroundStyle(Color.ink)
-                        
+                        SBSSectionEyebrow("How It Works")
+
                         ForEach(howItWorks, id: \.self) { point in
-                            HStack(alignment: .top, spacing: SBSLayout.space2) {
-                                Image(systemName: "checkmark.circle.fill")
+                            HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space2) {
+                                Image(systemName: "checkmark")
+                                    .font(SBSFonts.caption().weight(.bold))
                                     .foregroundStyle(Color.success)
-                                    .font(.system(size: 14))
-                                    .padding(.top, 2)
+                                    .accessibilityHidden(true)
                                 
                                 Text(point)
                                     .font(SBSFonts.body())
@@ -1677,10 +1693,8 @@ struct ExerciseTypeInfoSheet: View {
                     
                     // Best for
                     VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                        Text("Best For")
-                            .font(SBSFonts.bodyStrong())
-                            .foregroundStyle(Color.ink)
-                        
+                        SBSSectionEyebrow("Best For")
+
                         Text(bestFor)
                             .font(SBSFonts.body())
                             .foregroundStyle(Color.inkSecondary)
@@ -1689,19 +1703,14 @@ struct ExerciseTypeInfoSheet: View {
                     // Example
                     if let example = example {
                         VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                            Text("Example")
-                                .font(SBSFonts.bodyStrong())
-                                .foregroundStyle(Color.ink)
-                            
+                            SBSSectionEyebrow("Example")
+
                             Text(example)
                                 .font(SBSFonts.body())
-                                .foregroundStyle(Color.inkSecondary)
+                                .foregroundStyle(Color.ink)
                                 .padding()
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(
-                                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                        .fill(Color.surface)
-                                )
+                                .card()
                         }
                     }
                     
@@ -1710,6 +1719,7 @@ struct ExerciseTypeInfoSheet: View {
                 .padding(.horizontal)
             }
             .scrollDismissesKeyboard(.interactively)
+            .sbsBackground()
             .navigationTitle("About \(title)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -1730,16 +1740,6 @@ struct ExerciseTypeInfoSheet: View {
         case .structured: return "chart.line.uptrend.xyaxis"
         case .volume: return "chart.line.uptrend.xyaxis"
         case .tm: return "scalemass.fill"
-        }
-    }
-    
-    private var iconColor: Color {
-        switch type {
-        case .accessory: return Color.inkSecondary
-        case .linear: return .green
-        case .structured: return SBSColors.accentFallback
-        case .volume: return SBSColors.accentFallback
-        case .tm: return SBSColors.accentSecondaryFallback
         }
     }
     
@@ -1797,7 +1797,7 @@ struct ExerciseTypeInfoSheet: View {
         case .structured:
             return [
                 "Design your sets with intensity, reps, and AMRAP markers",
-                "Mark one set as the 'progression set' (⭐)",
+                "Mark one set as the 'progression set' (★)",
                 "Performance on the progression set adjusts your TM",
                 "Beat the rep target → TM increases for next week"
             ]
@@ -1840,9 +1840,9 @@ struct ExerciseTypeInfoSheet: View {
         case .linear:
             return "Squat: 5 sets\n• 80% × 5\n• 80% × 5\n• 80% × 5\n• 80% × 5\n• 80% × 5\nComplete all reps → Next session: weight goes up"
         case .structured:
-            return "Bench Press:\n• 75% × 5\n• 80% × 5\n• 85% × 5+ ⭐ (AMRAP, progression set)\nHit 8 reps on the progression set → TM goes up"
+            return "Bench Press:\n• 75% × 5\n• 80% × 5\n• 85% × 5+ ★ (AMRAP, progression set)\nHit 8 reps on the progression set → TM goes up"
         case .volume:
-            return "Squat: 4 sets\n• 80% × 8\n• 80% × 8\n• 80% × 8\n• 80% × 8+ ⭐ (AMRAP)\nTarget: 8 reps. You hit 11 → TM increases"
+            return "Squat: 4 sets\n• 80% × 8\n• 80% × 8\n• 80% × 8\n• 80% × 8+ ★ (AMRAP)\nTarget: 8 reps. You hit 11 → TM increases"
         case .tm:
             return nil
         }
@@ -1883,21 +1883,11 @@ struct ExercisesStepView: View {
                     // Tracked lifts
                     if !template.trackedLifts.isEmpty {
                         VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                            Text("Lifts Requiring Training Maxes")
-                                .font(SBSFonts.caption().weight(.semibold))
-                                .foregroundStyle(Color.inkSecondary)
-                            
+                            SBSSectionEyebrow("Lifts Requiring Training Maxes")
+
                             FlowLayout(spacing: SBSLayout.space2) {
                                 ForEach(template.trackedLifts, id: \.self) { lift in
-                                    Text(lift)
-                                        .font(SBSFonts.caption())
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 6)
-                                        .background(
-                                            Capsule()
-                                                .fill(Color.orangeSoft)
-                                        )
-                                        .foregroundStyle(Color.orangeText)
+                                    SBSBadge(text: lift)
                                 }
                             }
                         }
@@ -1914,11 +1904,11 @@ struct ExercisesStepView: View {
                 Button {
                     onBack()
                 } label: {
-                    Text("Back")
+                    SBSButtonTitle("Back")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(SBSLegacySecondaryButtonStyle())
-                
+                .buttonStyle(SBSSecondaryButtonStyle())
+
                 Button {
                     // Initialize training maxes for tracked lifts
                     for lift in template.trackedLifts {
@@ -1928,12 +1918,14 @@ struct ExercisesStepView: View {
                     }
                     onContinue()
                 } label: {
-                    Text("Continue")
+                    SBSButtonTitle("Continue")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(SBSLegacyPrimaryButtonStyle())
+                .buttonStyle(SBSPrimaryButtonStyle())
             }
             .padding()
+            // Room for the hard shadow
+            .padding(.trailing, SBSLayout.hardShadowOffset)
             .background(Color.bg)
         }
     }
@@ -1945,36 +1937,38 @@ struct DaySummaryCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: SBSLayout.space2) {
-            Text("Day \(day)")
-                .font(SBSFonts.bodyStrong())
-                .foregroundStyle(Color.ink)
-            
-            if exercises.isEmpty {
-                Text("No exercises")
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(Color.inkSecondary)
-            } else {
-                ForEach(Array(exercises.enumerated()), id: \.offset) { index, exercise in
-                    HStack {
-                        Text("\(index + 1).")
-                            .font(SBSFonts.caption())
-                            .foregroundStyle(Color.inkSecondary)
-                            .frame(width: 20)
-                        
-                        Text(exercise.name)
-                            .font(SBSFonts.body())
-                            .foregroundStyle(Color.inkSecondary)
-                        
-                        Spacer()
+            SBSSectionEyebrow("Day \(day)")
+
+            VStack(alignment: .leading, spacing: 0) {
+                if exercises.isEmpty {
+                    Text("No exercises")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
+                        .padding(.horizontal, SBSLayout.space4)
+                        .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+                } else {
+                    ForEach(Array(exercises.enumerated()), id: \.offset) { index, exercise in
+                        if index > 0 { SBSRowDivider() }
+                        HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space3) {
+                            Text("\(index + 1)")
+                                .font(SBSFonts.numberSmall())
+                                .foregroundStyle(Color.inkSecondary)
+                                .frame(minWidth: 20, alignment: .leading)
+
+                            Text(exercise.name)
+                                .font(SBSFonts.body())
+                                .foregroundStyle(Color.ink)
+
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, SBSLayout.space4)
+                        .padding(.vertical, SBSLayout.space3)
                     }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .card()
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                .fill(Color.surface)
-        )
     }
 }
 
@@ -2057,96 +2051,67 @@ struct ReviewStepView: View {
                     
                     // Template summary card
                     VStack(alignment: .leading, spacing: SBSLayout.space4) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(template.name)
-                                    .font(SBSFonts.heading())
-                                    .foregroundStyle(Color.ink)
-                                
-                                HStack(spacing: SBSLayout.space2) {
-                                    Text(template.mode.displayName)
-                                        .font(.system(size: 11, weight: .semibold))
-                                        .foregroundStyle(template.mode == .advanced ? SBSColors.accentSecondaryFallback : Color.inkSecondary)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 3)
-                                        .background(
-                                            Capsule()
-                                                .fill(template.mode == .advanced ? SBSColors.accentSecondaryFallback.opacity(0.15) : Color.surface)
-                                        )
-                                    
-                                    Text("Custom")
-                                        .font(.system(size: 11, weight: .semibold))
-                                        .foregroundStyle(Color.orangeText)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 3)
-                                        .background(
-                                            Capsule()
-                                                .fill(Color.orangeSoft)
-                                        )
-                                }
+                        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+                            Text(template.name)
+                                .font(SBSFonts.heading())
+                                .foregroundStyle(Color.ink)
+
+                            HStack(spacing: SBSLayout.space2) {
+                                SBSBadge(text: template.mode.displayName)
+                                SBSBadge(text: "Custom")
                             }
-                            
-                            Spacer()
-                            
-                            Image(systemName: "square.stack.3d.up.fill")
-                                .font(.system(size: 32))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [SBSColors.accentFallback, SBSColors.accentSecondaryFallback],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
                         }
-                        
+
                         if !template.templateDescription.isEmpty {
                             Text(template.templateDescription)
                                 .font(SBSFonts.body())
                                 .foregroundStyle(Color.inkSecondary)
                         }
-                        
-                        Divider()
-                        
+
+                        SBSRowDivider()
+
                         // Stats
-                        HStack(spacing: SBSLayout.space6) {
+                        SBSAdaptiveStack(alignment: .top, spacing: SBSLayout.space6) {
                             TemplateStatItem(label: "Days/Week", value: "\(template.daysPerWeek)")
                             TemplateStatItem(label: "Weeks", value: "\(template.weeks.count)")
                             TemplateStatItem(label: "Exercises", value: "\(totalExercises)")
                         }
                     }
                     .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .fill(Color.surface)
-                    )
-                    
-                    // Validation
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .card()
+
+                    // Validation: a glyph and a word on a hairline card, never a tint
                     VStack(alignment: .leading, spacing: SBSLayout.space2) {
                         if template.isValid {
-                            HStack(spacing: SBSLayout.space2) {
-                                Image(systemName: "checkmark.circle.fill")
+                            HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space2) {
+                                Image(systemName: "checkmark")
+                                    .font(SBSFonts.bodyStrong().weight(.bold))
                                     .foregroundStyle(Color.success)
+                                    .accessibilityHidden(true)
                                 Text("Template is ready to save")
-                                    .font(SBSFonts.body())
-                                    .foregroundStyle(Color.success)
+                                    .font(SBSFonts.bodyStrong())
+                                    .foregroundStyle(Color.ink)
                             }
                         } else {
-                            HStack(spacing: SBSLayout.space2) {
-                                Image(systemName: "exclamationmark.triangle.fill")
+                            HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space2) {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .font(SBSFonts.bodyStrong())
                                     .foregroundStyle(Color.danger)
+                                    .accessibilityHidden(true)
                                 Text("Template has issues that need to be fixed")
-                                    .font(SBSFonts.body())
-                                    .foregroundStyle(Color.danger)
+                                    .font(SBSFonts.bodyStrong())
+                                    .foregroundStyle(Color.ink)
                             }
-                            
+
                             // Show specific validation errors
                             ForEach(template.validationWarnings, id: \.self) { warning in
-                                HStack(alignment: .top, spacing: SBSLayout.space2) {
-                                    Image(systemName: "exclamationmark.circle")
+                                HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space2) {
+                                    Image(systemName: "xmark")
+                                        .font(SBSFonts.caption().weight(.bold))
                                         .foregroundStyle(Color.danger)
-                                        .font(.system(size: 14))
-                                        .padding(.top, 2)
-                                    
+                                        .accessibilityHidden(true)
+
                                     Text(warning)
                                         .font(SBSFonts.caption())
                                         .foregroundStyle(Color.inkSecondary)
@@ -2157,10 +2122,7 @@ struct ReviewStepView: View {
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .fill(template.isValid ? Color.success.opacity(0.1) : Color.danger.opacity(0.1))
-                    )
+                    .card()
                     
                     Spacer(minLength: 100)
                 }
@@ -2173,21 +2135,23 @@ struct ReviewStepView: View {
                 Button {
                     onBack()
                 } label: {
-                    Text("Back")
+                    SBSButtonTitle("Back")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(SBSLegacySecondaryButtonStyle())
-                
+                .buttonStyle(SBSSecondaryButtonStyle())
+
                 Button {
                     onSave()
                 } label: {
-                    Text(isEditing ? "Save Changes" : "Save Template")
+                    SBSButtonTitle(isEditing ? "Save Changes" : "Save Template")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(SBSLegacyPrimaryButtonStyle())
+                .buttonStyle(SBSPrimaryButtonStyle())
                 .disabled(!template.isValid)
             }
             .padding()
+            // Room for the hard shadow
+            .padding(.trailing, SBSLayout.hardShadowOffset)
             .background(Color.bg)
         }
     }
@@ -2198,15 +2162,15 @@ struct TemplateStatItem: View {
     let value: String
     
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(alignment: .leading, spacing: 2) {
             Text(value)
-                .font(SBSFonts.heading())
+                .font(SBSFonts.numberLarge())
                 .foregroundStyle(Color.ink)
-            
-            Text(label)
-                .font(SBSFonts.caption())
+
+            SBSEyebrow(label)
                 .foregroundStyle(Color.inkSecondary)
         }
+        .accessibilityElement(children: .combine)
     }
 }
 

@@ -67,7 +67,7 @@ final class WorkoutFlowUITests: XCTestCase {
     }
 
     private func start(day: Int) {
-        let card = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "\(day),")).firstMatch
+        let card = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Day \(day),")).firstMatch
         XCTAssertTrue(card.waitForExistence(timeout: 8), "No card for day \(day)")
         card.tap()
         tap("Start Workout")
@@ -147,7 +147,7 @@ final class WorkoutFlowUITests: XCTestCase {
         shot("summary")
 
         tap("Done")
-        let finishedDay = app.buttons.matching(NSPredicate(format: "label BEGINSWITH '1,' AND label ENDSWITH 'Done'")).firstMatch
+        let finishedDay = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Day 1,' AND label ENDSWITH 'Done'")).firstMatch
         XCTAssertTrue(finishedDay.waitForExistence(timeout: 8), "Done lands on Home")
         XCTAssertFalse(button("Redo Workout").exists, "Not on the Session screen")
         XCTAssertFalse(app.buttons["resumeWorkoutBar"].exists)
@@ -165,7 +165,7 @@ final class WorkoutFlowUITests: XCTestCase {
         bar.tap()
         finishWorkout()
         tap("Done")
-        let finishedDay = app.buttons.matching(NSPredicate(format: "label BEGINSWITH '1,' AND label ENDSWITH 'Done'")).firstMatch
+        let finishedDay = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Day 1,' AND label ENDSWITH 'Done'")).firstMatch
         XCTAssertTrue(finishedDay.waitForExistence(timeout: 8), "On Home, not History or the Session screen")
     }
 
@@ -325,7 +325,7 @@ final class WorkoutFlowUITests: XCTestCase {
 
         tap("Done")
         // Nothing finished means nothing logged, so the day is still to do
-        let day1 = app.buttons.matching(NSPredicate(format: "label BEGINSWITH '1,'")).firstMatch
+        let day1 = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Day 1,'")).firstMatch
         XCTAssertTrue(day1.waitForExistence(timeout: 8))
         XCTAssertTrue(day1.label.hasSuffix("To Do"), day1.label)
         shot("home-after-early-finish-nothing-logged")
@@ -344,7 +344,7 @@ final class WorkoutFlowUITests: XCTestCase {
         shot("summary-one-lift-logged")
         tap("Done")
 
-        let day1 = app.buttons.matching(NSPredicate(format: "label BEGINSWITH '1,'")).firstMatch
+        let day1 = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Day 1,'")).firstMatch
         XCTAssertTrue(day1.waitForExistence(timeout: 8))
         XCTAssertFalse(day1.label.hasSuffix("To Do"), day1.label)
         XCTAssertFalse(day1.label.hasSuffix("Done"), day1.label)
@@ -416,7 +416,7 @@ final class WorkoutFlowUITests: XCTestCase {
         finishWorkout()
         shot("531-summary")
         tap("Done")
-        let finished = app.buttons.matching(NSPredicate(format: "label BEGINSWITH '1,' AND label ENDSWITH 'Done'")).firstMatch
+        let finished = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Day 1,' AND label ENDSWITH 'Done'")).firstMatch
         XCTAssertTrue(finished.waitForExistence(timeout: 8))
     }
 
@@ -429,7 +429,7 @@ final class WorkoutFlowUITests: XCTestCase {
         XCTAssertTrue(text("Next Time").exists)
         shot("nsuns-summary")
         tap("Done")
-        let finished = app.buttons.matching(NSPredicate(format: "label BEGINSWITH '1,' AND label ENDSWITH 'Done'")).firstMatch
+        let finished = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Day 1,' AND label ENDSWITH 'Done'")).firstMatch
         XCTAssertTrue(finished.waitForExistence(timeout: 8))
         shot("nsuns-home")
     }

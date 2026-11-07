@@ -166,7 +166,7 @@ final class FirstRunAndHomeUITests: XCTestCase {
 
         // Home moves on to the next day, and the first day's card lists its lifts
         XCTAssertTrue(nextCard.waitForExistence(timeout: 8))
-        XCTAssertTrue(nextCard.staticTexts["Next: Workout B"].waitForExistence(timeout: 3), "Done moves on")
+        XCTAssertTrue(nextCard.staticTexts["Workout B"].waitForExistence(timeout: 3), "Done moves on")
         shot("home-after-first")
 
         // History has the session and everything in it
@@ -192,7 +192,7 @@ final class FirstRunAndHomeUITests: XCTestCase {
         finishWorkout()
         shot("summary-2")
         tap("Done")
-        XCTAssertTrue(nextCard.staticTexts["Next: Workout A"].waitForExistence(timeout: 8))
+        XCTAssertTrue(nextCard.staticTexts["Workout A"].waitForExistence(timeout: 8))
         shot("home-after-second")
     }
 
@@ -204,15 +204,15 @@ final class FirstRunAndHomeUITests: XCTestCase {
         let logs = linearLogs(weeks: [1], days: [1])
         launch(json: #"{"hasCompletedOnboarding":true,"selectedProgram":"stronglifts_5x5_12week",\#(liftMaxes),"linearLogs":\#(logs)}"#)
         XCTAssertTrue(nextCard.waitForExistence(timeout: 8))
-        XCTAssertTrue(nextCard.staticTexts["WEEK 1, DAY 2"].exists)
+        XCTAssertTrue(nextCard.staticTexts["Week 1 · Day 2"].exists)
         let percent = containingText("%").label
         shot("week-1")
 
-        let week = app.staticTexts["5"].firstMatch
+        let week = app.buttons["Week 5"].firstMatch
         XCTAssertTrue(week.waitForExistence(timeout: 5), "No week 5 in the strip")
         week.tap()
-        XCTAssertTrue(app.staticTexts["WEEK 5 OF 12"].waitForExistence(timeout: 3), "Week 5 is selected")
-        XCTAssertTrue(nextCard.staticTexts["WEEK 1, DAY 2"].exists, "Browsing doesn't change what's next")
+        XCTAssertTrue(app.staticTexts["Week 5 of 12"].waitForExistence(timeout: 3), "Week 5 is selected")
+        XCTAssertTrue(nextCard.staticTexts["Week 1 · Day 2"].exists, "Browsing doesn't change what's next")
         XCTAssertEqual(containingText("%").label, percent, "Browsing doesn't change progress")
         shot("week-5")
     }
@@ -245,7 +245,7 @@ final class FirstRunAndHomeUITests: XCTestCase {
 
         XCTAssertTrue(nextCard.waitForExistence(timeout: 8), "A new cycle has a next workout")
         XCTAssertFalse(completionCard.exists)
-        XCTAssertTrue(nextCard.staticTexts["WEEK 1, DAY 1"].exists)
+        XCTAssertTrue(nextCard.staticTexts["Week 1 · Day 1"].exists)
         shot("new-cycle")
     }
 
@@ -381,7 +381,7 @@ final class FirstRunAndHomeUITests: XCTestCase {
     /// With only accessory days, Home doesn't claim a next workout or progress it can't track
     func testAccessoryOnlyTemplateHasNoNextCardOrProgress() {
         launch(json: templateJSON(days: #"{"1":\#(accessoryDay),"2":\#(accessoryDay)}"#), premium: true)
-        let day = app.buttons.matching(NSPredicate(format: "label BEGINSWITH '1,'")).firstMatch
+        let day = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Day 1,'")).firstMatch
         XCTAssertTrue(day.waitForExistence(timeout: 8))
         XCTAssertFalse(nextCard.exists)
         XCTAssertFalse(app.staticTexts["Program Progress"].exists)
@@ -394,7 +394,7 @@ final class FirstRunAndHomeUITests: XCTestCase {
         tap("Done")
 
         XCTAssertTrue(day.waitForExistence(timeout: 8))
-        XCTAssertTrue(app.staticTexts["WEEK 1 OF 2"].exists, "Stays on the week it was on")
+        XCTAssertTrue(app.staticTexts["Week 1 of 2"].exists, "Stays on the week it was on")
         XCTAssertFalse(nextCard.exists)
         XCTAssertFalse(completionCard.exists)
         shot("home-after")
@@ -405,7 +405,7 @@ final class FirstRunAndHomeUITests: XCTestCase {
         let squat = #"[{"type":"linear","lift":"Squat","name":"Squat","sets":1,"reps":5}]"#
         launch(json: templateJSON(days: #"{"1":\#(accessoryDay),"2":\#(squat)}"#, weeks: "[1]"), premium: true)
         XCTAssertTrue(nextCard.waitForExistence(timeout: 8))
-        XCTAssertTrue(nextCard.staticTexts["WEEK 1, DAY 2"].exists, "The accessory day isn't next")
+        XCTAssertTrue(nextCard.staticTexts["Week 1 · Day 2"].exists, "The accessory day isn't next")
         XCTAssertEqual(containingText("%").label, "0%")
         shot("home-before")
 

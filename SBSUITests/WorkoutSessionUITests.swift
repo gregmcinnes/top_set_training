@@ -114,7 +114,7 @@ final class WorkoutSessionUITests: XCTestCase {
     }
 
     private func openDay(_ number: Int) {
-        let card = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "\(number),")).firstMatch
+        let card = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Day \(number),")).firstMatch
         XCTAssertTrue(card.waitForExistence(timeout: 8), "No card for day \(number)")
         card.tap()
     }
@@ -130,7 +130,8 @@ final class WorkoutSessionUITests: XCTestCase {
     private func firstUnfinishedDay() -> Int {
         let card = app.buttons.matching(NSPredicate(format: "label ENDSWITH 'To Do'")).firstMatch
         XCTAssertTrue(card.waitForExistence(timeout: 8), "No day left to do")
-        return Int(card.label.prefix { $0.isNumber }) ?? 1
+        // "Day 3, Workout A, …"
+        return Int(card.label.dropFirst("Day ".count).prefix { $0.isNumber }) ?? 1
     }
 
     /// "Set 2 of 5" on the workout screen

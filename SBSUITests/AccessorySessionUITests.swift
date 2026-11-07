@@ -62,7 +62,7 @@ final class AccessorySessionUITests: XCTestCase {
     }
 
     private func openDay(_ number: Int) {
-        let card = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "\(number),")).firstMatch
+        let card = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Day \(number),")).firstMatch
         XCTAssertTrue(card.waitForExistence(timeout: 8), "No card for day \(number)")
         card.tap()
     }
@@ -223,7 +223,7 @@ final class AccessorySessionUITests: XCTestCase {
     /// An accessory-only day reads Done once finished, without counting as next or progress
     func testAccessoryOnlyDayShowsDoneWithoutChangingProgress() {
         launch(days: #"{"1":[\#(facePull)],"2":[\#(facePull)]}"#)
-        let day = app.buttons.matching(NSPredicate(format: "label BEGINSWITH '1,'")).firstMatch
+        let day = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Day 1,'")).firstMatch
         XCTAssertTrue(day.waitForExistence(timeout: 8))
         XCTAssertTrue(day.label.hasSuffix("To Do"), day.label)
         day.tap()

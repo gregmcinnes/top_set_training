@@ -973,88 +973,172 @@ struct TimerView: View {
     var onResume: (() -> Void)?
     var onAdjust: ((Int) -> Void)?
     var onUndo: (() -> Void)?
-    
+
     private var hasSuperset: Bool {
         showSuperset && workoutState.currentSupersetAccessory != nil
     }
-    
+
     var body: some View {
-        VStack(spacing: hasSuperset ? SBSLayout.paddingMedium : SBSLayout.paddingLarge) {
-            // Superset accessory card (shown at top when enabled)
-            if let accessory = workoutState.currentSupersetAccessory, showSuperset {
-                SupersetAccessoryCard(
-                    accessory: accessory,
-                    useMetric: useMetric,
-                    compact: true,
-                    onWeightTap: onAccessoryWeightTap
-                )
-                    .padding(.horizontal)
-                    .padding(.top, SBSLayout.paddingSmall)
-            }
-            
-            Spacer(minLength: hasSuperset ? 8 : 20)
-            
-            // Timer circle - smaller when superset is showing
-            ZStack {
-                let circleSize: CGFloat = hasSuperset ? 160 : 200
-                let lineWidth: CGFloat = hasSuperset ? 10 : 12
-                
-                // Background circle
-                Circle()
-                    .stroke(SBSColors.surfaceFallback, lineWidth: lineWidth)
-                    .frame(width: circleSize, height: circleSize)
-                
-                // Progress circle
-                Circle()
-                    .trim(from: 0, to: timerProgress)
-                    .stroke(
-                        timerColor,
-                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+        ScrollView {
+            VStack(alignment: .leading, spacing: SBSLayout.space4) {
+                if let accessory = workoutState.currentSupersetAccessory, showSuperset {
+                    SupersetAccessoryCard(
+                        accessory: accessory,
+                        useMetric: useMetric,
+                        compact: true,
+                        onWeightTap: onAccessoryWeightTap
                     )
-                    .frame(width: circleSize, height: circleSize)
-                    .rotationEffect(.degrees(-90))
-                    .animation(.linear(duration: 0.5), value: timerProgress)
-                
-                // Timer text
-                VStack(spacing: 4) {
+                }
+
+                restPanel
+
+                nextSet
+            }
+            .padding(SBSLayout.space4)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            controls
+        }
+    }
+
+    // MARK: Rest panel
+
+    /// Inline timer: knurl behind, the count in the timer numeral, ±15s keys either
+    /// side and an orange progress bar along the bottom. Whole seconds, no easing.
+    private var restPanel: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: SBSLayout.space2) {
+                adjustKey("−15s", delta: -15, label: "Subtract 15 seconds")
+
+                VStack(spacing: 0) {
+                    Text(restEyebrow)
+                        .eyebrowText()
+                        .foregroundStyle(Color.inkSecondary)
+                        .lineLimit(1)
+
                     Text(timerText)
-                        .font(SBSFonts.displayMono())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .font(SBSFonts.timer())
+                        .foregroundStyle(Color.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
                         .accessibilityLabel(hasSuperset ? "Superset timer" : "Rest timer")
                         .accessibilityValue(timerAccessibilityValue)
 
-                    Text(hasSuperset ? "SUPERSET" : "REST")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(hasSuperset ? SBSColors.accentSecondaryFallback : SBSColors.textSecondaryFallback)
-
                     if workoutState.timerDuration > 0 {
                         Text("of \(formatDuration(workoutState.timerDuration))")
-                            .font(SBSFonts.caption2())
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                            .font(SBSFonts.numberSmall())
+                            .foregroundStyle(Color.inkSecondary)
+                            .lineLimit(1)
                     }
                 }
+                .frame(maxWidth: .infinity)
+
+                adjustKey("+15s", delta: 15, label: "Add 15 seconds")
             }
-            
-            // Timer controls - smaller when superset is showing
-            HStack(spacing: hasSuperset ? SBSLayout.paddingMedium : SBSLayout.paddingLarge) {
-                let buttonSize: CGFloat = hasSuperset ? 48 : 56
-                let adjustSize: CGFloat = hasSuperset ? 44 : 50
+            .padding(.horizontal, SBSLayout.space3)
+            .padding(.vertical, SBSLayout.space3)
 
-                // -15s
-                Button {
-                    onAdjust?(-15)
-                } label: {
-                    Text("−15s")
-                        .font(SBSFonts.captionBold())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                        .frame(width: adjustSize, height: adjustSize)
-                        .background(
-                            Circle().fill(SBSColors.surfaceFallback)
-                        )
+            // Progress: what's left of the rest
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Rectangle().fill(Color.hairline)
+                    Rectangle()
+                        .fill(Color.orangeFill)
+                        .frame(width: geo.size.width * timerProgress)
                 }
-                .accessibilityLabel("Subtract 15 seconds")
+            }
+            .frame(height: 4)
+            .accessibilityHidden(true)
+        }
+        .background {
+            ZStack {
+                Color.surface
+                KnurlPattern()
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+        .overlay(
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                .strokeBorder(Color.hairline, lineWidth: SBSLayout.strokeHairline)
+        )
+    }
 
-                // Pause/Resume
+    private var restEyebrow: String {
+        let base = hasSuperset ? "Superset rest" : "Rest"
+        return workoutState.timerIsPaused ? "\(base) · paused" : base
+    }
+
+    private func adjustKey(_ title: String, delta: Int, label: String) -> some View {
+        Button {
+            onAdjust?(delta)
+        } label: {
+            Text(title)
+                .font(SBSFonts.number())
+                .foregroundStyle(Color.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .frame(width: 72, height: 48)
+                .background(Color.surfaceRaised, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+                .overlay(
+                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                        .strokeBorder(Color.hairline, lineWidth: SBSLayout.strokeHairline)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+
+    // MARK: Next set
+
+    /// The set the lifter rests for: the live set card on this screen
+    @ViewBuilder
+    private var nextSet: some View {
+        if let exercise = workoutState.currentExercise {
+            // Structured exercises store per-set targets in
+            // structuredSetInfo and intentionally leave the top-level
+            // weight/reps fields blank (heaviest weight, 0 reps) — read
+            // from the per-set info when available so the upcoming set
+            // shows its actual targets. Mirrors CurrentSetView.
+            let upcomingSet: StructuredSetInfo? = {
+                guard exercise.isStructured,
+                      let sets = exercise.structuredSetInfo,
+                      workoutState.currentSetNumber > 0,
+                      workoutState.currentSetNumber <= sets.count
+                else { return nil }
+                return sets[workoutState.currentSetNumber - 1]
+            }()
+            let nextWeight = upcomingSet?.weight ?? exercise.weight
+            let nextReps: String = {
+                if let s = upcomingSet { return s.isAMRAP ? "\(s.targetReps)+" : "\(s.targetReps)" }
+                if workoutState.isCurrentSetRepOut {
+                    return "\(exercise.repOutTarget)+"
+                }
+                return "\(exercise.repsPerSet)"
+            }()
+
+            NextSetPreview(
+                exerciseName: exercise.name,
+                weight: nextWeight,
+                reps: nextReps,
+                isRepOut: upcomingSet?.isAMRAP ?? workoutState.isCurrentSetRepOut,
+                isAccessory: exercise.isAccessory,
+                setNumber: workoutState.currentSetNumber,
+                totalSets: exercise.totalSets,
+                useMetric: useMetric,
+                barWeight: barWeight,
+                showPlateCalculator: showPlateCalculator,
+                compact: hasSuperset,
+                onUnlockTap: onUnlockTap
+            )
+        }
+    }
+
+    // MARK: Controls
+
+    private var controls: some View {
+        VStack(spacing: SBSLayout.space1) {
+            HStack(spacing: SBSLayout.space2) {
                 Button {
                     Haptics.light()
                     if workoutState.timerIsPaused {
@@ -1072,118 +1156,43 @@ struct TimerView: View {
                         )
                     }
                 } label: {
-                    Image(systemName: workoutState.timerIsPaused ? "play.fill" : "pause.fill")
-                        .font(.system(size: hasSuperset ? 20 : 24))
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                        .frame(width: buttonSize, height: buttonSize)
-                        .background(
-                            Circle()
-                                .fill(SBSColors.surfaceFallback)
-                        )
+                    Label(workoutState.timerIsPaused ? "Resume" : "Pause",
+                          systemImage: workoutState.timerIsPaused ? "play.fill" : "pause.fill")
+                        .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(SBSSecondaryButtonStyle())
                 .accessibilityLabel(workoutState.timerIsPaused ? "Resume timer" : "Pause timer")
 
-                // Skip
                 Button {
                     onSkip?()
                 } label: {
-                    Image(systemName: "forward.fill")
-                        .font(.system(size: hasSuperset ? 20 : 24))
-                        .foregroundStyle(workoutState.isCurrentExerciseAccessory ? .white : Color.orangeInk)
-                        .frame(width: buttonSize, height: buttonSize)
-                        .background(
-                            Circle()
-                                .fill(workoutState.isCurrentExerciseAccessory ? SBSColors.accentSecondaryFallback : SBSColors.accentFallback)
-                        )
+                    Label("Skip rest", systemImage: "forward.fill")
+                        .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(SBSSecondaryButtonStyle())
                 .accessibilityLabel("Skip rest timer")
-
-                // +15s
-                Button {
-                    onAdjust?(15)
-                } label: {
-                    Text("+15s")
-                        .font(SBSFonts.captionBold())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                        .frame(width: adjustSize, height: adjustSize)
-                        .background(
-                            Circle().fill(SBSColors.surfaceFallback)
-                        )
-                }
-                .accessibilityLabel("Add 15 seconds")
             }
 
             if let onUndo {
                 Button(action: onUndo) {
                     Label("Undo Last Set", systemImage: "arrow.uturn.backward")
-                        .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
                         .frame(minHeight: 44)
                 }
             }
-            
-            Spacer(minLength: hasSuperset ? 8 : 20)
-            
-            // Next set preview
-            if let exercise = workoutState.currentExercise {
-                // Structured exercises store per-set targets in
-                // structuredSetInfo and intentionally leave the top-level
-                // weight/reps fields blank (heaviest weight, 0 reps) — read
-                // from the per-set info when available so the upcoming set
-                // shows its actual targets. Mirrors CurrentSetView.
-                let upcomingSet: StructuredSetInfo? = {
-                    guard exercise.isStructured,
-                          let sets = exercise.structuredSetInfo,
-                          workoutState.currentSetNumber > 0,
-                          workoutState.currentSetNumber <= sets.count
-                    else { return nil }
-                    return sets[workoutState.currentSetNumber - 1]
-                }()
-                let nextWeight = upcomingSet?.weight ?? exercise.weight
-                let nextReps: String = {
-                    if workoutState.isCurrentSetRepOut {
-                        return "\(exercise.repOutTarget)+"
-                    }
-                    if let s = upcomingSet { return "\(s.targetReps)" }
-                    return "\(exercise.repsPerSet)"
-                }()
-
-                NextSetPreview(
-                    exerciseName: exercise.name,
-                    weight: nextWeight,
-                    reps: nextReps,
-                    isRepOut: workoutState.isCurrentSetRepOut,
-                    isAccessory: exercise.isAccessory,
-                    setNumber: workoutState.currentSetNumber,
-                    totalSets: exercise.totalSets,
-                    useMetric: useMetric,
-                    barWeight: barWeight,
-                    showPlateCalculator: showPlateCalculator,
-                    compact: hasSuperset,
-                    onUnlockTap: onUnlockTap
-                )
-            }
         }
-        // Keep the fixed-size timer ring and control buttons intact at large
-        // accessibility text sizes.
-        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+        .padding(.horizontal, SBSLayout.space4)
+        .padding(.top, SBSLayout.space3)
+        .padding(.bottom, SBSLayout.space2)
+        .background(Color.bg)
     }
 
     private var timerProgress: Double {
         guard workoutState.timerDuration > 0 else { return 0 }
-        return Double(workoutState.timerRemaining) / Double(workoutState.timerDuration)
+        return min(1, Double(workoutState.timerRemaining) / Double(workoutState.timerDuration))
     }
-    
-    private var timerColor: Color {
-        if workoutState.timerRemaining <= 10 {
-            return SBSColors.warning
-        } else if workoutState.timerRemaining <= 30 {
-            return SBSColors.accentFallback
-        } else {
-            return SBSColors.accentSecondaryFallback
-        }
-    }
-    
+
     private var timerText: String {
         let minutes = workoutState.timerRemaining / 60
         let seconds = workoutState.timerRemaining % 60
@@ -1215,6 +1224,7 @@ struct TimerView: View {
 
 // MARK: - Next Set Preview
 
+/// The upcoming set during rest, as the screen's live set card
 struct NextSetPreview: View {
     let exerciseName: String
     let weight: Double
@@ -1228,83 +1238,33 @@ struct NextSetPreview: View {
     var showPlateCalculator: Bool = true
     var compact: Bool = false
     var onUnlockTap: (() -> Void)?
-    
+    var flashToken: UUID? = nil
+    var onFlashDone: (() -> Void)? = nil
+
+    private var eyebrow: String {
+        var parts = ["Next up"]
+        if isAccessory { parts.append("accessory") }
+        parts.append("set \(setNumber) of \(totalSets)")
+        if isRepOut && !isAccessory { parts.append("AMRAP") }
+        return parts.joined(separator: " · ")
+    }
+
     var body: some View {
-        VStack(spacing: compact ? 4 : SBSLayout.paddingSmall) {
-            Text("NEXT UP")
-                .font(SBSFonts.legacyCaption())
-                .foregroundStyle(SBSColors.textTertiaryFallback)
-            
-            VStack(spacing: 0) {
-                HStack {
-                    VStack(alignment: .leading, spacing: compact ? 2 : 4) {
-                        HStack(spacing: SBSLayout.paddingSmall) {
-                            if isAccessory {
-                                Image(systemName: "dumbbell.fill")
-                                    .font(SBSFonts.caption2())
-                                    .foregroundStyle(SBSColors.accentSecondaryFallback)
-                            }
-                            
-                            Text(exerciseName)
-                                .font(compact ? SBSFonts.legacyBody() : SBSFonts.bodyBold())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.75)
-                        }
-                        
-                        Text("Set \(setNumber) of \(totalSets)")
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
-                    }
-                    
-                    Spacer()
-                    
-                    HStack(spacing: SBSLayout.paddingSmall) {
-                        // Show weight (0 is valid for bodyweight accessories)
-                        Text(weight.formattedWeightShort(useMetric: useMetric))
-                            .font(compact ? SBSFonts.bodyBold() : SBSFonts.weight())
-                            .foregroundStyle(isAccessory ? SBSColors.accentSecondaryFallback : Color.orangeText)
-                        
-                        Text("×")
-                            .font(SBSFonts.legacyBody())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
-                        
-                        Text(reps)
-                            .font(compact ? SBSFonts.bodyBold() : SBSFonts.weight())
-                            .foregroundStyle(isRepOut ? SBSColors.success : SBSColors.textPrimaryFallback)
-                    }
-                }
-                .padding(compact ? SBSLayout.paddingMedium : SBSLayout.paddingMedium + 4)
-                
-                // Plate calculator for barbell exercises
-                if !isAccessory && showPlateCalculator && weight >= barWeight {
-                    PremiumBarbellView(
-                        weight: weight,
-                        useMetric: useMetric,
-                        barWeight: barWeight,
-                        showLabels: true,
-                        compact: true,
-                        onUnlockTap: onUnlockTap
-                    )
-                    .scaleEffect(compact ? 0.85 : 1.0)
-                    .frame(height: compact ? 35 : 44)
-                    .padding(.horizontal, SBSLayout.paddingSmall)
-                    .padding(.bottom, compact ? SBSLayout.paddingSmall : SBSLayout.paddingMedium)
-                }
-            }
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                    .fill(isAccessory ? SBSColors.accentSecondaryFallback.opacity(0.08) : SBSColors.surfaceFallback)
-                    .overlay(
-                        isAccessory ?
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                            .strokeBorder(SBSColors.accentSecondaryFallback.opacity(0.2), lineWidth: 1)
-                        : nil
-                    )
-            )
-        }
-        .padding(.horizontal)
-        .padding(.bottom, compact ? SBSLayout.paddingMedium : SBSLayout.paddingLarge)
+        LiveSetCard(
+            eyebrow: eyebrow,
+            weight: weight,
+            useMetric: useMetric,
+            scheme: "× \(reps)",
+            showPlates: !isAccessory && !compact && showPlateCalculator && weight >= barWeight,
+            barWeight: barWeight,
+            onUnlockTap: onUnlockTap,
+            flashToken: flashToken,
+            onFlashDone: onFlashDone
+        )
+        // Room for the hard shadow inside the gutter
+        .padding(.trailing, SBSLayout.hardShadowOffset)
+        .padding(.bottom, SBSLayout.hardShadowOffset)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -1315,99 +1275,66 @@ struct SupersetAccessoryCard: View {
     let useMetric: Bool
     var compact: Bool = false
     var onWeightTap: (() -> Void)? = nil
-    
-    var body: some View {
-        VStack(spacing: compact ? 4 : SBSLayout.paddingSmall) {
-            HStack(spacing: SBSLayout.paddingSmall) {
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(SBSFonts.captionBold())
-                    .foregroundStyle(SBSColors.accentSecondaryFallback)
-                
-                Text("SUPERSET")
-                    .font(SBSFonts.captionBold())
-                    .foregroundStyle(SBSColors.accentSecondaryFallback)
-            }
-            
-            HStack {
-                VStack(alignment: .leading, spacing: compact ? 2 : 4) {
-                    HStack(spacing: SBSLayout.paddingSmall) {
-                        Image(systemName: "dumbbell.fill")
-                            .font(SBSFonts.legacyBody())
-                            .foregroundStyle(SBSColors.accentSecondaryFallback)
-                        
-                        Text(accessory.name)
-                            .font(compact ? SBSFonts.bodyBold() : SBSFonts.title3())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                    }
-                    
-                    // Sets and reps info
-                    Text("\(accessory.sets) × \(accessory.reps) reps")
-                        .font(compact ? SBSFonts.legacyCaption() : SBSFonts.legacyBody())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
 
-                    if accessory.lastWasEasy == true {
-                        HStack(spacing: 3) {
-                            Image(systemName: "hand.thumbsup.fill")
-                                .font(SBSFonts.caption2())
-                            Text("Last time was easy, go heavier")
-                                .font(SBSFonts.legacyCaption())
-                        }
-                        .foregroundStyle(SBSColors.success)
-                    }
+    var body: some View {
+        HStack(alignment: .center, spacing: SBSLayout.space3) {
+            VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                Text("Superset · accessory")
+                    .eyebrowText()
+                    .foregroundStyle(Color.inkSecondary)
+
+                Text(accessory.name)
+                    .font(compact ? SBSFonts.bodyStrong() : SBSFonts.heading())
+                    .foregroundStyle(Color.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+
+                Text("\(accessory.sets) × \(accessory.reps)")
+                    .font(SBSFonts.numberSmall())
+                    .foregroundStyle(Color.inkSecondary)
+
+                if accessory.lastWasEasy == true {
+                    Label("Last time was easy, go heavier", systemImage: "hand.thumbsup")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.success)
                 }
-                
-                Spacer()
-                
-                // Weight section - tappable to add/edit
-                Button(action: { onWeightTap?() }) {
+            }
+
+            Spacer(minLength: SBSLayout.space2)
+
+            // Weight: tap to add or edit
+            Button(action: { onWeightTap?() }) {
+                Group {
                     if let weight = accessory.weight {
-                        // Show logged weight with edit indicator
-                        HStack(spacing: 4) {
+                        HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space1) {
                             Text(weight.formattedWeightShort(useMetric: useMetric))
-                                .font(compact ? SBSFonts.bodyBold() : SBSFonts.weight())
-                                .foregroundStyle(SBSColors.accentSecondaryFallback)
-                            
+                                .font(SBSFonts.number())
+                                .foregroundStyle(Color.ink)
                             Text(useMetric ? "kg" : "lb")
-                                .font(SBSFonts.legacyCaption())
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
-                            
+                                .font(SBSFonts.numberSmall())
+                                .foregroundStyle(Color.inkSecondary)
                             Image(systemName: "chevron.right")
-                                .font(SBSFonts.caption2())
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
                         }
                     } else {
-                        // No weight logged - show add indicator
-                        HStack(spacing: 4) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(SBSFonts.title3())
-                                .foregroundStyle(SBSColors.accentSecondaryFallback)
-                            
-                            Text("Add Weight")
-                                .font(compact ? SBSFonts.legacyCaption() : SBSFonts.legacyBody())
-                                .foregroundStyle(SBSColors.accentSecondaryFallback)
-                        }
-                        .padding(.horizontal, compact ? 8 : 12)
-                        .padding(.vertical, compact ? 4 : 6)
-                        .background(
-                            Capsule()
-                                .fill(SBSColors.accentSecondaryFallback.opacity(0.15))
-                        )
+                        Label("Add weight", systemImage: "plus")
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.ink)
                     }
                 }
-                .buttonStyle(.plain)
+                .padding(.horizontal, SBSLayout.space3)
+                .frame(minHeight: 44)
+                .background(Color.surfaceRaised, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+                .overlay(
+                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                        .strokeBorder(Color.hairline, lineWidth: SBSLayout.strokeHairline)
+                )
             }
-            .padding(compact ? SBSLayout.paddingMedium : SBSLayout.paddingMedium + 4)
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                    .fill(SBSColors.accentSecondaryFallback.opacity(0.12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                            .strokeBorder(SBSColors.accentSecondaryFallback.opacity(0.3), lineWidth: 1.5)
-                    )
-            )
+            .buttonStyle(.plain)
         }
+        .padding(compact ? SBSLayout.space3 : SBSLayout.space4)
+        .card()
     }
 }
 

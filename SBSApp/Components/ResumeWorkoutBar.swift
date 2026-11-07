@@ -14,41 +14,30 @@ struct ResumeWorkoutBar: View {
         // with the Live Activity.
         TimelineView(.periodic(from: tickAnchor, by: 1)) { _ in
             Button(action: onTap) {
-                HStack(spacing: SBSLayout.paddingSmall) {
-                    Image(systemName: "figure.strengthtraining.traditional")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Color.orangeText)
-
+                HStack(spacing: SBSLayout.space3) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(title)
-                            .font(SBSFonts.bodyBold())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .font(SBSFonts.bodyStrong())
+                            .foregroundStyle(Color.ink)
                             .lineLimit(1)
 
                         Text(subtitle)
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .font(SBSFonts.numberSmall())
+                            .foregroundStyle(Color.inkSecondary)
                             .lineLimit(1)
                     }
 
-                    Spacer(minLength: SBSLayout.paddingSmall)
+                    Spacer(minLength: SBSLayout.space2)
 
-                    if let restText {
-                        Text(restText)
-                            .font(.system(.subheadline, design: .rounded).weight(.semibold))
-                            .monospacedDigit()
-                            .foregroundStyle(Color.orangeText)
-                            .lineLimit(1)
-                            .fixedSize()
-                    }
+                    restPill
 
                     Image(systemName: "chevron.up")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .font(SBSFonts.caption().weight(.semibold))
+                        .foregroundStyle(Color.inkSecondary)
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 10)
-                .frame(maxWidth: .infinity)
+                .padding(.horizontal, SBSLayout.space4)
+                .padding(.vertical, SBSLayout.space2)
+                .frame(maxWidth: .infinity, minHeight: 56)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -57,9 +46,43 @@ struct ResumeWorkoutBar: View {
             .accessibilityAddTraits(.isButton)
             .accessibilityIdentifier("resumeWorkoutBar")
         }
-        .background(SBSColors.surfaceFallback)
+        .background(Color.surface)
         .overlay(alignment: .top) {
-            Divider()
+            Rectangle().fill(Color.hairline).frame(height: SBSLayout.strokeHairline)
+        }
+    }
+
+    /// The rest countdown as a pill: raised and hairline while counting, an orange
+    /// block once the rest is over.
+    @ViewBuilder
+    private var restPill: some View {
+        if session.restDoneWhileMinimized {
+            Text("Rest done · back to it")
+                .eyebrowText()
+                .foregroundStyle(Color.orangeInk)
+                .lineLimit(1)
+                .fixedSize()
+                .padding(.horizontal, SBSLayout.space3)
+                .padding(.vertical, SBSLayout.space2)
+                .background(Color.orangeFill, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+        } else if let restText {
+            HStack(spacing: SBSLayout.space1) {
+                Image(systemName: status.isPaused ? "pause" : "timer")
+                    .font(SBSFonts.caption().weight(.semibold))
+                Text(restText)
+                    .font(SBSFonts.numberSmall())
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .fixedSize()
+            }
+            .foregroundStyle(Color.ink)
+            .padding(.horizontal, SBSLayout.space2)
+            .padding(.vertical, 6)
+            .background(Color.surfaceRaised, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+            .overlay(
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .strokeBorder(Color.hairline, lineWidth: SBSLayout.strokeHairline)
+            )
         }
     }
 
@@ -83,7 +106,6 @@ struct ResumeWorkoutBar: View {
     }
 
     private var restText: String? {
-        if session.restDoneWhileMinimized { return "Rest done" }
         guard status.isActive else { return nil }
         let remaining = status.remaining
         let time = String(format: "%d:%02d", remaining / 60, remaining % 60)

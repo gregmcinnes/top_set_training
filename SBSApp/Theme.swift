@@ -228,6 +228,254 @@ struct SBSLegacyNumberPadButtonStyle: ButtonStyle {
     }
 }
 
+// MARK: - Top Set design system
+//
+// The SwiftUI side of the Top Set design system (tokens.json + SwiftUI.md in
+// the design-system artifact). Colours come from Assets.xcassets/Colors as
+// generated symbols (Color.ink, Color.surfaceRaised, Color.orangeFill, ...).
+// The base orange token is `orangeFill` because `Color.orange` is SwiftUI's.
+//
+// The 2px rule, square corners and hard shadow (signatureCard, hardShadow,
+// Color.rule, SBSPrimaryButtonStyle) belong on exactly three surfaces: the
+// live set card, the primary button and the tab bar's top edge.
+
+/// PostScript names of the bundled fonts (Resources/Fonts, UIAppFonts).
+enum SBSFontName {
+    static let archivoRegular = "Archivo-Regular"
+    static let archivoMedium = "Archivo-Medium"
+    static let archivoSemiBold = "Archivo-SemiBold"
+    static let archivoBold = "Archivo-Bold"
+    static let archivoExtraBold = "Archivo-ExtraBold"
+    /// Width 112.5 instance for title-large.
+    static let archivoSemiExpandedBlack = "ArchivoSemiExpanded-Black"
+    /// Width 87.5 instance for eyebrows and tab labels.
+    static let archivoSemiCondensedBold = "ArchivoSemiCondensed-Bold"
+    static let barlowCondensedBold = "BarlowCondensed-Bold"
+    static let plexMonoMedium = "IBMPlexMono-Medium"
+    static let plexMonoSemiBold = "IBMPlexMono-SemiBold"
+    static let plexMonoBold = "IBMPlexMono-Bold"
+
+    static let all = [
+        archivoRegular, archivoMedium, archivoSemiBold, archivoBold, archivoExtraBold,
+        archivoSemiExpandedBlack, archivoSemiCondensedBold, barlowCondensedBold,
+        plexMonoMedium, plexMonoSemiBold, plexMonoBold,
+    ]
+}
+
+extension SBSFonts {
+    // Numerals: Barlow Condensed, read from the floor. Nowhere else.
+    static func workingWeight() -> Font {
+        .custom(SBSFontName.barlowCondensedBold, size: 68, relativeTo: .largeTitle).monospacedDigit()
+    }
+
+    static func timer() -> Font {
+        .custom(SBSFontName.barlowCondensedBold, size: 56, relativeTo: .largeTitle).monospacedDigit()
+    }
+
+    // Display: Archivo. Uppercase styles pair with the companion modifiers below.
+    static func titleLarge() -> Font {
+        .custom(SBSFontName.archivoSemiExpandedBlack, size: 34, relativeTo: .largeTitle)
+    }
+
+    static func title() -> Font {
+        .custom(SBSFontName.archivoExtraBold, size: 24, relativeTo: .title2)
+    }
+
+    static func heading() -> Font {
+        .custom(SBSFontName.archivoBold, size: 20, relativeTo: .title3)
+    }
+
+    static func body() -> Font {
+        .custom(SBSFontName.archivoRegular, size: 17, relativeTo: .body)
+    }
+
+    static func bodyStrong() -> Font {
+        .custom(SBSFontName.archivoSemiBold, size: 17, relativeTo: .body)
+    }
+
+    static func caption() -> Font {
+        .custom(SBSFontName.archivoMedium, size: 13, relativeTo: .footnote)
+    }
+
+    static func eyebrow() -> Font {
+        .custom(SBSFontName.archivoSemiCondensedBold, size: 11, relativeTo: .caption2)
+    }
+
+    static func button() -> Font {
+        .custom(SBSFontName.archivoExtraBold, size: 15, relativeTo: .body)
+    }
+
+    static func tab() -> Font {
+        .custom(SBSFontName.archivoSemiCondensedBold, size: 10, relativeTo: .caption2)
+    }
+
+    // Data: IBM Plex Mono for every other number. Always tabular.
+    static func numberLarge() -> Font {
+        .custom(SBSFontName.plexMonoBold, size: 28, relativeTo: .title2).monospacedDigit()
+    }
+
+    static func number() -> Font {
+        .custom(SBSFontName.plexMonoSemiBold, size: 20, relativeTo: .title3).monospacedDigit()
+    }
+
+    static func numberSmall() -> Font {
+        .custom(SBSFontName.plexMonoMedium, size: 13, relativeTo: .footnote).monospacedDigit()
+    }
+
+    static func numberUnit() -> Font {
+        .custom(SBSFontName.plexMonoSemiBold, size: 16, relativeTo: .callout).monospacedDigit()
+    }
+}
+
+extension SBSLayout {
+    static let space1: CGFloat = 4
+    static let space2: CGFloat = 8
+    static let space3: CGFloat = 12
+    static let space4: CGFloat = 16
+    static let space6: CGFloat = 24
+    static let space8: CGFloat = 32
+
+    static let radiusNone: CGFloat = 0
+    static let radiusSm: CGFloat = 2
+    static let radiusMd: CGFloat = 4
+
+    static let strokeRule: CGFloat = 2
+    static let strokeHairline: CGFloat = 1
+
+    static let hardShadowOffset: CGFloat = 4
+    static let pressedOffset: CGFloat = 2
+}
+
+extension View {
+    // Companion modifiers for the uppercase styles: font, tracking and case
+    // live here so call sites pass sentence case and never set tracking.
+    func titleLargeText() -> some View {
+        font(SBSFonts.titleLarge()).tracking(-0.34).textCase(.uppercase)
+    }
+
+    func eyebrowText() -> some View {
+        font(SBSFonts.eyebrow()).tracking(1.1).textCase(.uppercase)
+    }
+
+    func buttonText() -> some View {
+        font(SBSFonts.button()).tracking(1.2).textCase(.uppercase)
+    }
+
+    func tabText() -> some View {
+        font(SBSFonts.tab()).tracking(0.6).textCase(.uppercase)
+    }
+
+    /// Default card: surface, 2pt corners, 1px hairline, no shadow.
+    func card() -> some View {
+        background(Color.surface)
+            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+            .overlay(
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .strokeBorder(Color.hairline, lineWidth: SBSLayout.strokeHairline)
+            )
+    }
+
+    /// The live set card only: square, 2px rule, hard shadow. One per screen.
+    func signatureCard() -> some View {
+        background(Color.surface)
+            .overlay(Rectangle().strokeBorder(Color.rule, lineWidth: SBSLayout.strokeRule))
+            .hardShadow()
+    }
+
+    /// Hard offset shadow in ink, no blur. Live set card and primary button only.
+    func hardShadow(_ isVisible: Bool = true) -> some View {
+        background(
+            Rectangle()
+                .fill(Color.rule)
+                .offset(x: SBSLayout.hardShadowOffset, y: SBSLayout.hardShadowOffset)
+                .opacity(isVisible ? 1 : 0)
+        )
+    }
+}
+
+/// Orange fill, orange-ink label, 2px rule and hard shadow. One per screen.
+/// Pressed drops the shadow and sits 2pt down and right.
+struct SBSPrimaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        let pressed = configuration.isPressed && isEnabled
+        configuration.label
+            .buttonText()
+            .foregroundStyle(isEnabled ? Color.orangeInk : Color.inkTertiary)
+            .padding(.horizontal, SBSLayout.space6)
+            .frame(minHeight: 48)
+            .background(isEnabled ? Color.orangeFill : Color.surface)
+            .overlay(
+                Rectangle().strokeBorder(
+                    isEnabled ? Color.rule : Color.hairline,
+                    lineWidth: isEnabled ? SBSLayout.strokeRule : SBSLayout.strokeHairline
+                )
+            )
+            .hardShadow(isEnabled && !pressed)
+            .offset(x: pressed ? SBSLayout.pressedOffset : 0, y: pressed ? SBSLayout.pressedOffset : 0)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+/// Surface fill, ink label, hairline edge.
+struct SBSSecondaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        SBSHairlineButtonBody(configuration: configuration, tint: .ink, edge: .hairline)
+    }
+}
+
+/// Secondary with danger for label and edge. End workout, delete cycle.
+struct SBSDestructiveButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        SBSHairlineButtonBody(configuration: configuration, tint: .danger, edge: .danger)
+    }
+}
+
+private struct SBSHairlineButtonBody: View {
+    let configuration: ButtonStyleConfiguration
+    let tint: Color
+    let edge: Color
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        configuration.label
+            .buttonText()
+            .foregroundStyle(isEnabled ? tint : Color.inkTertiary)
+            .padding(.horizontal, SBSLayout.space6)
+            .frame(minHeight: 48)
+            .background(configuration.isPressed ? Color.surfaceRaised : Color.surface)
+            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+            .overlay(
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .strokeBorder(isEnabled ? edge : Color.hairline, lineWidth: SBSLayout.strokeHairline)
+            )
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+/// Number pad key: surface-raised, 2pt corners, number style. The highlighted
+/// key is orange with orange-ink and no shadow.
+struct SBSNumberPadButtonStyle: ButtonStyle {
+    let isHighlighted: Bool
+
+    init(isHighlighted: Bool = false) {
+        self.isHighlighted = isHighlighted
+    }
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(SBSFonts.number())
+            .foregroundStyle(isHighlighted ? Color.orangeInk : Color.ink)
+            .frame(width: 64, height: 64)
+            .background(
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .fill(isHighlighted ? Color.orangeFill : (configuration.isPressed ? Color.surface : Color.surfaceRaised))
+            )
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
 // MARK: - Color Extension for Light/Dark
 
 extension Color {

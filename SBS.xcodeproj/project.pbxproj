@@ -27,6 +27,7 @@
 		2903B9E5722DA3C8111505D6 /* nsuns_6day_deadlift_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = 2269F42F8A319A1B6498E094 /* nsuns_6day_deadlift_12week.json */; };
 		296628F836D26E82BA1C7C43 /* WeekStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 876FC86AA3CC8D7ECF1E1898 /* WeekStrip.swift */; };
 		2B24CE114D2B3D7010AF7032 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D4D5D49D4F3AC3DE5541B46 /* Logger.swift */; };
+		2DDD933ABF47839B777F5A89 /* WorkoutFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7878A2142A4E4B33F8FC4DFF /* WorkoutFlowTests.swift */; };
 		3095A2407E3FAAD7D47456DD /* basic_ppl_12week.json in Resources */ = {isa = PBXBuildFile; fileRef = 03443DDEEAAD0FAE5B85960B /* basic_ppl_12week.json */; };
 		30C2BA334762005EA499D96F /* PersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74D0D96DB99C12AAC1476EA8 /* PersistenceTests.swift */; };
 		341C9CC1D3C28FDD54AD1FE8 /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F46C7C52EFEA53288A58CA9F /* StoreManager.swift */; };
@@ -97,6 +98,7 @@
 		BFA800A6D3AE759C6505C270 /* CSVExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8846CF0A9BBAA916E9D62D8 /* CSVExporter.swift */; };
 		CC4C81FF863D73D6420015C6 /* WorkoutSessionUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1CE70B5BF36329F99B9C698 /* WorkoutSessionUITests.swift */; };
 		CD2A0258E255A3A99FADAE12 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 81A47D6751CFE5F4634BC563 /* Assets.xcassets */; };
+		CE6163F8385BEEDA3104AE97 /* WorkoutFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C50596B680F5F5B838FBB49 /* WorkoutFlowUITests.swift */; };
 		D1441D450B8CF166437B21C4 /* TemplateListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33B52731ABCCAC30EC52F1FE /* TemplateListView.swift */; };
 		D17CF4314B73D5DAB533C874 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED4971D69459FEF06379959 /* NotificationManager.swift */; };
 		D20B42024436A54A33228A86 /* CycleBuilderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 373312ECAAD079C56E0EE43F /* CycleBuilderView.swift */; };
@@ -189,6 +191,7 @@
 		03443DDEEAAD0FAE5B85960B /* basic_ppl_12week.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = basic_ppl_12week.json; sourceTree = "<group>"; };
 		03B7469930F3CE9C3134C46E /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		0997624B4C3F0EEA5A14AF6A /* AccessoryWorkoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessoryWorkoutView.swift; sourceTree = "<group>"; };
+		0C50596B680F5F5B838FBB49 /* WorkoutFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutFlowUITests.swift; sourceTree = "<group>"; };
 		0DC9C493373DEDA57D0E2149 /* HealthKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
 		0E82DE2EF1EA89A65CE26120 /* SBSApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SBSApp.entitlements; sourceTree = "<group>"; };
 		0FDD245FF7C71605DD88F669 /* WorkoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutView.swift; sourceTree = "<group>"; };
@@ -244,6 +247,7 @@
 		72A3DF6AF8A50DF81D357E06 /* ProgramSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgramSelector.swift; sourceTree = "<group>"; };
 		74D0D96DB99C12AAC1476EA8 /* PersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceTests.swift; sourceTree = "<group>"; };
 		77FC36F1043AB9AA554A7A45 /* SBSWatch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SBSWatch.entitlements; sourceTree = "<group>"; };
+		7878A2142A4E4B33F8FC4DFF /* WorkoutFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutFlowTests.swift; sourceTree = "<group>"; };
 		81A47D6751CFE5F4634BC563 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		838AAFCF4CB288F3795E5FF8 /* WatchWorkoutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchWorkoutManager.swift; sourceTree = "<group>"; };
 		854A78BF3E4A007871189B44 /* gzclp_3day_12week.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = gzclp_3day_12week.json; sourceTree = "<group>"; };
@@ -317,6 +321,7 @@
 		3EA9E9DA51AB9691C3EB26F7 /* SBSUITests */ = {
 			isa = PBXGroup;
 			children = (
+				0C50596B680F5F5B838FBB49 /* WorkoutFlowUITests.swift */,
 				D1CE70B5BF36329F99B9C698 /* WorkoutSessionUITests.swift */,
 			);
 			path = SBSUITests;
@@ -396,6 +401,7 @@
 				536256FA5E39D354CF0EAB64 /* ProgressionRegressionTests.swift */,
 				E7F3C994C725013B14E2B28C /* StructuredProgressionTests.swift */,
 				C84D332BEE6622A721A02D62 /* WeightAdjustmentTests.swift */,
+				7878A2142A4E4B33F8FC4DFF /* WorkoutFlowTests.swift */,
 				FEF335E3648ACAC619F4DE54 /* WorkoutSessionPersistenceTests.swift */,
 			);
 			path = SBSTests;
@@ -707,6 +713,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CE6163F8385BEEDA3104AE97 /* WorkoutFlowUITests.swift in Sources */,
 				CC4C81FF863D73D6420015C6 /* WorkoutSessionUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -755,6 +762,7 @@
 				A46BB1C79EE338CC695F36F9 /* StructuredProgressionTests.swift in Sources */,
 				8942FDDEEC81CBA9F6D69BE1 /* WatchConnectivityManager.swift in Sources */,
 				97C17ECDD8DD19A7D83DBF34 /* WeightAdjustmentTests.swift in Sources */,
+				2DDD933ABF47839B777F5A89 /* WorkoutFlowTests.swift in Sources */,
 				EC3A9AF118B42A861AD77AD8 /* WorkoutSessionPersistenceTests.swift in Sources */,
 				F9D3ABCB9023ED82073887EF /* WorkoutState.swift in Sources */,
 			);

@@ -73,14 +73,12 @@ struct ResumeWorkoutBar: View {
     private var state: WorkoutState { session.workoutState }
 
     private var title: String {
-        if let pending = session.pendingLinearExercise { return pending.name }
-        if state.isWorkoutComplete { return "Workout Complete" }
+        if state.isFinished { return "Workout Complete" }
         return state.currentExercise?.name ?? "Workout"
     }
 
     private var subtitle: String {
-        if session.pendingLinearExercise != nil { return "Tap to log your result" }
-        if state.isWorkoutComplete { return "Tap to finish" }
+        if state.isFinished { return "Tap to finish" }
         return session.setInfoText
     }
 

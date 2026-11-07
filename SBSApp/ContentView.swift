@@ -153,6 +153,9 @@ struct MainTabView: View {
         } message: {
             Text("This workout has been sitting for a while. Results you've already logged are kept either way.")
         }
+        .onChange(of: appState.returnToHomeCount) { _, _ in
+            selectedTab = .home
+        }
         // Here rather than on a tab, which may not be updating while off screen
         .onChange(of: appState.userData.currentCycleStartDate) { _, _ in
             appState.endWorkoutForCycleChange()

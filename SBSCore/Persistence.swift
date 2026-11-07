@@ -127,7 +127,9 @@ public struct UserSettings: Codable, Equatable {
     public var roundingIncrement: Double
     public var currentWeek: Int
     public var currentDay: Int
-    public var restTimerDuration: Int  // seconds
+    public var restTimerDuration: Int  // seconds, for main lifts
+    /// Optional so settings saved before this existed still decode
+    public var accessoryRestTimerDuration: Int?  // seconds; nil means the default
     public var supersetAccessories: Bool  // show accessories during rest timer
     public var weightAdjustments: WeightAdjustments  // TM adjustment based on rep performance
     public var barWeight: Double  // in lbs (45 for standard, 35 for women's, etc.)
@@ -176,6 +178,14 @@ public struct UserSettings: Codable, Equatable {
         self.pushNotificationsEnabled = pushNotificationsEnabled
     }
     
+    public static let defaultAccessoryRestSeconds = 90
+
+    /// Rest between accessory sets
+    public var accessoryRestSeconds: Int {
+        get { accessoryRestTimerDuration ?? Self.defaultAccessoryRestSeconds }
+        set { accessoryRestTimerDuration = newValue }
+    }
+
     public static let `default` = UserSettings()
 }
 

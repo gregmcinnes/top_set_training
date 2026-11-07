@@ -289,7 +289,7 @@ enum BarWeightOptions {
 
 // MARK: - Weight Formatting
 
-private let lbToKg = 0.45359237
+let lbToKg = 0.45359237
 
 extension Double {
     func formattedWeight(useMetric: Bool = false) -> String {

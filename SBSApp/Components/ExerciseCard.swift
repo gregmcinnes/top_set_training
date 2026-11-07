@@ -669,16 +669,6 @@ struct LinearCard: View {
                     .foregroundStyle(SBSColors.textPrimaryFallback)
                 
                 Spacer()
-                
-                Text("TM: \(info.weight.formattedWeight(useMetric: useMetric))")
-                    .font(SBSFonts.captionBold())
-                    .foregroundStyle(SBSColors.accentFallback)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(
-                        Capsule()
-                            .fill(SBSColors.accentFallback.opacity(0.15))
-                    )
             }
             
             // Prescription

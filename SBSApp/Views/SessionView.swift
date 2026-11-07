@@ -235,8 +235,6 @@ struct SessionView: View {
                     celebratingPR = nil
                 }
             )
-            // Transparent cover so the celebration dims the session behind it.
-            .presentationBackground(.clear)
         }
         .sheet(item: $accessoryLogData) { data in
             AccessoryLogSheet(

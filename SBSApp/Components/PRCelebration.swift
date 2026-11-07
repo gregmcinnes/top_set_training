@@ -67,8 +67,8 @@ struct PRCelebrationView: View {
     
     var body: some View {
         ZStack {
-            // Dimmed background
-            Color.black.opacity(0.7)
+            // Solid, so nothing behind it can collide with this text
+            Color.black
                 .ignoresSafeArea()
                 .onTapGesture {
                     dismissWithAnimation()
@@ -115,7 +115,7 @@ struct PRCelebrationView: View {
                 
                 // Title
                 VStack(spacing: SBSLayout.paddingSmall) {
-                    Text("🎉 NEW PR! 🎉")
+                    Text("NEW PR!")
                         .font(.system(size: 28, weight: .black, design: .rounded))
                         .foregroundStyle(
                             LinearGradient(

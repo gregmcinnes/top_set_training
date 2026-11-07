@@ -17,7 +17,6 @@ struct WorkoutView: View {
     @Bindable var session: ActiveWorkoutSession
 
     @State private var showingExitConfirm = false
-    @State private var showingSaveToFitnessPrompt = false
     @State private var showingExercisePicker = false
     @State private var showingPaywall = false  // For premium features
     @State private var showingShareSheet = false  // For workout summary share
@@ -42,23 +41,28 @@ struct WorkoutView: View {
         ZStack {
             // Main content
             VStack(spacing: 0) {
-                // Progress header
-                WorkoutProgressHeader(
-                    progress: workoutState.progress,
-                    exerciseName: workoutState.currentExercise?.name ?? "Workout",
-                    setInfo: session.setInfoText,
-                    isAccessory: workoutState.isCurrentExerciseAccessory,
-                    heartRate: watchConnectivity.currentHeartRate
-                )
-                
-                if workoutState.isWorkoutComplete {
+                // The summary has its own header: the workout is over
+                if !workoutState.isFinished {
+                    WorkoutProgressHeader(
+                        progress: workoutState.progress,
+                        exerciseName: workoutState.currentExercise?.name ?? "Workout",
+                        setInfo: session.setInfoText,
+                        isAccessory: workoutState.isCurrentExerciseAccessory,
+                        heartRate: watchConnectivity.currentHeartRate
+                    )
+                }
+
+                if workoutState.isFinished {
                     WorkoutCompleteView(
                         workoutState: workoutState,
-                        appState: appState,
-                        week: week,
-                        day: day,
+                        stats: session.calculateWorkoutStats(),
+                        duration: session.workoutDuration,
+                        outlooks: session.liftOutlooks(),
+                        useMetric: appState.settings.useMetric,
+                        canUndo: session.canUndoLastSet,
                         onDone: { session.finishAndDismiss() },
-                        onShare: { showingShareSheet = true }
+                        onShare: { showingShareSheet = true },
+                        onUndo: { session.undoLastSet() }
                     )
                 } else if workoutState.showingTimer {
                     // Timer view with next set preview
@@ -92,7 +96,8 @@ struct WorkoutView: View {
                         },
                         onAdjust: { delta in
                             session.handleTimerAdjust(by: delta)
-                        }
+                        },
+                        onUndo: session.canUndoLastSet ? { session.undoLastSet() } : nil
                     )
                 } else {
                     // Current set view
@@ -102,6 +107,11 @@ struct WorkoutView: View {
                         barWeight: appState.settings.barWeight,
                         showPlateCalculator: appState.shouldShowPlateCalculator,
                         onComplete: session.handleSetComplete,
+                        onMissed: session.handleSetMissed,
+                        onUndoSet: { exerciseId, setNumber in
+                            session.undoSet(exerciseId: exerciseId, setNumber: setNumber)
+                        },
+                        lastTime: lastTimeText,
                         onUnlockTap: { showingPaywall = true },
                         onWeightTap: {
                             guard let exercise = workoutState.currentExercise else { return }
@@ -118,48 +128,58 @@ struct WorkoutView: View {
             }
             .sbsBackground()
         }
-        .navigationTitle("Workout")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         // Cap Dynamic Type so the largest accessibility sizes can't break the
         // fixed-height number pad / rest-timer layouts on this screen.
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                // Minimizing leaves the session running behind the resume bar
-                Button {
-                    appState.minimizeWorkout()
-                } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
-                }
-                .accessibilityLabel("Minimize workout")
-            }
-
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                Button {
-                    showingExercisePicker = true
-                } label: {
-                    Image(systemName: "list.bullet")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
-                }
-                .accessibilityLabel("Exercise list")
-
-                Button {
-                    // If Apple Fitness is enabled and there's workout progress, offer to save
-                    if storeManager.canAccess(.appleFitness) && appState.settings.healthKitEnabled && session.hasWorkoutProgress {
-                        showingSaveToFitnessPrompt = true
-                    } else {
-                        showingExitConfirm = true
+            if !workoutState.isFinished {
+                ToolbarItem(placement: .principal) {
+                    VStack(spacing: 0) {
+                        Text(appState.dayTitle(day: day))
+                            .font(SBSFonts.bodyBold())
+                            .foregroundStyle(SBSColors.textPrimaryFallback)
+                            .lineLimit(1)
+                        Text("Week \(week) · \(appState.programDisplayName)")
+                            .font(SBSFonts.caption2())
+                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .lineLimit(1)
                     }
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .accessibilityElement(children: .combine)
                 }
-                .accessibilityLabel("Exit workout")
+
+                ToolbarItem(placement: .topBarLeading) {
+                    // Minimizing leaves the session running behind the resume bar
+                    Button {
+                        appState.minimizeWorkout()
+                    } label: {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                    }
+                    .accessibilityLabel("Minimize workout")
+                }
+
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button {
+                        showingExercisePicker = true
+                    } label: {
+                        Image(systemName: "list.bullet")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                    }
+                    .accessibilityLabel("Exercise list")
+
+                    Button {
+                        showingExitConfirm = true
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                    }
+                    .accessibilityLabel("Exit workout")
+                }
             }
         }
         .sheet(isPresented: $showingExercisePicker) {
@@ -176,29 +196,41 @@ struct WorkoutView: View {
                     // Otherwise the Watch keeps showing the old set, and its next
                     // completion is dropped by the identity guard.
                     session.syncWorkoutStateToWatch()
+                },
+                onFinish: {
+                    session.finishEarly()
+                    showingExercisePicker = false
                 }
             )
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
         .alert("Exit Workout?", isPresented: $showingExitConfirm) {
-            Button("Cancel", role: .cancel) {}
+            Button("Keep Going", role: .cancel) {}
+            if session.hasWorkoutProgress {
+                Button("Finish Workout") {
+                    session.finishEarly()
+                }
+            }
             Button("Exit", role: .destructive) {
                 session.exitWorkoutWithoutSaving()
             }
         } message: {
-            Text("Results you've already logged are kept, but your place in this session will be lost.")
+            if session.hasWorkoutProgress {
+                Text("Finish Workout shows your summary and saves to Apple Fitness if it's on. Exit drops this session without either. Results already logged are kept.")
+            } else {
+                Text("Nothing has been logged in this session.")
+            }
         }
-        .alert("Save to Apple Fitness?", isPresented: $showingSaveToFitnessPrompt) {
-            Button("Don't Save", role: .destructive) {
-                session.exitWorkoutWithoutSaving()
+        .alert("Lifts Still Open", isPresented: $session.showingOpenExercisesPrompt) {
+            Button("Go Back") {
+                session.goBackToOpenExercise()
             }
-            Button("Save Workout") {
-                session.exitWorkoutAndSaveToFitness()
+            Button("Finish Workout") {
+                session.finishEarly()
             }
-            Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Save this workout to Apple Fitness? You've completed \(workoutState.completedSetsCount) sets.")
+            Text("You still have \(workoutState.remainingSetsCount) \(workoutState.remainingSetsCount == 1 ? "set" : "sets") left. Go back to them, or finish here? Lifts you don't finish log nothing and keep their weight.")
         }
         .sheet(isPresented: $session.showingRepInput) {
             RepOutInputSheet(
@@ -273,8 +305,7 @@ struct WorkoutView: View {
             .presentationDetents([.height(420), .medium])
             .presentationDragIndicator(.visible)
         }
-        // item-driven: an isPresented cover reading separate optional state can render
-        // empty, and a clear background makes that an invisible, undismissable screen.
+        // item-driven: an isPresented cover reading separate optional state can render empty
         .fullScreenCover(item: $session.celebratingPR) { result in
             PRCelebrationView(
                 liftName: result.liftName,
@@ -288,42 +319,8 @@ struct WorkoutView: View {
                 programName: appState.programData?.displayName ?? appState.programData?.name,
                 onDismiss: {
                     session.celebratingPR = nil
-                    // Note: completeSetAndStartTimer() is now called before showing the celebration
-                    // to match the non-PR flow and prevent skipping sets
                 }
             )
-            // Make the cover itself transparent so the celebration's own
-            // dim scrim composites over the live workout rather than an
-            // opaque system background. (.background(Color.clear) does not
-            // achieve this on a fullScreenCover.)
-            .presentationBackground(.clear)
-        }
-        .sheet(isPresented: $session.showingLinearResult) {
-            LinearResultSheet(
-                exerciseName: session.pendingLinearExercise?.name ?? "",
-                weight: session.pendingLinearExercise?.weight ?? 0,
-                sets: session.pendingLinearExercise?.totalSets ?? 0,
-                reps: session.pendingLinearExercise?.repsPerSet ?? 0,
-                failedSets: session.pendingLinearExerciseFailedCount,
-                increment: session.pendingLinearExercise?.linearInfo?.increment ?? 5,
-                isDeloadPending: session.pendingLinearExercise?.linearInfo?.isDeloadPending ?? false,
-                consecutiveFailures: session.pendingLinearExercise?.linearInfo?.consecutiveFailures ?? 0,
-                useMetric: appState.settings.useMetric,
-                onSuccess: {
-                    session.handleLinearSuccess()
-                    session.showingLinearResult = false
-                    session.advanceLinearResultQueue()
-                },
-                onFailure: {
-                    session.handleLinearFailure()
-                    session.showingLinearResult = false
-                    session.advanceLinearResultQueue()
-                }
-            )
-            .presentationDetents([.medium])
-            .presentationDragIndicator(.hidden)
-            // Swiping this away would skip logging, so the lift wouldn't progress
-            .interactiveDismissDisabled()
         }
         .sheet(isPresented: $showingPaywall) {
             PaywallView(triggeredByFeature: .plateCalculator)
@@ -403,6 +400,20 @@ struct WorkoutView: View {
             session.workoutScreenDidAppear()
         }
     }
+
+    /// What the lifter last did on a main lift, e.g. "Last time: 100 lb, 5×5"
+    private func lastTimeText(for exercise: WorkoutExercise) -> String? {
+        guard !exercise.isAccessory, let lift = exercise.lift,
+              let record = appState.lastPerformance(lift: lift, week: week, day: day) else { return nil }
+        let useMetric = appState.settings.useMetric
+        let weight = record.weight.formattedWeight(useMetric: useMetric)
+        if let setType = record.setType, setType.contains("×") {
+            // Linear results are stored as "5×5" or "5×5 (failed)"
+            let scheme = setType.replacingOccurrences(of: " (failed)", with: "")
+            return "Last time: \(weight), \(scheme)\(setType.contains("(failed)") ? ", missed reps" : "")"
+        }
+        return "Last time: \(weight) × \(record.reps)"
+    }
 }
 
 // MARK: - Workout Progress Header
@@ -480,8 +491,7 @@ struct WorkoutProgressHeader: View {
                     .font(SBSFonts.captionBold())
                     .foregroundStyle(isAccessory ? SBSColors.accentSecondaryFallback : SBSColors.accentFallback)
             }
-            .padding(.leading, 40) // Account for navigation bar X button
-            .padding(.trailing)
+            .padding(.horizontal)
             .padding(.bottom, SBSLayout.paddingSmall)
         }
         .background(SBSColors.surfaceFallback)
@@ -496,10 +506,15 @@ struct CurrentSetView: View {
     var barWeight: Double = 45
     var showPlateCalculator: Bool = true
     let onComplete: () -> Void
+    var onMissed: (() -> Void)?
+    var onUndoSet: ((UUID, Int) -> Void)?
+    var lastTime: (WorkoutExercise) -> String? = { _ in nil }
     var onUnlockTap: (() -> Void)?
     var onWeightTap: (() -> Void)?
     var onMarkEasy: (() -> Void)?
     var personalRecordE1RM: (String) -> Double? = { _ in nil }
+
+    @State private var setToUndo: Int?
 
     /// Get the current set info for nSuns exercises
     private var currentStructuredSet: StructuredSetInfo? {
@@ -557,7 +572,14 @@ struct CurrentSetView: View {
             if structuredSet.isWeightOverridden { return "Adjusted" }
             return "\(Int(round(structuredSet.intensity * 100)))% TM"
         }
-        // For volume and linear exercises, use the exercise-level intensity
+        // A linear lift's weight isn't a percentage of anything, so only say if it's changed
+        if let exercise = workoutState.currentExercise, exercise.isLinear {
+            if let calculated = exercise.calculatedWeight, calculated != exercise.weight {
+                return "Adjusted"
+            }
+            return nil
+        }
+        // For volume exercises, use the exercise-level intensity
         if let exercise = workoutState.currentExercise,
            let intensity = exercise.intensity,
            intensity > 0 {
@@ -580,13 +602,16 @@ struct CurrentSetView: View {
                         sets: sets,
                         currentSet: workoutState.currentSetNumber,
                         completedSets: workoutState.completedSets[exercise.id] ?? [],
-                        useMetric: useMetric
+                        useMetric: useMetric,
+                        onCompletedTap: { setToUndo = $0 }
                     )
                 } else {
                     SetIndicatorStrip(
                         totalSets: exercise.totalSets,
                         currentSet: workoutState.currentSetNumber,
                         completedSets: workoutState.completedSets[exercise.id] ?? [],
+                        failedSets: workoutState.failedSets[exercise.id] ?? [],
+                        onCompletedTap: { setToUndo = $0 },
                         repsPerSet: exercise.repsPerSet,
                         repOutTarget: exercise.repOutTarget,
                         isRepOutSet: exercise.isRepOutSet,
@@ -615,30 +640,14 @@ struct CurrentSetView: View {
                         )
 
                         // Weight (tappable to edit; shown even if 0 for bodyweight)
-                        Button {
-                            onWeightTap?()
-                        } label: {
-                            HStack(spacing: 6) {
-                                Text(exercise.weight.formattedWeight(useMetric: useMetric))
-                                    .font(SBSFonts.display())
-                                    .foregroundStyle(SBSColors.accentSecondaryFallback)
-
-                                Image(systemName: "pencil.circle")
-                                    .font(SBSFonts.title3())
-                                    .foregroundStyle(SBSColors.textTertiaryFallback)
-                            }
-                        }
-
-                        // Reps
-                        HStack(spacing: SBSLayout.paddingSmall) {
-                            Text("\(exercise.repsPerSet)")
-                                .font(SBSFonts.title())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
-
-                            Text("reps")
-                                .font(SBSFonts.title2())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
-                        }
+                        PrescriptionHero(
+                            weight: exercise.weight.formattedWeight(useMetric: useMetric),
+                            reps: "\(exercise.repsPerSet)",
+                            repsLabel: "reps",
+                            weightColor: SBSColors.accentSecondaryFallback,
+                            repsColor: SBSColors.textPrimaryFallback,
+                            onWeightTap: onWeightTap
+                        )
 
                         if exercise.lastWasEasy == true {
                             HStack(spacing: 4) {
@@ -699,20 +708,15 @@ struct CurrentSetView: View {
                         }
                         
                         // Weight for THIS set (tappable to override)
-                        Button {
-                            onWeightTap?()
-                        } label: {
-                            HStack(spacing: 6) {
-                                Text(currentWeight.formattedWeight(useMetric: useMetric))
-                                    .font(SBSFonts.display())
-                                    .foregroundStyle(isCurrentAMRAP ? SBSColors.warning : SBSColors.accentFallback)
+                        PrescriptionHero(
+                            weight: currentWeight.formattedWeight(useMetric: useMetric),
+                            reps: isCurrentAMRAP ? "\(currentReps)+" : "\(currentReps)",
+                            repsLabel: isCurrentAMRAP ? "reps (AMRAP)" : "reps",
+                            weightColor: isCurrentAMRAP ? SBSColors.warning : SBSColors.accentFallback,
+                            repsColor: isCurrentAMRAP ? SBSColors.warning : SBSColors.textPrimaryFallback,
+                            onWeightTap: onWeightTap
+                        )
 
-                                Image(systemName: "pencil.circle")
-                                    .font(SBSFonts.title3())
-                                    .foregroundStyle(SBSColors.textTertiaryFallback)
-                            }
-                        }
-                        
                         // Plate Calculator
                         if showPlateCalculator && currentWeight >= barWeight {
                             PremiumBarbellView(
@@ -726,27 +730,8 @@ struct CurrentSetView: View {
                             .padding(.horizontal, SBSLayout.paddingMedium)
                         }
                         
-                        // Reps
-                        HStack(spacing: SBSLayout.paddingSmall) {
-                            if isCurrentAMRAP {
-                                Text("\(currentReps)+")
-                                    .font(SBSFonts.title())
-                                    .foregroundStyle(SBSColors.warning)
-                                
-                                Text("reps (AMRAP)")
-                                    .font(SBSFonts.title2())
-                                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                            } else {
-                                Text("\(currentReps)")
-                                    .font(SBSFonts.title())
-                                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                                
-                                Text("reps")
-                                    .font(SBSFonts.title2())
-                                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                            }
-                        }
-                        
+                        lastTimeLabel(for: exercise)
+
                         if isCurrentAMRAP {
                             Text(currentReps == 1 ? "Heavy single - go for it!" : "AMRAP set - push it!")
                                 .font(SBSFonts.caption())
@@ -788,20 +773,15 @@ struct CurrentSetView: View {
                         }
 
                         // Weight (tappable to override)
-                        Button {
-                            onWeightTap?()
-                        } label: {
-                            HStack(spacing: 6) {
-                                Text(exercise.weight.formattedWeight(useMetric: useMetric))
-                                    .font(SBSFonts.display())
-                                    .foregroundStyle(SBSColors.accentFallback)
+                        PrescriptionHero(
+                            weight: exercise.weight.formattedWeight(useMetric: useMetric),
+                            reps: "\(exercise.repsPerSet)",
+                            repsLabel: "reps",
+                            weightColor: SBSColors.accentFallback,
+                            repsColor: SBSColors.textPrimaryFallback,
+                            onWeightTap: onWeightTap
+                        )
 
-                                Image(systemName: "pencil.circle")
-                                    .font(SBSFonts.title3())
-                                    .foregroundStyle(SBSColors.textTertiaryFallback)
-                            }
-                        }
-                        
                         // Plate Calculator - visual barbell
                         if showPlateCalculator && exercise.weight >= barWeight {
                             PremiumBarbellView(
@@ -814,18 +794,9 @@ struct CurrentSetView: View {
                             )
                             .padding(.horizontal, SBSLayout.paddingMedium)
                         }
-                        
-                        // Reps
-                        HStack(spacing: SBSLayout.paddingSmall) {
-                            Text("\(exercise.repsPerSet)")
-                                .font(SBSFonts.title())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
-                            
-                            Text("reps")
-                                .font(SBSFonts.title2())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
-                        }
-                        
+
+                        lastTimeLabel(for: exercise)
+
                         // Deload warning
                         if let info = exercise.linearInfo, info.isDeloadPending {
                             HStack(spacing: SBSLayout.paddingSmall) {
@@ -861,20 +832,15 @@ struct CurrentSetView: View {
                         }
 
                         // Weight (tappable to override)
-                        Button {
-                            onWeightTap?()
-                        } label: {
-                            HStack(spacing: 6) {
-                                Text(exercise.weight.formattedWeight(useMetric: useMetric))
-                                    .font(SBSFonts.display())
-                                    .foregroundStyle(SBSColors.accentFallback)
+                        PrescriptionHero(
+                            weight: exercise.weight.formattedWeight(useMetric: useMetric),
+                            reps: workoutState.isCurrentSetRepOut ? "\(exercise.repOutTarget)+" : "\(exercise.repsPerSet)",
+                            repsLabel: workoutState.isCurrentSetRepOut ? "reps (AMRAP)" : "reps",
+                            weightColor: SBSColors.accentFallback,
+                            repsColor: workoutState.isCurrentSetRepOut ? SBSColors.success : SBSColors.textPrimaryFallback,
+                            onWeightTap: onWeightTap
+                        )
 
-                                Image(systemName: "pencil.circle")
-                                    .font(SBSFonts.title3())
-                                    .foregroundStyle(SBSColors.textTertiaryFallback)
-                            }
-                        }
-                        
                         // Plate Calculator - visual barbell
                         if showPlateCalculator && exercise.weight >= barWeight {
                             PremiumBarbellView(
@@ -888,27 +854,8 @@ struct CurrentSetView: View {
                             .padding(.horizontal, SBSLayout.paddingMedium)
                         }
                         
-                        // Reps
-                        HStack(spacing: SBSLayout.paddingSmall) {
-                            if workoutState.isCurrentSetRepOut {
-                                Text("\(exercise.repOutTarget)+")
-                                    .font(SBSFonts.title())
-                                    .foregroundStyle(SBSColors.success)
-                                
-                                Text("reps (AMRAP)")
-                                    .font(SBSFonts.title2())
-                                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                            } else {
-                                Text("\(exercise.repsPerSet)")
-                                    .font(SBSFonts.title())
-                                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                                
-                                Text("reps")
-                                    .font(SBSFonts.title2())
-                                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                            }
-                        }
-                        
+                        lastTimeLabel(for: exercise)
+
                         if workoutState.isCurrentSetRepOut {
                             Text("Last set! Go for max reps")
                                 .font(SBSFonts.caption())
@@ -955,8 +902,43 @@ struct CurrentSetView: View {
                     )
                 }
                 .padding(.horizontal, SBSLayout.paddingLarge)
-                .padding(.bottom, SBSLayout.paddingXLarge)
+                .padding(.bottom, exercise.isLinear ? 0 : SBSLayout.paddingXLarge)
+
+                // Only linear lifts progress from each set's result. Elsewhere a set's
+                // reps don't change anything, and an AMRAP asks for its count anyway.
+                if exercise.isLinear {
+                    Button("Missed Reps") {
+                        onMissed?()
+                    }
+                    .font(SBSFonts.bodyBold())
+                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .frame(minHeight: 44)
+                    .padding(.bottom, SBSLayout.paddingMedium)
+                    .disabled(workoutState.isSetCompleted(workoutState.currentSetNumber))
+                }
             }
+        }
+        .alert(
+            "Undo Set \(setToUndo ?? 0)?",
+            isPresented: Binding(get: { setToUndo != nil }, set: { if !$0 { setToUndo = nil } })
+        ) {
+            Button("Keep It", role: .cancel) {}
+            Button("Undo Set") {
+                if let setToUndo, let exercise = workoutState.currentExercise {
+                    onUndoSet?(exercise.id, setToUndo)
+                }
+            }
+        } message: {
+            Text("This reopens the set and removes anything it logged.")
+        }
+    }
+
+    @ViewBuilder
+    private func lastTimeLabel(for exercise: WorkoutExercise) -> some View {
+        if let text = lastTime(exercise) {
+            Text(text)
+                .font(SBSFonts.caption())
+                .foregroundStyle(SBSColors.textSecondaryFallback)
         }
     }
     
@@ -974,6 +956,52 @@ struct CurrentSetView: View {
     }
 }
 
+// MARK: - Prescription Hero
+
+/// The two numbers a lifter needs from across the room: the weight and the reps
+struct PrescriptionHero: View {
+    let weight: String
+    let reps: String
+    let repsLabel: String
+    let weightColor: Color
+    let repsColor: Color
+    var onWeightTap: (() -> Void)?
+
+    @ScaledMetric(relativeTo: .largeTitle) private var weightSize: CGFloat = 60
+    @ScaledMetric(relativeTo: .largeTitle) private var repsSize: CGFloat = 40
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Button {
+                onWeightTap?()
+            } label: {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(weight)
+                        .font(.system(size: weightSize, weight: .bold, design: .rounded))
+                        .foregroundStyle(weightColor)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+
+                    Image(systemName: "pencil.circle")
+                        .font(SBSFonts.title3())
+                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                }
+            }
+            .padding(.horizontal, SBSLayout.paddingLarge)
+
+            HStack(alignment: .firstTextBaseline, spacing: SBSLayout.paddingSmall) {
+                Text(reps)
+                    .font(.system(size: repsSize, weight: .bold, design: .rounded))
+                    .foregroundStyle(repsColor)
+
+                Text(repsLabel)
+                    .font(SBSFonts.title2())
+                    .foregroundStyle(SBSColors.textSecondaryFallback)
+            }
+        }
+    }
+}
+
 // MARK: - nSuns Set Indicator Strip
 
 struct StructuredSetIndicatorStrip: View {
@@ -981,6 +1009,7 @@ struct StructuredSetIndicatorStrip: View {
     let currentSet: Int  // 1-indexed
     let completedSets: Set<Int>  // 1-indexed set numbers
     let useMetric: Bool
+    var onCompletedTap: ((Int) -> Void)?
     
     var body: some View {
         GeometryReader { geometry in
@@ -988,12 +1017,18 @@ struct StructuredSetIndicatorStrip: View {
                 HStack(spacing: 6) {
                     ForEach(sets, id: \.setIndex) { setInfo in
                         let setNumber = setInfo.setIndex + 1  // Convert to 1-indexed
-                        StructuredSetIndicator(
-                            setInfo: setInfo,
+                        CompletedSetTapTarget(
+                            setNumber: setNumber,
                             isCompleted: completedSets.contains(setNumber),
-                            isCurrent: setNumber == currentSet,
-                            useMetric: useMetric
-                        )
+                            onTap: onCompletedTap
+                        ) {
+                            StructuredSetIndicator(
+                                setInfo: setInfo,
+                                isCompleted: completedSets.contains(setNumber),
+                                isCurrent: setNumber == currentSet,
+                                useMetric: useMetric
+                            )
+                        }
                     }
                 }
                 .padding(.horizontal, SBSLayout.paddingLarge)
@@ -1048,12 +1083,36 @@ struct StructuredSetIndicator: View {
     }
 }
 
+/// A set indicator that offers undo once its set is completed
+struct CompletedSetTapTarget<Content: View>: View {
+    let setNumber: Int
+    let isCompleted: Bool
+    let onTap: ((Int) -> Void)?
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        if isCompleted, let onTap {
+            Button {
+                onTap(setNumber)
+            } label: {
+                content()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Undo set \(setNumber)")
+        } else {
+            content()
+        }
+    }
+}
+
 // MARK: - Set Indicator Strip
 
 struct SetIndicatorStrip: View {
     let totalSets: Int
     let currentSet: Int
     let completedSets: Set<Int>
+    var failedSets: Set<Int> = []
+    var onCompletedTap: ((Int) -> Void)?
     let repsPerSet: Int
     let repOutTarget: Int
     let isRepOutSet: (Int) -> Bool
@@ -1066,14 +1125,21 @@ struct SetIndicatorStrip: View {
                     ForEach(1...totalSets, id: \.self) { setNumber in
                         let isAmrap = isRepOutSet(setNumber)
                         let reps = isAmrap ? repOutTarget : repsPerSet
-                        SetIndicator(
+                        CompletedSetTapTarget(
                             setNumber: setNumber,
-                            reps: reps,
-                            isAmrap: isAmrap,
                             isCompleted: completedSets.contains(setNumber),
-                            isCurrent: setNumber == currentSet,
-                            isAccessory: isAccessory
-                        )
+                            onTap: onCompletedTap
+                        ) {
+                            SetIndicator(
+                                setNumber: setNumber,
+                                reps: reps,
+                                isAmrap: isAmrap,
+                                isCompleted: completedSets.contains(setNumber),
+                                isCurrent: setNumber == currentSet,
+                                isFailed: failedSets.contains(setNumber),
+                                isAccessory: isAccessory
+                            )
+                        }
                     }
                 }
                 .padding(.horizontal, SBSLayout.paddingLarge)
@@ -1090,6 +1156,7 @@ struct SetIndicator: View {
     let isAmrap: Bool
     let isCompleted: Bool
     let isCurrent: Bool
+    var isFailed: Bool = false
     var isAccessory: Bool = false
     
     var body: some View {
@@ -1100,7 +1167,7 @@ struct SetIndicator: View {
                     .frame(width: 44, height: 44)
                 
                 if isCompleted {
-                    Image(systemName: "checkmark")
+                    Image(systemName: isFailed ? "xmark" : "checkmark")
                         .font(.system(size: 18, weight: .bold))
                         .foregroundStyle(.white)
                 } else {
@@ -1114,12 +1181,14 @@ struct SetIndicator: View {
             // Show set number label below
             Text("Set \(setNumber)")
                 .font(SBSFonts.label())
-                .foregroundStyle(isCurrent ? (isAmrap && !isAccessory ? SBSColors.success : SBSColors.accentFallback) : SBSColors.textTertiaryFallback)
+                .foregroundStyle(isCurrent ? (isAccessory ? SBSColors.accentSecondaryFallback : isAmrap ? SBSColors.success : SBSColors.accentFallback) : SBSColors.textTertiaryFallback)
         }
     }
     
     private var backgroundColor: Color {
-        if isCompleted {
+        if isFailed {
+            return SBSColors.warning
+        } else if isCompleted {
             return SBSColors.success
         } else if isCurrent {
             if isAccessory {
@@ -1146,6 +1215,7 @@ struct TimerView: View {
     var onPause: (() -> Void)?
     var onResume: (() -> Void)?
     var onAdjust: ((Int) -> Void)?
+    var onUndo: (() -> Void)?
     
     private var hasSuperset: Bool {
         showSuperset && workoutState.currentSupersetAccessory != nil
@@ -1284,6 +1354,15 @@ struct TimerView: View {
                         )
                 }
                 .accessibilityLabel("Add 15 seconds")
+            }
+
+            if let onUndo {
+                Button(action: onUndo) {
+                    Label("Undo Last Set", systemImage: "arrow.uturn.backward")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .frame(minHeight: 44)
+                }
             }
             
             Spacer(minLength: hasSuperset ? 8 : 20)
@@ -1579,173 +1658,50 @@ struct SupersetAccessoryCard: View {
 
 struct WorkoutCompleteView: View {
     let workoutState: WorkoutState
-    let appState: AppState
-    let week: Int
-    let day: Int
+    let stats: (volume: Double, sets: Int, reps: Int)
+    let duration: TimeInterval?
+    let outlooks: [ActiveWorkoutSession.LiftOutlook]
+    let useMetric: Bool
+    let canUndo: Bool
     let onDone: () -> Void
     let onShare: () -> Void
-    
-    @State private var confettiScale: CGFloat = 0.5
-    @State private var confettiOpacity: Double = 0
+    let onUndo: () -> Void
+
     @State private var showConfetti = false
-    
-    private var hasPRs: Bool {
-        !workoutState.prsAchieved.isEmpty
+
+    private var prs: [WorkoutPRRecord] { workoutState.prsAchieved }
+
+    private var durationText: String? {
+        guard let duration else { return nil }
+        let minutes = Int((duration / 60).rounded())
+        if minutes < 60 { return "\(minutes) min" }
+        return "\(minutes / 60) hr \(minutes % 60) min"
     }
-    
-    private var prCount: Int {
-        workoutState.prsAchieved.count
+
+    private var volumeText: String {
+        // Grouped: a workout's volume runs to five figures
+        let value = useMetric ? stats.volume * lbToKg : stats.volume
+        return "\(Int(value.rounded()).formatted()) \(useMetric ? "kg" : "lb")"
     }
-    
+
     var body: some View {
         ZStack {
-            VStack(spacing: SBSLayout.paddingLarge) {
-                Spacer()
-                
-                // Celebration icon
-                ZStack {
-                    // Glow for PRs
-                    if hasPRs {
-                        Circle()
-                            .fill(
-                                RadialGradient(
-                                    colors: [Color.yellow.opacity(0.4), Color.clear],
-                                    center: .center,
-                                    startRadius: 20,
-                                    endRadius: 100
-                                )
-                            )
-                            .frame(width: 180, height: 180)
-                            .scaleEffect(showConfetti ? 1.2 : 0.8)
-                            .animation(.easeInOut(duration: 1).repeatForever(autoreverses: true), value: showConfetti)
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(spacing: SBSLayout.paddingLarge) {
+                        header
+                        statsRow
+                        if !prs.isEmpty { prSection }
+                        if !outlooks.isEmpty { outlookSection }
                     }
-                    
-                    Circle()
-                        .fill((hasPRs ? Color.orange : SBSColors.success).opacity(0.15))
-                        .frame(width: 140, height: 140)
-                        .scaleEffect(confettiScale)
-                        .opacity(confettiOpacity)
-                    
-                    if hasPRs {
-                        Image(systemName: "trophy.fill")
-                            .font(.system(size: 70))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.yellow, .orange],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                            .shadow(color: .orange.opacity(0.5), radius: 10, x: 0, y: 5)
-                    } else {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 80))
-                            .foregroundStyle(SBSColors.success)
-                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, SBSLayout.paddingLarge)
                 }
-                
-                VStack(spacing: SBSLayout.paddingSmall) {
-                    if hasPRs {
-                        Text("🎉 \(prCount) NEW PR\(prCount > 1 ? "S" : "")! 🎉")
-                            .font(SBSFonts.title())
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.yellow, .orange],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                        
-                        Text("Workout Complete!")
-                            .font(SBSFonts.title())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
-                    } else {
-                        Text("Workout Complete!")
-                            .font(SBSFonts.largeTitle())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
-                    }
-                    
-                    Text("Great work! Your progress has been saved.")
-                        .font(SBSFonts.body())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
-                        .multilineTextAlignment(.center)
-                }
-                
-                // Quick stats
-                HStack(spacing: SBSLayout.paddingLarge) {
-                    StatBubble(
-                        icon: "dumbbell.fill",
-                        value: "\(workoutState.exercises.count)",
-                        label: "exercises"
-                    )
-                    
-                    StatBubble(
-                        icon: "checkmark.circle.fill",
-                        value: "\(workoutState.completedSets.values.reduce(0) { $0 + $1.count })",
-                        label: "sets"
-                    )
-                    
-                    if !workoutState.amrapResults.isEmpty {
-                        StatBubble(
-                            icon: "flame.fill",
-                            value: "\(workoutState.amrapResults.count)",
-                            label: "AMRAPs"
-                        )
-                    }
-                }
-                .padding(.top, SBSLayout.paddingMedium)
-                
-                Spacer()
-                
-                // Buttons
-                VStack(spacing: SBSLayout.paddingMedium) {
-                    // Share button (more prominent for PRs)
-                    Button(action: onShare) {
-                        HStack(spacing: SBSLayout.paddingSmall) {
-                            Image(systemName: "square.and.arrow.up")
-                                .font(SBSFonts.bodyBold())
-                            
-                            Text(hasPRs ? "Share Your PR!" : "Share Workout")
-                                .font(SBSFonts.button())
-                        }
-                        .foregroundStyle(hasPRs ? .black : .white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, SBSLayout.paddingMedium + 2)
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusLarge)
-                                .fill(
-                                    hasPRs
-                                        ? LinearGradient(colors: [.yellow, .orange], startPoint: .leading, endPoint: .trailing)
-                                        : LinearGradient(colors: [SBSColors.accentFallback], startPoint: .leading, endPoint: .trailing)
-                                )
-                        )
-                    }
-                    
-                    // Done button
-                    Button(action: onDone) {
-                        Text("Done")
-                            .font(SBSFonts.button())
-                            .foregroundStyle(hasPRs ? SBSColors.textPrimaryFallback : .white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, SBSLayout.paddingMedium + 2)
-                            .background(
-                                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusLarge)
-                                    .fill(hasPRs ? SBSColors.surfaceFallback : SBSColors.success)
-                                    .overlay(
-                                        hasPRs
-                                            ? RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusLarge)
-                                                .strokeBorder(SBSColors.textTertiaryFallback.opacity(0.3), lineWidth: 1)
-                                            : nil
-                                    )
-                            )
-                    }
-                }
-                .padding(.horizontal, SBSLayout.paddingLarge)
-                .padding(.bottom, SBSLayout.paddingXLarge)
+
+                buttons
             }
-            
-            // Confetti for PRs
-            if showConfetti && hasPRs {
+
+            if showConfetti && !prs.isEmpty {
                 ConfettiView()
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
@@ -1755,17 +1711,11 @@ struct WorkoutCompleteView: View {
             // Play celebration haptic (fires on every finish, PR or not)
             Haptics.success()
 
-            // Animate celebration
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
-                confettiScale = 1.2
-                confettiOpacity = 1
-            }
-            
-            if hasPRs {
+            if !prs.isEmpty {
                 withAnimation(.easeIn(duration: 0.3).delay(0.2)) {
                     showConfetti = true
                 }
-                
+
                 // Extra haptic for PRs
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     let impact = UIImpactFeedbackGenerator(style: .heavy)
@@ -1773,6 +1723,125 @@ struct WorkoutCompleteView: View {
                 }
             }
         }
+    }
+
+    private var header: some View {
+        VStack(spacing: SBSLayout.paddingSmall) {
+            Image(systemName: prs.isEmpty ? "checkmark.circle.fill" : "trophy.fill")
+                .font(.system(size: 56))
+                .foregroundStyle(prs.isEmpty ? SBSColors.success : .orange)
+
+            Text(workoutState.finishedEarly ? "Workout Finished" : "Workout Complete")
+                .font(SBSFonts.largeTitle())
+                .foregroundStyle(SBSColors.textPrimaryFallback)
+                .multilineTextAlignment(.center)
+        }
+    }
+
+    private var statsRow: some View {
+        HStack(spacing: SBSLayout.paddingSmall) {
+            if let durationText {
+                StatBubble(icon: "clock.fill", value: durationText, label: "duration")
+            }
+            StatBubble(icon: "scalemass.fill", value: volumeText, label: "volume")
+            StatBubble(icon: "checkmark.circle.fill", value: "\(stats.sets)", label: "sets")
+        }
+    }
+
+    private var prSection: some View {
+        summarySection(title: prs.count == 1 ? "New PR" : "\(prs.count) New PRs") {
+            ForEach(prs) { pr in
+                summaryRow(
+                    pr.liftName,
+                    detail: "\(pr.weight.formattedWeight(useMetric: useMetric)) × \(pr.reps)",
+                    note: "Est. 1RM \(pr.newE1RM.formattedWeight(useMetric: useMetric))"
+                )
+            }
+        }
+    }
+
+    private var outlookSection: some View {
+        summarySection(title: "Next Time") {
+            ForEach(outlooks) { outlook in
+                summaryRow(
+                    outlook.name,
+                    detail: outlook.nextWeight?.formattedWeight(useMetric: useMetric),
+                    note: outlook.note
+                )
+            }
+        }
+    }
+
+    private func summarySection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+            Text(title)
+                .font(SBSFonts.captionBold())
+                .foregroundStyle(SBSColors.textSecondaryFallback)
+            VStack(spacing: SBSLayout.paddingMedium) {
+                content()
+            }
+            .padding(SBSLayout.paddingMedium)
+            .background(
+                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                    .fill(SBSColors.surfaceFallback)
+            )
+        }
+    }
+
+    private func summaryRow(_ name: String, detail: String?, note: String?) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                    .font(SBSFonts.bodyBold())
+                    .foregroundStyle(SBSColors.textPrimaryFallback)
+                if let note {
+                    Text(note)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                }
+            }
+            Spacer()
+            if let detail {
+                Text(detail)
+                    .font(SBSFonts.bodyBold())
+                    .foregroundStyle(SBSColors.textPrimaryFallback)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var buttons: some View {
+        VStack(spacing: SBSLayout.paddingSmall) {
+            Button(action: onDone) {
+                Text("Done")
+                    .font(SBSFonts.button())
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, SBSLayout.paddingMedium + 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusLarge)
+                            .fill(SBSColors.accentFallback)
+                    )
+            }
+
+            HStack(spacing: SBSLayout.paddingLarge) {
+                Button(action: onShare) {
+                    Label(prs.isEmpty ? "Share Workout" : "Share Your PR", systemImage: "square.and.arrow.up")
+                }
+
+                // The last set has no rest screen to undo it from
+                if canUndo && !workoutState.finishedEarly {
+                    Button(action: onUndo) {
+                        Label("Undo Last Set", systemImage: "arrow.uturn.backward")
+                    }
+                }
+            }
+            .font(SBSFonts.caption())
+            .foregroundStyle(SBSColors.textSecondaryFallback)
+            .frame(minHeight: 44)
+        }
+        .padding(.horizontal, SBSLayout.paddingLarge)
+        .padding(.bottom, SBSLayout.paddingSmall)
     }
 }
 
@@ -1793,13 +1862,16 @@ private struct StatBubble: View {
                 Text(value)
                     .font(SBSFonts.title3())
                     .foregroundStyle(SBSColors.textPrimaryFallback)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
             
             Text(label)
                 .font(SBSFonts.caption2())
                 .foregroundStyle(SBSColors.textTertiaryFallback)
         }
-        .padding(.horizontal, SBSLayout.paddingMedium)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, SBSLayout.paddingSmall)
         .padding(.vertical, SBSLayout.paddingSmall)
         .background(
             RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
@@ -1814,8 +1886,10 @@ struct ExercisePickerSheet: View {
     let workoutState: WorkoutState
     let useMetric: Bool
     let onSelect: (Int) -> Void
+    var onFinish: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
+    @State private var showingFinishConfirm = false
 
     /// Check if workout has any accessory exercises
     private var hasAccessories: Bool {
@@ -1894,10 +1968,35 @@ struct ExercisePickerSheet: View {
                     }
                 }
                 .listStyle(.plain)
+                // Pinned: at the sheet's first height it would be below the fold of a
+                // long list. Needs something to summarize, and X leaves an untouched session.
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    if workoutState.completedSetsCount > 0 {
+                        Button {
+                            showingFinishConfirm = true
+                        } label: {
+                            Text("Finish Workout")
+                                .font(SBSFonts.button())
+                                .foregroundStyle(SBSColors.accentFallback)
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                        }
+                        .padding(.horizontal)
+                        .padding(.vertical, SBSLayout.paddingSmall)
+                        .background(SBSColors.surfaceFallback)
+                    }
+                }
                 .onAppear {
                     // Scroll to current exercise
                     proxy.scrollTo(workoutState.currentExerciseIndex, anchor: .center)
                 }
+            }
+            .alert("Finish Workout?", isPresented: $showingFinishConfirm) {
+                Button("Keep Going", role: .cancel) {}
+                Button("Finish Workout") {
+                    onFinish?()
+                }
+            } message: {
+                Text("You have \(workoutState.remainingSetsCount) \(workoutState.remainingSetsCount == 1 ? "set" : "sets") left. Lifts you don't finish log nothing and keep their weight.")
             }
             .navigationTitle("Workout Overview")
             .navigationBarTitleDisplayMode(.inline)
@@ -2244,147 +2343,6 @@ struct RepOutInputSheet: View {
                     }
                 }
             }
-        }
-    }
-}
-
-// MARK: - Linear Result Sheet
-
-struct LinearResultSheet: View {
-    let exerciseName: String
-    let weight: Double
-    let sets: Int
-    let reps: Int
-    let failedSets: Int
-    let increment: Double
-    let isDeloadPending: Bool
-    let consecutiveFailures: Int
-    let useMetric: Bool
-    let onSuccess: () -> Void
-    let onFailure: () -> Void
-    
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: SBSLayout.paddingLarge) {
-                // Header
-                VStack(spacing: SBSLayout.paddingSmall) {
-                    Text(exerciseName)
-                        .font(SBSFonts.largeTitle())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                    
-                    Text("\(sets)×\(reps) @ \(weight.formattedWeight(useMetric: useMetric))")
-                        .font(SBSFonts.title2())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
-                }
-                .padding(.top, SBSLayout.paddingLarge * 2)
-                
-                // Question
-                Text("Did you complete all sets and reps?")
-                    .font(SBSFonts.body())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                
-                Spacer()
-                
-                // Warning if deload pending
-                if isDeloadPending {
-                    HStack(spacing: SBSLayout.paddingSmall) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(SBSColors.warning)
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Warning: Deload Pending")
-                                .font(SBSFonts.bodyBold())
-                                .foregroundStyle(SBSColors.warning)
-                            
-                            Text("You've failed this lift \(consecutiveFailures) time\(consecutiveFailures == 1 ? "" : "s"). One more failure triggers a 10% deload.")
-                                .font(SBSFonts.caption())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                    .padding(SBSLayout.paddingMedium)
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                            .fill(SBSColors.warning.opacity(0.1))
-                    )
-                    .padding(.horizontal)
-                    .padding(.bottom, SBSLayout.paddingSmall)
-                }
-                
-                // Progression info
-                VStack(spacing: SBSLayout.paddingSmall) {
-                    HStack(alignment: .top, spacing: SBSLayout.paddingMedium) {
-                        VStack(alignment: .leading) {
-                            Text("If Success:")
-                                .font(SBSFonts.captionBold())
-                                .foregroundStyle(SBSColors.success)
-                            Text("+\(increment.formattedWeight(useMetric: useMetric)) next session")
-                                .font(SBSFonts.body())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        
-                        VStack(alignment: .trailing) {
-                            Text("If Failed:")
-                                .font(SBSFonts.captionBold())
-                                .foregroundStyle(SBSColors.error)
-                            Text("Same weight")
-                                .font(SBSFonts.body())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                    }
-                }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                        .fill(SBSColors.surfaceFallback)
-                )
-                .padding(.horizontal)
-                
-                Spacer()
-                
-                // Buttons
-                VStack(spacing: SBSLayout.paddingMedium) {
-                    Button(action: onSuccess) {
-                        HStack(spacing: SBSLayout.paddingSmall) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(SBSFonts.title3())
-                            
-                            Text("Yes - All Reps Completed!")
-                                .font(SBSFonts.button())
-                        }
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, SBSLayout.paddingMedium + 2)
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusLarge)
-                                .fill(SBSColors.success)
-                        )
-                    }
-                    
-                    Button(action: onFailure) {
-                        HStack(spacing: SBSLayout.paddingSmall) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(SBSFonts.title3())
-                            
-                            Text("No - Missed Some Reps")
-                                .font(SBSFonts.button())
-                        }
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, SBSLayout.paddingMedium + 2)
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusLarge)
-                                .fill(SBSColors.error)
-                        )
-                    }
-                }
-                .padding(.horizontal, SBSLayout.paddingLarge)
-                .padding(.bottom, SBSLayout.paddingXLarge)
-            }
-            .sbsBackground()
-            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }

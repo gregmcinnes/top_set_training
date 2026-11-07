@@ -151,6 +151,49 @@ struct WorkoutAMRAPResult: Codable, Equatable {
     var e1rm: Double
 }
 
+// MARK: - Set Undo
+
+/// What a completed set changed, so undoing it can put things back. A redo replaces
+/// the day's earlier results as it logs, so "put back" isn't always "clear".
+struct SetUndoInfo: Codable, Equatable {
+    /// This set finished a linear lift, which logged its result
+    var finishedLinearLift = false
+    var previousLinearEntry: LinearLogEntry?
+    var previousTrainingMax: Double?
+    /// Reps an AMRAP log on this set replaced
+    var previousReps: Int?
+    /// This set created the day's empty "done" log for a structured lift with no AMRAP
+    var createdStructuredLog = false
+}
+
+/// One completed set, in the order they were done
+struct CompletedSetRecord: Codable, Equatable {
+    let exerciseId: UUID
+    let setNumber: Int
+    var undo: SetUndoInfo
+}
+
+// MARK: - Next Workout
+
+enum NextWorkout {
+    /// The first day with nothing logged, from `week` onward. A day ended early counts
+    /// as visited, so it doesn't send the lifter back to repeat what they already did.
+    /// Nil when no day is left: nothing advances past the end of the cycle.
+    static func find(
+        fromWeek week: Int,
+        weeks: [Int],
+        visibleDays: (Int) -> [Int],
+        isNotStarted: (_ week: Int, _ day: Int) -> Bool
+    ) -> (week: Int, day: Int)? {
+        for candidate in weeks.sorted() where candidate >= week {
+            if let day = visibleDays(candidate).first(where: { isNotStarted(candidate, $0) }) {
+                return (candidate, day)
+            }
+        }
+        return nil
+    }
+}
+
 // MARK: - Workout State
 
 @Observable
@@ -176,6 +219,19 @@ final class WorkoutState {
 
     // Reps logged this session on structured AMRAP sets: exercise.id -> set index -> reps
     var structuredLoggedReps: [UUID: [Int: Int]] = [:]
+
+    /// Completed sets in order, for undo
+    var completionHistory: [CompletedSetRecord] = []
+
+    /// The lifter chose to finish with work left
+    var finishedEarly = false
+
+    /// A ±15s change, kept for the rest of that exercise in this session
+    var restOverrides: [UUID: Int] = [:]
+
+    /// The exercise whose set started the current rest. `currentExercise` has already
+    /// moved on when that was its last set.
+    var restingExerciseId: UUID?
     
     // Timer state
     var timerRemaining: Int = 0
@@ -204,11 +260,33 @@ final class WorkoutState {
         currentExercise?.isAccessory ?? false
     }
     
+    /// Every set of every exercise is done
     var isWorkoutComplete: Bool {
-        guard let lastExercise = exercises.last else { return true }
-        guard let completedForLast = completedSets[lastExercise.id] else { return false }
-        return currentExerciseIndex >= exercises.count - 1 && 
-               completedForLast.count >= lastExercise.totalSets
+        exercises.allSatisfy { firstIncompleteSet(of: $0) == nil }
+    }
+
+    /// Time for the summary: everything is done, or the lifter chose to stop
+    var isFinished: Bool {
+        isWorkoutComplete || finishedEarly
+    }
+
+    /// The first exercise with sets left, if any
+    var firstOpenExerciseIndex: Int? {
+        exercises.firstIndex { firstIncompleteSet(of: $0) != nil }
+    }
+
+    /// Nothing is left from here on, but earlier exercises are still open: the lifter
+    /// jumped ahead and needs to choose between going back and finishing.
+    var reachedEndWithOpenExercises: Bool {
+        guard !finishedEarly, firstOpenExerciseIndex != nil else { return false }
+        return !exercises.indices.contains { index in
+            index >= currentExerciseIndex && firstIncompleteSet(of: exercises[index]) != nil
+        }
+    }
+
+    /// Sets not yet done, across the whole workout
+    var remainingSetsCount: Int {
+        exercises.reduce(0) { $0 + max(0, $1.totalSets - (completedSets[$1.id]?.count ?? 0)) }
     }
     
     var currentSetCompletedCount: Int {
@@ -228,14 +306,73 @@ final class WorkoutState {
         return Double(completedCount) / Double(totalSets)
     }
     
-    func markSetComplete() {
+    func markSetComplete(undo: SetUndoInfo = SetUndoInfo()) {
         guard let exercise = currentExercise else { return }
-        
-        if completedSets[exercise.id] == nil {
-            completedSets[exercise.id] = []
+
+        if completedSets[exercise.id, default: []].insert(currentSetNumber).inserted {
+            completionHistory.append(CompletedSetRecord(exerciseId: exercise.id, setNumber: currentSetNumber, undo: undo))
         }
-        completedSets[exercise.id]?.insert(currentSetNumber)
         advanceToNextIncompleteSet()
+    }
+
+    /// Whether every set of an exercise is done
+    func isExerciseFinished(_ exercise: WorkoutExercise) -> Bool {
+        firstIncompleteSet(of: exercise) == nil
+    }
+
+    /// Reopen a completed set and put the lifter back on it. The caller reverses
+    /// anything the set logged, using the record this returns.
+    @discardableResult
+    func reopenSet(exerciseId: UUID, setNumber: Int) -> CompletedSetRecord? {
+        guard let index = exercises.firstIndex(where: { $0.id == exerciseId }) else { return nil }
+        completedSets[exerciseId]?.remove(setNumber)
+        failedSets[exerciseId]?.remove(setNumber)
+        finishedEarly = false
+        currentExerciseIndex = index
+        currentSetNumber = setNumber
+        guard let recordIndex = completionHistory.lastIndex(where: { $0.exerciseId == exerciseId && $0.setNumber == setNumber }) else { return nil }
+        return completionHistory.remove(at: recordIndex)
+    }
+
+    /// Take the "this set finished the lift" note off an exercise's records and return
+    /// it. Reopening any set of a finished lift un-finishes it, not only its last set.
+    func takeLinearFinish(exerciseId: UUID) -> SetUndoInfo? {
+        guard let index = completionHistory.lastIndex(where: { $0.exerciseId == exerciseId && $0.undo.finishedLinearLift }) else { return nil }
+        let undo = completionHistory[index].undo
+        completionHistory[index].undo.finishedLinearLift = false
+        completionHistory[index].undo.previousLinearEntry = nil
+        completionHistory[index].undo.previousTrainingMax = nil
+        return undo
+    }
+
+    /// Same as `takeLinearFinish`, for the empty log of a structured lift with no AMRAP
+    func takeStructuredLogCreation(exerciseId: UUID) -> Bool {
+        guard let index = completionHistory.lastIndex(where: { $0.exerciseId == exerciseId && $0.undo.createdStructuredLog }) else { return false }
+        completionHistory[index].undo.createdStructuredLog = false
+        return true
+    }
+
+    /// Rebuild a lift's strongest AMRAP from what's still logged this session
+    func recomputeAMRAPResult(lift: String, e1rm: (_ weight: Double, _ reps: Int) -> Double) {
+        var best: WorkoutAMRAPResult?
+        func consider(weight: Double, reps: Int) {
+            let value = e1rm(weight, reps)
+            if value > (best?.e1rm ?? 0) {
+                best = WorkoutAMRAPResult(weight: weight, reps: reps, e1rm: value)
+            }
+        }
+        for exercise in exercises where exercise.lift == lift {
+            if let sets = exercise.structuredSetInfo {
+                for (setIndex, reps) in structuredLoggedReps[exercise.id] ?? [:] {
+                    if let set = sets.first(where: { $0.setIndex == setIndex }) {
+                        consider(weight: set.weight, reps: reps)
+                    }
+                }
+            } else if let reps = repOutLogs[lift] {
+                consider(weight: exercise.weight, reps: reps)
+            }
+        }
+        amrapResults[lift] = best
     }
 
     /// First set of an exercise not yet completed, if any
@@ -277,20 +414,11 @@ final class WorkoutState {
     }
     
     /// Mark a set as failed (for linear progression)
-    func markSetFailed() {
+    func markSetFailed(undo: SetUndoInfo = SetUndoInfo()) {
         guard let exercise = currentExercise else { return }
-        
-        if failedSets[exercise.id] == nil {
-            failedSets[exercise.id] = []
-        }
-        failedSets[exercise.id]?.insert(currentSetNumber)
-        
-        // Also count as "completed" for progress purposes
-        if completedSets[exercise.id] == nil {
-            completedSets[exercise.id] = []
-        }
-        completedSets[exercise.id]?.insert(currentSetNumber)
-        advanceToNextIncompleteSet()
+        failedSets[exercise.id, default: []].insert(currentSetNumber)
+        // Also counts as "completed" for progress purposes
+        markSetComplete(undo: undo)
     }
     
     /// Check if a linear exercise had any failed sets
@@ -329,7 +457,13 @@ final class WorkoutState {
         return completedSets[exercises[index].id]?.count ?? 0
     }
     
-    func startTimer(duration: Int) {
+    /// How long to rest after a set of this exercise: its ±15s change if it has one
+    func restDuration(for exercise: WorkoutExercise, default defaultDuration: Int) -> Int {
+        restOverrides[exercise.id] ?? defaultDuration
+    }
+
+    func startTimer(duration: Int, forExercise exerciseId: UUID? = nil) {
+        restingExerciseId = exerciseId
         timerDuration = duration
         timerRemaining = duration
         timerIsRunning = true
@@ -368,6 +502,7 @@ final class WorkoutState {
         timerRemaining = 0
         timerEndDate = nil
         timerPausedRemaining = nil
+        restingExerciseId = nil
         RestTimerStatus.shared.timerCleared()
     }
 
@@ -379,6 +514,9 @@ final class WorkoutState {
         let newDuration = max(minimumDuration, timerDuration + delta)
         let appliedDelta = newDuration - timerDuration
         timerDuration = newDuration
+        if let restingExerciseId {
+            restOverrides[restingExerciseId] = newDuration
+        }
 
         if timerIsRunning, let endDate = timerEndDate {
             let shifted = endDate.addingTimeInterval(TimeInterval(appliedDelta))
@@ -437,6 +575,10 @@ final class WorkoutState {
             prsAchieved: prsAchieved,
             amrapResults: amrapResults,
             structuredLoggedReps: structuredLoggedReps,
+            completionHistory: completionHistory,
+            finishedEarly: finishedEarly,
+            restOverrides: restOverrides,
+            restingExerciseId: restingExerciseId,
             timerDuration: timerDuration,
             timerIsRunning: timerIsRunning,
             timerIsPaused: timerIsPaused,
@@ -461,6 +603,10 @@ final class WorkoutState {
         prsAchieved = snapshot.prsAchieved
         amrapResults = snapshot.amrapResults
         structuredLoggedReps = snapshot.structuredLoggedReps
+        completionHistory = snapshot.completionHistory ?? []
+        finishedEarly = snapshot.finishedEarly ?? false
+        restOverrides = snapshot.restOverrides ?? [:]
+        restingExerciseId = snapshot.restingExerciseId
         timerDuration = snapshot.timerDuration
 
         if snapshot.timerIsPaused, let paused = snapshot.timerPausedRemaining {
@@ -496,6 +642,11 @@ struct WorkoutStateSnapshot: Codable, Equatable {
     var prsAchieved: [WorkoutPRRecord]
     var amrapResults: [String: WorkoutAMRAPResult]
     var structuredLoggedReps: [UUID: [Int: Int]]
+    // Optional: sessions saved by earlier builds don't have these
+    var completionHistory: [CompletedSetRecord]?
+    var finishedEarly: Bool?
+    var restOverrides: [UUID: Int]?
+    var restingExerciseId: UUID?
     var timerDuration: Int
     var timerIsRunning: Bool
     var timerIsPaused: Bool
@@ -524,9 +675,10 @@ struct PersistedWorkoutSession: Codable, Equatable {
     /// The Watch's id for this workout, so a relaunch continues its session
     var watchWorkoutId: String?
     var state: WorkoutStateSnapshot
-    /// Lifts finished but awaiting a result, so a kill can't lose their log
+    /// Lifts an earlier build left awaiting a result on its question sheet. Results now
+    /// log as the lift finishes, so these are only read, to log them on restore.
     var pendingLinearExercise: WorkoutExercise?
-    var queuedLinearExercises: [WorkoutExercise]
+    var queuedLinearExercises: [WorkoutExercise]?
 
     /// Nil for anything unreadable or from another format version. Never throws:
     /// a bad saved session is dropped rather than blocking launch.

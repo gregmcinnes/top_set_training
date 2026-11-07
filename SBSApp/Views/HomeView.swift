@@ -99,6 +99,9 @@ struct HomeView: View {
                 .padding(.top)
             }
             .sbsBackground()
+            .onChange(of: appState.returnToHomeCount) { _, _ in
+                showingSession = false
+            }
             .navigationTitle(appState.programDisplayName)
             .navigationBarTitleDisplayMode(.large)
             .toolbar {

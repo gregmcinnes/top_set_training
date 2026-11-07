@@ -8,6 +8,13 @@ public enum E1RM {
         return weight * (1.0 + Double(reps) / 30.0)
     }
 
+    /// Whether a logged E1RM beats the previous best. A lift's first-ever log is a
+    /// baseline to beat, not a PR: there's nothing yet to have improved on.
+    public static func isNewPR(newE1RM: Double, previousE1RM: Double?) -> Bool {
+        guard let previousE1RM else { return false }
+        return newE1RM > previousE1RM
+    }
+
     /// Smallest rep count n such that epley(weight, n) strictly exceeds targetE1RM.
     /// Returns nil if weight <= 0.
     public static func repsNeeded(toExceed targetE1RM: Double, atWeight weight: Double) -> Int? {

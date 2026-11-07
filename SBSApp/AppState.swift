@@ -191,6 +191,31 @@ public final class AppState {
     /// A restored session is old enough to ask about instead of resuming silently
     var showingStaleSessionPrompt = false
 
+    /// Goes up when a finished workout should land on Home, from whichever tab
+    private(set) var returnToHomeCount = 0
+
+    /// The next workout from a given week, for Done and for Home's next-workout card
+    func nextWorkout(fromWeek week: Int) -> (week: Int, day: Int)? {
+        NextWorkout.find(
+            fromWeek: week,
+            weeks: weeks,
+            visibleDays: { visibleDays(forWeek: $0) },
+            isNotStarted: { dayLogStatus(week: $0, day: $1) == .notStarted }
+        )
+    }
+
+    /// A workout finished: select what's next and go to Home. With nothing left, stay on
+    /// the final week so its cycle-complete card shows.
+    func returnToHomeAfterWorkout(week: Int) {
+        if let next = nextWorkout(fromWeek: week) {
+            selectedWeek = next.week
+            selectedDay = next.day
+        } else if let lastWeek = weeks.max() {
+            selectedWeek = lastWeek
+        }
+        returnToHomeCount += 1
+    }
+
     /// Start a workout, assuming the caller has settled any session already active
     @MainActor
     func startWorkout(week: Int, day: Int) {
@@ -1029,7 +1054,7 @@ public final class AppState {
             note: note.isEmpty ? nil : note
         )
         
-        let isNewPR = newE1RM > 0 && (previousE1RM == nil || newE1RM > (previousE1RM ?? 0))
+        let isNewPR = E1RM.isNewPR(newE1RM: newE1RM, previousE1RM: previousE1RM)
         
         return LogRepsResult(
             isNewPR: isNewPR,
@@ -1283,7 +1308,7 @@ public final class AppState {
                             note: note.isEmpty ? nil : note
                         )
 
-                        let isNewPR = e1rm > 0 && (previousE1RM == nil || e1rm > (previousE1RM ?? 0))
+                        let isNewPR = E1RM.isNewPR(newE1RM: e1rm, previousE1RM: previousE1RM)
 
                         return LogRepsResult(
                             isNewPR: isNewPR,
@@ -1441,7 +1466,7 @@ public final class AppState {
         userData.trainingMaxes.setCanonicalLiftValue(weight, for: lift)
         
         // Check if this is a new PR
-        let isNewPR = e1rm > 0 && (previousE1RM == nil || e1rm > (previousE1RM ?? 0))
+        let isNewPR = E1RM.isNewPR(newE1RM: e1rm, previousE1RM: previousE1RM)
         
         return LogRepsResult(
             isNewPR: isNewPR,
@@ -1541,6 +1566,86 @@ public final class AppState {
         }
     }
     
+    /// Undo a linear result: clear it, or put back the one it replaced in a redo. The
+    /// old entry goes back exactly as it was, because replay reads its flags.
+    func revertLinearLog(lift: String, week: Int, day: Int, reps: Int, sets: Int, undo: SetUndoInfo) {
+        clearLinearLog(lift: lift, week: week, day: day)
+        if let previous = undo.previousLinearEntry {
+            // Logged again for its history records, then overwritten with the original
+            if previous.completed {
+                logLinearSuccess(lift: lift, week: week, day: day, weight: previous.weight, reps: reps, sets: sets, note: previous.note)
+            } else {
+                logLinearFailure(lift: lift, week: week, day: day, weight: previous.weight, reps: reps, sets: sets, note: previous.note)
+            }
+            userData.linearLogs[lift]?[week]?[day] = previous
+            programState?.linearLogs[lift]?[week]?[day] = previous
+        }
+        if let previousTM = undo.previousTrainingMax {
+            userData.trainingMaxes.setCanonicalLiftValue(previousTM, for: lift)
+        }
+    }
+
+    /// Undo a volume rep-out log, keeping any weight override: it cascades into later
+    /// weeks and isn't part of what the set logged.
+    func revertVolumeReps(lift: String, week: Int, day: Int, previousReps: Int?) {
+        if let previousReps {
+            logReps(lift: lift, week: week, day: day, reps: previousReps)
+            return
+        }
+        let override = getLog(lift: lift, week: week, day: day)
+        clearLog(lift: lift, week: week, day: day)
+        if let weight = override?.weightOverride {
+            setWeightOverride(lift: lift, week: week, day: day, weight: weight, itemName: override?.overrideItemName)
+        }
+    }
+
+    /// Undo a structured AMRAP log
+    func revertStructuredReps(lift: String, week: Int, day: Int, setIndex: Int, previousReps: Int?) {
+        if let previousReps {
+            logStructuredReps(lift: lift, week: week, day: day, setIndex: setIndex, reps: previousReps)
+        } else {
+            clearStructuredSet(lift: lift, week: week, day: day, setIndex: setIndex)
+        }
+    }
+
+    /// What the lifter last did on a lift, leaving out this session's own day
+    func lastPerformance(lift: String, week: Int, day: Int) -> LiftRecord? {
+        let name = ExerciseLibrary.canonicalLiftName(lift)
+        let cycleStart = userData.currentCycleStartDate
+        return userData.liftHistory
+            .filter { record in
+                guard record.liftName == name else { return false }
+                let isThisSession = record.programId == userData.selectedProgram
+                    && record.week == week && record.day == day && record.date >= cycleStart
+                return !isThisSession
+            }
+            .max { $0.date < $1.date }
+    }
+
+    /// The weight planned for an exercise the next time it appears after this session.
+    /// Matches on the exercise, not just the lift: nSuns follows heavy Bench with a lighter
+    /// secondary Bench, which says nothing about the next heavy day. Structured exercises
+    /// report their heaviest set. Nil if it doesn't come up again.
+    func nextPlannedWeight(exercise name: String, lift: String, afterWeek week: Int, day: Int) -> Double? {
+        for candidateWeek in weeks.sorted() where candidateWeek >= week {
+            for candidateDay in visibleDays(forWeek: candidateWeek) where candidateWeek > week || candidateDay > day {
+                for item in dayPlan(week: candidateWeek, day: candidateDay) ?? [] {
+                    switch item {
+                    case let .linear(itemName, info) where itemName == name && info.lift == lift:
+                        return info.weight
+                    case let .volume(itemName, itemLift, weight, _, _, _, _, _, _, _, _) where itemName == name && itemLift == lift:
+                        return weight
+                    case let .structured(itemName, itemLift, _, sets, _) where itemName == name && itemLift == lift:
+                        return sets.map(\.weight).max()
+                    default:
+                        continue
+                    }
+                }
+            }
+        }
+        return nil
+    }
+
     /// Get current consecutive failure count for a lift by searching all previous sessions
     private func getCurrentLinearFailures(lift: String, beforeWeek: Int, beforeDay: Int) -> Int {
         guard let liftLogs = userData.linearLogs[lift] else { return 0 }

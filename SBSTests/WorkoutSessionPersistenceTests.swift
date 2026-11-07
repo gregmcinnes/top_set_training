@@ -114,14 +114,50 @@ final class WorkoutSessionPersistenceTests: XCTestCase {
         XCTAssertEqual(restored[1].structuredSetInfo?[1].calculatedWeight, 185)
     }
 
-    func testPendingLiftResultSurvivesEncoding() throws {
+    /// A session saved while an earlier build's question sheet was up still has lifts to log
+    func testPendingLiftResultFromEarlierBuildStillDecodes() throws {
         var session = makeSession()
         session.pendingLinearExercise = session.state.exercises[0]
         session.queuedLinearExercises = [session.state.exercises[0]]
 
         let restored = try roundTrip(session)
         XCTAssertEqual(restored.pendingLinearExercise?.id, session.state.exercises[0].id)
-        XCTAssertEqual(restored.queuedLinearExercises.count, 1)
+        XCTAssertEqual(restored.queuedLinearExercises?.count, 1)
+    }
+
+    /// Sessions saved before undo, finish early and rest overrides existed
+    func testSessionSavedByEarlierBuildStillDecodes() throws {
+        let data = try JSONEncoder().encode(makeSession())
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        var state = try XCTUnwrap(json["state"] as? [String: Any])
+        for key in ["completionHistory", "finishedEarly", "restOverrides", "restingExerciseId"] {
+            state[key] = nil
+        }
+        json["state"] = state
+        json["queuedLinearExercises"] = []
+
+        let decoded = PersistedWorkoutSession.decode(try JSONSerialization.data(withJSONObject: json))
+        let restored = WorkoutState(snapshot: try XCTUnwrap(decoded).state, now: now)
+        XCTAssertTrue(restored.completionHistory.isEmpty)
+        XCTAssertFalse(restored.finishedEarly)
+        XCTAssertTrue(restored.restOverrides.isEmpty)
+    }
+
+    func testUndoHistoryAndRestChoicesSurviveEncoding() throws {
+        let state = makeState()
+        let exercise = state.exercises[0]
+        var undo = SetUndoInfo()
+        undo.finishedLinearLift = true
+        undo.previousLinearEntry = LinearLogEntry(completed: false, consecutiveFailures: 2, deloadApplied: false, weight: 225)
+        undo.previousTrainingMax = 225
+        state.markSetComplete(undo: undo)
+        state.restOverrides[exercise.id] = 135
+        state.finishedEarly = true
+
+        let restored = WorkoutState(snapshot: try roundTrip(makeSession(state: state)).state, now: now)
+        XCTAssertEqual(restored.completionHistory, state.completionHistory)
+        XCTAssertEqual(restored.restOverrides[exercise.id], 135)
+        XCTAssertTrue(restored.finishedEarly)
     }
 
     func testPRsAndAMRAPResultsSurviveEncoding() throws {

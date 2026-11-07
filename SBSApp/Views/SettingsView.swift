@@ -2,6 +2,16 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct SettingsView: View {
+    @ViewBuilder private var restDurationOptions: some View {
+        Text("1 minute").tag(60)
+        Text("1:30").tag(90)
+        Text("2 minutes").tag(120)
+        Text("2:30").tag(150)
+        Text("3 minutes").tag(180)
+        Text("4 minutes").tag(240)
+        Text("5 minutes").tag(300)
+    }
+
     @Bindable var appState: AppState
     @State private var exportPayload: ExportPayload?
     @State private var showingResetAlert = false
@@ -437,14 +447,12 @@ struct SettingsView: View {
                 
                 // Rest Timer
                 Section {
-                    Picker("Rest Timer", selection: $appState.settings.restTimerDuration) {
-                        Text("1 minute").tag(60)
-                        Text("1:30").tag(90)
-                        Text("2 minutes").tag(120)
-                        Text("2:30").tag(150)
-                        Text("3 minutes").tag(180)
-                        Text("4 minutes").tag(240)
-                        Text("5 minutes").tag(300)
+                    Picker("Main Lift Rest", selection: $appState.settings.restTimerDuration) {
+                        restDurationOptions
+                    }
+
+                    Picker("Accessory Rest", selection: $appState.settings.accessoryRestSeconds) {
+                        restDurationOptions
                     }
                     
                     Toggle("Sound Notification", isOn: $appState.settings.playSoundNotifications)

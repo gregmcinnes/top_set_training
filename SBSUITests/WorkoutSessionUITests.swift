@@ -371,16 +371,9 @@ final class WorkoutSessionUITests: XCTestCase {
 
     // MARK: - Finished Days
 
-    /// Do every set, answering each result sheet, until the summary shows
-    private func finishWorkout(onResultSheet: () -> Void = {}) {
+    /// Do every set until the summary shows
+    private func finishWorkout() {
         for _ in 0..<60 {
-            let yes = button("Yes - All Reps Completed!")
-            if yes.exists && yes.isHittable {
-                onResultSheet()
-                yes.tap()
-                sleep(1)
-                continue
-            }
             let celebration = button("Continue")
             if celebration.exists && celebration.isHittable {
                 celebration.tap()
@@ -403,36 +396,22 @@ final class WorkoutSessionUITests: XCTestCase {
         app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Workout Complete'")).firstMatch
     }
 
-    /// Finish a whole workout, killing the app with a result sheet up, then check the
-    /// finished day offers a quiet redo instead of Start Workout, and that a redo
-    /// replaces the log rather than adding to it.
+    private var finishedDayCard: XCUIElement {
+        app.buttons.matching(NSPredicate(format: "label ENDSWITH 'Done'")).firstMatch
+    }
+
+    /// Finish a whole workout, then check the finished day offers a quiet redo instead
+    /// of Start Workout, and that a redo replaces the log rather than adding to it.
     func testFinishingShowsDoneStateWithRedo() {
         startFirstDay()
-        var killedDuringResult = false
-
-        finishWorkout {
-            guard !killedDuringResult else { return }
-            killedDuringResult = true
-            shot("result-sheet")
-            sleep(1)
-            app.terminate()
-            app.launch()
-            XCTAssertTrue(resumeBar.waitForExistence(timeout: 10))
-            XCTAssertTrue(resumeBar.label.contains("log your result"), "The result isn't lost: \(resumeBar.label)")
-            shot("relaunched-awaiting-result")
-            resumeBar.tap()
-            XCTAssertTrue(button("Yes - All Reps Completed!").waitForExistence(timeout: 5), "The result sheet returns")
-        }
-        XCTAssertTrue(killedDuringResult)
+        finishWorkout()
         shot("summary")
         tap("Done")
         XCTAssertFalse(resumeBar.waitForExistence(timeout: 2), "Finishing clears the session")
 
-        // The relaunch left no Session screen under the workout, so this lands on Home
-        let finishedDay = app.buttons.matching(NSPredicate(format: "label ENDSWITH 'Done'")).firstMatch
-        XCTAssertTrue(finishedDay.waitForExistence(timeout: 5))
+        XCTAssertTrue(finishedDayCard.waitForExistence(timeout: 5), "Done lands on Home")
         shot("home-after-finish")
-        finishedDay.tap()
+        finishedDayCard.tap()
 
         XCTAssertTrue(doneState.waitForExistence(timeout: 5))
         XCTAssertFalse(button("Start Workout").exists, "A finished day doesn't offer Start Workout")
@@ -460,10 +439,8 @@ final class WorkoutSessionUITests: XCTestCase {
         finishWorkout()
         shot("redo-summary")
         tap("Done")
-        XCTAssertTrue(doneState.waitForExistence(timeout: 5))
-        shot("session-after-redo")
 
-        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(finishedDayCard.waitForExistence(timeout: 5))
         XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label ENDSWITH 'Done'")).count, 1)
         shot("home-after-redo")
         app.tabBars.buttons["History"].tap()

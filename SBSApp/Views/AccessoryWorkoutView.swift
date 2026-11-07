@@ -186,9 +186,9 @@ struct AccessoryWorkoutView: View {
                     // No accessories - show standalone timer
                     StandaloneTimerView(
                         workoutState: workoutState,
-                        timerDuration: appState.settings.restTimerDuration,
+                        timerDuration: appState.settings.accessoryRestSeconds,
                         onStartTimer: {
-                            workoutState.startTimer(duration: appState.settings.restTimerDuration)
+                            workoutState.startTimer(duration: appState.settings.accessoryRestSeconds)
                             startRestSurfaces()
                             startTimerTickLoop()
                         },
@@ -487,7 +487,7 @@ struct AccessoryWorkoutView: View {
         }
         
         workoutState.accessories = accessories
-        workoutState.timerDuration = appState.settings.restTimerDuration
+        workoutState.timerDuration = appState.settings.accessoryRestSeconds
     }
     
     private func handleSetComplete() {
@@ -498,7 +498,7 @@ struct AccessoryWorkoutView: View {
         
         // Start rest timer — surfaces are created exactly once here, when the
         // rest actually begins; the tick loop can be restarted freely.
-        workoutState.startTimer(duration: appState.settings.restTimerDuration)
+        workoutState.startTimer(duration: appState.settings.accessoryRestSeconds)
         startRestSurfaces()
         startTimerTickLoop()
     }

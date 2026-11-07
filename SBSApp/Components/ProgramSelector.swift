@@ -8,12 +8,12 @@ struct ProgramSelector: View {
     @Binding var selectedProgram: String
     let onTakeQuiz: () -> Void
     let onBuildTemplate: () -> Void
-    
+
     @State private var selectedDaysFilter: Int? = nil
     @State private var selectedLevelFilter: ProgramLevel? = nil
     @State private var expandedFamilies: Set<String> = []
     @State private var showingPaywall = false
-    
+
     private let storeManager = StoreManager.shared
 
     // MARK: - Computed Properties
@@ -33,100 +33,99 @@ struct ProgramSelector: View {
                 ProgramCatalog.familySortIndex(lhs.family) < ProgramCatalog.familySortIndex(rhs.family)
             }
     }
-    
+
     private var filteredPrograms: [AppState.AvailableProgramInfo] {
         appState.availablePrograms.filter { program in
             // Filter by days
             if let daysFilter = selectedDaysFilter {
                 guard program.days == daysFilter else { return false }
             }
-            
+
             // Filter by level
             if let levelFilter = selectedLevelFilter {
                 guard ProgramCatalog.metadata[program.id]?.level == levelFilter else { return false }
             }
-            
+
             return true
         }
     }
-    
+
     private var availableDays: [Int] {
         Set(appState.availablePrograms.map { $0.days }).sorted()
     }
-    
+
     private func isProgramLocked(_ programId: String) -> Bool {
         !storeManager.canAccessProgram(programId)
     }
-    
+
     // MARK: - Body
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Filter bar
-            VStack(spacing: SBSLayout.space4) {
+            VStack(spacing: SBSLayout.space2) {
                 // Days filter
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: SBSLayout.space2) {
-                        FilterChip(
-                            title: "All Days",
-                            isSelected: selectedDaysFilter == nil,
-                            onTap: { selectedDaysFilter = nil }
-                        )
-                        
+                        SBSChip(title: "All Days", isSelected: selectedDaysFilter == nil) {
+                            selectedDaysFilter = nil
+                        }
+
                         ForEach(availableDays, id: \.self) { days in
-                            FilterChip(
-                                title: "\(days) Days",
-                                isSelected: selectedDaysFilter == days,
-                                onTap: { selectedDaysFilter = days }
-                            )
+                            SBSChip(title: "\(days) Days", isSelected: selectedDaysFilter == days) {
+                                selectedDaysFilter = days
+                            }
                         }
                     }
                     .padding(.horizontal)
+                    .padding(.vertical, 1)
                 }
-                
+
                 // Level filter
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: SBSLayout.space2) {
-                        FilterChip(
-                            title: "All Levels",
-                            isSelected: selectedLevelFilter == nil,
-                            onTap: { selectedLevelFilter = nil }
-                        )
-                        
+                        SBSChip(title: "All Levels", isSelected: selectedLevelFilter == nil) {
+                            selectedLevelFilter = nil
+                        }
+
                         ForEach(ProgramLevel.allCases, id: \.self) { level in
-                            FilterChip(
-                                title: level.rawValue,
-                                icon: level.icon,
-                                isSelected: selectedLevelFilter == level,
-                                onTap: { selectedLevelFilter = level }
-                            )
+                            SBSChip(title: level.rawValue, systemImage: level.icon, isSelected: selectedLevelFilter == level) {
+                                selectedLevelFilter = level
+                            }
                         }
                     }
                     .padding(.horizontal)
+                    .padding(.vertical, 1)
                 }
             }
-            .padding(.vertical, SBSLayout.space4)
+            .padding(.vertical, SBSLayout.space3)
             .background(Color.bg)
-            
+            .overlay(alignment: .bottom) { SBSRowDivider() }
+
             // Program list
             ScrollView {
-                LazyVStack(spacing: SBSLayout.space4) {
+                LazyVStack(spacing: SBSLayout.space3) {
+                    // Quiz prompt: the same row as the Programs tab's
+                    Button(action: onTakeQuiz) {
+                        SBSListRow("Not sure which to pick?", showsChevron: true) {
+                            Text("Take the quiz to find the best program for you")
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(Color.inkSecondary)
+                        }
+                        .card()
+                    }
+                    .buttonStyle(.plain)
 
-                    // Quiz prompt (only show if no programs are selected)
-                    QuizPromptCard(onTakeQuiz: onTakeQuiz)
-                        .padding(.horizontal)
-                        .padding(.top, SBSLayout.space4)
-                    
                     // Disclaimer note
-                    HStack(spacing: SBSLayout.space2) {
+                    HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space2) {
                         Image(systemName: "info.circle")
-                            .font(.system(size: 12))
+                            .font(SBSFonts.caption())
+                            .accessibilityHidden(true)
                         Text("All programs are based on popular training programs. Some names are changed.")
                             .font(SBSFonts.caption())
                     }
                     .foregroundStyle(Color.inkSecondary)
-                    .padding(.horizontal)
-                    .padding(.vertical, SBSLayout.space2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                     // Custom templates (if any)
                     if !appState.userData.customTemplates.isEmpty {
@@ -138,7 +137,7 @@ struct ProgramSelector: View {
                             onToggle: { toggleFamily("__custom__") }
                         )
                     }
-                    
+
                     // Program families
                     ForEach(groupedPrograms, id: \.family) { group in
                         ProgramFamilyGroup(
@@ -154,44 +153,45 @@ struct ProgramSelector: View {
                             onLockedTap: { showingPaywall = true }
                         )
                     }
-                    
+
                     // Empty state
                     if filteredPrograms.isEmpty {
                         VStack(spacing: SBSLayout.space4) {
                             Image(systemName: "magnifyingglass")
-                                .font(.system(size: 40))
+                                .font(SBSFonts.titleLarge())
                                 .foregroundStyle(Color.inkSecondary)
-                            
+                                .accessibilityHidden(true)
+
                             Text("No programs matched your filters. More coming soon")
                                 .font(SBSFonts.body())
                                 .foregroundStyle(Color.inkSecondary)
                                 .multilineTextAlignment(.center)
-                            
+
                             Button("Clear Filters") {
                                 selectedDaysFilter = nil
                                 selectedLevelFilter = nil
                             }
                             .font(SBSFonts.bodyStrong())
                             .foregroundStyle(Color.orangeText)
+                            .frame(minHeight: 44)
                         }
                         .padding(.vertical, SBSLayout.space8)
                     }
-                    
+
                     // Template Builder prompt
                     TemplateBuilderPromptCard(onBuildTemplate: onBuildTemplate)
                         .padding(.top, SBSLayout.space2)
-                    
-                    
                 }
                 .padding(.horizontal)
                 .padding(.vertical, SBSLayout.space4)
             }
         }
+        .background(Color.bg)
         .sheet(isPresented: $showingPaywall) {
             PaywallView(triggeredByFeature: .allPrograms)
         }
     }
-    
+
     private func shouldExpandFamily(_ family: String, programs: [AppState.AvailableProgramInfo]) -> Bool {
         // Auto-expand if only one program in family, or if user expanded, or if contains selected
         if programs.count == 1 { return true }
@@ -199,7 +199,7 @@ struct ProgramSelector: View {
         if programs.contains(where: { $0.id == selectedProgram }) { return true }
         return false
     }
-    
+
     private func toggleFamily(_ family: String) {
         withAnimation(.easeInOut(duration: 0.2)) {
             if expandedFamilies.contains(family) {
@@ -224,59 +224,31 @@ struct ProgramFamilyGroup: View {
     let hasCustomizations: (String) -> Bool
     let onToggle: () -> Void
     let onLockedTap: () -> Void
-    
-    private var familyColor: Color {
-        // Use the level color of the first program in the family
-        if let first = programs.first, let meta = metadata[first.id] {
-            return meta.level.color
-        }
-        return SBSColors.accentFallback
-    }
-    
-    private var hasSelectedProgram: Bool {
-        programs.contains { $0.id == selectedProgram }
-    }
-    
+
     var body: some View {
         VStack(spacing: 0) {
-            // Family header
+            // Family header: the same row as the Programs tab's family groups. The
+            // selected program shows its own selection, so the header isn't tinted.
             if programs.count > 1 {
                 Button(action: onToggle) {
-                    HStack(spacing: SBSLayout.space4) {
-                        // Family name
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(family)
-                                .font(SBSFonts.heading())
-                                .foregroundStyle(Color.ink)
-                            
-                            Text("\(programs.count) variants")
-                                .font(SBSFonts.caption())
-                                .foregroundStyle(Color.inkSecondary)
-                        }
-                        
-                        Spacer()
-                        
-                        // Chevron
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(Color.inkTertiary)
+                    SBSListRow(family) {
+                        SBSRowSubtitle("\(programs.count) variants")
+                    } trailing: {
+                        SBSChevron(systemName: isExpanded ? "chevron.up" : "chevron.down")
                     }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .fill(hasSelectedProgram ? familyColor.opacity(0.08) : Color.surface)
-                    )
+                    .card()
                 }
                 .buttonStyle(.plain)
+                .accessibilityHint(isExpanded ? "Hides the variants" : "Shows the variants")
             }
-            
+
             // Programs
             if isExpanded || programs.count == 1 {
                 VStack(spacing: SBSLayout.space2) {
                     ForEach(programs) { program in
                         let meta = metadata[program.id]
                         let isLocked = isProgramLocked(program.id)
-                        
+
                         ProgramCard(
                             program: program,
                             meta: meta,
@@ -295,7 +267,7 @@ struct ProgramFamilyGroup: View {
                     }
                 }
                 .padding(.top, programs.count > 1 ? SBSLayout.space2 : 0)
-                .padding(.leading, programs.count > 1 ? SBSLayout.space6 : 0)
+                .padding(.leading, programs.count > 1 ? SBSLayout.space4 : 0)
             }
         }
     }
@@ -311,180 +283,123 @@ struct ProgramCard: View {
     let isPremiumUser: Bool
     let isCustomized: Bool
     let onSelect: () -> Void
-    
-    @State private var showingDetail = false
-    
-    var body: some View {
-        HStack(spacing: 0) {
-            // Main card content (tappable for selection)
-            Button(action: onSelect) {
-                VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                    // Header row
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: SBSLayout.space2) {
-                                Text(program.displayName)
-                                    .font(SBSFonts.bodyStrong())
-                                    .foregroundStyle(isLocked ? Color.inkSecondary : Color.ink)
-                                
-                                if isLocked {
-                                    PremiumBadge(isCompact: true)
-                                }
-                                
-                                if ProgramCatalog.showsFreeBadge(programId: program.id, isLocked: isLocked, isPremiumUser: isPremiumUser) {
-                                    FreeBadge()
-                                }
 
-                                if isCustomized {
-                                    ModifiedBadge()
-                                }
+    @State private var showingDetail = false
+
+    var body: some View {
+        // The card selects; the info button beside it is its own target
+        HStack(alignment: .top, spacing: 0) {
+            Button(action: onSelect) {
+                HStack(alignment: .top, spacing: SBSLayout.space3) {
+                    ProgramSelectionMark(isSelected: isSelected, isLocked: isLocked)
+
+                    VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                        Text(program.displayName)
+                            .font(SBSFonts.bodyStrong())
+                            .foregroundStyle(isLocked ? Color.inkSecondary : Color.ink)
+                            .multilineTextAlignment(.leading)
+
+                        // Two badges at most: Pro or Free, and Modified
+                        HStack(spacing: SBSLayout.space1) {
+                            if isLocked {
+                                SBSBadge(text: "Pro", variant: .pro, systemImage: "lock.fill")
                             }
 
-                            Text(meta?.shortDescription ?? program.programDescription)
-                                .font(SBSFonts.caption())
-                                .foregroundStyle(Color.inkSecondary)
-                                .lineLimit(2)
+                            if ProgramCatalog.showsFreeBadge(programId: program.id, isLocked: isLocked, isPremiumUser: isPremiumUser) {
+                                SBSBadge(text: "Free")
+                            }
+
+                            if isCustomized {
+                                SBSBadge(text: "Modified", systemImage: "pencil")
+                            }
                         }
-                        
-                        Spacer(minLength: SBSLayout.space4)
-                        
-                        // Selection indicator
-                        if isLocked {
-                            Image(systemName: "lock.fill")
-                                .font(.system(size: 16))
-                                .foregroundStyle(Color.inkSecondary)
-                        } else if isSelected {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 24))
-                                .foregroundStyle(Color.orangeText)
-                        } else {
-                            Circle()
-                                .strokeBorder(Color.inkTertiary, lineWidth: 2)
-                                .frame(width: 24, height: 24)
+
+                        Text(meta?.shortDescription ?? program.programDescription)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+
+                        // Days, weeks and level: one neutral line and badge, no colour per level
+                        HStack(spacing: SBSLayout.space2) {
+                            SBSRowSubtitle("\(program.days) days · \(program.weeks) weeks")
+
+                            if let level = meta?.level {
+                                SBSBadge(text: level.rawValue, systemImage: level.icon)
+                            }
                         }
                     }
-                    
-                    // Badges row with info button
-                    HStack(spacing: SBSLayout.space2) {
-                        // Days badge
-                        ProgramBadge(
-                            icon: "calendar",
-                            label: "\(program.days) Days",
-                            color: .blue
-                        )
-                        
-                        // Weeks badge
-                        ProgramBadge(
-                            icon: "clock",
-                            label: "\(program.weeks) Weeks",
-                            color: .gray
-                        )
-                        
-                        // Level badge
-                        if let level = meta?.level {
-                            ProgramBadge(
-                                icon: level.icon,
-                                label: level.rawValue,
-                                color: level.color
-                            )
-                        }
-                        
-                        Spacer()
-                        
-                        // Info button
-                        Button {
-                            showingDetail = true
-                        } label: {
-                            Image(systemName: "info.circle")
-                                .font(.system(size: 20))
-                                .foregroundStyle(Color.orangeText)
-                        }
-                        .buttonStyle(.plain)
-                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                        .fill(Color.surface)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                .strokeBorder(
-                                    isSelected && !isLocked ? SBSColors.accentFallback : Color.clear,
-                                    lineWidth: 2
-                                )
-                        )
-                )
+                .padding(.vertical, SBSLayout.space4)
+                .padding(.leading, SBSLayout.space4)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityAddTraits(isSelected && !isLocked ? [.isSelected] : [])
+
+            ProgramInfoButton(label: "About \(program.displayName)") {
+                showingDetail = true
+            }
+            .padding(.top, SBSLayout.space2)
+            .padding(.trailing, SBSLayout.space1)
         }
-        .opacity(isLocked ? 0.7 : 1.0)
+        .selectionCell(isSelected && !isLocked)
         .sheet(isPresented: $showingDetail) {
             ProgramDetailView(
                 program: program,
-                familyColor: meta?.level.color ?? SBSColors.accentFallback,
+                // Orange as text and icons; no colour per level
+                familyColor: Color.orangeText,
                 level: meta?.level ?? .intermediate
             )
         }
     }
 }
 
-// MARK: - Program Badge
+// MARK: - Selection Mark
 
-struct ProgramBadge: View {
-    let icon: String
+/// A program choice's mark: an orange-text check when chosen, a hairline square
+/// when not, a lock when it needs Premium. The card's selectionCell carries the
+/// selection; this repeats it as a glyph so it never rests on colour alone.
+struct ProgramSelectionMark: View {
+    let isSelected: Bool
+    var isLocked: Bool = false
+
+    var body: some View {
+        Group {
+            if isLocked {
+                Image(systemName: "lock.fill")
+                    .font(SBSFonts.bodyStrong())
+                    .foregroundStyle(Color.inkSecondary)
+            } else if isSelected {
+                Image(systemName: "checkmark")
+                    .font(SBSFonts.bodyStrong().weight(.bold))
+                    .foregroundStyle(Color.orangeText)
+            } else {
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .strokeBorder(Color.inkSecondary, lineWidth: SBSLayout.strokeHairline)
+                    .frame(width: 18, height: 18)
+            }
+        }
+        .frame(width: 22, height: 22)
+        .accessibilityHidden(true)
+    }
+}
+
+/// The info button on a program or template card: orange-text glyph, 44pt target.
+struct ProgramInfoButton: View {
     let label: String
-    let color: Color
-    
+    let action: () -> Void
+
     var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: icon)
-                .font(.system(size: 9, weight: .semibold))
-            Text(label)
-                .font(.system(size: 10, weight: .medium))
+        Button(action: action) {
+            Image(systemName: "info.circle")
+                .font(SBSFonts.heading())
+                .foregroundStyle(Color.orangeText)
+                .frame(minWidth: 44, minHeight: 44)
         }
-        .foregroundStyle(color)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background(
-            Capsule()
-                .fill(color.opacity(0.12))
-        )
-    }
-}
-
-// MARK: - Free Badge
-
-struct FreeBadge: View {
-    var body: some View {
-        Text("FREE")
-            .font(.system(size: 9, weight: .bold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(
-                Capsule()
-                    .fill(Color.green)
-            )
-    }
-}
-
-// MARK: - Modified Badge
-
-struct ModifiedBadge: View {
-    var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: "pencil")
-                .font(.system(size: 8, weight: .bold))
-            Text("MODIFIED")
-                .font(.system(size: 9, weight: .bold))
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(
-            Capsule()
-                .fill(Color.orange)
-        )
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 }
 
@@ -496,44 +411,27 @@ struct CustomTemplatesGroup: View {
     let isExpanded: Bool
     let hasCustomizations: (String) -> Bool
     let onToggle: () -> Void
-    
-    private var hasSelectedTemplate: Bool {
-        templates.contains { UserData.programId(for: $0.id) == selectedProgram }
-    }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
             Button(action: onToggle) {
-                HStack(spacing: SBSLayout.space4) {
-                    Image(systemName: "square.stack.3d.up.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(Color.orangeText)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("My Templates")
-                            .font(SBSFonts.heading())
-                            .foregroundStyle(Color.ink)
-                        
-                        Text("\(templates.count) custom")
-                            .font(SBSFonts.caption())
-                            .foregroundStyle(Color.inkSecondary)
-                    }
-                    
-                    Spacer()
-                    
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Color.inkTertiary)
+                SBSListRow("My Templates") {
+                    Image(systemName: "square.stack.3d.up")
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.inkSecondary)
+                        .frame(width: 24)
+                        .accessibilityHidden(true)
+                } subtitle: {
+                    SBSRowSubtitle("\(templates.count) custom")
+                } trailing: {
+                    SBSChevron(systemName: isExpanded ? "chevron.up" : "chevron.down")
                 }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                        .fill(hasSelectedTemplate ? Color.orangeSoft : Color.surface)
-                )
+                .card()
             }
             .buttonStyle(.plain)
-            
+            .accessibilityHint(isExpanded ? "Hides your templates" : "Shows your templates")
+
             // Templates
             if isExpanded {
                 VStack(spacing: SBSLayout.space2) {
@@ -548,7 +446,7 @@ struct CustomTemplatesGroup: View {
                     }
                 }
                 .padding(.top, SBSLayout.space2)
-                .padding(.leading, SBSLayout.space6)
+                .padding(.leading, SBSLayout.space4)
             }
         }
     }
@@ -559,28 +457,26 @@ struct CustomTemplateRow: View {
     let isSelected: Bool
     let isCustomized: Bool
     let onSelect: () -> Void
-    
+
     @State private var showingDetail = false
-    
+
     var body: some View {
-        Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: SBSLayout.space2) {
-                            Text(template.name)
-                                .font(SBSFonts.bodyStrong())
-                                .foregroundStyle(Color.ink)
-                            
-                            Text("CUSTOM")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundStyle(Color.orangeInk)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 2)
-                                .background(Capsule().fill(SBSColors.accentFallback))
+        HStack(alignment: .top, spacing: 0) {
+            Button(action: onSelect) {
+                HStack(alignment: .top, spacing: SBSLayout.space3) {
+                    ProgramSelectionMark(isSelected: isSelected)
+
+                    VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                        Text(template.name)
+                            .font(SBSFonts.bodyStrong())
+                            .foregroundStyle(Color.ink)
+                            .multilineTextAlignment(.leading)
+
+                        HStack(spacing: SBSLayout.space1) {
+                            SBSBadge(text: "Custom")
 
                             if isCustomized {
-                                ModifiedBadge()
+                                SBSBadge(text: "Modified", systemImage: "pencil")
                             }
                         }
 
@@ -589,151 +485,55 @@ struct CustomTemplateRow: View {
                                 .font(SBSFonts.caption())
                                 .foregroundStyle(Color.inkSecondary)
                                 .lineLimit(2)
+                                .multilineTextAlignment(.leading)
+                        }
+
+                        // Days, weeks and mode
+                        HStack(spacing: SBSLayout.space2) {
+                            SBSRowSubtitle("\(template.daysPerWeek) days · \(template.weeks.count) weeks")
+
+                            SBSBadge(
+                                text: template.mode.displayName,
+                                systemImage: template.mode == .simple ? "list.bullet" : "slider.horizontal.3"
+                            )
                         }
                     }
-                    
-                    Spacer()
-                    
-                    if isSelected {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundStyle(Color.orangeText)
-                    } else {
-                        Circle()
-                            .strokeBorder(Color.inkTertiary, lineWidth: 2)
-                            .frame(width: 24, height: 24)
-                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                
-                // Badges row with info button
-                HStack(spacing: SBSLayout.space2) {
-                    ProgramBadge(
-                        icon: "calendar",
-                        label: "\(template.daysPerWeek) Days",
-                        color: .blue
-                    )
-                    
-                    ProgramBadge(
-                        icon: "clock",
-                        label: "\(template.weeks.count) Weeks",
-                        color: .gray
-                    )
-                    
-                    ProgramBadge(
-                        icon: template.mode == .simple ? "list.bullet" : "slider.horizontal.3",
-                        label: template.mode.displayName,
-                        color: template.mode == .simple ? .green : .purple
-                    )
-                    
-                    Spacer()
-                    
-                    // Info button
-                    Button {
-                        showingDetail = true
-                    } label: {
-                        Image(systemName: "info.circle")
-                            .font(.system(size: 20))
-                            .foregroundStyle(Color.orangeText)
-                    }
-                    .buttonStyle(.plain)
-                }
+                .padding(.vertical, SBSLayout.space4)
+                .padding(.leading, SBSLayout.space4)
+                .contentShape(Rectangle())
             }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                    .fill(Color.surface)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .strokeBorder(isSelected ? SBSColors.accentFallback : Color.clear, lineWidth: 2)
-                    )
-            )
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+
+            ProgramInfoButton(label: "About \(template.name)") {
+                showingDetail = true
+            }
+            .padding(.top, SBSLayout.space2)
+            .padding(.trailing, SBSLayout.space1)
         }
-        .buttonStyle(.plain)
+        .selectionCell(isSelected)
         .sheet(isPresented: $showingDetail) {
             CustomTemplateDetailView(template: template)
         }
     }
 }
 
-// MARK: - Quiz Prompt Card
-
-struct QuizPromptCard: View {
-    let onTakeQuiz: () -> Void
-    
-    var body: some View {
-        Button(action: onTakeQuiz) {
-            HStack(spacing: SBSLayout.space4) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 24))
-                    .foregroundStyle(Color.orangeText)
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Not sure which to pick?")
-                        .font(SBSFonts.bodyStrong())
-                        .foregroundStyle(Color.ink)
-                    
-                    Text("Take the quiz to find the best program for you")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(Color.inkSecondary)
-                }
-                
-                Spacer()
-                
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.inkTertiary)
-            }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                    .fill(Color.orangeSoft)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .strokeBorder(SBSColors.accentFallback.opacity(0.2), lineWidth: 1)
-                    )
-            )
-        }
-        .buttonStyle(.plain)
-    }
-}
-
 // MARK: - Template Builder Prompt Card
 
+/// A navigation row like the quiz prompt: hairline card, no tint.
 struct TemplateBuilderPromptCard: View {
     let onBuildTemplate: () -> Void
-    
+
     var body: some View {
         Button(action: onBuildTemplate) {
-            HStack(spacing: SBSLayout.space4) {
-                Image(systemName: "hammer.fill")
-                    .font(.system(size: 24))
-                    .foregroundStyle(Color.orangeText)
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Not seeing what you want?")
-                        .font(SBSFonts.bodyStrong())
-                        .foregroundStyle(Color.ink)
-                    
-                    Text("Build your own in the Template Builder")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(Color.inkSecondary)
-                }
-                
-                Spacer()
-                
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.inkTertiary)
+            SBSListRow("Not seeing what you want?", showsChevron: true) {
+                Text("Build your own in the Template Builder")
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                    .fill(Color.orangeSoft)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .strokeBorder(SBSColors.accentFallback.opacity(0.2), lineWidth: 1)
-                    )
-            )
+            .card()
         }
         .buttonStyle(.plain)
     }
@@ -749,4 +549,3 @@ struct TemplateBuilderPromptCard: View {
         onBuildTemplate: {}
     )
 }
-

@@ -22,16 +22,9 @@ struct ProgramRecommendationQuiz: View {
     
     var body: some View {
         ZStack {
-            // Background
-            LinearGradient(
-                colors: [
-                    Color.bg,
-                    Color.orangeSoft
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            // Background: plain bg, no tint
+            Color.bg
+                .ignoresSafeArea()
             
             if showingResults {
                 RecommendationResultsView(
@@ -68,25 +61,25 @@ struct ProgramRecommendationQuiz: View {
                             }
                         } label: {
                             Image(systemName: currentQuestion > 0 ? "chevron.left" : "xmark")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(Color.inkSecondary)
+                                .font(SBSFonts.heading())
+                                .foregroundStyle(Color.ink)
                                 .frame(width: 44, height: 44)
                         }
+                        .accessibilityLabel(currentQuestion > 0 ? "Previous question" : "Close")
                         
                         Spacer()
                         
-                        // Progress dots
-                        HStack(spacing: 6) {
+                        // Progress: square segments, ink once reached, hairline ahead
+                        HStack(spacing: SBSLayout.space1) {
                             ForEach(0..<questions.count, id: \.self) { index in
-                                Circle()
-                                    .fill(index <= currentQuestion 
-                                          ? SBSColors.accentFallback 
-                                          : Color.inkSecondary.opacity(0.3))
-                                    .frame(width: 8, height: 8)
-                                    .scaleEffect(index == currentQuestion ? 1.2 : 1.0)
-                                    .animation(.spring(response: 0.3), value: currentQuestion)
+                                Rectangle()
+                                    .fill(index <= currentQuestion ? Color.ink : Color.hairline)
+                                    .frame(width: index == currentQuestion ? 24 : 12, height: 4)
+                                    .animation(.easeOut(duration: 0.15), value: currentQuestion)
                             }
                         }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("Question \(currentQuestion + 1) of \(questions.count)")
                         
                         Spacer()
                         
@@ -95,7 +88,7 @@ struct ProgramRecommendationQuiz: View {
                             onDismiss()
                         } label: {
                             Text("Skip")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.caption().weight(.semibold))
                                 .foregroundStyle(Color.inkSecondary)
                         }
                         .frame(width: 44, height: 44)
@@ -296,15 +289,13 @@ struct QuestionView: View {
         VStack(spacing: SBSLayout.space6) {
             // Question header
             VStack(spacing: SBSLayout.space4) {
-                ZStack {
-                    Circle()
-                        .fill(Color.orangeSoft)
-                        .frame(width: 80, height: 80)
-                    
-                    Image(systemName: question.icon)
-                        .font(.system(size: 36, weight: .medium))
-                        .foregroundStyle(Color.orangeText)
-                }
+                // The question's glyph in orange-text on a hairline tile, no tint
+                Image(systemName: question.icon)
+                    .font(SBSFonts.titleLarge())
+                    .foregroundStyle(Color.orangeText)
+                    .frame(width: 72, height: 72)
+                    .card()
+                    .accessibilityHidden(true)
                 
                 VStack(spacing: SBSLayout.space2) {
                     Text(question.title)
@@ -318,12 +309,13 @@ struct QuestionView: View {
                         .multilineTextAlignment(.center)
                 }
             }
+            .padding(.horizontal, SBSLayout.space4)
             .padding(.top, SBSLayout.space6)
-            
+
             Spacer()
             
             // Options
-            VStack(spacing: SBSLayout.space4) {
+            VStack(spacing: SBSLayout.space2) {
                 ForEach(Array(question.options.enumerated()), id: \.element.id) { index, option in
                     OptionButton(
                         option: option,
@@ -339,8 +331,8 @@ struct QuestionView: View {
                     )
                 }
             }
-            .padding(.horizontal, SBSLayout.space6)
-            
+            .padding(.horizontal, SBSLayout.space4)
+
             Spacer()
         }
         .onAppear {
@@ -357,51 +349,44 @@ struct OptionButton: View {
     let option: QuizOption
     let isSelected: Bool
     let onTap: () -> Void
-    
+
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: SBSLayout.space4) {
+            HStack(spacing: SBSLayout.space3) {
                 Image(systemName: option.icon)
-                    .font(.system(size: 22))
-                    .foregroundStyle(isSelected ? Color.orangeInk : Color.orangeText)
-                    .frame(width: 44, height: 44)
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .fill(isSelected ? SBSColors.accentFallback : Color.orangeSoft)
-                    )
-                
+                    .font(SBSFonts.heading())
+                    .foregroundStyle(isSelected ? Color.orangeText : Color.inkSecondary)
+                    .frame(width: 32)
+                    .accessibilityHidden(true)
+
                 VStack(alignment: .leading, spacing: 2) {
                     Text(option.label)
                         .font(SBSFonts.bodyStrong())
                         .foregroundStyle(Color.ink)
-                    
+                        .multilineTextAlignment(.leading)
+
                     Text(option.description)
                         .font(SBSFonts.caption())
                         .foregroundStyle(Color.inkSecondary)
+                        .multilineTextAlignment(.leading)
                 }
-                
-                Spacer()
-                
+                .frame(maxWidth: .infinity, alignment: .leading)
+
                 if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 24))
+                    Image(systemName: "checkmark")
+                        .font(SBSFonts.bodyStrong().weight(.bold))
                         .foregroundStyle(Color.orangeText)
+                        .accessibilityHidden(true)
                 }
             }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                    .fill(Color.surface)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .strokeBorder(
-                                isSelected ? SBSColors.accentFallback : Color.clear,
-                                lineWidth: 2
-                            )
-                    )
-            )
+            .padding(.horizontal, SBSLayout.space4)
+            .padding(.vertical, SBSLayout.space3)
+            .frame(minHeight: 56)
+            .selectionCell(isSelected)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 }
 
@@ -435,69 +420,68 @@ struct RecommendationResultsView: View {
     private func programInfo(for programId: String) -> AppState.AvailableProgramInfo? {
         appState.availablePrograms.first { $0.id == programId }
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
             HStack {
                 Button(action: onBack) {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(Color.inkSecondary)
+                        .font(SBSFonts.heading())
+                        .foregroundStyle(Color.ink)
                         .frame(width: 44, height: 44)
                 }
-                
+                .accessibilityLabel("Back to the questions")
+
                 Spacer()
-                
+
                 Text("Recommendations")
                     .font(SBSFonts.heading())
                     .foregroundStyle(Color.ink)
-                
+                    .accessibilityAddTraits(.isHeader)
+
                 Spacer()
-                
+
                 Button(action: onDismiss) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(Color.inkSecondary)
+                        .font(SBSFonts.heading())
+                        .foregroundStyle(Color.ink)
                         .frame(width: 44, height: 44)
                 }
+                .accessibilityLabel("Close")
             }
             .padding(.horizontal)
-            
+
             ScrollView {
                 VStack(spacing: SBSLayout.space6) {
                     // Summary card
-                    VStack(spacing: SBSLayout.space4) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 32))
-                            .foregroundStyle(Color.orangeText)
-                        
-                        Text("Based on your answers")
-                            .font(SBSFonts.heading())
-                            .foregroundStyle(Color.ink)
-                        
+                    VStack(alignment: .leading, spacing: SBSLayout.space2) {
+                        HStack(spacing: SBSLayout.space2) {
+                            Image(systemName: "sparkles")
+                                .font(SBSFonts.caption().weight(.semibold))
+                                .foregroundStyle(Color.orangeText)
+                                .accessibilityHidden(true)
+                            SBSEyebrow("Based on your answers")
+                                .foregroundStyle(Color.inkSecondary)
+                        }
+
                         Text(summaryText)
                             .font(SBSFonts.body())
-                            .foregroundStyle(Color.inkSecondary)
-                            .multilineTextAlignment(.center)
+                            .foregroundStyle(Color.ink)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .fill(Color.surface)
-                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .card()
                     .padding(.horizontal)
                     .opacity(animateIn ? 1 : 0)
                     .offset(y: animateIn ? 0 : 20)
-                    
+
                     // Recommended programs
-                    VStack(alignment: .leading, spacing: SBSLayout.space4) {
-                        Text("Our Top Picks")
-                            .font(SBSFonts.heading())
-                            .foregroundStyle(Color.ink)
+                    VStack(alignment: .leading, spacing: SBSLayout.space3) {
+                        SBSSectionEyebrow("Our top picks")
                             .padding(.horizontal)
-                        
+
                         ForEach(Array(recommendations.prefix(3).enumerated()), id: \.element.programId) { index, recommendation in
                             let isLocked = isProgramLocked(recommendation.programId)
                             RecommendationCard(
@@ -524,15 +508,13 @@ struct RecommendationResultsView: View {
                             )
                         }
                     }
-                    
+
                     // Other options
                     if recommendations.count > 3 {
-                        VStack(alignment: .leading, spacing: SBSLayout.space4) {
-                            Text("Other Options")
-                                .font(SBSFonts.heading())
-                                .foregroundStyle(Color.ink)
+                        VStack(alignment: .leading, spacing: SBSLayout.space3) {
+                            SBSSectionEyebrow("Other options")
                                 .padding(.horizontal)
-                            
+
                             ForEach(recommendations.dropFirst(3), id: \.programId) { recommendation in
                                 let isLocked = isProgramLocked(recommendation.programId)
                                 RecommendationCardCompact(
@@ -553,24 +535,28 @@ struct RecommendationResultsView: View {
                         }
                         .opacity(animateIn ? 1 : 0)
                     }
-                    
-                    // Browse all button
+
+                    // Browse all: the alternative to picking a card, so secondary
                     Button {
                         onBrowseAll()
                     } label: {
-                        HStack {
+                        HStack(spacing: SBSLayout.space2) {
                             Image(systemName: "list.bullet")
-                            Text("Browse All Programs")
+                                .font(SBSFonts.button())
+                                .accessibilityHidden(true)
+                            SBSButtonTitle("Browse All Programs")
                         }
-                        .font(SBSFonts.body())
-                        .foregroundStyle(Color.orangeText)
+                        .frame(maxWidth: .infinity)
                     }
-                    .padding(.vertical, SBSLayout.space6)
+                    .buttonStyle(SBSSecondaryButtonStyle())
+                    .padding(.horizontal)
+                    .padding(.bottom, SBSLayout.space6)
                     .opacity(animateIn ? 1 : 0)
                 }
                 .padding(.vertical)
             }
         }
+        .background(Color.bg)
         .sheet(isPresented: $showingPaywall) {
             PaywallView(triggeredByFeature: .allPrograms)
         }
@@ -580,7 +566,7 @@ struct RecommendationResultsView: View {
             }
         }
     }
-    
+
     private var summaryText: String {
         var parts: [String] = []
         
@@ -608,7 +594,7 @@ struct RecommendationResultsView: View {
         default: break
         }
         
-        return parts.joined(separator: " • ")
+        return parts.joined(separator: " · ")
     }
 }
 
@@ -640,148 +626,125 @@ struct RecommendationCard: View {
     }
     
     var body: some View {
-        Button(action: {
-            if isLocked {
-                onLockedTap()
-            } else {
-                onSelect()
-            }
-        }) {
-            VStack(alignment: .leading, spacing: SBSLayout.space4) {
-                // Header with badge
-                HStack {
+        // The card selects; the info button beside it is its own target
+        HStack(alignment: .top, spacing: 0) {
+            Button(action: {
+                if isLocked {
+                    onLockedTap()
+                } else {
+                    onSelect()
+                }
+            }) {
+                VStack(alignment: .leading, spacing: SBSLayout.space3) {
+                    // Best match: an orange-text eyebrow, never a coloured stroke
                     if isTopPick && !isLocked {
-                        HStack(spacing: 4) {
+                        HStack(spacing: SBSLayout.space1) {
                             Image(systemName: "star.fill")
-                                .font(.system(size: 12))
-                            Text("BEST MATCH")
-                                .font(.system(size: 11, weight: .bold))
+                                .font(SBSFonts.eyebrow())
+                                .accessibilityHidden(true)
+                            SBSEyebrow("Best match")
                         }
-                        .foregroundStyle(Color.orangeInk)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule()
-                                .fill(SBSColors.accentFallback)
-                        )
+                        .foregroundStyle(Color.orangeText)
                     }
-                    
-                    // Free/Pro badge
-                    if recommendation.isFree {
-                        FreeBadge()
-                    } else {
-                        PremiumBadge()
-                    }
-                    
-                    Spacer()
-                    
-                    // Info button
-                    if programInfo != nil {
-                        Button {
-                            showingDetail = true
-                        } label: {
-                            Image(systemName: "info.circle")
-                                .font(.system(size: 18))
-                                .foregroundStyle(Color.orangeText)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    
-                    Text("\(Int(recommendation.matchScore))% match")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(Color.inkSecondary)
-                }
-                
-                // Program name
-                HStack(spacing: SBSLayout.space2) {
-                    Text(recommendation.displayName)
-                        .font(SBSFonts.heading())
-                        .foregroundStyle(isLocked ? Color.inkSecondary : Color.ink)
-                    
-                    if isLocked {
-                        Image(systemName: "lock.fill")
-                            .font(.system(size: 14))
-                            .foregroundStyle(Color.inkSecondary)
-                    }
-                }
-                
-                // Description
-                Text(recommendation.programDescription)
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(Color.inkSecondary)
-                    .lineLimit(2)
-                
-                // Tags
-                HStack(spacing: 8) {
-                    ForEach(recommendation.tags.prefix(3), id: \.self) { tag in
-                        Text(tag)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(isLocked ? Color.inkSecondary : Color.orangeText)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                Capsule()
-                                    .fill((isLocked ? Color.inkTertiary : SBSColors.accentFallback).opacity(0.1))
-                            )
-                    }
-                }
-                
-                // Why this program (only show if not locked)
-                if !recommendation.reasons.isEmpty && !isLocked {
-                    VStack(alignment: .leading, spacing: 4) {
-                        ForEach(recommendation.reasons.prefix(2), id: \.self) { reason in
-                            HStack(spacing: 6) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(Color.success)
-                                Text(reason)
-                                    .font(SBSFonts.caption())
+
+                    // Program name, match and Free/Pro
+                    HStack(alignment: .top, spacing: SBSLayout.space3) {
+                        ProgramSelectionMark(isSelected: isSelected, isLocked: isLocked)
+
+                        VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                            Text(recommendation.displayName)
+                                .font(SBSFonts.heading())
+                                .foregroundStyle(isLocked ? Color.inkSecondary : Color.ink)
+                                .multilineTextAlignment(.leading)
+
+                            HStack(spacing: SBSLayout.space2) {
+                                if recommendation.isFree {
+                                    SBSBadge(text: "Free")
+                                } else {
+                                    SBSBadge(text: "Pro", variant: .pro, systemImage: "lock.fill")
+                                }
+
+                                Text("\(Int(recommendation.matchScore))% match")
+                                    .font(SBSFonts.numberSmall())
                                     .foregroundStyle(Color.inkSecondary)
                             }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    // Description
+                    Text(recommendation.programDescription)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+
+                    // Tags: neutral badges, the word does the work
+                    HStack(spacing: SBSLayout.space1) {
+                        ForEach(recommendation.tags.prefix(3), id: \.self) { tag in
+                            SBSBadge(text: tag)
+                        }
+                    }
+
+                    // Why this program (only show if not locked)
+                    if !recommendation.reasons.isEmpty && !isLocked {
+                        VStack(alignment: .leading, spacing: SBSLayout.space1) {
+                            ForEach(recommendation.reasons.prefix(2), id: \.self) { reason in
+                                HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space2) {
+                                    Image(systemName: "checkmark")
+                                        .font(SBSFonts.caption().weight(.bold))
+                                        .foregroundStyle(Color.success)
+                                        .accessibilityHidden(true)
+                                    Text(reason)
+                                        .font(SBSFonts.caption())
+                                        .foregroundStyle(Color.inkSecondary)
+                                        .multilineTextAlignment(.leading)
+                                }
+                            }
+                        }
+                    }
+
+                    // Upgrade prompt for locked programs
+                    if isLocked {
+                        HStack(spacing: SBSLayout.space1) {
+                            Image(systemName: "lock.fill")
+                                .font(SBSFonts.caption())
+                                .accessibilityHidden(true)
+                            Text("Upgrade to unlock this program")
+                                .font(SBSFonts.caption().weight(.semibold))
+                        }
+                        .foregroundStyle(Color.orangeText)
                     }
                 }
-                
-                // Upgrade prompt for locked programs
-                if isLocked {
-                    HStack(spacing: 6) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 12))
-                        Text("Upgrade to unlock this program")
-                            .font(SBSFonts.caption())
-                    }
-                    .foregroundStyle(Color.orangeText)
-                }
+                .padding(.vertical, SBSLayout.space4)
+                .padding(.leading, SBSLayout.space4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                    .fill(Color.surface)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .strokeBorder(
-                                isSelected && !isLocked ? SBSColors.accentFallback : (isTopPick && !isLocked ? SBSColors.accentFallback.opacity(0.3) : Color.clear),
-                                lineWidth: isSelected && !isLocked ? 2 : 1
-                            )
-                    )
-            )
-            .opacity(isLocked ? 0.8 : 1.0)
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(isSelected && !isLocked ? [.isSelected] : [])
+
+            if programInfo != nil {
+                ProgramInfoButton(label: "About \(recommendation.displayName)") {
+                    showingDetail = true
+                }
+                .padding(.top, SBSLayout.space2)
+                .padding(.trailing, SBSLayout.space1)
+            }
         }
-        .buttonStyle(.plain)
+        .selectionCell(isSelected && !isLocked)
         .sheet(isPresented: $showingDetail) {
             if let info = programInfo {
                 ProgramDetailView(
                     program: info,
-                    familyColor: programLevel.color,
+                    // Orange as text and icons; no colour per level
+                    familyColor: Color.orangeText,
                     level: programLevel
                 )
             }
         }
     }
 }
-
-// NOTE: FreeBadge and PremiumBadge are defined in ProgramSelector.swift and UpgradePrompt.swift
 
 struct RecommendationCardCompact: View {
     let recommendation: ProgramRecommendation
@@ -790,9 +753,9 @@ struct RecommendationCardCompact: View {
     let isLocked: Bool
     let onSelect: () -> Void
     let onLockedTap: () -> Void
-    
+
     @State private var showingDetail = false
-    
+
     private var programLevel: ProgramLevel {
         switch recommendation.programId {
         case "stronglifts_5x5_12week", "greyskull_lp_12week", "starting_strength_12week":
@@ -805,83 +768,59 @@ struct RecommendationCardCompact: View {
             return .intermediate
         }
     }
-    
+
     var body: some View {
-        Button(action: {
-            if isLocked {
-                onLockedTap()
-            } else {
-                onSelect()
-            }
-        }) {
-            HStack(spacing: SBSLayout.space4) {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: SBSLayout.space2) {
+        HStack(alignment: .center, spacing: 0) {
+            Button(action: {
+                if isLocked {
+                    onLockedTap()
+                } else {
+                    onSelect()
+                }
+            }) {
+                HStack(alignment: .top, spacing: SBSLayout.space3) {
+                    ProgramSelectionMark(isSelected: isSelected, isLocked: isLocked)
+
+                    VStack(alignment: .leading, spacing: SBSLayout.space1) {
                         Text(recommendation.displayName)
                             .font(SBSFonts.bodyStrong())
                             .foregroundStyle(isLocked ? Color.inkSecondary : Color.ink)
-                        
-                        if isLocked {
-                            Image(systemName: "lock.fill")
-                                .font(.system(size: 12))
-                                .foregroundStyle(Color.inkSecondary)
-                        }
-                        
-                        if recommendation.isFree {
-                            FreeBadge()
-                        } else {
-                            PremiumBadge(isCompact: true)
+                            .multilineTextAlignment(.leading)
+
+                        HStack(spacing: SBSLayout.space2) {
+                            if recommendation.isFree {
+                                SBSBadge(text: "Free")
+                            } else {
+                                SBSBadge(text: "Pro", variant: .pro, systemImage: "lock.fill")
+                            }
+
+                            SBSRowSubtitle("\(recommendation.days) days/week · \(Int(recommendation.matchScore))%")
                         }
                     }
-                    
-                    Text("\(recommendation.days) days/week")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(Color.inkSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                
-                Spacer()
-                
-                // Info button
-                if programInfo != nil {
-                    Button {
-                        showingDetail = true
-                    } label: {
-                        Image(systemName: "info.circle")
-                            .font(.system(size: 16))
-                            .foregroundStyle(Color.orangeText)
-                    }
-                    .buttonStyle(.plain)
-                }
-                
-                Text("\(Int(recommendation.matchScore))%")
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(Color.inkSecondary)
-                
-                if isSelected && !isLocked {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(Color.orangeText)
-                }
+                .padding(.vertical, SBSLayout.space3)
+                .padding(.leading, SBSLayout.space4)
+                .frame(minHeight: 56)
+                .contentShape(Rectangle())
             }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                    .fill(Color.surface)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .strokeBorder(
-                                isSelected && !isLocked ? SBSColors.accentFallback : Color.clear,
-                                lineWidth: 2
-                            )
-                    )
-            )
-            .opacity(isLocked ? 0.8 : 1.0)
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(isSelected && !isLocked ? [.isSelected] : [])
+
+            if programInfo != nil {
+                ProgramInfoButton(label: "About \(recommendation.displayName)") {
+                    showingDetail = true
+                }
+                .padding(.trailing, SBSLayout.space1)
+            }
         }
-        .buttonStyle(.plain)
+        .selectionCell(isSelected && !isLocked)
         .sheet(isPresented: $showingDetail) {
             if let info = programInfo {
                 ProgramDetailView(
                     program: info,
-                    familyColor: programLevel.color,
+                    // Orange as text and icons; no colour per level
+                    familyColor: Color.orangeText,
                     level: programLevel
                 )
             }

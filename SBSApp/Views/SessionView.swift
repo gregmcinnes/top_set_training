@@ -717,7 +717,7 @@ struct SessionHeaderWithWorkout: View {
                 Text(title)
                     .font(SBSFonts.legacyButton())
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(Color.orangeInk)
             .frame(maxWidth: .infinity)
             .padding(.vertical, SBSLayout.paddingMedium)
             .background(
@@ -853,7 +853,7 @@ struct RepLogSheet: View {
                                 Text("Add note")
                                     .font(SBSFonts.legacyCaption())
                             }
-                            .foregroundStyle(SBSColors.accentFallback)
+                            .foregroundStyle(Color.orangeText)
                         }
                         .padding(.top, SBSLayout.paddingSmall)
                     }
@@ -1051,7 +1051,7 @@ struct AccessoryLogSheet: View {
                                         Text("Add note")
                                             .font(SBSFonts.legacyCaption())
                                     }
-                                    .foregroundStyle(SBSColors.accentFallback)
+                                    .foregroundStyle(Color.orangeText)
                                 }
                             }
                         }
@@ -1215,7 +1215,7 @@ struct QuickWeightButton: View {
                     .font(SBSFonts.legacyCaption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
-            .foregroundStyle(SBSColors.accentFallback)
+            .foregroundStyle(Color.orangeText)
             .frame(maxWidth: .infinity)
             .padding(.vertical, SBSLayout.paddingSmall)
             .background(
@@ -1265,7 +1265,7 @@ struct DayNavigator: View {
             .disabled(currentDay >= totalDays)
             .opacity(currentDay >= totalDays ? 0.3 : 1)
         }
-        .foregroundStyle(SBSColors.accentFallback)
+        .foregroundStyle(Color.orangeText)
         .padding(.horizontal)
     }
 }
@@ -1429,7 +1429,7 @@ struct QuickAdjustButton: View {
         Button(action: onTap) {
             Text(label)
                 .font(SBSFonts.captionBold())
-                .foregroundStyle(SBSColors.accentFallback)
+                .foregroundStyle(Color.orangeText)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, SBSLayout.paddingSmall)
                 .background(
@@ -1479,7 +1479,7 @@ struct LinearLogSheet: View {
                         Text("LINEAR PROGRESSION")
                             .font(SBSFonts.captionBold())
                     }
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(
@@ -1731,7 +1731,7 @@ struct AccessoryEditorSheet: View {
                     } label: {
                         Text("Save")
                             .font(SBSFonts.legacyButton())
-                            .foregroundStyle(hasChanges ? .white : SBSColors.textTertiaryFallback)
+                            .foregroundStyle(hasChanges ? Color.orangeInk : SBSColors.textTertiaryFallback)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, SBSLayout.paddingMedium)
                             .background(
@@ -1750,7 +1750,7 @@ struct AccessoryEditorSheet: View {
                 ToolbarItem(placement: .topBarLeading) {
                     if !accessories.isEmpty {
                         EditButton()
-                            .foregroundStyle(SBSColors.accentFallback)
+                            .foregroundStyle(Color.orangeText)
                     }
                 }
 

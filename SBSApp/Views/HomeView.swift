@@ -451,7 +451,7 @@ struct WeekProgressBar: View {
                 
                 Text("\(Int(progress * 100))%")
                     .font(SBSFonts.captionBold())
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
             }
             
             GeometryReader { geo in

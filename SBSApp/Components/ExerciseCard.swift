@@ -55,7 +55,7 @@ struct TMCard: View {
                     
                     Text(topSingleAt8.formattedWeight(useMetric: useMetric))
                         .font(SBSFonts.weight())
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                 }
                 
                 Spacer()
@@ -116,7 +116,7 @@ struct VolumeCard: View {
                 
                 Text(intensityBadgeText)
                     .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(
@@ -141,7 +141,7 @@ struct VolumeCard: View {
                     HStack(spacing: 4) {
                         Text(weight.formattedWeight(useMetric: useMetric))
                             .font(SBSFonts.weightLarge())
-                            .foregroundStyle(isWeightOverridden ? SBSColors.warning : SBSColors.accentFallback)
+                            .foregroundStyle(isWeightOverridden ? SBSColors.warning : Color.orangeText)
                         
                         if isWeightOverridden {
                             Image(systemName: "pencil.circle.fill")
@@ -243,11 +243,11 @@ struct LogButton: View {
                     // Not logged state
                     Image(systemName: "plus")
                         .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.orangeInk)
                     
                     Text("Log")
                         .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(.white.opacity(0.8))
+                        .foregroundStyle(Color.orangeInk.opacity(0.8))
                 }
             }
             .frame(width: 72, height: 72)
@@ -685,7 +685,7 @@ struct LinearCard: View {
                 // Weight
                 Text(info.weight.formattedWeight(useMetric: useMetric))
                     .font(SBSFonts.weightLarge())
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
                 
                 Spacer()
             }
@@ -769,11 +769,11 @@ struct LinearLogButton: View {
                     // Not logged state
                     Image(systemName: "plus")
                         .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.orangeInk)
                     
                     Text("Log")
                         .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(.white.opacity(0.8))
+                        .foregroundStyle(Color.orangeInk.opacity(0.8))
                 }
             }
             .frame(width: 72, height: 72)

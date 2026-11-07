@@ -34,25 +34,25 @@ struct Plate: Identifiable, Equatable {
 enum StandardPlates {
     // Olympic plates in lbs with competition-inspired colors
     static let plates: [Plate] = [
-        Plate(weight: 45, color: Color(red: 0.2, green: 0.4, blue: 0.8), height: 1.0),      // Blue - 45lb
-        Plate(weight: 35, color: Color(red: 0.9, green: 0.75, blue: 0.1), height: 0.9),     // Yellow - 35lb
-        Plate(weight: 25, color: Color(red: 0.2, green: 0.7, blue: 0.3), height: 0.8),      // Green - 25lb
-        Plate(weight: 10, color: Color(red: 0.95, green: 0.95, blue: 0.95), height: 0.6),   // White - 10lb
-        Plate(weight: 5, color: Color(red: 0.85, green: 0.2, blue: 0.2), height: 0.5),      // Red - 5lb
-        Plate(weight: 2.5, color: Color(red: 0.6, green: 0.6, blue: 0.65), height: 0.4),    // Silver - 2.5lb
+        Plate(weight: 45, color: Color.plateBlue, height: 1.0),      // Blue - 45lb
+        Plate(weight: 35, color: Color.plateYellow, height: 0.9),     // Yellow - 35lb
+        Plate(weight: 25, color: Color.plateGreen, height: 0.8),      // Green - 25lb
+        Plate(weight: 10, color: Color.plateWhite, height: 0.6),   // White - 10lb
+        Plate(weight: 5, color: Color.plateRed, height: 0.5),      // Red - 5lb
+        Plate(weight: 2.5, color: Color.plateSilver, height: 0.4),    // Silver - 2.5lb
     ]
     
     // Metric plates (kg) with competition colors
     static let metricPlates: [Plate] = [
         // Exact lb equivalents: the calculator works in lb, and rounded values here
         // would leave a false "missing weight" remainder on every kg target.
-        Plate(weight: 25 * BarWeightOptions.lbPerKg, color: Color(red: 0.85, green: 0.2, blue: 0.2), height: 1.0),     // Red - 25kg
-        Plate(weight: 20 * BarWeightOptions.lbPerKg, color: Color(red: 0.2, green: 0.4, blue: 0.8), height: 0.95),     // Blue - 20kg
-        Plate(weight: 15 * BarWeightOptions.lbPerKg, color: Color(red: 0.9, green: 0.75, blue: 0.1), height: 0.85),    // Yellow - 15kg
-        Plate(weight: 10 * BarWeightOptions.lbPerKg, color: Color(red: 0.2, green: 0.7, blue: 0.3), height: 0.75),     // Green - 10kg
-        Plate(weight: 5 * BarWeightOptions.lbPerKg, color: Color(red: 0.95, green: 0.95, blue: 0.95), height: 0.6),    // White - 5kg
-        Plate(weight: 2.5 * BarWeightOptions.lbPerKg, color: Color(red: 0.85, green: 0.2, blue: 0.2), height: 0.5),    // Red small - 2.5kg
-        Plate(weight: 1.25 * BarWeightOptions.lbPerKg, color: Color(red: 0.6, green: 0.6, blue: 0.65), height: 0.4),   // Silver - 1.25kg
+        Plate(weight: 25 * BarWeightOptions.lbPerKg, color: Color.plateRed, height: 1.0),     // Red - 25kg
+        Plate(weight: 20 * BarWeightOptions.lbPerKg, color: Color.plateBlue, height: 0.95),     // Blue - 20kg
+        Plate(weight: 15 * BarWeightOptions.lbPerKg, color: Color.plateYellow, height: 0.85),    // Yellow - 15kg
+        Plate(weight: 10 * BarWeightOptions.lbPerKg, color: Color.plateGreen, height: 0.75),     // Green - 10kg
+        Plate(weight: 5 * BarWeightOptions.lbPerKg, color: Color.plateWhite, height: 0.6),    // White - 5kg
+        Plate(weight: 2.5 * BarWeightOptions.lbPerKg, color: Color.plateRed, height: 0.5),    // Red small - 2.5kg
+        Plate(weight: 1.25 * BarWeightOptions.lbPerKg, color: Color.plateSilver, height: 0.4),   // Silver - 1.25kg
     ]
 }
 
@@ -294,7 +294,7 @@ struct BarbellView: View {
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                 Text(formatWeight(max(weight, barWeight)))
                     .font(SBSFonts.captionBold())
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
             }
         }
     }
@@ -730,7 +730,7 @@ struct PlateCalculatorInfoView: View {
         HStack(alignment: .top, spacing: SBSLayout.paddingMedium) {
             Image(systemName: icon)
                 .font(.system(size: 16))
-                .foregroundStyle(SBSColors.accentFallback)
+                .foregroundStyle(Color.orangeText)
                 .frame(width: 24)
             
             VStack(alignment: .leading, spacing: 2) {

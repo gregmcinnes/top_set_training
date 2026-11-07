@@ -157,7 +157,7 @@ struct PremiumCalculatorCard: View {
                 // Lock badge
                 Image(systemName: "lock.fill")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.orangeInk)
                     .padding(4)
                     .background(Circle().fill(SBSColors.accentFallback))
                     .offset(x: 16, y: 16)
@@ -198,7 +198,7 @@ struct PremiumCalculatorCard: View {
             // Unlock button indicator
             Image(systemName: "arrow.right.circle.fill")
                 .font(.system(size: 20))
-                .foregroundStyle(SBSColors.accentFallback)
+                .foregroundStyle(Color.orangeText)
         }
         .padding()
         .background(
@@ -294,7 +294,7 @@ struct OneRepMaxCalculatorView: View {
                     } label: {
                         Text("Calculate")
                             .font(SBSFonts.legacyButton())
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Color.orangeInk)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, SBSLayout.paddingMedium)
                             .background(SBSColors.accentFallback)
@@ -390,7 +390,7 @@ struct OneRepMaxCalculatorView: View {
                     
                     Text(formatWeight(avg))
                         .font(.system(size: 48, weight: .bold, design: .rounded))
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                     
                     Text("Average of all formulas")
                         .font(SBSFonts.legacyCaption())
@@ -649,7 +649,7 @@ struct RPECalculatorView: View {
                         } label: {
                             Text("\(rep)")
                                 .font(SBSFonts.bodyBold())
-                                .foregroundStyle(targetReps == rep ? .white : SBSColors.textPrimaryFallback)
+                                .foregroundStyle(targetReps == rep ? Color.orangeInk : SBSColors.textPrimaryFallback)
                                 .frame(width: 44, height: 44)
                                 .background(
                                     targetReps == rep ? SBSColors.accentFallback : SBSColors.surfaceFallback
@@ -712,7 +712,7 @@ struct RPECalculatorView: View {
             
             Text(formatWeight(weight))
                 .font(.system(size: 48, weight: .bold, design: .rounded))
-                .foregroundStyle(SBSColors.accentFallback)
+                .foregroundStyle(Color.orangeText)
             
             let percentage = percentageFor(reps: targetReps, rpe: selectedRPE)
             Text("\(Int((percentage * 100).rounded()))% of E1RM for \(targetReps) reps @ RPE \(String(format: "%.1f", selectedRPE))")
@@ -916,7 +916,7 @@ struct StandalonePlateCalculatorView: View {
                     } label: {
                         Text(formatWeightShortFromLb(weight))
                             .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(isSelected ? .white : SBSColors.textPrimaryFallback)
+                            .foregroundStyle(isSelected ? Color.orangeInk : SBSColors.textPrimaryFallback)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 10)
                             .background(
@@ -1204,7 +1204,7 @@ struct TrainingMaxCalculatorView: View {
                     } label: {
                         Text("\(String(format: "%g", preset.value))%")
                             .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(tmPercentage == preset.value ? .white : SBSColors.textPrimaryFallback)
+                            .foregroundStyle(tmPercentage == preset.value ? Color.orangeInk : SBSColors.textPrimaryFallback)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                             .background(
@@ -1236,7 +1236,7 @@ struct TrainingMaxCalculatorView: View {
             
             Text(formatWeight(tm))
                 .font(.system(size: 48, weight: .bold, design: .rounded))
-                .foregroundStyle(SBSColors.accentFallback)
+                .foregroundStyle(Color.orangeText)
             
             if let max = actualMaxValue {
                 Text("\(String(format: "%g", tmPercentage))% of \(formatWeight(max))")
@@ -1277,7 +1277,7 @@ struct TrainingMaxCalculatorView: View {
                         
                         Text(formatWeight(weight))
                             .font(SBSFonts.bodyBold())
-                            .foregroundStyle(percentage == 100 ? SBSColors.accentFallback : SBSColors.textPrimaryFallback)
+                            .foregroundStyle(percentage == 100 ? Color.orangeText : SBSColors.textPrimaryFallback)
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
@@ -1775,7 +1775,7 @@ struct StrengthScoresView: View {
                     } label: {
                         Text("Calculate Scores")
                             .font(SBSFonts.legacyButton())
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Color.orangeInk)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, SBSLayout.paddingMedium)
                             .background(SBSColors.accentFallback)
@@ -1848,7 +1848,7 @@ struct StrengthScoresView: View {
                     // Custom button (always selected for free users)
                     Text("Custom")
                         .font(SBSFonts.captionBold())
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.orangeInk)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
                         .background(
@@ -1954,7 +1954,7 @@ struct StrengthScoresView: View {
                 if inputMode == .fromPRs {
                     Text("From PRs")
                         .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(SBSColors.accentFallback.opacity(0.15))
@@ -2003,7 +2003,7 @@ struct StrengthScoresView: View {
                 if displayTotal > 0 {
                     Text("\(formatWeight(displayTotal)) \(unit)")
                         .font(SBSFonts.weight())
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                 } else {
                     Text("-- \(unit)")
                         .font(SBSFonts.weight())
@@ -2026,7 +2026,7 @@ struct StrengthScoresView: View {
         HStack(spacing: SBSLayout.paddingMedium) {
             Image(systemName: icon)
                 .font(.system(size: 18))
-                .foregroundStyle(SBSColors.accentFallback)
+                .foregroundStyle(Color.orangeText)
                 .frame(width: 24)
             
             Text(label)

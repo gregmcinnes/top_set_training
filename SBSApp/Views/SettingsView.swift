@@ -190,7 +190,7 @@ struct SettingsView: View {
                                 
                                 Text(storeManager.premiumPriceString)
                                     .font(SBSFonts.bodyBold())
-                                    .foregroundStyle(SBSColors.accentFallback)
+                                    .foregroundStyle(Color.orangeText)
                             }
                             .padding(.vertical, 4)
                         }
@@ -352,7 +352,7 @@ struct SettingsView: View {
                             } label: {
                                 Image(systemName: "info.circle")
                                     .font(.system(size: 18))
-                                    .foregroundStyle(SBSColors.accentFallback)
+                                    .foregroundStyle(Color.orangeText)
                             }
                             .buttonStyle(.plain)
                         }
@@ -422,7 +422,7 @@ struct SettingsView: View {
                                         Text("Tap to unlock")
                                             .font(SBSFonts.captionBold())
                                     }
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(Color.orangeInk)
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 6)
                                     .background(
@@ -590,14 +590,14 @@ struct SettingsView: View {
                                     
                                     Text("Premium Feature")
                                         .font(SBSFonts.legacyCaption())
-                                        .foregroundStyle(SBSColors.accentFallback)
+                                        .foregroundStyle(Color.orangeText)
                                 }
                                 
                                 Spacer()
                                 
                                 Image(systemName: "lock.fill")
                                     .font(.system(size: 12))
-                                    .foregroundStyle(SBSColors.accentFallback)
+                                    .foregroundStyle(Color.orangeText)
                             }
                         }
                     }
@@ -609,7 +609,7 @@ struct SettingsView: View {
                         if !StoreManager.shared.canAccess(.appleFitness) {
                             Text("PRO")
                                 .font(.system(size: 9, weight: .bold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Color.orangeInk)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
                                 .background(SBSColors.accentFallback)
@@ -794,11 +794,11 @@ struct SettingsView: View {
                     } label: {
                         HStack {
                             Image(systemName: "arrow.clockwise.circle.fill")
-                                .foregroundStyle(SBSColors.accentFallback)
+                                .foregroundStyle(Color.orangeText)
                             Text("Start New Cycle")
                         }
                     }
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
                 } header: {
                     Text("Program Cycle")
                 } footer: {
@@ -1274,7 +1274,7 @@ struct TMEditRow: View {
                         inputText = resetText
                     }
                     .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
                 }
             }
             
@@ -1708,7 +1708,7 @@ struct AccessoryRow: View {
                     isEditing = true
                 } label: {
                     Image(systemName: "pencil")
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Rename accessory")
@@ -1812,7 +1812,7 @@ struct ReviewerLoginView: View {
                 
                 Image(systemName: "person.badge.shield.checkmark.fill")
                     .font(.system(size: 60))
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
                 
                 Text("Reviewer Access")
                     .font(SBSFonts.legacyTitle())
@@ -1858,7 +1858,7 @@ struct ReviewerLoginView: View {
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(SBSColors.accentFallback)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.orangeInk)
                         .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
                 }
                 .padding(.horizontal, 32)

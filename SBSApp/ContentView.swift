@@ -204,7 +204,7 @@ struct LoadingView: View {
                 
                 Image(systemName: "figure.strengthtraining.traditional")
                     .font(.system(size: 48, weight: .medium))
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
                     .rotationEffect(.degrees(rotation))
             }
             

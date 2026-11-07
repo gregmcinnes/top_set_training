@@ -225,7 +225,7 @@ struct WorkoutShareCard: View {
             HStack(spacing: 6) {
                 Image(systemName: "figure.strengthtraining.traditional")
                     .font(SBSFonts.captionBold())
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
 
                 Text("Top Set Training")
                     .font(SBSFonts.captionBold())
@@ -287,7 +287,7 @@ private struct ShareCardExerciseRow: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text(exercise.weight.formattedWeight(useMetric: useMetric))
                     .font(compact ? SBSFonts.bodyBold() : SBSFonts.weight())
-                    .foregroundStyle(isPR ? Color.orange : SBSColors.accentFallback)
+                    .foregroundStyle(isPR ? Color.orange : Color.orangeText)
                 
                 if let e1rm = exercise.estimatedOneRM {
                     Text("Est. 1RM: \(e1rm.rounded().formattedWeightShort(useMetric: useMetric))")
@@ -674,7 +674,7 @@ struct ProgressShareCard: View {
                 HStack(spacing: SBSLayout.paddingSmall) {
                     Text("Cycle \(summary.cycleNumber)")
                         .font(SBSFonts.captionBold())
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                     
                     Text("•")
                         .foregroundStyle(SBSColors.textTertiaryFallback)
@@ -779,7 +779,7 @@ struct ProgressShareCard: View {
                 VStack(spacing: 2) {
                     Text(summary.totalWeightGained >= 0 ? "+\(summary.totalWeightGained.formattedWeightShort(useMetric: useMetric))" : summary.totalWeightGained.formattedWeightShort(useMetric: useMetric))
                         .font(SBSFonts.title3())
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
 
                     Text("Total Gained")
                         .font(SBSFonts.caption2())
@@ -882,7 +882,7 @@ struct ProgressShareCard: View {
             HStack(spacing: 6) {
                 Image(systemName: "figure.strengthtraining.traditional")
                     .font(SBSFonts.captionBold())
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
 
                 Text("Top Set Training")
                     .font(SBSFonts.captionBold())
@@ -944,7 +944,7 @@ private struct LiftProgressRow: View {
 
                 Text(lift.currentTM.formattedWeightShort(useMetric: useMetric))
                     .font(compact ? SBSFonts.bodyBold() : SBSFonts.weight())
-                    .foregroundStyle(hasPR ? Color.orange : SBSColors.accentFallback)
+                    .foregroundStyle(hasPR ? Color.orange : Color.orangeText)
             }
             
             // Gain percentage
@@ -1400,7 +1400,7 @@ struct LiftProgressShareCard: View {
                 HStack(spacing: 6) {
                     Text("\(Int(summary.currentE1RM.rounded())) \(summary.unit)")
                         .font(compact ? SBSFonts.title3() : SBSFonts.legacyTitle())
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                     
                     // Gain indicator
                     HStack(spacing: 2) {
@@ -1430,7 +1430,7 @@ struct LiftProgressShareCard: View {
             HStack(spacing: 6) {
                 Image(systemName: "figure.strengthtraining.traditional")
                     .font(SBSFonts.captionBold())
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
 
                 Text("Top Set Training")
                     .font(SBSFonts.captionBold())

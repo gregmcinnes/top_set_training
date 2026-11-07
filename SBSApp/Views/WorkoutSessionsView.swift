@@ -21,7 +21,7 @@ struct HistoryLinkRow: View {
         HStack(spacing: SBSLayout.paddingMedium) {
             Image(systemName: systemImage)
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(SBSColors.accentFallback)
+                .foregroundStyle(Color.orangeText)
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -55,7 +55,7 @@ struct HistoryLockedCyclesRow: View {
             HStack(spacing: SBSLayout.paddingMedium) {
                 Image(systemName: "clock.arrow.circlepath")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
                     .frame(width: 28)
 
                 VStack(alignment: .leading, spacing: 2) {

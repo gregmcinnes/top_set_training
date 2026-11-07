@@ -97,7 +97,7 @@ struct DayBadge: View {
         case .partial:
             return SBSColors.warning
         case .notStarted:
-            return isSelected ? SBSColors.accentFallback : SBSColors.textSecondaryFallback
+            return isSelected ? Color.orangeText : SBSColors.textSecondaryFallback
         }
     }
 }

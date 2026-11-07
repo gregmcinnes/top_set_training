@@ -3,20 +3,24 @@ import SwiftUI
 // MARK: - Color Theme
 
 enum SBSColors {
-    // Semantic colors
-    static let success = Color.green
-    static let warning = Color.orange
-    static let error = Color.red
-    
-    // Fallback colors (when asset catalog colors aren't set up)
-    static let backgroundFallback = Color(light: .init(white: 0.96), dark: .init(white: 0.08))
-    static let surfaceFallback = Color(light: .white, dark: .init(white: 0.12))
-    static let surfaceElevatedFallback = Color(light: .white, dark: .init(white: 0.16))
-    static let accentFallback = Color(light: .init(red: 0.95, green: 0.5, blue: 0.2), dark: .init(red: 1.0, green: 0.6, blue: 0.3))
+    // Legacy names, now aliases for the Top Set tokens (Assets.xcassets/Colors).
+    // Views move to the tokens directly; delete this enum when nothing uses it.
+    static let success = Color.success
+    static let warning = Color.warning
+    static let error = Color.danger
+
+    static let backgroundFallback = Color.bg
+    static let surfaceFallback = Color.surface
+    static let surfaceElevatedFallback = Color.surfaceRaised
+    /// Orange as a fill. Text or icons on it are Color.orangeInk; orange text
+    /// on bg/surface is Color.orangeText.
+    static let accentFallback = Color.orangeFill
+    /// No token: the blue is retired once History's charts move to ink and
+    /// orange (open decision), so this keeps its old literal until then.
     static let accentSecondaryFallback = Color(light: .init(red: 0.2, green: 0.4, blue: 0.8), dark: .init(red: 0.4, green: 0.6, blue: 1.0))
-    static let textPrimaryFallback = Color(light: .init(white: 0.1), dark: .init(white: 0.95))
-    static let textSecondaryFallback = Color(light: .init(white: 0.4), dark: .init(white: 0.6))
-    static let textTertiaryFallback = Color(light: .init(white: 0.6), dark: .init(white: 0.4))
+    static let textPrimaryFallback = Color.ink
+    static let textSecondaryFallback = Color.inkSecondary
+    static let textTertiaryFallback = Color.inkTertiary
 }
 
 // MARK: - Typography
@@ -141,30 +145,22 @@ enum SBSLayout {
 // MARK: - View Extensions
 
 extension View {
+    /// Legacy alias for .card().
     func sbsCard() -> some View {
-        self
-            .background(SBSColors.surfaceFallback)
-            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
-            // Shadows read as elevation in light mode but vanish on dark
-            // surfaces; add a subtle top-edge stroke to convey elevation in dark.
-            .overlay(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                    .strokeBorder(Color(light: .clear, dark: .white.opacity(0.08)), lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.1), radius: SBSLayout.shadowRadius, x: 0, y: SBSLayout.shadowY)
+        card()
     }
 
+    /// Legacy alias. Deliberately a hairline card, never .signatureCard():
+    /// the signature treatment is reserved for the live set card.
     func sbsCardElevated() -> some View {
-        self
-            .background(SBSColors.surfaceElevatedFallback)
-            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium))
+        background(Color.surfaceRaised)
+            .clipShape(RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
             .overlay(
-                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                    .strokeBorder(Color(light: .clear, dark: .white.opacity(0.10)), lineWidth: 1)
+                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                    .strokeBorder(Color.hairline, lineWidth: SBSLayout.strokeHairline)
             )
-            .shadow(color: .black.opacity(0.15), radius: SBSLayout.shadowRadius, x: 0, y: SBSLayout.shadowY)
     }
-    
+
     func sbsBackground() -> some View {
         self
             .background(SBSColors.backgroundFallback.ignoresSafeArea())
@@ -179,7 +175,8 @@ struct SBSLegacyPrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(SBSFonts.legacyButton())
-            .foregroundStyle(.white)
+            // Never white on orange: orange-ink when enabled; bg on the grey disabled fill.
+            .foregroundStyle(isEnabled ? Color.orangeInk : Color.bg)
             .padding(.horizontal, SBSLayout.paddingLarge)
             .padding(.vertical, SBSLayout.paddingMedium)
             .background(
@@ -195,7 +192,7 @@ struct SBSLegacySecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(SBSFonts.legacyButton())
-            .foregroundStyle(SBSColors.accentFallback)
+            .foregroundStyle(Color.orangeText)
             .padding(.horizontal, SBSLayout.paddingLarge)
             .padding(.vertical, SBSLayout.paddingMedium)
             .background(
@@ -217,7 +214,7 @@ struct SBSLegacyNumberPadButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(SBSFonts.legacyNumber())
-            .foregroundStyle(isHighlighted ? .white : SBSColors.textPrimaryFallback)
+            .foregroundStyle(isHighlighted ? Color.orangeInk : SBSColors.textPrimaryFallback)
             .frame(width: 64, height: 64)
             .background(
                 RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)

@@ -389,7 +389,7 @@ struct HistoryView: View {
                 Text("Share Progress")
                     .font(SBSFonts.legacyCaption())
             }
-            .foregroundStyle(SBSColors.accentFallback)
+            .foregroundStyle(Color.orangeText)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(
@@ -1445,7 +1445,7 @@ struct LiftPill: View {
     var body: some View {
         Text(name)
             .font(SBSFonts.captionBold())
-            .foregroundStyle(isSelected ? .white : SBSColors.textPrimaryFallback)
+            .foregroundStyle(isSelected ? Color.orangeInk : SBSColors.textPrimaryFallback)
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             .background(
@@ -1712,7 +1712,7 @@ struct ProgressChart: View {
                     if let onGoToWorkout {
                         Button("Go to Workout", action: onGoToWorkout)
                             .font(SBSFonts.captionBold())
-                            .foregroundStyle(SBSColors.accentFallback)
+                            .foregroundStyle(Color.orangeText)
                     }
                 }
                 .frame(height: 200)
@@ -1819,7 +1819,7 @@ struct LogHistoryList: View {
                     if let onGoToWorkout {
                         Button("Go to Workout", action: onGoToWorkout)
                             .font(SBSFonts.captionBold())
-                            .foregroundStyle(SBSColors.accentFallback)
+                            .foregroundStyle(Color.orangeText)
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -1879,7 +1879,7 @@ struct LogHistoryList: View {
                             
                             Image(systemName: "clock.arrow.circlepath")
                                 .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(SBSColors.accentFallback)
+                                .foregroundStyle(Color.orangeText)
                         }
                         
                         VStack(alignment: .leading, spacing: 2) {
@@ -1984,7 +1984,7 @@ struct LogHistoryRow: View {
                 if !missedTarget {
                     Text("Est. 1RM: \(e1rm.formattedWeight(useMetric: useMetric))")
                         .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                 }
 }
             
@@ -2084,7 +2084,7 @@ struct CurrentCycleTMProgressCard: View {
                     HStack(spacing: SBSLayout.paddingSmall) {
                         Image(systemName: "chart.line.uptrend.xyaxis")
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(SBSColors.accentFallback)
+                            .foregroundStyle(Color.orangeText)
 
                         Text(summary.cardTitle)
                             .font(SBSFonts.title3())
@@ -2158,7 +2158,7 @@ struct CurrentCycleTMProgressCard: View {
                 if showsEmptyAction {
                     Button("Go to Workout") { appState.goToWorkoutTab() }
                         .font(SBSFonts.captionBold())
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                 }
             }
         }
@@ -2364,7 +2364,7 @@ struct TMProgressDetailView: View {
                     VStack(spacing: 4) {
                         Image(systemName: "scalemass.fill")
                             .font(.system(size: 24))
-                            .foregroundStyle(SBSColors.accentFallback)
+                            .foregroundStyle(Color.orangeText)
 
                         Text("\(summary.totalGain < 0 ? "-" : "")\(abs(summary.totalGain).formattedWeightShort(useMetric: appState.settings.useMetric))")
                             .font(SBSFonts.title2())
@@ -2493,7 +2493,7 @@ struct CurrentCycleTMRow: View {
                 VStack(alignment: .trailing, spacing: 0) {
                     Text(currentTM.formattedWeightShort(useMetric: useMetric))
                         .font(SBSFonts.bodyBold())
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                     Text("Fixed")
                         .font(SBSFonts.caption2())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
@@ -2511,7 +2511,7 @@ struct CurrentCycleTMRow: View {
 
                     Text(currentTM.formattedWeightShort(useMetric: useMetric))
                         .font(SBSFonts.bodyBold())
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                 }
 
                 // Gain

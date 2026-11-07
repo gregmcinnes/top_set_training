@@ -178,7 +178,7 @@ struct CycleRowView: View {
                                 .foregroundStyle(SBSColors.textTertiaryFallback)
                             Text((cycle.endingMaxes[lift] ?? 0).formattedWeightShort(useMetric: useMetric))
                                 .font(SBSFonts.captionBold())
-                                .foregroundStyle(SBSColors.accentFallback)
+                                .foregroundStyle(Color.orangeText)
                         }
                     }
                 }
@@ -290,7 +290,7 @@ struct CycleDetailView: View {
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                     Text("\(totalLoggedWorkouts)")
                         .font(SBSFonts.title3())
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                 }
             }
         }
@@ -534,7 +534,7 @@ struct TMProgressionRow: View {
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                 Text(endTM.formattedWeightShort(useMetric: useMetric))
                     .font(SBSFonts.legacyNumber())
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
             }
             
             // Progression badge

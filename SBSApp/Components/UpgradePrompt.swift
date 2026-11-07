@@ -55,7 +55,7 @@ struct UpgradePrompt: View {
                 Text("Premium")
                     .font(SBSFonts.captionBold())
             }
-            .foregroundStyle(SBSColors.accentFallback)
+            .foregroundStyle(Color.orangeText)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(
@@ -78,7 +78,7 @@ struct UpgradePrompt: View {
                 
                 Image(systemName: feature.iconName)
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
             }
             
             // Text
@@ -100,7 +100,7 @@ struct UpgradePrompt: View {
             } label: {
                 Text("Unlock")
                     .font(SBSFonts.captionBold())
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.orangeInk)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
                     .background(
@@ -165,7 +165,7 @@ struct UpgradePrompt: View {
             } label: {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
             }
             .buttonStyle(.plain)
         }
@@ -213,7 +213,7 @@ struct PremiumLockOverlay: View {
                     
                     Image(systemName: "lock.fill")
                         .font(.system(size: 28))
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                 }
                 
                 VStack(spacing: 4) {
@@ -235,7 +235,7 @@ struct PremiumLockOverlay: View {
                         Text("Unlock")
                             .font(SBSFonts.captionBold())
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.orangeInk)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
                     .background(

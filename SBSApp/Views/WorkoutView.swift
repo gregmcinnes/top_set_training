@@ -487,7 +487,7 @@ struct WorkoutProgressHeader: View {
                 
                 Text("\(Int(progress * 100))%")
                     .font(SBSFonts.captionBold())
-                    .foregroundStyle(isAccessory ? SBSColors.accentSecondaryFallback : SBSColors.accentFallback)
+                    .foregroundStyle(isAccessory ? SBSColors.accentSecondaryFallback : Color.orangeText)
             }
             .padding(.horizontal)
             .padding(.bottom, SBSLayout.paddingSmall)
@@ -710,7 +710,7 @@ struct CurrentSetView: View {
                             weight: currentWeight.formattedWeight(useMetric: useMetric),
                             reps: isCurrentAMRAP ? "\(currentReps)+" : "\(currentReps)",
                             repsLabel: isCurrentAMRAP ? "reps (AMRAP)" : "reps",
-                            weightColor: isCurrentAMRAP ? SBSColors.warning : SBSColors.accentFallback,
+                            weightColor: isCurrentAMRAP ? SBSColors.warning : Color.orangeText,
                             repsColor: isCurrentAMRAP ? SBSColors.warning : SBSColors.textPrimaryFallback,
                             onWeightTap: onWeightTap
                         )
@@ -761,7 +761,7 @@ struct CurrentSetView: View {
                         if let intensity = intensityText {
                             Text(intensity)
                                 .font(SBSFonts.captionBold())
-                                .foregroundStyle(SBSColors.accentFallback)
+                                .foregroundStyle(Color.orangeText)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
                                 .background(
@@ -775,7 +775,7 @@ struct CurrentSetView: View {
                             weight: exercise.weight.formattedWeight(useMetric: useMetric),
                             reps: "\(exercise.repsPerSet)",
                             repsLabel: "reps",
-                            weightColor: SBSColors.accentFallback,
+                            weightColor: Color.orangeText,
                             repsColor: SBSColors.textPrimaryFallback,
                             onWeightTap: onWeightTap
                         )
@@ -820,7 +820,7 @@ struct CurrentSetView: View {
                         if let intensity = intensityText {
                             Text(intensity)
                                 .font(SBSFonts.captionBold())
-                                .foregroundStyle(SBSColors.accentFallback)
+                                .foregroundStyle(Color.orangeText)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
                                 .background(
@@ -834,7 +834,7 @@ struct CurrentSetView: View {
                             weight: exercise.weight.formattedWeight(useMetric: useMetric),
                             reps: workoutState.isCurrentSetRepOut ? "\(exercise.repOutTarget)+" : "\(exercise.repsPerSet)",
                             repsLabel: workoutState.isCurrentSetRepOut ? "reps (AMRAP)" : "reps",
-                            weightColor: SBSColors.accentFallback,
+                            weightColor: Color.orangeText,
                             repsColor: workoutState.isCurrentSetRepOut ? SBSColors.success : SBSColors.textPrimaryFallback,
                             onWeightTap: onWeightTap
                         )
@@ -891,7 +891,7 @@ struct CurrentSetView: View {
                         Text(isCurrentAMRAP ? "Log Reps" : "Complete Set")
                             .font(SBSFonts.legacyButton())
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(buttonLabelColor)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, SBSLayout.paddingMedium + 4)
                     .background(
@@ -940,6 +940,18 @@ struct CurrentSetView: View {
         }
     }
     
+    /// Label on buttonColor: orange-ink on the orange fill, never white on orange.
+    /// Mirrors buttonColor's branches.
+    private var buttonLabelColor: Color {
+        if let exercise = workoutState.currentExercise, exercise.isStructured {
+            return isCurrentAMRAP ? .white : Color.orangeInk
+        }
+        if workoutState.isCurrentSetRepOut || workoutState.isCurrentExerciseAccessory {
+            return .white
+        }
+        return Color.orangeInk
+    }
+
     private var buttonColor: Color {
         if let exercise = workoutState.currentExercise, exercise.isStructured {
             return isCurrentAMRAP ? SBSColors.warning : SBSColors.accentFallback
@@ -1059,7 +1071,7 @@ struct StructuredSetIndicator: View {
                     VStack(spacing: 0) {
                         Text(setInfo.isAMRAP ? "\(setInfo.targetReps)+" : "\(setInfo.targetReps)")
                             .font(SBSFonts.captionBold())
-                            .foregroundStyle(isCurrent ? .white : (setInfo.isAMRAP ? SBSColors.warning : SBSColors.textSecondaryFallback))
+                            .foregroundStyle(isCurrent ? (setInfo.isAMRAP ? .white : Color.orangeInk) : (setInfo.isAMRAP ? SBSColors.warning : SBSColors.textSecondaryFallback))
                     }
                 }
             }
@@ -1067,7 +1079,7 @@ struct StructuredSetIndicator: View {
             // Weight label
             Text(setInfo.weight.formattedWeightShort(useMetric: useMetric))
                 .font(SBSFonts.label())
-                .foregroundStyle(isCurrent ? (setInfo.isAMRAP ? SBSColors.warning : SBSColors.accentFallback) : SBSColors.textTertiaryFallback)
+                .foregroundStyle(isCurrent ? (setInfo.isAMRAP ? SBSColors.warning : Color.orangeText) : SBSColors.textTertiaryFallback)
         }
     }
     
@@ -1173,14 +1185,14 @@ struct SetIndicator: View {
                     // Show rep count with + only for AMRAP sets
                     Text(isAmrap && !isAccessory ? "\(reps)+" : "\(reps)")
                         .font(SBSFonts.bodyBold())
-                        .foregroundStyle(isCurrent ? .white : SBSColors.textSecondaryFallback)
+                        .foregroundStyle(isCurrent && !isAccessory && !isAmrap ? Color.orangeInk : (isCurrent ? .white : SBSColors.textSecondaryFallback))
                 }
             }
             
             // Show set number label below
             Text("Set \(setNumber)")
                 .font(SBSFonts.label())
-                .foregroundStyle(isCurrent ? (isAccessory ? SBSColors.accentSecondaryFallback : isAmrap ? SBSColors.success : SBSColors.accentFallback) : SBSColors.textTertiaryFallback)
+                .foregroundStyle(isCurrent ? (isAccessory ? SBSColors.accentSecondaryFallback : isAmrap ? SBSColors.success : Color.orangeText) : SBSColors.textTertiaryFallback)
         }
     }
     
@@ -1331,7 +1343,7 @@ struct TimerView: View {
                 } label: {
                     Image(systemName: "forward.fill")
                         .font(.system(size: hasSuperset ? 20 : 24))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(workoutState.isCurrentExerciseAccessory ? .white : Color.orangeInk)
                         .frame(width: buttonSize, height: buttonSize)
                         .background(
                             Circle()
@@ -1505,7 +1517,7 @@ struct NextSetPreview: View {
                         // Show weight (0 is valid for bodyweight accessories)
                         Text(weight.formattedWeightShort(useMetric: useMetric))
                             .font(compact ? SBSFonts.bodyBold() : SBSFonts.weight())
-                            .foregroundStyle(isAccessory ? SBSColors.accentSecondaryFallback : SBSColors.accentFallback)
+                            .foregroundStyle(isAccessory ? SBSColors.accentSecondaryFallback : Color.orangeText)
                         
                         Text("×")
                             .font(SBSFonts.legacyBody())
@@ -1828,7 +1840,7 @@ struct WorkoutCompleteView: View {
             Button(action: onDone) {
                 Text("Done")
                     .font(SBSFonts.legacyButton())
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.orangeInk)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, SBSLayout.paddingMedium + 2)
                     .background(
@@ -1870,7 +1882,7 @@ private struct StatBubble: View {
             HStack(spacing: 4) {
                 Image(systemName: icon)
                     .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
                 
                 Text(value)
                     .font(SBSFonts.title3())
@@ -1990,7 +2002,7 @@ struct ExercisePickerSheet: View {
                         } label: {
                             Text("Finish Workout")
                                 .font(SBSFonts.legacyButton())
-                                .foregroundStyle(SBSColors.accentFallback)
+                                .foregroundStyle(Color.orangeText)
                                 .frame(maxWidth: .infinity, minHeight: 44)
                         }
                         .padding(.horizontal)
@@ -2040,7 +2052,7 @@ private struct WorkoutOverviewSummary: View {
             HStack(alignment: .firstTextBaseline) {
                 Text("\(Int(progress * 100))%")
                     .font(SBSFonts.legacyTitle())
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
                 Text("complete")
                     .font(SBSFonts.legacyBody())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
@@ -2171,7 +2183,7 @@ struct ExercisePickerRow: View {
                     HStack(spacing: SBSLayout.paddingSmall) {
                         Text(exercise.weight.formattedWeightShort(useMetric: useMetric))
                             .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(exercise.isAccessory ? SBSColors.accentSecondaryFallback : SBSColors.accentFallback)
+                            .foregroundStyle(exercise.isAccessory ? SBSColors.accentSecondaryFallback : Color.orangeText)
 
                         Text("·")
                             .font(SBSFonts.legacyCaption())
@@ -2207,7 +2219,7 @@ struct ExercisePickerRow: View {
                 if isCurrent {
                     Text("CURRENT")
                         .font(SBSFonts.label())
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(Capsule().fill(SBSColors.accentFallback.opacity(0.15)))

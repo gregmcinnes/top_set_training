@@ -17,7 +17,7 @@ struct ResumeWorkoutBar: View {
                 HStack(spacing: SBSLayout.paddingSmall) {
                     Image(systemName: "figure.strengthtraining.traditional")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(title)
@@ -37,7 +37,7 @@ struct ResumeWorkoutBar: View {
                         Text(restText)
                             .font(.system(.subheadline, design: .rounded).weight(.semibold))
                             .monospacedDigit()
-                            .foregroundStyle(SBSColors.accentFallback)
+                            .foregroundStyle(Color.orangeText)
                             .lineLimit(1)
                             .fixedSize()
                     }

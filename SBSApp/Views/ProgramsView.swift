@@ -354,7 +354,7 @@ struct ProgramsView: View {
                                 selectedLevelFilter = nil
                             }
                             .font(SBSFonts.bodyBold())
-                            .foregroundStyle(SBSColors.accentFallback)
+                            .foregroundStyle(Color.orangeText)
                         }
                         .padding(.vertical, SBSLayout.paddingXLarge)
                     }
@@ -493,7 +493,7 @@ struct ProgramsView: View {
         VStack(spacing: SBSLayout.paddingMedium) {
             HStack(spacing: SBSLayout.paddingSmall) {
                 Image(systemName: "crown.fill")
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
                 
                 Text("Free users can save 1 template")
                     .font(SBSFonts.legacyBody())
@@ -529,7 +529,7 @@ struct ProgramsView: View {
                     .frame(width: 40, height: 40)
                 
                 Image(systemName: "crown.fill")
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
             }
             
             VStack(alignment: .leading, spacing: 2) {
@@ -550,7 +550,7 @@ struct ProgramsView: View {
                 } label: {
                     Text("Upgrade")
                         .font(SBSFonts.captionBold())
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.orangeInk)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
                         .background(
@@ -744,7 +744,7 @@ struct ProgramCardView: View {
                 } label: {
                     Image(systemName: "info.circle")
                         .font(.system(size: 20))
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                 }
                 .buttonStyle(.plain)
             }
@@ -769,7 +769,7 @@ struct ProgramCardView: View {
                     RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
                         .fill(isLocked ? SBSColors.surfaceElevatedFallback : SBSColors.accentFallback)
                 )
-                .foregroundStyle(isLocked ? SBSColors.textSecondaryFallback : .white)
+                .foregroundStyle(isLocked ? SBSColors.textSecondaryFallback : Color.orangeInk)
             }
             .buttonStyle(.plain)
             .padding(.top, SBSLayout.paddingSmall)
@@ -863,7 +863,7 @@ struct TemplateRowView: View {
                 } label: {
                     Image(systemName: "info.circle")
                         .font(.system(size: 20))
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                 }
                 .buttonStyle(.borderless)
             }
@@ -893,7 +893,7 @@ struct TemplateRowView: View {
                             .font(SBSFonts.legacyCaption())
                     }
                     .buttonStyle(.borderless)
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
                     
                     Button {
                         onEdit()

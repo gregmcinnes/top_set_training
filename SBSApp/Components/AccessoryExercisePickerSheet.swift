@@ -160,7 +160,7 @@ struct AccessoryExercisePickerSheet: View {
                         Text("Add Custom Exercise")
                     }
                     .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
                     .frame(maxWidth: .infinity)
                     .padding()
                     .background(
@@ -368,7 +368,7 @@ struct ExerciseRow: View {
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 20))
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                 }
             }
             .padding(.horizontal)
@@ -463,7 +463,7 @@ struct CustomExercisesSection: View {
                             if currentExercise == name {
                                 Image(systemName: "checkmark.circle.fill")
                                     .font(.system(size: 20))
-                                    .foregroundStyle(SBSColors.accentFallback)
+                                    .foregroundStyle(Color.orangeText)
                             }
                         }
                         .padding(.horizontal)
@@ -503,7 +503,7 @@ struct AddCustomExerciseSheet: View {
                 VStack(spacing: SBSLayout.paddingSmall) {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 48))
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                     
                     Text("Add Custom Exercise")
                         .font(SBSFonts.legacyTitle())
@@ -562,7 +562,7 @@ struct AddCustomExerciseSheet: View {
                 } label: {
                     Text("Add Exercise")
                         .font(SBSFonts.legacyButton())
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.orangeInk)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, SBSLayout.paddingMedium)
                         .background(
@@ -661,7 +661,7 @@ struct FilterChip: View {
                 Text(title)
                     .font(SBSFonts.captionBold())
             }
-            .foregroundStyle(isSelected ? .white : SBSColors.textPrimaryFallback)
+            .foregroundStyle(isSelected ? Color.orangeInk : SBSColors.textPrimaryFallback)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(

@@ -225,7 +225,7 @@ struct TemplateListView: View {
         VStack(spacing: SBSLayout.paddingMedium) {
             HStack(spacing: SBSLayout.paddingSmall) {
                 Image(systemName: "crown.fill")
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
                 
                 Text("Free users can save 1 template")
                     .font(SBSFonts.legacyBody())
@@ -261,7 +261,7 @@ struct TemplateListView: View {
                     .frame(width: 40, height: 40)
                 
                 Image(systemName: "crown.fill")
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
             }
             
             VStack(alignment: .leading, spacing: 2) {
@@ -282,7 +282,7 @@ struct TemplateListView: View {
                 } label: {
                     Text("Upgrade")
                         .font(SBSFonts.captionBold())
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.orangeInk)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
                         .background(

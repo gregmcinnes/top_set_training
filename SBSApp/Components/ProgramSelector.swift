@@ -172,7 +172,7 @@ struct ProgramSelector: View {
                                 selectedLevelFilter = nil
                             }
                             .font(SBSFonts.bodyBold())
-                            .foregroundStyle(SBSColors.accentFallback)
+                            .foregroundStyle(Color.orangeText)
                         }
                         .padding(.vertical, SBSLayout.paddingXLarge)
                     }
@@ -356,7 +356,7 @@ struct ProgramCard: View {
                         } else if isSelected {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 24))
-                                .foregroundStyle(SBSColors.accentFallback)
+                                .foregroundStyle(Color.orangeText)
                         } else {
                             Circle()
                                 .strokeBorder(SBSColors.textTertiaryFallback, lineWidth: 2)
@@ -397,7 +397,7 @@ struct ProgramCard: View {
                         } label: {
                             Image(systemName: "info.circle")
                                 .font(.system(size: 20))
-                                .foregroundStyle(SBSColors.accentFallback)
+                                .foregroundStyle(Color.orangeText)
                         }
                         .buttonStyle(.plain)
                     }
@@ -508,7 +508,7 @@ struct CustomTemplatesGroup: View {
                 HStack(spacing: SBSLayout.paddingMedium) {
                     Image(systemName: "square.stack.3d.up.fill")
                         .font(.system(size: 20))
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text("My Templates")
@@ -574,7 +574,7 @@ struct CustomTemplateRow: View {
                             
                             Text("CUSTOM")
                                 .font(.system(size: 9, weight: .bold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Color.orangeInk)
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 2)
                                 .background(Capsule().fill(SBSColors.accentFallback))
@@ -597,7 +597,7 @@ struct CustomTemplateRow: View {
                     if isSelected {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 24))
-                            .foregroundStyle(SBSColors.accentFallback)
+                            .foregroundStyle(Color.orangeText)
                     } else {
                         Circle()
                             .strokeBorder(SBSColors.textTertiaryFallback, lineWidth: 2)
@@ -633,7 +633,7 @@ struct CustomTemplateRow: View {
                     } label: {
                         Image(systemName: "info.circle")
                             .font(.system(size: 20))
-                            .foregroundStyle(SBSColors.accentFallback)
+                            .foregroundStyle(Color.orangeText)
                     }
                     .buttonStyle(.plain)
                 }
@@ -665,7 +665,7 @@ struct QuizPromptCard: View {
             HStack(spacing: SBSLayout.paddingMedium) {
                 Image(systemName: "sparkles")
                     .font(.system(size: 24))
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Not sure which to pick?")
@@ -707,7 +707,7 @@ struct TemplateBuilderPromptCard: View {
             HStack(spacing: SBSLayout.paddingMedium) {
                 Image(systemName: "hammer.fill")
                     .font(.system(size: 24))
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Not seeing what you want?")

@@ -24,7 +24,7 @@ struct WeekStrip: View {
                 } label: {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(selectedWeek > 1 ? SBSColors.accentFallback : SBSColors.textTertiaryFallback)
+                        .foregroundStyle(selectedWeek > 1 ? Color.orangeText : SBSColors.textTertiaryFallback)
                         .frame(width: 44, height: 44)
                 }
                 .disabled(selectedWeek <= 1)
@@ -68,7 +68,7 @@ struct WeekStrip: View {
                 } label: {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(selectedWeek < totalWeeks ? SBSColors.accentFallback : SBSColors.textTertiaryFallback)
+                        .foregroundStyle(selectedWeek < totalWeeks ? Color.orangeText : SBSColors.textTertiaryFallback)
                         .frame(width: 44, height: 44)
                 }
                 .disabled(selectedWeek >= totalWeeks)

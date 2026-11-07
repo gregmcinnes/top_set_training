@@ -222,7 +222,7 @@ struct PaywallView: View {
                     Text(feature.displayName)
                         .font(SBSFonts.captionBold())
                 }
-                .foregroundStyle(SBSColors.accentFallback)
+                .foregroundStyle(Color.orangeText)
                 .padding(.horizontal, SBSLayout.paddingMedium)
                 .padding(.vertical, SBSLayout.paddingSmall)
                 .background(
@@ -303,7 +303,7 @@ struct PaywallView: View {
             } label: {
                 Text("Retry")
                     .font(SBSFonts.captionBold())
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
             }
         }
         .padding()
@@ -383,7 +383,7 @@ struct PaywallView: View {
                     }
                     Text("Restore Purchases")
                         .font(SBSFonts.legacyCaption())
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                 }
             }
             .disabled(isBusy)
@@ -393,7 +393,7 @@ struct PaywallView: View {
             } label: {
                 Text("Redeem Code")
                     .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
             }
             .disabled(isBusy)
         }
@@ -512,7 +512,7 @@ private struct PlanOptionCard: View {
                     if let badge = plan.badgeText {
                         Text(badge)
                             .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Color.orangeInk)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(
@@ -577,7 +577,7 @@ private struct PremiumFeatureRow: View {
 
                 Image(systemName: feature.iconName)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
             }
 
             // Text
@@ -624,7 +624,7 @@ struct FeatureComparisonRow: View {
 
             Text(premiumValue)
                 .font(SBSFonts.captionBold())
-                .foregroundStyle(SBSColors.accentFallback)
+                .foregroundStyle(Color.orangeText)
                 .frame(width: 60)
         }
         .padding(.vertical, 8)

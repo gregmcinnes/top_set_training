@@ -155,11 +155,11 @@ struct TemplateStepProgressView: View {
                         if step.rawValue < currentStep.rawValue {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Color.orangeInk)
                         } else {
                             Text("\(step.rawValue + 1)")
                                 .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(step.rawValue <= currentStep.rawValue ? .white : SBSColors.textTertiaryFallback)
+                                .foregroundStyle(step.rawValue <= currentStep.rawValue ? Color.orangeInk : SBSColors.textTertiaryFallback)
                         }
                     }
                     
@@ -253,7 +253,7 @@ struct BasicsStepView: View {
                         } label: {
                             HStack(spacing: SBSLayout.paddingMedium) {
                                 Image(systemName: template.mode == mode ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(template.mode == mode ? SBSColors.accentFallback : SBSColors.textTertiaryFallback)
+                                    .foregroundStyle(template.mode == mode ? Color.orangeText : SBSColors.textTertiaryFallback)
                                     .font(.title2)
                                 
                                 VStack(alignment: .leading, spacing: 2) {
@@ -302,7 +302,7 @@ struct BasicsStepView: View {
                                         Circle()
                                             .fill(template.daysPerWeek == day ? SBSColors.accentFallback : SBSColors.surfaceFallback)
                                     )
-                                    .foregroundStyle(template.daysPerWeek == day ? .white : SBSColors.textPrimaryFallback)
+                                    .foregroundStyle(template.daysPerWeek == day ? Color.orangeInk : SBSColors.textPrimaryFallback)
                             }
                         }
                     }
@@ -327,7 +327,7 @@ struct BasicsStepView: View {
                                         Capsule()
                                             .fill(template.weeks.count == weekCount ? SBSColors.accentFallback : SBSColors.surfaceFallback)
                                     )
-                                    .foregroundStyle(template.weeks.count == weekCount ? .white : SBSColors.textPrimaryFallback)
+                                    .foregroundStyle(template.weeks.count == weekCount ? Color.orangeInk : SBSColors.textPrimaryFallback)
                             }
                         }
                     }
@@ -480,11 +480,11 @@ struct TemplateDayTab: View {
             VStack(spacing: 4) {
                 Text("Day \(day)")
                     .font(SBSFonts.captionBold())
-                    .foregroundStyle(isSelected ? .white : SBSColors.textPrimaryFallback)
+                    .foregroundStyle(isSelected ? Color.orangeInk : SBSColors.textPrimaryFallback)
                 
                 Text("\(exerciseCount) ex")
                     .font(.system(size: 10))
-                    .foregroundStyle(isSelected ? .white.opacity(0.8) : SBSColors.textTertiaryFallback)
+                    .foregroundStyle(isSelected ? Color.orangeInk.opacity(0.8) : SBSColors.textTertiaryFallback)
             }
             .padding(.horizontal, SBSLayout.paddingMedium)
             .padding(.vertical, SBSLayout.paddingSmall)
@@ -971,7 +971,7 @@ struct TemplateExercisePickerSheet: View {
                                 
                                 if selectedType == type {
                                     Image(systemName: "checkmark")
-                                        .foregroundStyle(SBSColors.accentFallback)
+                                        .foregroundStyle(Color.orangeText)
                                 }
                             }
                         }
@@ -1254,13 +1254,13 @@ struct ExerciseEditorSheet: View {
                                         showingTypeInfo = type
                                     } label: {
                                         Image(systemName: "info.circle")
-                                            .foregroundStyle(SBSColors.accentFallback)
+                                            .foregroundStyle(Color.orangeText)
                                     }
                                     .buttonStyle(.borderless)
                                     
                                     if selectedType == type {
                                         Image(systemName: "checkmark")
-                                            .foregroundStyle(SBSColors.accentFallback)
+                                            .foregroundStyle(Color.orangeText)
                                     }
                                 }
                             }
@@ -1493,7 +1493,7 @@ struct SetDesignerRow: View {
                     HStack(spacing: 4) {
                         Text("\(Int(intensityPercent))%")
                             .font(SBSFonts.captionBold())
-                            .foregroundStyle(SBSColors.accentFallback)
+                            .foregroundStyle(Color.orangeText)
                         
                         Text("×")
                             .foregroundStyle(SBSColors.textTertiaryFallback)
@@ -1522,7 +1522,7 @@ struct SetDesignerRow: View {
                             Spacer()
                             Text("\(Int(intensityPercent))% of TM")
                                 .font(SBSFonts.captionBold())
-                                .foregroundStyle(SBSColors.accentFallback)
+                                .foregroundStyle(Color.orangeText)
                         }
                         
                         Slider(value: $intensityPercent, in: 50...100, step: 5) { _ in
@@ -1897,7 +1897,7 @@ struct ExercisesStepView: View {
                                             Capsule()
                                                 .fill(SBSColors.accentFallback.opacity(0.15))
                                         )
-                                        .foregroundStyle(SBSColors.accentFallback)
+                                        .foregroundStyle(Color.orangeText)
                                 }
                             }
                         }
@@ -2076,7 +2076,7 @@ struct ReviewStepView: View {
                                     
                                     Text("Custom")
                                         .font(.system(size: 11, weight: .semibold))
-                                        .foregroundStyle(SBSColors.accentFallback)
+                                        .foregroundStyle(Color.orangeText)
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 3)
                                         .background(

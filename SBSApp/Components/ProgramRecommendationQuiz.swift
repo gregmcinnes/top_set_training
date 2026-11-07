@@ -303,7 +303,7 @@ struct QuestionView: View {
                     
                     Image(systemName: question.icon)
                         .font(.system(size: 36, weight: .medium))
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                 }
                 
                 VStack(spacing: SBSLayout.paddingSmall) {
@@ -363,7 +363,7 @@ struct OptionButton: View {
             HStack(spacing: SBSLayout.paddingMedium) {
                 Image(systemName: option.icon)
                     .font(.system(size: 22))
-                    .foregroundStyle(isSelected ? .white : SBSColors.accentFallback)
+                    .foregroundStyle(isSelected ? Color.orangeInk : Color.orangeText)
                     .frame(width: 44, height: 44)
                     .background(
                         RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
@@ -385,7 +385,7 @@ struct OptionButton: View {
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 24))
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                 }
             }
             .padding()
@@ -470,7 +470,7 @@ struct RecommendationResultsView: View {
                     VStack(spacing: SBSLayout.paddingMedium) {
                         Image(systemName: "sparkles")
                             .font(.system(size: 32))
-                            .foregroundStyle(SBSColors.accentFallback)
+                            .foregroundStyle(Color.orangeText)
                         
                         Text("Based on your answers")
                             .font(SBSFonts.title2())
@@ -563,7 +563,7 @@ struct RecommendationResultsView: View {
                             Text("Browse All Programs")
                         }
                         .font(SBSFonts.legacyBody())
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                     }
                     .padding(.vertical, SBSLayout.paddingLarge)
                     .opacity(animateIn ? 1 : 0)
@@ -657,7 +657,7 @@ struct RecommendationCard: View {
                             Text("BEST MATCH")
                                 .font(.system(size: 11, weight: .bold))
                         }
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.orangeInk)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(
@@ -682,7 +682,7 @@ struct RecommendationCard: View {
                         } label: {
                             Image(systemName: "info.circle")
                                 .font(.system(size: 18))
-                                .foregroundStyle(SBSColors.accentFallback)
+                                .foregroundStyle(Color.orangeText)
                         }
                         .buttonStyle(.plain)
                     }
@@ -716,7 +716,7 @@ struct RecommendationCard: View {
                     ForEach(recommendation.tags.prefix(3), id: \.self) { tag in
                         Text(tag)
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(isLocked ? SBSColors.textTertiaryFallback : SBSColors.accentFallback)
+                            .foregroundStyle(isLocked ? SBSColors.textTertiaryFallback : Color.orangeText)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                             .background(
@@ -750,7 +750,7 @@ struct RecommendationCard: View {
                         Text("Upgrade to unlock this program")
                             .font(SBSFonts.legacyCaption())
                     }
-                    .foregroundStyle(SBSColors.accentFallback)
+                    .foregroundStyle(Color.orangeText)
                 }
             }
             .padding()
@@ -848,7 +848,7 @@ struct RecommendationCardCompact: View {
                     } label: {
                         Image(systemName: "info.circle")
                             .font(.system(size: 16))
-                            .foregroundStyle(SBSColors.accentFallback)
+                            .foregroundStyle(Color.orangeText)
                     }
                     .buttonStyle(.plain)
                 }
@@ -859,7 +859,7 @@ struct RecommendationCardCompact: View {
                 
                 if isSelected && !isLocked {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(SBSColors.accentFallback)
+                        .foregroundStyle(Color.orangeText)
                 }
             }
             .padding()

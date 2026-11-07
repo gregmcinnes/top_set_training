@@ -212,38 +212,6 @@ struct PremiumLockOverlay: View {
     }
 }
 
-// MARK: - Premium Badge
-
-/// A small badge to indicate premium content
-struct PremiumBadge: View {
-    var isCompact: Bool = false
-    
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "crown.fill")
-                .font(.system(size: isCompact ? 8 : 10))
-            
-            if !isCompact {
-                Text("PRO")
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
-            }
-        }
-        .foregroundStyle(
-            LinearGradient(
-                colors: [SBSColors.accentFallback, SBSColors.accentSecondaryFallback],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        )
-        .padding(.horizontal, isCompact ? 6 : 8)
-        .padding(.vertical, isCompact ? 3 : 4)
-        .background(
-            Capsule()
-                .fill(Color.orangeSoft)
-        )
-    }
-}
-
 // MARK: - View Modifier for Premium Gating
 
 extension View {

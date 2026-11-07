@@ -349,7 +349,6 @@ struct ProgramCard: View {
             ProgramDetailView(
                 program: program,
                 // Orange as text and icons; no colour per level
-                familyColor: Color.orangeText,
                 level: meta?.level ?? .intermediate
             )
         }

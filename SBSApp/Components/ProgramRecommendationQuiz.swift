@@ -738,7 +738,6 @@ struct RecommendationCard: View {
                 ProgramDetailView(
                     program: info,
                     // Orange as text and icons; no colour per level
-                    familyColor: Color.orangeText,
                     level: programLevel
                 )
             }
@@ -820,7 +819,6 @@ struct RecommendationCardCompact: View {
                 ProgramDetailView(
                     program: info,
                     // Orange as text and icons; no colour per level
-                    familyColor: Color.orangeText,
                     level: programLevel
                 )
             }

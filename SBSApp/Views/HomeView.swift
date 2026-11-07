@@ -243,7 +243,6 @@ struct HomeView: View {
                     program: programInfo,
                     programData: appState.programData,
                     // Orange as text and icons; no colour per program family
-                    familyColor: Color.orangeText,
                     level: programExperienceLevel
                 )
             }

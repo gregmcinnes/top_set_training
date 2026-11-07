@@ -2156,9 +2156,6 @@ struct NavigationButtons: View {
 struct ProgramDetailView: View {
     let program: AppState.AvailableProgramInfo
     var programData: ProgramData? = nil  // Optional initial data (used when already loaded)
-    /// No longer drawn: the detail view is ink with orange-text actions, never a
-    /// per-family accent. Kept so existing call sites compile; safe to remove there.
-    let familyColor: Color
     let level: ProgramLevel
     var onStartCycle: (() -> Void)? = nil  // Optional callback to start a cycle with this program
     @Environment(\.dismiss) private var dismiss

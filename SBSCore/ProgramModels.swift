@@ -9,14 +9,6 @@ public enum ProgramLevel: String, CaseIterable, Codable {
     case intermediate = "Intermediate"
     case advanced = "Advanced"
     
-    public var color: Color {
-        switch self {
-        case .beginner: return .green
-        case .intermediate: return .orange
-        case .advanced: return .purple
-        }
-    }
-    
     public var icon: String {
         switch self {
         case .beginner: return "leaf.fill"
@@ -33,14 +25,6 @@ public enum ProgramFocus: String, Codable {
     case strength = "Strength"
     case hypertrophy = "Hypertrophy"
     case balanced = "Balanced"
-    
-    public var color: Color {
-        switch self {
-        case .strength: return .blue
-        case .hypertrophy: return .purple
-        case .balanced: return .orange
-        }
-    }
     
     public var icon: String {
         switch self {

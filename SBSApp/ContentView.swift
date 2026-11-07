@@ -96,41 +96,32 @@ struct MainTabView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             HomeView(appState: appState)
-                .safeAreaInset(edge: .bottom, spacing: 0) { resumeBar }
+                .safeAreaInset(edge: .bottom, spacing: 0) { bottomBars }
+                .toolbar(.hidden, for: .tabBar)
                 .tag(ContentView.Tab.home)
-                .tabItem {
-                    Label("Workout", systemImage: "figure.strengthtraining.traditional")
-                }
             
             ProgramsView(appState: appState, selectedTab: $selectedTab)
-                .safeAreaInset(edge: .bottom, spacing: 0) { resumeBar }
+                .safeAreaInset(edge: .bottom, spacing: 0) { bottomBars }
+                .toolbar(.hidden, for: .tabBar)
                 .tag(ContentView.Tab.programs)
-                .tabItem {
-                    Label("Programs", systemImage: "book.pages")
-                }
             
             HistoryView(appState: appState)
-                .safeAreaInset(edge: .bottom, spacing: 0) { resumeBar }
+                .safeAreaInset(edge: .bottom, spacing: 0) { bottomBars }
+                .toolbar(.hidden, for: .tabBar)
                 .tag(ContentView.Tab.history)
-                .tabItem {
-                    Label("History", systemImage: "chart.line.uptrend.xyaxis")
-                }
             
             CalculatorsView(appState: appState)
-                .safeAreaInset(edge: .bottom, spacing: 0) { resumeBar }
+                .safeAreaInset(edge: .bottom, spacing: 0) { bottomBars }
+                .toolbar(.hidden, for: .tabBar)
                 .tag(ContentView.Tab.calculators)
-                .tabItem {
-                    Label("Calculators", systemImage: "function")
-                }
             
             SettingsView(appState: appState)
-                .safeAreaInset(edge: .bottom, spacing: 0) { resumeBar }
+                .safeAreaInset(edge: .bottom, spacing: 0) { bottomBars }
+                .toolbar(.hidden, for: .tabBar)
                 .tag(ContentView.Tab.settings)
-                .tabItem {
-                    Label("Settings", systemImage: "gearshape")
-                }
         }
-        .tint(SBSColors.accentFallback)
+        // Orange as text and icons (links, toggles) is orange-text, never the fill
+        .tint(Color.orangeText)
         .animation(.spring(duration: 0.3), value: appState.activeSession?.id)
         // Above the tab bar, so nothing in it can pop the workout. Item-driven, so the
         // screen keeps its session while animating away after the session has ended.
@@ -175,6 +166,29 @@ struct MainTabView: View {
         }
     }
 
+    static let tabItems: [SBSTabBar.Item] = [
+        .init(tab: .home, title: "Workout", symbol: "dumbbell"),
+        .init(tab: .programs, title: "Programs", symbol: "book.pages"),
+        .init(tab: .history, title: "History", symbol: "chart.bar"),
+        .init(tab: .calculators, title: "Calculators", symbol: "number.square"),
+        .init(tab: .settings, title: "Settings", symbol: "gearshape"),
+    ]
+
+    /// The resume bar above the tab bar. Inside each tab rather than around the TabView:
+    /// a tab's hosting controller doesn't see insets added outside it, so content and
+    /// the resume bar would slide under a bar placed there.
+    private var bottomBars: some View {
+        VStack(spacing: 0) {
+            resumeBar
+            SBSTabBar(selection: $selectedTab, items: Self.tabItems) {
+                // The active tab again: back to its root, then to the top, as the system
+                // bar does. The workout is a cover above this bar, so nothing here can
+                // reach it.
+                ScrollToTop.reselectVisibleTab()
+            }
+        }
+    }
+
     /// Shows a workout is running whenever it's minimized. A per-tab safe-area inset
     /// sits above the tab bar whatever its height and keeps the bar from covering the
     /// end of a scrolled list.
@@ -189,45 +203,160 @@ struct MainTabView: View {
     }
 }
 
+// MARK: - Tab Bar
+
+/// The app's tab bar: surface, the signature 2px rule along its top edge, SF Symbols
+/// outlined when inactive and filled when active, labels in the tab style. The
+/// active item is orange-text; nothing sits behind it.
+struct SBSTabBar: View {
+    struct Item: Identifiable {
+        let tab: ContentView.Tab
+        let title: String
+        let symbol: String
+        var id: ContentView.Tab { tab }
+    }
+
+    @Binding var selection: ContentView.Tab
+    let items: [Item]
+    /// Tapping the tab that's already selected
+    let onReselect: () -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(items) { item in
+                let isActive = item.tab == selection
+                Button {
+                    if isActive {
+                        onReselect()
+                    } else {
+                        selection = item.tab
+                    }
+                } label: {
+                    VStack(spacing: SBSLayout.space1) {
+                        Image(systemName: item.symbol)
+                            .symbolVariant(isActive ? .fill : .none)
+                            .font(.system(size: 22, weight: .semibold))
+                            .frame(height: 26)
+                        Text(item.title)
+                            .tabText()
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                    .foregroundStyle(isActive ? Color.orangeText : Color.inkSecondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 10)
+                    .padding(.bottom, 6)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(item.title)
+                .accessibilityAddTraits(isActive ? [.isButton, .isSelected] : [.isButton])
+                .accessibilityShowsLargeContentViewer {
+                    Label(item.title, systemImage: item.symbol)
+                }
+            }
+        }
+        .padding(.horizontal, SBSLayout.space1)
+        // Held at the default size like the system tab bar: five labels in a phone's
+        // width have no room to grow. They truncate rather than wrap, and a long press
+        // shows the large content viewer at accessibility sizes.
+        .dynamicTypeSize(...DynamicTypeSize.large)
+        .background(Color.surface.ignoresSafeArea(edges: .bottom))
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(Color.rule)
+                .frame(height: SBSLayout.strokeRule)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(.isTabBar)
+        .accessibilityIdentifier("tabBar")
+    }
+}
+
+// MARK: - Scroll To Top
+
+/// What the system tab bar does when its selected tab is tapped again: pop a pushed
+/// screen back to the tab's root, or, already at the root, scroll to the top. Only the
+/// selected tab's views are in the window, so everything found on screen belongs to it.
+enum ScrollToTop {
+    @MainActor
+    static func reselectVisibleTab() {
+        guard let window = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow) else { return }
+        // Nothing presented over the tabs: a sheet or the workout cover owns the screen
+        guard window.rootViewController?.presentedViewController == nil else { return }
+        if let navigation = pushedNavigationController(in: window) {
+            navigation.popToRootViewController(animated: true)
+            return
+        }
+        for scrollView in scrollViews(in: window) {
+            let top = CGPoint(x: scrollView.contentOffset.x, y: -scrollView.adjustedContentInset.top)
+            if scrollView.contentOffset.y > top.y {
+                scrollView.setContentOffset(top, animated: true)
+            }
+        }
+    }
+
+    /// A navigation controller on screen with something pushed on it
+    @MainActor
+    private static func pushedNavigationController(in view: UIView) -> UINavigationController? {
+        guard !view.isHidden else { return nil }
+        if let navigation = view.next as? UINavigationController,
+           navigation.viewControllers.count > 1 {
+            return navigation
+        }
+        for subview in view.subviews {
+            if let found = pushedNavigationController(in: subview) { return found }
+        }
+        return nil
+    }
+
+    @MainActor
+    private static func scrollViews(in view: UIView) -> [UIScrollView] {
+        guard !view.isHidden, view.alpha > 0.01 else { return [] }
+        var found: [UIScrollView] = []
+        if let scrollView = view as? UIScrollView,
+           scrollView.isScrollEnabled,
+           scrollView.contentSize.height > scrollView.bounds.height,
+           // Horizontal strips (a week strip, a carousel) stay where they are
+           scrollView.contentSize.width <= scrollView.bounds.width + 1,
+           !(scrollView is UITextView) {
+            found.append(scrollView)
+        }
+        for subview in view.subviews {
+            found += scrollViews(in: subview)
+        }
+        return found
+    }
+}
+
 // MARK: - Loading View
 
 struct LoadingView: View {
-    @State private var rotation: Double = 0
-    
     var body: some View {
-        VStack(spacing: SBSLayout.paddingLarge) {
-            // App icon / logo
-            ZStack {
-                Circle()
-                    .fill(SBSColors.accentFallback.opacity(0.1))
-                    .frame(width: 120, height: 120)
-                
-                Image(systemName: "figure.strengthtraining.traditional")
-                    .font(.system(size: 48, weight: .medium))
-                    .foregroundStyle(Color.orangeText)
-                    .rotationEffect(.degrees(rotation))
-            }
+        VStack(spacing: SBSLayout.space6) {
+            Image(systemName: "dumbbell.fill")
+                .font(.system(size: 44, weight: .semibold))
+                .foregroundStyle(Color.ink)
             
-            VStack(spacing: SBSLayout.paddingSmall) {
-                Text("Loading...")
-                    .font(SBSFonts.legacyTitle())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+            VStack(spacing: SBSLayout.space2) {
+                Text("Loading")
+                    .titleLargeText()
+                    .foregroundStyle(Color.ink)
                 
                 Text("Preparing your workout")
-                    .font(SBSFonts.legacyCaption())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
             
             ProgressView()
-                .tint(SBSColors.accentFallback)
+                .tint(Color.ink)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sbsBackground()
-        .onAppear {
-            withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: false)) {
-                rotation = 360
-            }
-        }
     }
 }
 
@@ -238,27 +367,27 @@ struct ErrorView: View {
     let onRetry: () -> Void
     
     var body: some View {
-        VStack(spacing: SBSLayout.paddingLarge) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 56))
-                .foregroundStyle(SBSColors.warning)
+        VStack(spacing: SBSLayout.space6) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 48, weight: .semibold))
+                .foregroundStyle(Color.warning)
             
-            VStack(spacing: SBSLayout.paddingSmall) {
-                Text("Unable to Load")
-                    .font(SBSFonts.legacyTitle())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+            VStack(spacing: SBSLayout.space2) {
+                Text("Unable to load")
+                    .font(SBSFonts.title())
+                    .foregroundStyle(Color.ink)
                 
                 Text(message)
-                    .font(SBSFonts.legacyBody())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .font(SBSFonts.body())
+                    .foregroundStyle(Color.inkSecondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal)
+                    .padding(.horizontal, SBSLayout.space4)
             }
             
-            Button("Try Again") {
-                onRetry()
+            Button(action: onRetry) {
+                SBSButtonTitle("Try again")
             }
-            .buttonStyle(SBSLegacyPrimaryButtonStyle())
+            .buttonStyle(SBSPrimaryButtonStyle())
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sbsBackground()

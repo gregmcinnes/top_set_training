@@ -50,6 +50,8 @@ struct ResumeWorkoutBar: View {
         .overlay(alignment: .top) {
             Rectangle().fill(Color.hairline).frame(height: SBSLayout.strokeHairline)
         }
+        // One line each: at accessibility sizes the bar would crowd out the screen
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 
     /// The rest countdown as a pill: raised and hairline while counting, an orange

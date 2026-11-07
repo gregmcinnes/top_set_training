@@ -790,7 +790,7 @@ struct PlateCalculatorInfoView: View {
                     showingPaywall = true
                 }
             } label: {
-                Text("Unlock plate calculator")
+                SBSButtonTitle("Unlock plate calculator")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(SBSPrimaryButtonStyle())

@@ -163,7 +163,7 @@ extension View {
 
     func sbsBackground() -> some View {
         self
-            .background(SBSColors.backgroundFallback.ignoresSafeArea())
+            .background(Color.bg.ignoresSafeArea())
     }
 }
 
@@ -479,6 +479,49 @@ struct SBSNumberPadButtonStyle: ButtonStyle {
             )
             .opacity(lit && configuration.isPressed ? 0.85 : 1)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Button Title
+
+/// A button title for the uppercase button styles. `.textCase(.uppercase)` also
+/// uppercases the accessibility label ("COMPLETE SET"), so this shows the capitals
+/// itself and keeps the words as written for VoiceOver, Voice Control and UI tests.
+struct SBSButtonTitle: View {
+    let title: String
+    var accessibilityText: String? = nil
+
+    init(_ title: String, accessibilityLabel: String? = nil) {
+        self.title = title
+        self.accessibilityText = accessibilityLabel
+    }
+
+    var body: some View {
+        Text(title.uppercased())
+            // A button title shrinks before it wraps ("PAUS / E")
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
+            .accessibilityLabel(accessibilityText ?? title)
+            // Inside the style's uppercase environment: keep the label as written
+            .textCase(nil)
+    }
+}
+
+/// An eyebrow label that reads as written to VoiceOver and UI tests, for the same
+/// reason as SBSButtonTitle. Colour is the caller's.
+struct SBSEyebrow: View {
+    let text: String
+
+    init(_ text: String) {
+        self.text = text
+    }
+
+    var body: some View {
+        Text(text.uppercased())
+            .font(SBSFonts.eyebrow())
+            .tracking(1.1)
+            .accessibilityLabel(text)
+            .textCase(nil)
     }
 }
 

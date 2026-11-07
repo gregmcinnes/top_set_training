@@ -563,6 +563,8 @@ struct SBSBadge: View {
             RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
                 .strokeBorder(edge, lineWidth: SBSLayout.strokeHairline)
         )
+        // Two words at most: a badge keeps its size rather than truncating to nothing
+        .fixedSize()
     }
 
     private var foreground: Color {

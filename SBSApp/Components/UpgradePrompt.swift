@@ -86,6 +86,7 @@ struct UpgradePrompt: View {
                         .font(SBSFonts.caption())
                         .foregroundStyle(Color.inkSecondary)
                 }
+                .layoutPriority(1)
 
                 Spacer(minLength: SBSLayout.space2)
 
@@ -158,6 +159,7 @@ private struct UpgradeUnlockLabel: View {
         .foregroundStyle(Color.orangeInk)
         .padding(.horizontal, SBSLayout.space3)
         .frame(minHeight: 36)
+        .fixedSize()
         .background(Color.orangeFill, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
         .contentShape(Rectangle())
     }

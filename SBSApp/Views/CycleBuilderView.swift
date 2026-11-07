@@ -80,17 +80,8 @@ struct CycleBuilderView: View {
     
     var body: some View {
         ZStack {
-            // Background gradient
-            LinearGradient(
-                colors: [
-                    Color.bg,
-                    Color.bg.opacity(0.95),
-                    Color.orangeSoft
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            Color.bg
+                .ignoresSafeArea()
             
             VStack(spacing: 0) {
                 // Progress indicator
@@ -192,9 +183,11 @@ onComplete: completeCycleSetup
                         Button {
                             cancelAndRestore()
                         } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 28))
-                                .foregroundStyle(Color.inkSecondary)
+                            Image(systemName: "xmark")
+                                .font(SBSFonts.heading())
+                                .foregroundStyle(Color.ink)
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
                         }
                         .accessibilityLabel("Cancel new cycle")
                         .padding()
@@ -205,7 +198,7 @@ onComplete: completeCycleSetup
             
             // Loading overlay when switching programs
             if isLoadingProgram {
-                Color.black.opacity(0.3)
+                Color.bg.opacity(0.7)
                     .ignoresSafeArea()
                 
                 VStack(spacing: SBSLayout.space4) {
@@ -218,9 +211,10 @@ onComplete: completeCycleSetup
                         .foregroundStyle(Color.ink)
                 }
                 .padding(SBSLayout.space6)
-                .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                        .fill(Color.surface.opacity(0.9))
+                .background(Color.surfaceRaised, in: RoundedRectangle(cornerRadius: SBSLayout.radiusMd))
+                .overlay(
+                    RoundedRectangle(cornerRadius: SBSLayout.radiusMd)
+                        .strokeBorder(Color.hairline, lineWidth: SBSLayout.strokeHairline)
                 )
             }
         }
@@ -562,11 +556,23 @@ struct StepProgressView: View {
         step.rawValue <= currentStep.rawValue
     }
 
+    // Done steps are ink, the current step is the orange block, upcoming ones hairline
     private func connector(isReached: Bool, isHidden: Bool) -> some View {
         Rectangle()
-            .fill(isReached ? SBSColors.accentFallback : Color.inkTertiary.opacity(0.3))
-            .frame(height: 2)
+            .fill(isReached ? Color.ink : Color.hairline)
+            .frame(height: isReached ? SBSLayout.strokeRule : SBSLayout.strokeHairline)
             .opacity(isHidden ? 0 : 1)
+    }
+
+    private func marker(for step: CycleBuilderView.BuilderStep) -> some View {
+        let isCurrent = step == currentStep
+        let isDone = step.rawValue < currentStep.rawValue
+        return Rectangle()
+            .fill(isCurrent ? Color.orangeFill : (isDone ? Color.ink : Color.surface))
+            .overlay(
+                Rectangle().strokeBorder(isCurrent || isDone ? Color.ink : Color.hairline, lineWidth: SBSLayout.strokeHairline)
+            )
+            .frame(width: 10, height: 10)
     }
 
     var body: some View {
@@ -576,16 +582,12 @@ struct StepProgressView: View {
                 VStack(spacing: 4) {
                     HStack(spacing: 0) {
                         connector(isReached: isReached(step), isHidden: step == steps.first)
-                        Circle()
-                            .fill(isReached(step)
-                                  ? SBSColors.accentFallback
-                                  : Color.inkSecondary.opacity(0.3))
-                            .frame(width: 8, height: 8)
+                        marker(for: step)
                         connector(isReached: step.rawValue < currentStep.rawValue, isHidden: step == steps.last)
                     }
 
                     Text(step.title)
-                        .font(SBSFonts.caption())
+                        .font(step == currentStep ? SBSFonts.caption().weight(.bold) : SBSFonts.caption())
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .foregroundStyle(isReached(step)
@@ -622,32 +624,20 @@ struct WelcomeStepView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: SBSLayout.space6) {
-                    // Animated icon
-                    ZStack {
-                        Circle()
-                            .fill(Color.orangeSoft)
-                            .frame(width: 120, height: 120)
-                            .scaleEffect(animateIcon ? 1.0 : 0.8)
-                        
-                        Circle()
-                            .fill(Color.orangeSoft)
-                            .frame(width: 90, height: 90)
-                            .scaleEffect(animateIcon ? 1.0 : 0.9)
-                        
-                        Image(systemName: isOnboarding ? "figure.strengthtraining.traditional" : "arrow.clockwise.circle.fill")
-                            .font(.system(size: 44, weight: .medium))
-                            .foregroundStyle(Color.orangeText)
-                            .scaleEffect(animateIcon ? 1.0 : 0.5)
-                    }
-                    .opacity(animateContent ? 1 : 0)
-                    .padding(.top, SBSLayout.space6)
-                    
+                    // Icon on a square hairline tile: the screen's one orange is its button
+                    Image(systemName: isOnboarding ? "figure.strengthtraining.traditional" : "arrow.clockwise")
+                        .font(SBSFonts.titleLarge())
+                        .foregroundStyle(Color.ink)
+                        .frame(width: 88, height: 88)
+                        .card()
+                        .scaleEffect(animateIcon ? 1.0 : 0.8)
+                        .opacity(animateContent ? 1 : 0)
+                        .padding(.top, SBSLayout.space6)
+                        .accessibilityHidden(true)
+
                     VStack(spacing: SBSLayout.space2) {
-                        Text(isOnboarding ? "Welcome to\nTop Set Training" : "New Training Cycle")
-                            .font(SBSFonts.largeTitle())
-                            .foregroundStyle(Color.ink)
+                        BuilderScreenTitle(isOnboarding ? "Welcome to\nTop Set Training" : "New Training Cycle")
                             .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
                         
                         Text(isOnboarding 
                              ? "Let's set up your personalized training program. This will only take a minute."
@@ -662,17 +652,23 @@ struct WelcomeStepView: View {
                     .offset(y: animateContent ? 0 : 20)
                     
                     // Features list
-                    VStack(spacing: SBSLayout.space2) {
-                        FeatureRow(icon: "doc.text.fill", title: "Choose your program", description: "Select from available training templates")
-                        FeatureRow(icon: "list.bullet.clipboard.fill", title: "Customize exercises", description: "Adjust lifts and accessories for each day")
-                        FeatureRow(icon: "scalemass.fill", title: "Set your weights", description: "Enter yours, or start from our suggestions")
-                        
+                    VStack(spacing: SBSLayout.space3) {
+                        VStack(spacing: 0) {
+                            FeatureRow(icon: "doc.text", title: "Choose your program", description: "Select from available training templates")
+                            SBSRowDivider()
+                            FeatureRow(icon: "list.bullet.clipboard", title: "Customize exercises", description: "Adjust lifts and accessories for each day")
+                            SBSRowDivider()
+                            FeatureRow(icon: "scalemass", title: "Set your weights", description: "Enter yours, or start from our suggestions")
+                        }
+                        .card()
+
                         if isOnboarding {
                             // Reassuring message
                             HStack(spacing: SBSLayout.space2) {
-                                Image(systemName: "arrow.uturn.backward.circle.fill")
-                                    .font(.system(size: 20))
-                                    .foregroundStyle(Color.success)
+                                Image(systemName: "arrow.uturn.backward")
+                                    .font(SBSFonts.bodyStrong())
+                                    .foregroundStyle(Color.inkSecondary)
+                                    .accessibilityHidden(true)
 
                                 Text("Don't worry, you can change all of these settings later in the app.")
                                     .font(SBSFonts.caption())
@@ -684,9 +680,10 @@ struct WelcomeStepView: View {
 
                             // Point new users toward the custom template builder.
                             HStack(spacing: SBSLayout.space2) {
-                                Image(systemName: "hammer.fill")
-                                    .font(.system(size: 20))
-                                    .foregroundStyle(Color.orangeText)
+                                Image(systemName: "hammer")
+                                    .font(SBSFonts.bodyStrong())
+                                    .foregroundStyle(Color.inkSecondary)
+                                    .accessibilityHidden(true)
 
                                 Text("Prefer your own routine? You can build a custom program anytime in Settings.")
                                     .font(SBSFonts.caption())
@@ -710,38 +707,28 @@ struct WelcomeStepView: View {
                     Haptics.light()
                     onContinue()
                 } label: {
-                    HStack {
-                        Text(isOnboarding ? "I Know What I Want" : "Get Started")
+                    HStack(spacing: SBSLayout.space2) {
+                        SBSButtonTitle(isOnboarding ? "I Know What I Want" : "Get Started")
                         Image(systemName: "arrow.right")
+                            .accessibilityHidden(true)
                     }
-                    .font(SBSFonts.bodyStrong())
-                    .foregroundStyle(Color.orangeInk)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, SBSLayout.space4)
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .fill(SBSColors.accentFallback)
-                    )
                 }
+                .buttonStyle(SBSPrimaryButtonStyle())
                 
                 // Secondary: Help me choose (especially helpful for onboarding)
                 if isOnboarding {
                     Button {
                         onTakeQuiz()
                     } label: {
-                        HStack {
+                        HStack(spacing: SBSLayout.space2) {
                             Image(systemName: "sparkles")
-                            Text("Help Me Choose a Program")
+                                .accessibilityHidden(true)
+                            SBSButtonTitle("Help Me Choose a Program")
                         }
-                        .font(SBSFonts.bodyStrong())
-                        .foregroundStyle(Color.orangeText)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, SBSLayout.space4)
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                .strokeBorder(SBSColors.accentFallback, lineWidth: 2)
-                        )
                     }
+                    .buttonStyle(SBSSecondaryButtonStyle())
 
                     // Tertiary: escape hatch — finish now with sensible defaults.
                     if let onSkip {
@@ -749,10 +736,9 @@ struct WelcomeStepView: View {
                             onSkip()
                         } label: {
                             Text("Skip for now")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.caption().weight(.semibold))
                                 .foregroundStyle(Color.inkSecondary)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, SBSLayout.space2)
+                                .frame(maxWidth: .infinity, minHeight: 44)
                         }
                     }
                 }
@@ -780,13 +766,10 @@ struct FeatureRow: View {
     var body: some View {
         HStack(spacing: SBSLayout.space4) {
             Image(systemName: icon)
-                .font(.system(size: 20))
-                .foregroundStyle(Color.orangeText)
-                .frame(width: 35, height: 40)
-                .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                        .fill(Color.orangeSoft)
-                )
+                .font(SBSFonts.heading())
+                .foregroundStyle(Color.inkSecondary)
+                .frame(width: 32)
+                .accessibilityHidden(true)
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
@@ -800,11 +783,28 @@ struct FeatureRow: View {
             
             Spacer(minLength: 0)
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                .fill(Color.surface)
-        )
+        .padding(.vertical, SBSLayout.space3)
+        .padding(.horizontal, SBSLayout.space4)
+        .frame(minHeight: 56)
+    }
+}
+
+/// A builder screen title in title-large: uppercase on screen, as written for VoiceOver.
+private struct BuilderScreenTitle: View {
+    let text: String
+
+    init(_ text: String) {
+        self.text = text
+    }
+
+    var body: some View {
+        Text(text.uppercased())
+            .font(SBSFonts.titleLarge())
+            .tracking(-0.34)
+            .foregroundStyle(Color.ink)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityLabel(text.replacingOccurrences(of: "\n", with: " "))
+            .accessibilityAddTraits(.isHeader)
     }
 }
 
@@ -906,31 +906,23 @@ struct ExerciseReviewStepView: View {
         VStack(spacing: 0) {
             // Header
             VStack(spacing: SBSLayout.space2) {
-                Image(systemName: "list.bullet.clipboard.fill")
-                    .font(.system(size: 40))
-                    .foregroundStyle(Color.orangeText)
-                
                 Text("Review Exercises")
                     .font(SBSFonts.title())
                     .foregroundStyle(Color.ink)
-                
+                    .accessibilityAddTraits(.isHeader)
+
                 Text("Customize the lifts for each training day")
                     .font(SBSFonts.body())
                     .foregroundStyle(Color.inkSecondary)
-                
+                    .multilineTextAlignment(.center)
+
                 // Reassuring message
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.right.circle.fill")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color.success)
-                    
-                    Text("Exercises can be changed in Settings")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(Color.inkSecondary)
-                }
-                .padding(.top, 4)
+                Text("Exercises can be changed in Settings")
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
             }
             .padding(.top, SBSLayout.space6)
+            .padding(.horizontal)
             .padding(.bottom, SBSLayout.space4)
             
             // Day selector
@@ -959,61 +951,69 @@ struct ExerciseReviewStepView: View {
                     let mainLifts = items.filter { $0.type == .tm || $0.type == .volume || $0.type == .structured || $0.type == .linear }
                     if !mainLifts.isEmpty {
                         SectionHeader(title: "Main Lifts")
-                        
-                        ForEach(Array(mainLifts.enumerated()), id: \.offset) { index, item in
-                            if let lift = item.lift {
-                                ExerciseItemRow(
-                                    name: item.name,
-                                    subtitle: subtitleForDayItem(item),
-                                    icon: "figure.strengthtraining.traditional",
-                                    onEdit: {
-                                        editingLift = lift
-                                        showingLiftPicker = true
-                                    }
-                                )
+
+                        VStack(spacing: 0) {
+                            ForEach(Array(mainLifts.enumerated()), id: \.offset) { index, item in
+                                if let lift = item.lift {
+                                    if index > 0 { SBSRowDivider() }
+                                    ExerciseItemRow(
+                                        name: item.name,
+                                        subtitle: subtitleForDayItem(item),
+                                        icon: "figure.strengthtraining.traditional",
+                                        onEdit: {
+                                            editingLift = lift
+                                            showingLiftPicker = true
+                                        }
+                                    )
+                                }
                             }
                         }
+                        .card()
+                        .padding(.horizontal)
                     }
-                    
+
                     // Accessories
                     let accessoryIndices = items.indices.filter { items[$0].type == .accessory }
                     SectionHeader(title: "Accessories")
 
-                    ForEach(accessoryIndices, id: \.self) { actualIndex in
-                        let item = items[actualIndex]
-                        ExerciseItemRow(
-                            name: item.name,
-                            subtitle: "\(item.defaultSets ?? 4) sets × \(item.defaultReps ?? 10) reps",
-                            icon: "dumbbell.fill",
-                            onEdit: {
-                                editingAccessoryIndex = actualIndex
-                                editingAccessorySets = item.defaultSets ?? 4
-                                editingAccessoryReps = item.defaultReps ?? 10
-                                showingAccessoryEditor = true
-                            },
-                            onDelete: {
-                                removeAccessory(at: actualIndex)
+                    if !accessoryIndices.isEmpty {
+                        VStack(spacing: 0) {
+                            ForEach(accessoryIndices, id: \.self) { actualIndex in
+                                let item = items[actualIndex]
+                                if actualIndex != accessoryIndices.first { SBSRowDivider() }
+                                ExerciseItemRow(
+                                    name: item.name,
+                                    subtitle: "\(item.defaultSets ?? 4) × \(item.defaultReps ?? 10)",
+                                    subtitleIsNumber: true,
+                                    icon: "dumbbell",
+                                    onEdit: {
+                                        editingAccessoryIndex = actualIndex
+                                        editingAccessorySets = item.defaultSets ?? 4
+                                        editingAccessoryReps = item.defaultReps ?? 10
+                                        showingAccessoryEditor = true
+                                    },
+                                    onDelete: {
+                                        removeAccessory(at: actualIndex)
+                                    }
+                                )
                             }
-                        )
+                        }
+                        .card()
+                        .padding(.horizontal)
                     }
-                    
+
                     // Add accessory button
                     Button {
                         showingExercisePicker = true
                     } label: {
-                        HStack {
-                            Image(systemName: "plus.circle.fill")
-                            Text("Add Accessory")
+                        HStack(spacing: SBSLayout.space2) {
+                            Image(systemName: "plus")
+                                .accessibilityHidden(true)
+                            SBSButtonTitle("Add Accessory")
                         }
-                        .font(SBSFonts.body())
-                        .foregroundStyle(Color.orangeText)
                         .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                .strokeBorder(SBSColors.accentFallback.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [5]))
-                        )
                     }
+                    .buttonStyle(SBSSecondaryButtonStyle())
                     .padding(.horizontal)
                     .padding(.top, SBSLayout.space2)
                 }
@@ -1158,10 +1158,9 @@ struct AccessorySetsRepsEditor: View {
             VStack(spacing: SBSLayout.space6) {
                 // Header with exercise name
                 VStack(spacing: SBSLayout.space2) {
-                    Image(systemName: "dumbbell.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(SBSColors.accentSecondaryFallback)
-                    
+                    SBSEyebrow("Accessory")
+                        .foregroundStyle(Color.inkSecondary)
+
                     Text(accessoryName)
                         .font(SBSFonts.heading())
                         .foregroundStyle(Color.ink)
@@ -1171,51 +1170,22 @@ struct AccessorySetsRepsEditor: View {
                 .padding(.top, SBSLayout.space4)
                 
                 // Steppers
-                VStack(spacing: SBSLayout.space2) {
-                    HStack {
-                        Text("Sets")
-                            .font(SBSFonts.body())
-                            .foregroundStyle(Color.ink)
-                        Spacer()
-                        Stepper("\(sets)", value: $sets, in: 1...10)
-                            .frame(width: 140)
-                    }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .fill(Color.surface)
-                    )
-                    
-                    HStack {
-                        Text("Reps")
-                            .font(SBSFonts.body())
-                            .foregroundStyle(Color.ink)
-                        Spacer()
-                        Stepper("\(reps)", value: $reps, in: 1...30)
-                            .frame(width: 140)
-                    }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .fill(Color.surface)
-                    )
+                VStack(spacing: 0) {
+                    SBSStepperRow(title: "Sets", value: $sets, range: 1...10)
+                    SBSRowDivider()
+                    SBSStepperRow(title: "Reps", value: $reps, range: 1...30)
                 }
+                .card()
                 .padding(.horizontal)
                 
                 Spacer()
                 
                 // Save button
                 Button(action: onSave) {
-                    Text("Save")
-                        .font(SBSFonts.bodyStrong())
-                        .foregroundStyle(Color.orangeInk)
+                    SBSButtonTitle("Save")
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, SBSLayout.space4)
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                .fill(SBSColors.accentFallback)
-                        )
                 }
+                .buttonStyle(SBSPrimaryButtonStyle())
                 .padding(.horizontal, SBSLayout.space6)
                 .padding(.bottom, SBSLayout.space6)
             }
@@ -1242,23 +1212,23 @@ struct DayTab: View {
     
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 4) {
-                Text(title)
-                    .font(SBSFonts.caption().weight(.semibold))
-                    .foregroundStyle(isSelected ? Color.orangeInk : Color.ink)
+            VStack(spacing: 2) {
+                SBSEyebrow(title)
+                    .foregroundStyle(Color.ink)
                 Text(subtitle.replacingOccurrences(of: " Day", with: ""))
                     .font(SBSFonts.caption())
-                    .foregroundStyle(isSelected ? Color.orangeInk.opacity(0.8) : Color.inkSecondary)
+                    .foregroundStyle(isSelected ? Color.ink : Color.inkSecondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
             }
             .padding(.horizontal, SBSLayout.space4)
             .padding(.vertical, SBSLayout.space2)
-            .background(
-                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                    .fill(isSelected ? SBSColors.accentFallback : Color.surface)
-            )
+            .frame(minHeight: 44)
+            .selectionCell(isSelected)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 }
 
@@ -1266,79 +1236,68 @@ struct SectionHeader: View {
     let title: String
     
     var body: some View {
-        HStack {
-            Text(title)
-                .font(SBSFonts.caption().weight(.semibold))
-                .foregroundStyle(Color.inkSecondary)
-            Spacer()
-        }
-        .padding(.horizontal)
-        .padding(.top, SBSLayout.space4)
+        SBSSectionEyebrow(title)
+            .padding(.horizontal)
+            .padding(.top, SBSLayout.space4)
     }
 }
 
 struct ExerciseItemRow: View {
     let name: String
     let subtitle: String
+    var subtitleIsNumber: Bool = false
     let icon: String
     let onEdit: (() -> Void)?
     var onDelete: (() -> Void)? = nil
-    
+
     var body: some View {
-        HStack(spacing: SBSLayout.space4) {
+        SBSListRow(name) {
             Image(systemName: icon)
-                .font(.system(size: 18))
-                .foregroundStyle(Color.orangeText)
-                .frame(width: 36, height: 36)
-                .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                        .fill(Color.orangeSoft)
-                )
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(name)
-                    .font(SBSFonts.body())
-                    .foregroundStyle(Color.ink)
+                .font(SBSFonts.bodyStrong())
+                .foregroundStyle(Color.inkSecondary)
+                .frame(width: 24)
+                .accessibilityHidden(true)
+        } subtitle: {
+            if subtitleIsNumber {
+                SBSRowSubtitle(subtitle)
+            } else {
                 Text(subtitle)
                     .font(SBSFonts.caption())
                     .foregroundStyle(Color.inkSecondary)
             }
-            
-            Spacer()
-            
-            if let onEdit = onEdit {
-                Button(action: onEdit) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "pencil")
-                            .font(.system(size: 12, weight: .medium))
-                        Text("Edit")
-                            .font(SBSFonts.caption().weight(.semibold))
+        } trailing: {
+            HStack(spacing: SBSLayout.space2) {
+                if let onEdit = onEdit {
+                    Button(action: onEdit) {
+                        HStack(spacing: SBSLayout.space1) {
+                            Image(systemName: "pencil")
+                                .accessibilityHidden(true)
+                            Text("Edit")
+                        }
+                        .font(SBSFonts.caption().weight(.semibold))
+                        .foregroundStyle(Color.ink)
+                        .padding(.horizontal, SBSLayout.space3)
+                        .frame(minHeight: 36)
+                        .selectionCell(false)
+                        .contentShape(Rectangle())
                     }
-                    .foregroundStyle(Color.orangeText)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .fill(Color.orangeSoft)
-                    )
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Edit \(name)")
                 }
-            }
-            
-            if let onDelete = onDelete {
-                Button(action: onDelete) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 14))
-                        .foregroundStyle(Color.danger)
+
+                if let onDelete = onDelete {
+                    Button(action: onDelete) {
+                        Image(systemName: "trash")
+                            .font(SBSFonts.bodyStrong())
+                            .foregroundStyle(Color.danger)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Delete \(name)")
                 }
-                .accessibilityLabel("Delete \(name)")
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                .fill(Color.surface)
-        )
-        .padding(.horizontal)
     }
 }
 
@@ -1408,13 +1367,11 @@ struct TrainingMaxesStepView: View {
                 VStack(spacing: SBSLayout.space6) {
                     // Header
                     VStack(spacing: SBSLayout.space2) {
-                        Image(systemName: "scalemass.fill")
-                            .font(.system(size: 40))
-                            .foregroundStyle(Color.orangeText)
-
                         Text(heading)
                             .font(SBSFonts.title())
                             .foregroundStyle(Color.ink)
+                            .multilineTextAlignment(.center)
+                            .accessibilityAddTraits(.isHeader)
 
                         Text(headerSubtitle)
                             .font(SBSFonts.body())
@@ -1436,10 +1393,11 @@ struct TrainingMaxesStepView: View {
                         VStack(spacing: SBSLayout.space2) {
                             // Notice that current TMs are being applied
                             if carryOverTMs {
-                                HStack(spacing: SBSLayout.space2) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 20))
+                                HStack(alignment: .top, spacing: SBSLayout.space3) {
+                                    Image(systemName: "checkmark")
+                                        .font(SBSFonts.bodyStrong().weight(.bold))
                                         .foregroundStyle(Color.success)
+                                        .accessibilityHidden(true)
 
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("Using Your \(currentValuesName)")
@@ -1453,14 +1411,7 @@ struct TrainingMaxesStepView: View {
                                     Spacer()
                                 }
                                 .padding()
-                                .background(
-                                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                        .fill(Color.success.opacity(0.1))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                                .strokeBorder(Color.success.opacity(0.3), lineWidth: 1)
-                                        )
-                                )
+                                .card()
                             }
 
                             // Button to reset or use current TMs
@@ -1470,13 +1421,14 @@ struct TrainingMaxesStepView: View {
                                     trainingMaxes[lift] = carryOverTMs ? carriedMax(lift) : defaultMax(lift)
                                 }
                             }) {
-                                HStack {
-                                    Image(systemName: carryOverTMs ? "arrow.counterclockwise" : "arrow.uturn.backward.circle.fill")
-                                        .font(.system(size: 16))
+                                HStack(spacing: SBSLayout.space1) {
+                                    Image(systemName: carryOverTMs ? "arrow.counterclockwise" : "arrow.uturn.backward")
+                                        .accessibilityHidden(true)
                                     Text(carryOverTMs ? "Reset to Default Values" : "Use \(currentValuesName)")
-                                        .font(SBSFonts.caption())
                                 }
+                                .font(SBSFonts.caption().weight(.semibold))
                                 .foregroundStyle(Color.orangeText)
+                                .frame(minHeight: 44)
                             }
                             .frame(maxWidth: .infinity, alignment: .trailing)
                         }
@@ -1485,9 +1437,9 @@ struct TrainingMaxesStepView: View {
 
                     // Info box
                     VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                        Label(infoTitle, systemImage: "info.circle.fill")
+                        Label(infoTitle, systemImage: "info.circle")
                             .font(SBSFonts.caption().weight(.semibold))
-                            .foregroundStyle(SBSColors.accentSecondaryFallback)
+                            .foregroundStyle(Color.ink)
 
                         Text(infoBody)
                             .font(SBSFonts.body())
@@ -1496,18 +1448,16 @@ struct TrainingMaxesStepView: View {
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .fill(SBSColors.accentSecondaryFallback.opacity(0.1))
-                    )
+                    .card()
                     .padding(.horizontal)
 
                     // Reassuring message for onboarding
                     if isOnboarding {
                         HStack(spacing: SBSLayout.space2) {
-                            Image(systemName: "checkmark.seal.fill")
-                                .font(.system(size: 16))
-                                .foregroundStyle(Color.success)
+                            Image(systemName: "checkmark.seal")
+                                .font(SBSFonts.bodyStrong())
+                                .foregroundStyle(Color.inkSecondary)
+                                .accessibilityHidden(true)
 
                             Text("We've filled in light starter weights. Change any you know, or tap \"Not sure?\" on a lift. You can adjust these anytime in Settings.")
                                 .font(SBSFonts.caption())
@@ -1588,17 +1538,20 @@ struct TrainingMaxesStepView: View {
 
     private var unitsControl: some View {
         VStack(alignment: .leading, spacing: SBSLayout.space2) {
-            Picker("Units", selection: Binding(
-                get: { appState.settings.useMetric },
-                set: { useMetric in
-                    focusedLift = nil
-                    onChangeUnits(useMetric)
-                }
-            )) {
-                Text("Pounds (lb)").tag(false)
-                Text("Kilograms (kg)").tag(true)
-            }
-            .pickerStyle(.segmented)
+            SBSEyebrow("Units")
+                .foregroundStyle(Color.inkSecondary)
+                .accessibilityAddTraits(.isHeader)
+
+            SBSSegmentedControl(
+                options: [false, true],
+                selection: Binding(
+                    get: { appState.settings.useMetric },
+                    set: { useMetric in
+                        focusedLift = nil
+                        onChangeUnits(useMetric)
+                    }
+                )
+            ) { $0 ? "Kilograms (kg)" : "Pounds (lb)" }
 
             Text("Numbers you've typed stay the same. Only the unit changes.")
                 .font(SBSFonts.caption())
@@ -1625,17 +1578,18 @@ struct TMInputRow: View {
     private var needsValue: Bool { value <= 0 && !isBodyweightLift }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            SBSAdaptiveStack(alignment: .firstTextBaseline) {
                 Text(liftName)
                     .font(SBSFonts.bodyStrong())
                     .foregroundStyle(Color.ink)
 
-                Spacer()
+                Spacer(minLength: 0)
 
                 Button("Not sure?", action: onNotSure)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.caption().weight(.semibold))
                     .foregroundStyle(Color.orangeText)
+                    .frame(minHeight: 32)
                     .accessibilityLabel("Not sure about \(liftName)?")
             }
 
@@ -1658,52 +1612,39 @@ struct TMInputRow: View {
                     }
 
                 Text(useMetric ? "kg" : "lb")
-                    .font(SBSFonts.body())
+                    .font(SBSFonts.numberUnit())
                     .foregroundStyle(Color.inkSecondary)
 
                 // Quick adjust buttons
-                HStack(spacing: 8) {
+                HStack(spacing: SBSLayout.space2) {
                     Button {
                         adjustValue(by: useMetric ? -2.5 : -5)
                     } label: {
-                        Image(systemName: "minus")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(Color.inkSecondary)
-                            .frame(width: 32, height: 32)
-                            .background(
-                                Circle()
-                                    .fill(Color.bg)
-                            )
+                        adjustKey("minus")
                     }
+                    .buttonStyle(.plain)
                     .accessibilityLabel("Decrease \(liftName) weight")
 
                     Button {
                         adjustValue(by: useMetric ? 2.5 : 5)
                     } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(Color.inkSecondary)
-                            .frame(width: 32, height: 32)
-                            .background(
-                                Circle()
-                                    .fill(Color.bg)
-                            )
+                        adjustKey("plus")
                     }
+                    .buttonStyle(.plain)
                     .accessibilityLabel("Increase \(liftName) weight")
                 }
             }
-            .padding()
-            .background(
+            .padding(.horizontal, SBSLayout.space4)
+            .padding(.vertical, SBSLayout.space3)
+            .background(Color.surface, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
+            .overlay(
+                // 1px edge: orange-text while typing, warning when a value is missing
                 RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                    .fill(Color.surface)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .stroke(borderColor, lineWidth: 2)
-                    )
+                    .strokeBorder(borderColor, lineWidth: SBSLayout.strokeHairline)
             )
 
             if needsValue {
-                Text("Enter a weight above 0 to continue")
+                Label("Enter a weight above 0 to continue", systemImage: "exclamationmark.triangle")
                     .font(SBSFonts.caption())
                     .foregroundStyle(Color.warning)
             }
@@ -1730,7 +1671,16 @@ struct TMInputRow: View {
 
     private var borderColor: Color {
         if needsValue { return Color.warning }
-        return isFocused ? SBSColors.accentFallback : Color.clear
+        return isFocused ? Color.orangeText : Color.hairline
+    }
+
+    private func adjustKey(_ systemName: String) -> some View {
+        Image(systemName: systemName)
+            .font(SBSFonts.bodyStrong().weight(.bold))
+            .foregroundStyle(Color.ink)
+            .frame(width: 44, height: 36)
+            .selectionCell(false)
+            .contentShape(Rectangle())
     }
 
     /// An empty field rather than "0", so the placeholder and the message explain it
@@ -1817,16 +1767,10 @@ struct StartingWeightHelpSheet: View {
                         Button {
                             use(starter)
                         } label: {
-                            Text("Use \(starter.formattedWeight(useMetric: useMetric))")
-                                .font(SBSFonts.bodyStrong())
-                                .foregroundStyle(Color.orangeText)
+                            SBSButtonTitle("Use \(starter.formattedWeight(useMetric: useMetric))")
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, SBSLayout.space4)
-                                .background(
-                                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                        .strokeBorder(SBSColors.accentFallback, lineWidth: 2)
-                                )
                         }
+                        .buttonStyle(SBSSecondaryButtonStyle())
                     }
 
                     card(title: "Estimate From a Recent Set", explanation: estimateExplanation) {
@@ -1834,35 +1778,34 @@ struct StartingWeightHelpSheet: View {
                             TextField("Weight", text: $weightText)
                                 .keyboardType(.decimalPad)
                                 .focused($isEditing)
-                                .textFieldStyle(.roundedBorder)
+                                .font(SBSFonts.number())
+                                .sbsFieldCell()
                                 .accessibilityLabel("Weight lifted")
 
                             Text(useMetric ? "kg for" : "lb for")
-                                .font(SBSFonts.body())
+                                .font(SBSFonts.numberUnit())
                                 .foregroundStyle(Color.inkSecondary)
+                                .fixedSize()
 
                             TextField("Reps", text: $repsText)
                                 .keyboardType(.numberPad)
                                 .focused($isEditing)
-                                .textFieldStyle(.roundedBorder)
+                                .font(SBSFonts.number())
+                                .sbsFieldCell()
                                 .accessibilityLabel("Reps")
                         }
 
+                        // The sheet's one primary action; disabled it drops to a hairline
                         Button {
                             if let estimate { use(estimate) }
                         } label: {
-                            Text(estimate.map { "Use \($0.formattedWeight(useMetric: useMetric))" } ?? "Enter a Weight and Reps")
-                                .font(SBSFonts.bodyStrong())
-                                .foregroundStyle(Color.orangeInk)
+                            SBSButtonTitle(estimate.map { "Use \($0.formattedWeight(useMetric: useMetric))" } ?? "Enter a Weight and Reps")
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, SBSLayout.space4)
-                                .background(
-                                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                        .fill(SBSColors.accentFallback)
-                                )
                         }
+                        .buttonStyle(SBSPrimaryButtonStyle())
                         .disabled(estimate == nil)
-                        .opacity(estimate == nil ? 0.5 : 1)
+                        .padding(.trailing, SBSLayout.hardShadowOffset)
+                        .padding(.bottom, SBSLayout.hardShadowOffset)
                     }
                 }
                 .padding()
@@ -1897,8 +1840,9 @@ struct StartingWeightHelpSheet: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: SBSLayout.space2) {
             Text(title)
-                .font(SBSFonts.bodyStrong())
+                .font(SBSFonts.heading())
                 .foregroundStyle(Color.ink)
+                .accessibilityAddTraits(.isHeader)
 
             Text(explanation)
                 .font(SBSFonts.caption())
@@ -1909,10 +1853,7 @@ struct StartingWeightHelpSheet: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                .fill(Color.surface)
-        )
+        .card()
     }
 }
 
@@ -1975,21 +1916,19 @@ let isOnboarding: Bool
                 VStack(spacing: SBSLayout.space6) {
                     // Header with animation
                     VStack(spacing: SBSLayout.space4) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.success.opacity(0.1))
-                                .frame(width: 100, height: 100)
-                                .scaleEffect(animateCheckmark ? 1.0 : 0.5)
-                            
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 60))
-                                .foregroundStyle(Color.success)
-                                .scaleEffect(animateCheckmark ? 1.0 : 0.3)
-                        }
-                        
+                        // A glyph on a hairline tile, not a status fill
+                        Image(systemName: "checkmark")
+                            .font(SBSFonts.titleLarge())
+                            .foregroundStyle(Color.success)
+                            .frame(width: 88, height: 88)
+                            .card()
+                            .scaleEffect(animateCheckmark ? 1.0 : 0.5)
+                            .accessibilityHidden(true)
+
                         Text(isOnboarding ? "Ready to Begin!" : "Review Your Cycle")
                             .font(SBSFonts.title())
                             .foregroundStyle(Color.ink)
+                            .accessibilityAddTraits(.isHeader)
                         
                         Text("Here's a summary of your setup")
                             .font(SBSFonts.body())
@@ -1999,36 +1938,24 @@ let isOnboarding: Bool
                     
                     // Program summary
                     SummaryCard(title: "Program") {
-                        HStack {
-                            Image(systemName: isCustomTemplate ? "square.stack.3d.up.fill" : "doc.text.fill")
-                                .foregroundStyle(Color.orangeText)
+                        HStack(spacing: SBSLayout.space2) {
+                            Image(systemName: isCustomTemplate ? "square.stack.3d.up" : "doc.text")
+                                .foregroundStyle(Color.inkSecondary)
+                                .accessibilityHidden(true)
                             Text(programName)
-                                .font(SBSFonts.body())
+                                .font(SBSFonts.heading())
                                 .foregroundStyle(Color.ink)
-                            
+                                .fixedSize(horizontal: false, vertical: true)
+
                             if isCustomTemplate {
-                                Text("Custom")
-                                    .font(SBSFonts.caption().weight(.semibold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(
-                                        Capsule()
-                                            .fill(
-                                                LinearGradient(
-                                                    colors: [SBSColors.accentFallback, SBSColors.accentSecondaryFallback],
-                                                    startPoint: .leading,
-                                                    endPoint: .trailing
-                                                )
-                                            )
-                                    )
+                                SBSBadge(text: "Custom")
                             }
-                            
-                            Spacer()
+
+                            Spacer(minLength: 0)
                         }
-                        
-                        Divider()
-                        
+
+                        SBSRowDivider()
+
                         HStack {
                             SummaryStatItem(value: "\(programWeeks)", label: "Weeks")
                             SummaryStatItem(value: "\(programDays)", label: "Days/Week")
@@ -2040,18 +1967,19 @@ let isOnboarding: Bool
                     SummaryCard(title: kind == .firstWorkingWeight ? "Starting Weights" : "Starting Training Maxes") {
                         ForEach(orderedLifts, id: \.self) { lift in
 if let value = trainingMaxes[lift] {
-                                HStack {
+                                SBSAdaptiveStack {
                                     Text(lift)
                                         .font(SBSFonts.body())
                                         .foregroundStyle(Color.ink)
-                                    Spacer()
+                                    Spacer(minLength: 0)
                                     Text(value.formattedWeight(useMetric: appState.settings.useMetric))
                                         .font(SBSFonts.number())
-                                        .foregroundStyle(Color.orangeText)
+                                        .foregroundStyle(Color.ink)
                                 }
-                                
+                                .accessibilityElement(children: .combine)
+
                                 if lift != orderedLifts.last {
-Divider()
+                                    SBSRowDivider()
                                 }
                             }
                         }
@@ -2061,8 +1989,9 @@ Divider()
                     if !exerciseCustomizations.isEmpty {
                         SummaryCard(title: "Customizations") {
                             HStack {
-                                Image(systemName: "pencil.circle.fill")
-                                    .foregroundStyle(SBSColors.accentSecondaryFallback)
+                                Image(systemName: "pencil")
+                                    .foregroundStyle(Color.inkSecondary)
+                                    .accessibilityHidden(true)
                                 Text("You've customized \(exerciseCustomizations.count) day(s)")
                                     .font(SBSFonts.body())
                                     .foregroundStyle(Color.ink)
@@ -2072,23 +2001,15 @@ Divider()
                     }
                     
                     // Tips
-                    VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                        Label("Pro Tips", systemImage: "lightbulb.fill")
-                            .font(SBSFonts.caption().weight(.semibold))
-                            .foregroundStyle(Color.warning)
-                        
-                        VStack(alignment: .leading, spacing: 8) {
+                    // "Tips", not "Pro Tips": Pro is the paywall badge's word
+                    SummaryCard(title: "Tips") {
+                        VStack(alignment: .leading, spacing: SBSLayout.space2) {
                             TipItem(text: "Log your rep-outs honestly for accurate progression")
                             TipItem(text: "You can adjust weights mid-workout if needed")
                             TipItem(text: kind == .firstWorkingWeight ? "Review your weights in Settings anytime" : "Review your training maxes in Settings anytime")
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .fill(Color.warning.opacity(0.1))
-                    )
-                    .padding(.horizontal)
                 }
                 .padding(.bottom, SBSLayout.space8)
             }
@@ -2100,26 +2021,22 @@ Divider()
                     Haptics.success()
                     onComplete()
                 } label: {
-                    HStack {
-                        Text(isOnboarding ? "Start Training" : "Start New Cycle")
-                        Image(systemName: "arrow.right.circle.fill")
+                    HStack(spacing: SBSLayout.space2) {
+                        SBSButtonTitle(isOnboarding ? "Start Training" : "Start New Cycle")
+                        Image(systemName: "arrow.right")
+                            .accessibilityHidden(true)
                     }
-                    .font(SBSFonts.bodyStrong())
-                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, SBSLayout.space4)
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                            .fill(Color.success)
-                    )
                 }
-                
+                .buttonStyle(SBSPrimaryButtonStyle())
+
                 Button {
                     onBack()
                 } label: {
                     Text("Go Back")
-                        .font(SBSFonts.body())
+                        .font(SBSFonts.caption().weight(.semibold))
                         .foregroundStyle(Color.inkSecondary)
+                        .frame(minHeight: 44)
                 }
             }
             .padding(.horizontal, SBSLayout.space6)
@@ -2139,20 +2056,16 @@ struct SummaryCard<Content: View>: View {
     @ViewBuilder let content: Content
     
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.space4) {
-            Text(title)
-                .font(SBSFonts.caption().weight(.semibold))
-                .foregroundStyle(Color.inkSecondary)
-            
-            VStack(spacing: SBSLayout.space2) {
+        VStack(alignment: .leading, spacing: SBSLayout.space2) {
+            SBSSectionEyebrow(title)
+
+            VStack(spacing: SBSLayout.space3) {
                 content
             }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .card()
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                .fill(Color.surface)
-        )
         .padding(.horizontal)
     }
 }
@@ -2162,15 +2075,17 @@ struct SummaryStatItem: View {
     let label: String
     
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: SBSLayout.space1) {
             Text(value)
-                .font(SBSFonts.heading())
-                .foregroundStyle(Color.orangeText)
-            Text(label)
-                .font(SBSFonts.caption())
+                .font(SBSFonts.numberLarge())
+                .foregroundStyle(Color.ink)
+            SBSEyebrow(label)
                 .foregroundStyle(Color.inkSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -2178,15 +2093,16 @@ struct TipItem: View {
     let text: String
     
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 12))
-                .foregroundStyle(Color.success)
-                .padding(.top, 2)
-            
+        HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space2) {
+            Image(systemName: "checkmark")
+                .font(SBSFonts.caption().weight(.bold))
+                .foregroundStyle(Color.inkSecondary)
+                .accessibilityHidden(true)
+
             Text(text)
                 .font(SBSFonts.body())
                 .foregroundStyle(Color.inkSecondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
@@ -2201,43 +2117,33 @@ struct NavigationButtons: View {
     var continueDisabled: Bool = false
     
     var body: some View {
-        HStack(spacing: SBSLayout.space4) {
+        // Back is the hairline alternative; Continue is the step's one primary button
+        SBSAdaptiveStack(spacing: SBSLayout.space3) {
             Button {
                 onBack()
             } label: {
-                HStack {
+                HStack(spacing: SBSLayout.space2) {
                     Image(systemName: "arrow.left")
-                    Text(backTitle)
+                        .accessibilityHidden(true)
+                    SBSButtonTitle(backTitle)
                 }
-                .font(SBSFonts.bodyStrong())
-                .foregroundStyle(Color.inkSecondary)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, SBSLayout.space4)
-                .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                        .fill(Color.surface)
-                )
             }
-            
+            .buttonStyle(SBSSecondaryButtonStyle())
+
             Button {
                 Haptics.light()
                 onContinue()
             } label: {
-                HStack {
-                    Text(continueTitle)
+                HStack(spacing: SBSLayout.space2) {
+                    SBSButtonTitle(continueTitle)
                     Image(systemName: "arrow.right")
+                        .accessibilityHidden(true)
                 }
-                .font(SBSFonts.bodyStrong())
-                .foregroundStyle(Color.orangeInk)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, SBSLayout.space4)
-                .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                        .fill(SBSColors.accentFallback)
-                )
             }
+            .buttonStyle(SBSPrimaryButtonStyle())
             .disabled(continueDisabled)
-            .opacity(continueDisabled ? 0.5 : 1)
         }
         .padding(.horizontal, SBSLayout.space6)
         .padding(.vertical, SBSLayout.space4)
@@ -2250,6 +2156,8 @@ struct NavigationButtons: View {
 struct ProgramDetailView: View {
     let program: AppState.AvailableProgramInfo
     var programData: ProgramData? = nil  // Optional initial data (used when already loaded)
+    /// No longer drawn: the detail view is ink with orange-text actions, never a
+    /// per-family accent. Kept so existing call sites compile; safe to remove there.
     let familyColor: Color
     let level: ProgramLevel
     var onStartCycle: (() -> Void)? = nil  // Optional callback to start a cycle with this program
@@ -2551,149 +2459,90 @@ struct ProgramDetailView: View {
                 VStack(alignment: .leading, spacing: SBSLayout.space6) {
                     // Header
                     VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                        HStack {
+                        SBSAdaptiveStack(alignment: .firstTextBaseline) {
                             Text(program.displayName)
-                                .font(SBSFonts.largeTitle())
+                                .font(SBSFonts.title())
                                 .foregroundStyle(Color.ink)
-                            
-                            Spacer()
-                            
-                            HStack(spacing: 2) {
-                                Circle()
-                                    .fill(level.color)
-                                    .frame(width: 8, height: 8)
-                                Text(level.rawValue)
-                                    .font(SBSFonts.caption().weight(.semibold))
-                                    .foregroundStyle(level.color)
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(
-                                Capsule()
-                                    .fill(level.color.opacity(0.15))
-                            )
+                                .fixedSize(horizontal: false, vertical: true)
+                                .accessibilityAddTraits(.isHeader)
+
+                            Spacer(minLength: 0)
+
+                            SBSBadge(text: level.rawValue)
                         }
-                        
+
                         Text(program.programDescription)
                             .font(SBSFonts.body())
                             .foregroundStyle(Color.inkSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    
+
                     // Quick Stats
-                    HStack(spacing: SBSLayout.space4) {
-                        StatCard(
-                            icon: "calendar",
-                            value: "\(program.days)",
-                            label: "Days/Week",
-                            color: familyColor
-                        )
-                        StatCard(
-                            icon: "clock",
-                            value: "\(program.weeks)",
-                            label: "Weeks",
-                            color: familyColor
-                        )
-                        StatCard(
-                            icon: "dumbbell",
-                            value: "\(mainLifts.count)",
-                            label: "Main Lifts",
-                            color: familyColor
-                        )
-                    }
-                    
+                    ProgramStatsRow(days: program.days, weeks: program.weeks, mainLifts: mainLifts.count)
+
                     // Progression Section
                     VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                        Label("Progression", systemImage: "arrow.up.right")
-                            .font(SBSFonts.heading())
-                            .foregroundStyle(Color.ink)
-                        
-                        HStack(spacing: SBSLayout.space2) {
+                        SBSSectionEyebrow("Progression")
+
+                        HStack(spacing: SBSLayout.space3) {
                             Image(systemName: "chart.line.uptrend.xyaxis")
-                                .font(.system(size: 16))
-                                .foregroundStyle(familyColor)
-                            
+                                .font(SBSFonts.bodyStrong())
+                                .foregroundStyle(Color.inkSecondary)
+                                .accessibilityHidden(true)
+
                             Text(progressionType)
                                 .font(SBSFonts.body())
-                                .foregroundStyle(Color.inkSecondary)
+                                .foregroundStyle(Color.ink)
                         }
                         .padding()
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                .fill(Color.surface)
-                        )
+                        .card()
                     }
-                    
+
                     // Weekly Volume Section
                     if !volumeByMuscleGroup.isEmpty {
                         WeeklyVolumeCard(
                             volumeByGroup: volumeByMuscleGroup,
-                            accentColor: familyColor
+                            accentColor: Color.ink
                         )
                     }
-                    
+
                     // Main Lifts Section
                     if !mainLifts.isEmpty {
                         VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                            Label("Main Lifts", systemImage: "figure.strengthtraining.traditional")
-                                .font(SBSFonts.heading())
-                                .foregroundStyle(Color.ink)
-                            
-                            FlowLayout(spacing: 8) {
+                            SBSSectionEyebrow("Main Lifts")
+
+                            FlowLayout(spacing: SBSLayout.space2) {
                                 ForEach(mainLifts, id: \.self) { lift in
-                                    Text(lift)
-                                        .font(SBSFonts.caption().weight(.semibold))
-                                        .foregroundStyle(familyColor)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 6)
-                                        .background(
-                                            Capsule()
-                                                .fill(familyColor.opacity(0.15))
-                                        )
+                                    HairlineTag(text: lift, isStrong: true)
                                 }
                             }
                         }
                     }
-                    
+
                     // Accessories Section
                     if !accessoryExercises.isEmpty {
                         VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                            Label("Accessories", systemImage: "plus.circle")
-                                .font(SBSFonts.heading())
-                                .foregroundStyle(Color.ink)
-                            
-                            FlowLayout(spacing: 8) {
+                            SBSSectionEyebrow("Accessories")
+
+                            FlowLayout(spacing: SBSLayout.space2) {
                                 ForEach(accessoryExercises, id: \.self) { exercise in
-                                    Text(exercise)
-                                        .font(SBSFonts.caption())
-                                        .foregroundStyle(Color.inkSecondary)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .background(
-                                            Capsule()
-                                                .strokeBorder(Color.inkTertiary.opacity(0.3), lineWidth: 1)
-                                        )
+                                    HairlineTag(text: exercise)
                                 }
                             }
                         }
                     }
-                    
+
                     // Weekly Schedule
                     VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                        HStack {
-                            Label("Weekly Schedule", systemImage: "calendar.badge.clock")
-                                .font(SBSFonts.heading())
-                                .foregroundStyle(Color.ink)
-                            
-                            Spacer()
-                            
+                        SBSSectionEyebrow("Weekly Schedule") {
                             // Note about percentages
                             Text("% = Training Max")
                                 .font(SBSFonts.caption())
                                 .foregroundStyle(Color.inkSecondary)
                         }
-                        
-                        VStack(spacing: SBSLayout.space2) {
+
+                        VStack(spacing: SBSLayout.space3) {
                             ForEach(1...program.days, id: \.self) { day in
                                 DayPreviewCard(
                                     dayNumber: day,
@@ -2701,7 +2550,7 @@ struct ProgramDetailView: View {
                                     items: dayItems(for: day),
                                     formatSetsReps: formatSetsReps,
                                     formatDetailedSets: detailedPreviewInfo,
-                                    accentColor: familyColor
+                                    accentColor: Color.ink
                                 )
                             }
                         }
@@ -2718,7 +2567,7 @@ struct ProgramDetailView: View {
                         dismiss()
                     }
                     .font(SBSFonts.bodyStrong())
-                    .foregroundStyle(familyColor)
+                    .foregroundStyle(Color.orangeText)
                 }
             }
             .safeAreaInset(edge: .bottom) {
@@ -2728,21 +2577,17 @@ struct ProgramDetailView: View {
                             dismiss()
                             startCycle()
                         } label: {
-                            HStack {
+                            HStack(spacing: SBSLayout.space2) {
                                 Image(systemName: "play.fill")
-                                Text("Start Cycle with This Program")
+                                    .accessibilityHidden(true)
+                                SBSButtonTitle("Start Cycle with This Program")
                             }
-                            .font(SBSFonts.bodyStrong())
-                            .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, SBSLayout.space4)
-                            .background(
-                                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                    .fill(familyColor)
-                            )
                         }
+                        .buttonStyle(SBSPrimaryButtonStyle())
                     }
                     .padding()
+                    .padding(.trailing, SBSLayout.hardShadowOffset)
                     .background(Color.bg)
                 }
             }
@@ -2750,7 +2595,7 @@ struct ProgramDetailView: View {
                 if isLoading && effectiveProgramData == nil {
                     VStack(spacing: SBSLayout.space4) {
                         ProgressView()
-                            .tint(familyColor)
+                            .tint(Color.ink)
                         Text("Loading program...")
                             .font(SBSFonts.caption())
                             .foregroundStyle(Color.inkSecondary)
@@ -2768,32 +2613,72 @@ struct ProgramDetailView: View {
 
 // MARK: - Supporting Views for Program Detail
 
+/// The three stats under a program's title, in one hairline group.
+struct ProgramStatsRow: View {
+    let days: Int
+    let weeks: Int
+    let mainLifts: Int
+
+    var body: some View {
+        HStack(spacing: 0) {
+            StatCard(icon: "calendar", value: "\(days)", label: "Days/Week")
+            hairline
+            StatCard(icon: "clock", value: "\(weeks)", label: "Weeks")
+            hairline
+            StatCard(icon: "dumbbell", value: "\(mainLifts)", label: "Main Lifts")
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .card()
+    }
+
+    private var hairline: some View {
+        Rectangle()
+            .fill(Color.hairline)
+            .frame(width: SBSLayout.strokeHairline)
+            .accessibilityHidden(true)
+    }
+}
+
 struct StatCard: View {
     let icon: String
     let value: String
     let label: String
-    let color: Color
-    
+
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: SBSLayout.space1) {
             Image(systemName: icon)
-                .font(.system(size: 20))
-                .foregroundStyle(color)
-            
-            Text(value)
-                .font(SBSFonts.heading())
-                .foregroundStyle(Color.ink)
-            
-            Text(label)
-                .font(SBSFonts.caption())
+                .font(SBSFonts.bodyStrong())
                 .foregroundStyle(Color.inkSecondary)
+                .accessibilityHidden(true)
+
+            Text(value)
+                .font(SBSFonts.numberLarge())
+                .foregroundStyle(Color.ink)
+
+            SBSEyebrow(label)
+                .foregroundStyle(Color.inkSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, SBSLayout.space4)
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                .fill(Color.surface)
-        )
+        .padding(.vertical, SBSLayout.space3)
+        .padding(.horizontal, SBSLayout.space1)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// A non-interactive name tag on a hairline cell: lifts and accessories in a program preview.
+struct HairlineTag: View {
+    let text: String
+    var isStrong: Bool = false
+
+    var body: some View {
+        Text(text)
+            .font(isStrong ? SBSFonts.caption().weight(.semibold) : SBSFonts.caption())
+            .foregroundStyle(isStrong ? Color.ink : Color.inkSecondary)
+            .padding(.horizontal, SBSLayout.space3)
+            .padding(.vertical, 6)
+            .selectionCell(false)
     }
 }
 
@@ -2832,28 +2717,26 @@ struct DayPreviewCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: SBSLayout.space2) {
             // Header with day number and title
-            HStack {
+            SBSAdaptiveStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Day \(dayNumber)")
-                        .font(SBSFonts.bodyStrong())
-                        .foregroundStyle(Color.ink)
-                    
+                    SBSEyebrow("Day \(dayNumber)")
+                        .foregroundStyle(Color.inkSecondary)
+
                     if let title = dayTitle {
                         Text(title)
-                            .font(SBSFonts.caption())
-                            .foregroundStyle(accentColor)
+                            .font(SBSFonts.heading())
+                            .foregroundStyle(Color.ink)
                     }
                 }
-                
-                Spacer()
-                
-                Text("\(mainExercises.count) main • \(accessories.count) acc")
-                    .font(SBSFonts.caption())
+
+                Spacer(minLength: 0)
+
+                Text("\(mainExercises.count) main · \(accessories.count) acc")
+                    .font(SBSFonts.numberSmall())
                     .foregroundStyle(Color.inkSecondary)
             }
-            
-            Divider()
-                .opacity(0.3)
+
+            SBSRowDivider()
             
             // Main exercises with detailed info
             ForEach(Array(mainExercises.enumerated()), id: \.offset) { _, item in
@@ -2867,12 +2750,12 @@ struct DayPreviewCard: View {
             
             // Accessories (collapsed)
             if !accessories.isEmpty {
-                HStack(alignment: .top, spacing: 6) {
-                    Image(systemName: "plus.circle")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Color.inkSecondary.opacity(0.6))
-                        .padding(.top, 2)
-                    
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Image(systemName: "plus")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
+                        .accessibilityHidden(true)
+
                     Text(accessories.map { $0.name }.joined(separator: ", "))
                         .font(SBSFonts.caption())
                         .foregroundStyle(Color.inkSecondary)
@@ -2881,10 +2764,7 @@ struct DayPreviewCard: View {
             }
         }
         .padding()
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                .fill(Color.surface)
-        )
+        .card()
     }
 }
 
@@ -2916,58 +2796,37 @@ struct ExercisePreviewRow: View {
         VStack(alignment: .leading, spacing: 4) {
             // Main row
             HStack(alignment: .top) {
-                Circle()
-                    .fill(accentColor)
-                    .frame(width: 6, height: 6)
-                    .padding(.top, 6)
-                
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.lift ?? item.name)
-                        .font(SBSFonts.body())
+                        .font(SBSFonts.bodyStrong())
                         .foregroundStyle(Color.ink)
-                    
+
                     if let info = info {
-                        HStack(spacing: 6) {
-                            Text(info.setsText)
-                                .font(SBSFonts.caption())
+                        // Wraps rather than truncating at large text sizes
+                        FlowLayout(spacing: 6) {
+                            Text("\(info.setsText) @ \(info.intensityText)")
+                                .font(SBSFonts.numberSmall())
                                 .foregroundStyle(Color.inkSecondary)
-                            
-                            Text("@")
-                                .font(SBSFonts.caption())
-                                .foregroundStyle(Color.inkSecondary)
-                            
-                            Text(info.intensityText)
-                                .font(SBSFonts.caption().weight(.semibold))
-                                .foregroundStyle(accentColor)
-                            
+
                             if info.hasAMRAP {
-                                Text("AMRAP")
-                                    .font(SBSFonts.caption().weight(.semibold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 4)
-                                    .padding(.vertical, 1)
-                                    .background(
-                                        Capsule()
-                                            .fill(accentColor.opacity(0.8))
-                                    )
+                                SBSBadge(text: "AMRAP")
                             }
-                            
+
                             if let note = info.noteText {
                                 Text(note)
                                     .font(SBSFonts.caption())
                                     .foregroundStyle(Color.inkSecondary)
-                                    .italic()
                             }
                         }
                     } else {
                         Text(compactInfo)
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.numberSmall())
                             .foregroundStyle(Color.inkSecondary)
                     }
                 }
-                
+
                 Spacer()
-                
+
                 // Expand button for structured sets
                 if let info = info, let details = info.detailRows, details.count > 3 {
                     Button {
@@ -2975,9 +2834,9 @@ struct ExercisePreviewRow: View {
                             isExpanded.toggle()
                         }
                     } label: {
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(Color.inkTertiary)
+                        SBSChevron(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .frame(width: 44, height: 32)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(isExpanded ? "Hide set details" : "Show set details")
@@ -2987,7 +2846,6 @@ struct ExercisePreviewRow: View {
             // Expanded set details (for structured exercises)
             if isExpanded, let info = info, let details = info.detailRows {
                 SetPreviewGrid(rows: details, accentColor: accentColor)
-                    .padding(.leading, 12)
                     .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
             }
         }
@@ -3002,22 +2860,21 @@ struct SetPreviewGrid: View {
     var body: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: min(rows.count, 5)), spacing: 4) {
             ForEach(rows) { row in
+                // Set grid cells: reps over percentage, both tabular
                 VStack(spacing: 1) {
                     Text(row.reps)
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundStyle(Color.inkSecondary)
-                    
+                        .font(SBSFonts.numberSmall().weight(.semibold))
+                        .foregroundStyle(Color.ink)
+
                     Text("\(row.intensity)%")
-                        .font(.system(size: 9, design: .monospaced))
-                        .foregroundStyle(accentColor.opacity(0.8))
+                        .font(SBSFonts.numberSmall())
+                        .foregroundStyle(Color.inkSecondary)
                 }
-                .frame(minWidth: 32)
-                .padding(.vertical, 4)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(maxWidth: .infinity, minHeight: 40)
                 .padding(.horizontal, 2)
-                .background(
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.bg)
-                )
+                .selectionCell(false)
             }
         }
     }
@@ -3031,7 +2888,8 @@ struct CustomTemplateDetailView: View {
     var onStartCycle: (() -> Void)? = nil  // Optional callback to start a cycle with this template
     @Environment(\.dismiss) private var dismiss
     
-    private let accentColor: Color = SBSColors.accentFallback
+    /// Detail views are ink; orange is for the one action
+    private let accentColor: Color = Color.ink
     
     private var programData: ProgramData {
         template.toProgramData()
@@ -3276,80 +3134,48 @@ struct CustomTemplateDetailView: View {
                 VStack(alignment: .leading, spacing: SBSLayout.space6) {
                     // Header
                     VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                        HStack {
+                        SBSAdaptiveStack(alignment: .firstTextBaseline) {
                             Text(template.name)
-                                .font(SBSFonts.largeTitle())
+                                .font(SBSFonts.title())
                                 .foregroundStyle(Color.ink)
-                            
-                            Spacer()
-                            
-                            HStack(spacing: 2) {
-                                Image(systemName: "square.stack.3d.up.fill")
-                                    .font(.system(size: 10))
-                                Text("CUSTOM")
-                                    .font(SBSFonts.caption().weight(.semibold))
-                            }
-                            .foregroundStyle(accentColor)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(
-                                Capsule()
-                                    .fill(accentColor.opacity(0.15))
-                            )
+                                .fixedSize(horizontal: false, vertical: true)
+                                .accessibilityAddTraits(.isHeader)
+
+                            Spacer(minLength: 0)
+
+                            SBSBadge(text: "Custom", systemImage: "square.stack.3d.up")
                         }
-                        
+
                         if !template.templateDescription.isEmpty {
                             Text(template.templateDescription)
                                 .font(SBSFonts.body())
                                 .foregroundStyle(Color.inkSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
-                    
+
                     // Quick Stats
-                    HStack(spacing: SBSLayout.space4) {
-                        StatCard(
-                            icon: "calendar",
-                            value: "\(template.daysPerWeek)",
-                            label: "Days/Week",
-                            color: accentColor
-                        )
-                        StatCard(
-                            icon: "clock",
-                            value: "\(template.weeks.count)",
-                            label: "Weeks",
-                            color: accentColor
-                        )
-                        StatCard(
-                            icon: "dumbbell",
-                            value: "\(mainLifts.count)",
-                            label: "Main Lifts",
-                            color: accentColor
-                        )
-                    }
-                    
+                    ProgramStatsRow(days: template.daysPerWeek, weeks: template.weeks.count, mainLifts: mainLifts.count)
+
                     // Progression Section
                     VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                        Label("Progression", systemImage: "arrow.up.right")
-                            .font(SBSFonts.heading())
-                            .foregroundStyle(Color.ink)
-                        
-                        HStack(spacing: SBSLayout.space2) {
+                        SBSSectionEyebrow("Progression")
+
+                        HStack(spacing: SBSLayout.space3) {
                             Image(systemName: "chart.line.uptrend.xyaxis")
-                                .font(.system(size: 16))
-                                .foregroundStyle(accentColor)
-                            
+                                .font(SBSFonts.bodyStrong())
+                                .foregroundStyle(Color.inkSecondary)
+                                .accessibilityHidden(true)
+
                             Text(progressionType)
                                 .font(SBSFonts.body())
-                                .foregroundStyle(Color.inkSecondary)
+                                .foregroundStyle(Color.ink)
                         }
                         .padding()
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                .fill(Color.surface)
-                        )
+                        .card()
                     }
-                    
+
                     // Weekly Volume Section
                     if !volumeByMuscleGroup.isEmpty {
                         WeeklyVolumeCard(
@@ -3357,68 +3183,42 @@ struct CustomTemplateDetailView: View {
                             accentColor: accentColor
                         )
                     }
-                    
+
                     // Main Lifts Section
                     if !mainLifts.isEmpty {
                         VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                            Label("Main Lifts", systemImage: "figure.strengthtraining.traditional")
-                                .font(SBSFonts.heading())
-                                .foregroundStyle(Color.ink)
-                            
-                            FlowLayout(spacing: 8) {
+                            SBSSectionEyebrow("Main Lifts")
+
+                            FlowLayout(spacing: SBSLayout.space2) {
                                 ForEach(mainLifts, id: \.self) { lift in
-                                    Text(lift)
-                                        .font(SBSFonts.caption().weight(.semibold))
-                                        .foregroundStyle(accentColor)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 6)
-                                        .background(
-                                            Capsule()
-                                                .fill(accentColor.opacity(0.15))
-                                        )
+                                    HairlineTag(text: lift, isStrong: true)
                                 }
                             }
                         }
                     }
-                    
+
                     // Accessories Section
                     if !accessoryExercises.isEmpty {
                         VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                            Label("Accessories", systemImage: "plus.circle")
-                                .font(SBSFonts.heading())
-                                .foregroundStyle(Color.ink)
-                            
-                            FlowLayout(spacing: 8) {
+                            SBSSectionEyebrow("Accessories")
+
+                            FlowLayout(spacing: SBSLayout.space2) {
                                 ForEach(accessoryExercises, id: \.self) { exercise in
-                                    Text(exercise)
-                                        .font(SBSFonts.caption())
-                                        .foregroundStyle(Color.inkSecondary)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .background(
-                                            Capsule()
-                                                .strokeBorder(Color.inkTertiary.opacity(0.3), lineWidth: 1)
-                                        )
+                                    HairlineTag(text: exercise)
                                 }
                             }
                         }
                     }
-                    
+
                     // Weekly Schedule
                     VStack(alignment: .leading, spacing: SBSLayout.space2) {
-                        HStack {
-                            Label("Weekly Schedule", systemImage: "calendar.badge.clock")
-                                .font(SBSFonts.heading())
-                                .foregroundStyle(Color.ink)
-                            
-                            Spacer()
-                            
+                        SBSSectionEyebrow("Weekly Schedule") {
                             Text("% = Training Max")
                                 .font(SBSFonts.caption())
                                 .foregroundStyle(Color.inkSecondary)
                         }
-                        
-                        VStack(spacing: SBSLayout.space2) {
+
+                        VStack(spacing: SBSLayout.space3) {
                             ForEach(1...template.daysPerWeek, id: \.self) { day in
                                 DayPreviewCard(
                                     dayNumber: day,
@@ -3443,7 +3243,7 @@ struct CustomTemplateDetailView: View {
                         dismiss()
                     }
                     .font(SBSFonts.bodyStrong())
-                    .foregroundStyle(accentColor)
+                    .foregroundStyle(Color.orangeText)
                 }
             }
             .safeAreaInset(edge: .bottom) {
@@ -3453,21 +3253,17 @@ struct CustomTemplateDetailView: View {
                             dismiss()
                             startCycle()
                         } label: {
-                            HStack {
+                            HStack(spacing: SBSLayout.space2) {
                                 Image(systemName: "play.fill")
-                                Text("Start Cycle with This Template")
+                                    .accessibilityHidden(true)
+                                SBSButtonTitle("Start Cycle with This Template")
                             }
-                            .font(SBSFonts.bodyStrong())
-                            .foregroundStyle(Color.orangeInk)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, SBSLayout.space4)
-                            .background(
-                                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                                    .fill(accentColor)
-                            )
                         }
+                        .buttonStyle(SBSPrimaryButtonStyle())
                     }
                     .padding()
+                    .padding(.trailing, SBSLayout.hardShadowOffset)
                     .background(Color.bg)
                 }
             }
@@ -3513,20 +3309,6 @@ enum MuscleGroup: String, CaseIterable {
         }
     }
     
-    var color: Color {
-        switch self {
-        case .chest: return .red
-        case .back: return .blue
-        case .shoulders: return .orange
-        case .quads: return .green
-        case .hamstrings: return .cyan
-        case .glutes: return .purple
-        case .arms: return .pink
-        case .core: return .yellow
-        case .fullBody: return .indigo
-        case .other: return .gray
-        }
-    }
     
     var sortOrder: Int {
         switch self {
@@ -3615,22 +3397,22 @@ enum MuscleGroup: String, CaseIterable {
 /// View showing weekly volume breakdown
 struct WeeklyVolumeCard: View {
     let volumeByGroup: [(group: MuscleGroup, totalSets: Int, lifts: [VolumeEntry])]
+    /// Unused: the chart is ink with labelled bars, never a colour per group
     let accentColor: Color
-    
+
     @State private var expandedGroups: Set<MuscleGroup> = []
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: SBSLayout.space2) {
-            Label("Weekly Volume", systemImage: "chart.bar.fill")
-                .font(SBSFonts.heading())
-                .foregroundStyle(Color.ink)
-            
-            // Summary bar chart
-            VolumeBarChart(volumeByGroup: volumeByGroup)
-            
-            // Detailed breakdown
-            VStack(spacing: 6) {
+            SBSSectionEyebrow("Weekly Volume")
+
+            VStack(spacing: 0) {
+                // Summary bar chart
+                VolumeBarChart(volumeByGroup: volumeByGroup)
+
+                // Detailed breakdown
                 ForEach(volumeByGroup, id: \.group) { entry in
+                    SBSRowDivider()
                     VolumeGroupRow(
                         group: entry.group,
                         totalSets: entry.totalSets,
@@ -3648,52 +3430,60 @@ struct WeeklyVolumeCard: View {
                     )
                 }
             }
+            .card()
         }
     }
 }
 
-/// Bar chart showing volume distribution
+/// Bar chart showing volume distribution: ink bars, each labelled with its
+/// set count and its group, so no colour key is needed.
 struct VolumeBarChart: View {
     let volumeByGroup: [(group: MuscleGroup, totalSets: Int, lifts: [VolumeEntry])]
-    
+
+    @ScaledMetric(relativeTo: .footnote) private var maxBarHeight: CGFloat = 40
+
     private var maxSets: Int {
         volumeByGroup.map { $0.totalSets }.max() ?? 1
     }
-    
+
     var body: some View {
-        HStack(alignment: .bottom, spacing: 4) {
+        HStack(alignment: .bottom, spacing: SBSLayout.space1) {
             ForEach(volumeByGroup, id: \.group) { entry in
                 VStack(spacing: 2) {
-                    // Bar
-                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                        .fill(entry.group.color)
-                        .frame(width: barWidth, height: barHeight(for: entry.totalSets))
-                    
-                    // Label
                     Text("\(entry.totalSets)")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.numberSmall())
+                        .foregroundStyle(Color.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+
+                    Rectangle()
+                        .fill(Color.ink)
+                        .frame(width: barWidth, height: barHeight(for: entry.totalSets))
+
+                    Text(entry.group.rawValue)
+                        .font(SBSFonts.eyebrow())
                         .foregroundStyle(Color.inkSecondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
                 }
+                .frame(maxWidth: .infinity)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(entry.group.rawValue), \(entry.totalSets) sets a week")
             }
         }
-        .frame(height: 60)
         .frame(maxWidth: .infinity)
-        .padding(.vertical, SBSLayout.space2)
+        .padding(.vertical, SBSLayout.space3)
         .padding(.horizontal, SBSLayout.space4)
-        .background(
-            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                .fill(Color.surface)
-        )
     }
-    
+
     private var barWidth: CGFloat {
         let count = CGFloat(max(volumeByGroup.count, 1))
         return min(24, (UIScreen.main.bounds.width - 80) / count)
     }
-    
+
     private func barHeight(for sets: Int) -> CGFloat {
         let ratio = CGFloat(sets) / CGFloat(max(maxSets, 1))
-        return max(4, ratio * 40)
+        return max(4, ratio * maxBarHeight)
     }
 }
 
@@ -3704,60 +3494,55 @@ struct VolumeGroupRow: View {
     let lifts: [VolumeEntry]
     let isExpanded: Bool
     let onToggle: () -> Void
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: SBSLayout.space1) {
             // Group header
             Button(action: onToggle) {
-                HStack {
-                    Circle()
-                        .fill(group.color)
-                        .frame(width: 8, height: 8)
-                    
+                SBSAdaptiveStack {
                     Text(group.rawValue)
                         .font(SBSFonts.body())
                         .foregroundStyle(Color.ink)
-                    
-                    Spacer()
-                    
-                    Text("\(totalSets) sets/week")
-                        .font(SBSFonts.caption().weight(.semibold))
-                        .foregroundStyle(group.color)
-                    
-                    if lifts.count > 1 {
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(Color.inkTertiary)
+
+                    Spacer(minLength: 0)
+
+                    HStack(spacing: SBSLayout.space2) {
+                        Text("\(totalSets) sets/week")
+                            .font(SBSFonts.numberSmall())
+                            .foregroundStyle(Color.ink)
+
+                        if lifts.count > 1 {
+                            SBSChevron(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        }
                     }
                 }
-                .padding(.vertical, 6)
-                .padding(.horizontal, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                        .fill(group.color.opacity(0.08))
-                )
+                .padding(.vertical, SBSLayout.space2)
+                .padding(.horizontal, SBSLayout.space4)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            
+
             // Expanded lift details
             if isExpanded {
                 VStack(spacing: 2) {
                     ForEach(lifts) { lift in
-                        HStack {
+                        SBSAdaptiveStack {
                             Text(lift.liftName)
                                 .font(SBSFonts.caption())
                                 .foregroundStyle(Color.inkSecondary)
-                            
-                            Spacer()
-                            
+
+                            Spacer(minLength: 0)
+
                             Text("\(lift.weeklySets) sets")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.numberSmall())
                                 .foregroundStyle(Color.inkSecondary)
                         }
-                        .padding(.horizontal, 18)
+                        .padding(.horizontal, SBSLayout.space6)
                         .padding(.vertical, 2)
                     }
                 }
+                .padding(.bottom, SBSLayout.space2)
                 .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
             }
         }

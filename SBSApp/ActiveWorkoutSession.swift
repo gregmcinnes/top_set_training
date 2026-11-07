@@ -1000,19 +1000,33 @@ final class ActiveWorkoutSession: Identifiable {
             )
         }
 
-        // Schedule push notification for background alert
-        if appState.settings.pushNotificationsEnabled, let exercise = workoutState.currentExercise {
-            NotificationManager.shared.scheduleRestTimerNotification(
-                duration: workoutState.timerDuration,
-                exerciseName: exercise.name,
-                nextSetInfo: "Set \(workoutState.currentSetNumber) of \(exercise.totalSets)"
-            )
-        }
+        scheduleRestNotificationAfterAsking()
 
         // Send initial timer state to Watch (workout context + set-completion
         // identity), then the authoritative endDate-based rest-timer timeline.
         syncWorkoutStateToWatch()
         sendRestTimerStateToWatch()
+    }
+
+    /// Schedule the background alert for this rest. The first rest is where the app asks
+    /// for notification permission, and that prompt can stay up for a while, so the rest
+    /// may have been adjusted or ended by the time it's answered: read the timer afterwards.
+    private func scheduleRestNotificationAfterAsking() {
+        guard appState.settings.pushNotificationsEnabled else { return }
+        Task { @MainActor [weak self] in
+            await NotificationManager.shared.requestAuthorizationIfNeeded(notificationsEnabled: true)
+            guard let self,
+                  self.appState.activeSession === self,
+                  self.appState.settings.pushNotificationsEnabled,
+                  self.workoutState.timerIsRunning,
+                  let endDate = self.workoutState.timerEndDate,
+                  let exercise = self.workoutState.currentExercise else { return }
+            NotificationManager.shared.scheduleRestTimerNotification(
+                duration: Int(endDate.timeIntervalSinceNow.rounded(.up)),
+                exerciseName: exercise.name,
+                nextSetInfo: "Set \(self.workoutState.currentSetNumber) of \(exercise.totalSets)"
+            )
+        }
     }
 
     /// Push the current rest-timer timeline to the Watch as a single

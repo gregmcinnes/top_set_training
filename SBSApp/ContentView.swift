@@ -68,11 +68,9 @@ struct ContentView: View {
                 appState.restoreActiveSessionIfNeeded()
             }
             
-            // Request notification permission if notifications are enabled in settings
-            NotificationManager.shared.requestAuthorizationIfNeeded(
-                notificationsEnabled: appState.settings.pushNotificationsEnabled
-            )
-            
+            // Only reads the status. The permission prompt waits for the first rest timer.
+            await NotificationManager.shared.checkAuthorizationStatus()
+
             // Check if onboarding is needed
             await MainActor.run {
                 if appState.needsOnboarding {

@@ -66,19 +66,20 @@ public final class NotificationManager: NSObject, ObservableObject, UNUserNotifi
         }
     }
     
-    /// Request permission if notifications are enabled in settings but permission not yet granted
-    /// Call this on app launch
-    public func requestAuthorizationIfNeeded(notificationsEnabled: Bool) {
+    /// Ask for permission if it's never been asked and the user hasn't turned notifications
+    /// off. Call when the first rest timer starts, where the reason for asking is obvious.
+    /// Returns once the user has answered, or right away if no prompt is needed, so a caller
+    /// can schedule afterwards. The prompt can take a while, so work out what to schedule
+    /// after this returns rather than before.
+    public func requestAuthorizationIfNeeded(notificationsEnabled: Bool) async {
         guard notificationsEnabled else { return }
-        
-        Task {
-            await checkAuthorizationStatus()
-            if authorizationStatus == .notDetermined {
-                await requestAuthorization()
-            }
+
+        await checkAuthorizationStatus()
+        if authorizationStatus == .notDetermined {
+            await requestAuthorization()
         }
     }
-    
+
     /// Check if notifications are authorized
     public var isAuthorized: Bool {
         authorizationStatus == .authorized

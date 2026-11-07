@@ -770,7 +770,7 @@ struct ProgressShareCard: View {
                     }
                     .foregroundStyle(isPositiveProgress ? SBSColors.success : SBSColors.error)
 
-                    Text("Avg TM Gain")
+                    Text("Avg Gain")
                         .font(SBSFonts.caption2())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                 }
@@ -781,7 +781,7 @@ struct ProgressShareCard: View {
                         .font(SBSFonts.title3())
                         .foregroundStyle(SBSColors.accentFallback)
 
-                    Text("Total TM Gained")
+                    Text("Total Gained")
                         .font(SBSFonts.caption2())
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                 }

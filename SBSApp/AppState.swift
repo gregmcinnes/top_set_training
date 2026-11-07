@@ -204,6 +204,59 @@ public final class AppState {
         )
     }
 
+    /// What Home's card offers next. Asks from the highest logged week, not the selected
+    /// one, so browsing weeks in the strip doesn't change the answer.
+    var nextWorkoutInCycle: (week: Int, day: Int)? {
+        nextWorkout(fromWeek: highestLoggedWeek())
+    }
+
+    /// Nothing left to do in this cycle. Matches returnToHomeAfterWorkout, which stays on
+    /// the final week when no workout is next, so the lifter always lands on the
+    /// completion card, even if the last day was only partly logged.
+    var isCycleComplete: Bool {
+        hasLoggedData && nextWorkoutInCycle == nil
+    }
+
+    /// Days done and logged across every week of the cycle
+    var cycleDayTally: CycleProgress.Tally {
+        CycleProgress.tally(
+            weeks: weeks,
+            visibleDays: { visibleDays(forWeek: $0) },
+            state: { week, day in
+                switch dayLogStatus(week: week, day: day) {
+                case .notStarted: return .notStarted
+                case .partial: return .partial
+                case .complete: return .complete
+                }
+            }
+        )
+    }
+
+    /// Completed days over all visible days of all weeks
+    var cycleCompletionFraction: Double {
+        cycleDayTally.completedFraction
+    }
+
+    /// Whether this program works from training maxes. Linear programs use a weight.
+    var programHasTrainingMaxes: Bool {
+        CycleProgress.usesTrainingMaxes(allDays.flatMap { dayItems(for: $0) })
+    }
+
+    /// Sessions and gains for the cycle-complete card. Gains compare this cycle's start
+    /// with the next one's, so a 5/3/1 lifter sees the increase they're about to get.
+    func cycleCompletionSummary() -> CycleCompletionSummary {
+        let liftOrder = allDays.flatMap { CycleProgress.mainLifts(in: dayItems(for: $0)) }
+        return CycleCompletionSummary(
+            sessionsCompleted: cycleDayTally.loggedDays,
+            gains: CycleProgress.gains(
+                liftOrder: liftOrder,
+                starting: currentCycleStartingMaxes(),
+                next: nextCycleStartingMaxes()
+            ),
+            usesTrainingMaxes: programHasTrainingMaxes
+        )
+    }
+
     /// A workout finished: select what's next and go to Home. With nothing left, stay on
     /// the final week so its cycle-complete card shows.
     func returnToHomeAfterWorkout(week: Int) {
@@ -1881,16 +1934,11 @@ public final class AppState {
         return "Day \(day)"
     }
     
-    func dayLifts(day: Int) -> [String] {
-        guard let plan = dayPlan(week: 1, day: day) else { return [] }
-        
-        var lifts: [String] = []
-        for item in plan {
-            if case .tm(_, let lift, _, _) = item {
-                lifts.append(lift)
-            }
-        }
-        return lifts
+    /// The lifts to name for a day in a given week. Falls back to what's configured when
+    /// the plan has no main lift, so a visible day doesn't read as blank.
+    func dayLifts(week: Int, day: Int) -> [String] {
+        let lifts = CycleProgress.mainLifts(in: dayPlan(week: week, day: day) ?? [])
+        return lifts.isEmpty ? CycleProgress.fallbackLifts(from: dayItems(for: day)) : lifts
     }
     
     // MARK: - Exercise Customization
@@ -2439,14 +2487,78 @@ public final class AppState {
         )
     }
     
+    /// What each lift would start the next cycle at, from the logs as they stand. Reads
+    /// the logs, so call it before they're cleared. Quick Repeat and the builder's prefill
+    /// both use this, and the result is final: nothing applies the increment again.
+    func nextCycleStartingMaxes() -> [String: Double] {
+        let lastWeek = highestLoggedWeek()
+        var carriedMaxes = finalTrainingMaxes(atWeek: lastWeek)
+
+        // Manual-progression programs (5/3/1) hold TMs through the cycle, so a
+        // finished cycle is the one point they rise. Without this a one-tap repeat
+        // would run the same weights forever. Partial cycles carry over unchanged.
+        if hasLoggedData, let state = programState, state.manualProgression,
+           let finalWeek = state.weeks.max(), lastWeek >= finalWeek {
+            for lift in getAllStructuredLiftInfo().keys {
+                guard let tm = carriedMaxes[lift], tm > 0 else { continue }
+                carriedMaxes[lift] = tm + engine.manualCycleIncrement(lift: lift, useMetric: settings.useMetric)
+            }
+        }
+
+        return carriedMaxes.filter { $0.value > 0 }
+    }
+
+    /// What each lift's number is called in this program
+    private var liftValuesName: String {
+        programHasTrainingMaxes ? "training maxes" : "working weights"
+    }
+
+    /// The wording for the Start New Cycle dialog, from Home or Settings
+    var newCycleDialogMessage: String {
+        let choices = "Customize lets you change program, exercises, or \(liftValuesName)."
+        var parts: [String]
+        if isCycleComplete {
+            parts = [
+                "Cycle \(currentCycleNumber) is complete and will be saved to Past Cycles.",
+                "Quick Repeat starts the same program from your new \(liftValuesName). \(choices)"
+            ]
+        } else if hasLoggedData {
+            parts = [
+                "You have a cycle in progress. Starting a new one ends it now: what you've logged moves to Past Cycles, and the workouts you haven't done are dropped.",
+                "Quick Repeat starts the same program from your current \(liftValuesName). \(choices)"
+            ]
+        } else {
+            parts = [
+                "Nothing is logged in this cycle yet.",
+                "Quick Repeat restarts the same program from your current \(liftValuesName). \(choices)"
+            ]
+        }
+        if activeSession != nil {
+            parts.append("Your workout in progress will be discarded.")
+        }
+        return parts.joined(separator: " ")
+    }
+
+    /// The one place a finished cycle counts toward a review request. Pass whether the cycle
+    /// was finished as read before starting, because starting clears the logs that say so.
+    /// The prompt itself waits a moment and flushes only where no celebration is showing.
+    @MainActor
+    func newCycleStarted(afterFinishedCycle finishedCycle: Bool) {
+        if finishedCycle {
+            ReviewRequestManager.shared.recordCycleCompleted()
+        }
+        ReviewRequestManager.shared.presentPendingReviewRequestIfNeeded()
+    }
+
     /// Start a new training cycle
     /// - Parameter carryOverTMs: If true, use current calculated TMs as starting point for next cycle
     func startNewCycle(carryOverTMs: Bool = true) {
         let lastWeek = highestLoggedWeek()
-        
+
         // Calculate ending TMs before we clear anything
         let endingMaxes = finalTrainingMaxes(atWeek: lastWeek)
         let startingMaxes = currentCycleStartingMaxes()
+        let carriedMaxes = carryOverTMs ? nextCycleStartingMaxes() : [:]
         
         // Archive current cycle if there's any logged data
         if hasLoggedData {
@@ -2459,26 +2571,11 @@ public final class AppState {
         }
         
         // Set new starting maxes if carrying over TMs
-        if carryOverTMs && !endingMaxes.isEmpty {
-            var carriedMaxes = endingMaxes
-
-            // Manual-progression programs (5/3/1) hold TMs through the cycle, so a
-            // finished cycle is the one point they rise. Without this a one-tap repeat
-            // would run the same weights forever. Partial cycles carry over unchanged.
-            if let state = programState, state.manualProgression,
-               let finalWeek = state.weeks.max(), lastWeek >= finalWeek {
-                for lift in getAllStructuredLiftInfo().keys {
-                    guard let tm = carriedMaxes[lift], tm > 0 else { continue }
-                    carriedMaxes[lift] = tm + engine.manualCycleIncrement(lift: lift, useMetric: settings.useMetric)
-                }
-            }
-
-            for (lift, tm) in carriedMaxes where tm > 0 {
-                userData.customInitialMaxes[lift] = tm
-                programState?.initialMaxes[lift] = tm
-                // Also update universal trainingMaxes for cross-program consistency
-                userData.trainingMaxes.setCanonicalLiftValue(tm, for: lift)
-            }
+        for (lift, tm) in carriedMaxes {
+            userData.customInitialMaxes[lift] = tm
+            programState?.initialMaxes[lift] = tm
+            // Also update universal trainingMaxes for cross-program consistency
+            userData.trainingMaxes.setCanonicalLiftValue(tm, for: lift)
         }
         
         // Clear current cycle logs (preserve accessoryLogs — they represent user preferences)
@@ -2501,6 +2598,57 @@ public final class AppState {
     /// Delete a cycle from history
     func deleteCycle(id: UUID) {
         userData.cycleHistory.removeAll { $0.id == id }
+    }
+
+    // MARK: - History Progress Display
+
+    /// How a lift's progress should be described. Takes canonical or program spellings.
+    func progressKind(for lift: String) -> LiftProgressKind {
+        let canonical = ExerciseLibrary.canonicalLiftName(lift)
+        let types = allDays.flatMap { liftsInDay($0) }
+            .filter { ExerciseLibrary.canonicalLiftName($0.lift) == canonical }
+            .map(\.type)
+        return LiftProgressKind.resolve(itemTypes: types, manualProgression: programState?.manualProgression ?? false)
+    }
+
+    /// The working weight a linear lift will use next session. Read-only: same replay as
+    /// the plan, so it respects the old-log anchoring.
+    func nextLinearWorkingWeight(for lift: String) -> Double? {
+        guard let state = programState else { return nil }
+        state.logs = userData.logs
+        state.linearLogs = userData.linearLogs
+        state.rounding = settings.roundingIncrement
+        state.useMetric = settings.useMetric
+        for (liftName, max) in userData.customInitialMaxes {
+            state.initialMaxes[liftName] = max
+        }
+        return engine.nextLinearWorkingWeight(state: state, lift: lift)
+    }
+
+    /// The current program's main lifts in program order, with this cycle's movement.
+    /// Linear lifts report next session's weight: `finalTrainingMaxes` gives the last
+    /// logged weight, which is what must carry into a new cycle but doesn't show progress.
+    func currentCycleProgress() -> CycleProgressSummary {
+        let items = allDays.flatMap { liftsInDay($0) }
+        let finalMaxes = finalTrainingMaxes(atWeek: highestLoggedWeek())
+        let manual = programState?.manualProgression ?? false
+
+        let lifts: [LiftCycleProgress] = HistoryLiftOrder.programOrder(items).compactMap { lift in
+            let start = initialMax(for: lift)
+            guard start > 0 else { return nil }
+            let kind = LiftProgressKind.resolve(
+                itemTypes: items.filter { $0.lift == lift }.map(\.type),
+                manualProgression: manual
+            )
+            let latest = kind == .workingWeight ? nextLinearWorkingWeight(for: lift) : finalMaxes[lift]
+            return LiftCycleProgress(lift: lift, kind: kind, start: start, current: latest ?? start)
+        }
+        return CycleProgressSummary(lifts: lifts)
+    }
+
+    /// Send the user to the Workout tab from anywhere, for "nothing here yet" prompts
+    func goToWorkoutTab() {
+        returnToHomeCount += 1
     }
     
     // MARK: - Program Switch Preview (Cycle Builder)
@@ -2587,17 +2735,19 @@ public final class AppState {
     }
     
     /// Programs ship no starting weights, so a user who skipped setup would otherwise
-    /// open every lift at 0. Start them on the empty bar, a safe linear-progression
-    /// starting point they can raise from Settings.
+    /// open every lift at 0. Give each unset lift a light weight that suits it, which they
+    /// can raise from Settings. A lift with a value already is left alone.
     private func seedStarterWeightsForUnsetLifts() {
         guard let state = programState else { return }
-        var lifts = Set(state.lifts.keys)
+        let kind = StartingWeightKind.classify(items: state.days.values.flatMap { $0 })
+var lifts = Set(state.lifts.keys)
         for items in state.days.values {
             lifts.formUnion(items.filter { $0.type != .accessory }.compactMap(\.lift))
         }
         for lift in lifts where (userData.customInitialMaxes[lift] ?? 0) <= 0 {
-            let starter = userData.trainingMaxes.canonicalLiftValue(for: lift).flatMap { $0 > 0 ? $0 : nil } ?? settings.barWeight
-            userData.customInitialMaxes[lift] = starter
+            let starter = userData.trainingMaxes.canonicalLiftValue(for: lift).flatMap { $0 > 0 ? $0 : nil }
+                ?? StarterWeights.starter(for: lift, useMetric: settings.useMetric, barWeight: settings.barWeight, kind: kind)
+userData.customInitialMaxes[lift] = starter
             state.initialMaxes[lift] = starter
         }
     }
@@ -2713,7 +2863,9 @@ public final class AppState {
         // Calculate ending TMs before we clear anything
         let endingMaxes = finalTrainingMaxes(atWeek: lastWeek)
         let startingMaxes = currentCycleStartingMaxes()
-        
+        // The builder's newMaxes are already final, so this applies only without them
+        let carriedMaxes = (newMaxes == nil && carryOverTMs) ? nextCycleStartingMaxes() : [:]
+
         // Archive current cycle if there's any logged data
         if hasLoggedData {
             let completedCycle = buildCompletedCycle(
@@ -2723,7 +2875,7 @@ public final class AppState {
             )
             userData.cycleHistory.append(completedCycle)
         }
-        
+
         // Clear current cycle logs (preserve accessoryLogs — they represent user preferences)
         userData.logs = [:]
         userData.structuredLogs = [:]
@@ -2735,8 +2887,8 @@ public final class AppState {
         // Apply new maxes from builder, or carry over
         if let newMaxes = newMaxes {
             setInitialMaxes(newMaxes)
-        } else if carryOverTMs && !endingMaxes.isEmpty {
-            for (lift, tm) in endingMaxes where tm > 0 {
+        } else {
+            for (lift, tm) in carriedMaxes {
                 userData.customInitialMaxes[lift] = tm
                 programState?.initialMaxes[lift] = tm
                 // Also update universal trainingMaxes for cross-program consistency

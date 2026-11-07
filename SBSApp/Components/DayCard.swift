@@ -20,16 +20,19 @@ struct DayCard: View {
                         .font(SBSFonts.bodyBold())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                     
-                    Text(lifts.joined(separator: " • "))
+                    Text(lifts.isEmpty ? "No exercises" : lifts.joined(separator: " • "))
                         .font(SBSFonts.caption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
                 }
+                .layoutPriority(1)
                 
                 Spacer()
                 
                 // Status indicator
                 LogStatusBadge(status: logStatus)
+                    .fixedSize()
                 
                 // Chevron
                 Image(systemName: "chevron.right")

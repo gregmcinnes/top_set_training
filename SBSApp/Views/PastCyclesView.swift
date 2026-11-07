@@ -26,7 +26,11 @@ struct PastCyclesView: View {
                 }
             }
             .sheet(item: $selectedCycle) { cycle in
-                CycleDetailView(cycle: cycle, useMetric: appState.settings.useMetric)
+                CycleDetailView(
+                    cycle: cycle,
+                    useMetric: appState.settings.useMetric,
+                    accessoryHistory: appState.userData.accessoryHistory
+                )
             }
             .alert("Delete Cycle?", isPresented: $showingDeleteAlert) {
                 Button("Cancel", role: .cancel) {}
@@ -56,9 +60,15 @@ struct PastCyclesView: View {
                 .foregroundStyle(SBSColors.textSecondaryFallback)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, SBSLayout.paddingLarge)
+
+            Button("Go to Workout") {
+                dismiss()
+                appState.goToWorkoutTab()
+            }
+            .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
+}
     
     private var cycleList: some View {
         List {
@@ -94,6 +104,8 @@ struct CycleRowView: View {
         return formatter
     }
     
+    private let summaryColumns = Array(repeating: GridItem(.flexible(), spacing: 0, alignment: .leading), count: 4)
+
     private var durationText: String {
         let weeks = cycle.lastCompletedWeek
         return "\(weeks) week\(weeks == 1 ? "" : "s")"
@@ -156,24 +168,22 @@ struct CycleRowView: View {
                     .foregroundStyle(SBSColors.textSecondaryFallback)
             }
             
-            // Quick TM summary
+            // Quick summary of every lift
             HStack(spacing: SBSLayout.paddingMedium) {
-                ForEach(Array(cycle.endingMaxes.keys.sorted().prefix(4)), id: \.self) { lift in
-                    if let endTM = cycle.endingMaxes[lift] {
-                        VStack(spacing: 2) {
+                LazyVGrid(columns: summaryColumns, spacing: SBSLayout.paddingSmall) {
+                    ForEach(cycle.summaryLifts, id: \.self) { lift in
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(ExerciseLibrary.shortName(for: lift))
                                 .font(SBSFonts.caption())
                                 .foregroundStyle(SBSColors.textTertiaryFallback)
-                            Text(endTM.formattedWeightShort(useMetric: useMetric))
+                            Text((cycle.endingMaxes[lift] ?? 0).formattedWeightShort(useMetric: useMetric))
                                 .font(SBSFonts.captionBold())
                                 .foregroundStyle(SBSColors.accentFallback)
                         }
                     }
                 }
-                
-                Spacer()
-                
-                Image(systemName: "chevron.right")
+
+Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(SBSColors.textTertiaryFallback)
             }
@@ -187,8 +197,15 @@ struct CycleRowView: View {
 struct CycleDetailView: View {
     let cycle: CompletedCycle
     let useMetric: Bool
+    /// Accessories aren't archived with a cycle, so they're matched by date
+    var accessoryHistory: [AccessoryRecord] = []
     @Environment(\.dismiss) private var dismiss
-    
+
+    /// Home opens this screen for free users too, so per-workout detail needs its own gate
+    private var canViewSessions: Bool {
+        StoreManager.shared.canAccess(.fullHistory)
+    }
+
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.dateStyle = .long
@@ -208,7 +225,12 @@ struct CycleDetailView: View {
                     
                     // Weekly logs breakdown
                     weeklyLogsSection
-                }
+
+                    // Each workout in this cycle
+                    if canViewSessions {
+                        sessionsSection
+                    }
+}
                 .padding()
             }
             .sbsBackground()
@@ -231,7 +253,7 @@ struct CycleDetailView: View {
                     Text("Duration")
                         .font(SBSFonts.caption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
-                    Text("\(cycle.lastCompletedWeek) weeks")
+                    Text("\(cycle.lastCompletedWeek) week\(cycle.lastCompletedWeek == 1 ? "" : "s")")
                         .font(SBSFonts.title3())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                 }
@@ -303,25 +325,59 @@ struct CycleDetailView: View {
         return count
     }
     
+    /// Linear lifts move their working weight, not a training max
+    private var progressionTitle: String {
+        let lifts = cycle.progressedLifts
+        let linearCount = lifts.filter { cycle.usedLinearProgression(for: $0) }.count
+        if linearCount == 0 { return "Training Max Progression" }
+        return linearCount == lifts.count ? "Working Weight Progression" : "Lift Progression"
+    }
+
     private var tmProgressionSection: some View {
         VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-            Text("Training Max Progression")
+            Text(progressionTitle)
                 .font(SBSFonts.title3())
                 .foregroundStyle(SBSColors.textPrimaryFallback)
-            
+
             VStack(spacing: SBSLayout.paddingSmall) {
-                ForEach(Array(cycle.startingMaxes.keys.sorted()), id: \.self) { lift in
+                ForEach(cycle.progressedLifts, id: \.self) { lift in
                     TMProgressionRow(
                         liftName: lift,
                         startTM: cycle.startingMaxes[lift] ?? 0,
                         endTM: cycle.endingMaxes[lift] ?? 0,
-                        useMetric: useMetric
+                        useMetric: useMetric,
+                        // A linear cycle's end value is its last logged weight
+                        endLabel: cycle.usedLinearProgression(for: lift) ? "Last" : "End"
                     )
                 }
             }
         }
     }
-    
+
+    @ViewBuilder
+    private var sessionsSection: some View {
+        let sessions = HistorySessionBuilder.sessions(for: cycle, accessoryHistory: accessoryHistory)
+        if !sessions.isEmpty {
+            VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
+                Text("Workouts")
+                    .font(SBSFonts.title3())
+                    .foregroundStyle(SBSColors.textPrimaryFallback)
+
+                LazyVStack(spacing: SBSLayout.paddingSmall) {
+                    ForEach(sessions) { session in
+                        NavigationLink {
+                            WorkoutSessionDetailView(session: session, useMetric: useMetric)
+                        } label: {
+                            WorkoutSessionRow(session: session)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("historySessionRow")
+                    }
+                }
+            }
+        }
+    }
+
     /// Per-lift weekly performance labels, unified across SBS/structured/linear logging styles.
     private struct WeeklyLiftPerformance: Identifiable {
         let lift: String
@@ -379,7 +435,7 @@ struct CycleDetailView: View {
         let performances = weeklyLiftPerformances
         if !performances.isEmpty {
             VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-                Text("Weekly Rep-Outs")
+                Text("Weekly Results")
                     .font(SBSFonts.title3())
                     .foregroundStyle(SBSColors.textPrimaryFallback)
 
@@ -434,7 +490,10 @@ struct TMProgressionRow: View {
     let startTM: Double
     let endTM: Double
     let useMetric: Bool
-    
+    var endLabel: String = "End"
+
+    private var hasChange: Bool { abs(absoluteGain) >= 0.01 }
+
     private var progression: Double {
         guard startTM > 0 else { return 0 }
         return ((endTM - startTM) / startTM) * 100
@@ -470,7 +529,7 @@ struct TMProgressionRow: View {
             
             // End TM
             VStack(alignment: .trailing, spacing: 2) {
-                Text("End")
+                Text(endLabel)
                     .font(SBSFonts.caption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                 Text(endTM.formattedWeightShort(useMetric: useMetric))
@@ -479,15 +538,23 @@ struct TMProgressionRow: View {
             }
             
             // Progression badge
-            HStack(spacing: 2) {
-                Image(systemName: progression >= 0 ? "arrow.up" : "arrow.down")
-                    .font(.system(size: 10, weight: .bold))
-                Text(String(format: "%.1f%%", abs(progression)))
+            if hasChange {
+                HStack(spacing: 2) {
+                    Image(systemName: progression >= 0 ? "arrow.up" : "arrow.down")
+                        .font(.system(size: 10, weight: .bold))
+                    Text(String(format: "%.1f%%", abs(progression)))
+                        .font(SBSFonts.captionBold())
+                }
+                .foregroundStyle(progression >= 0 ? SBSColors.success : SBSColors.error)
+                .frame(width: 60, alignment: .trailing)
+            } else {
+                Text("—")
                     .font(SBSFonts.captionBold())
+                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                    .frame(width: 60, alignment: .trailing)
+                    .accessibilityLabel("No change")
             }
-            .foregroundStyle(progression >= 0 ? SBSColors.success : SBSColors.error)
-            .frame(width: 60, alignment: .trailing)
-        }
+}
         .padding()
         .sbsCard()
     }

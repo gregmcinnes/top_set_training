@@ -528,16 +528,22 @@ struct AccessoryWorkoutView: View {
         }
 
         // Schedule push notification for background alert
-        if appState.settings.pushNotificationsEnabled {
+        // The first rest is where the app asks for permission. That prompt can stay up for
+        // a while, so read the timer once it's answered.
+        guard appState.settings.pushNotificationsEnabled else { return }
+        Task { @MainActor in
+            await NotificationManager.shared.requestAuthorizationIfNeeded(notificationsEnabled: true)
+            guard workoutState.timerIsRunning, let endDate = workoutState.timerEndDate else { return }
+            let duration = Int(endDate.timeIntervalSinceNow.rounded(.up))
             if let accessory = workoutState.currentAccessory {
                 NotificationManager.shared.scheduleRestTimerNotification(
-                    duration: workoutState.timerDuration,
+                    duration: duration,
                     exerciseName: accessory.name,
                     nextSetInfo: "Set \(workoutState.currentSetNumber) of \(accessory.sets)"
                 )
             } else {
                 NotificationManager.shared.scheduleRestTimerNotification(
-                    duration: workoutState.timerDuration,
+                    duration: duration,
                     exerciseName: "Rest",
                     nextSetInfo: "Rest Timer"
                 )

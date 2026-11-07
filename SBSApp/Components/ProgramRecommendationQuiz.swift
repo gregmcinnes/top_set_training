@@ -8,8 +8,11 @@ struct ProgramRecommendationQuiz: View {
     @Bindable var appState: AppState
     @Binding var selectedProgram: String
     let onDismiss: () -> Void
+    /// "Browse All Programs" on the results. Screens already showing the list can leave
+    /// this nil, and closing the quiz gets there.
+    var onBrowseAll: (() -> Void)? = nil
     let onProgramSelected: (String) -> Void
-    
+
     @State private var currentQuestion = 0
     @State private var answers = QuizAnswers()
     @State private var showingResults = false
@@ -44,7 +47,8 @@ struct ProgramRecommendationQuiz: View {
                             currentQuestion = questions.count - 1
                         }
                     },
-                    onDismiss: onDismiss
+                    onDismiss: onDismiss,
+                    onBrowseAll: onBrowseAll ?? onDismiss
                 )
                 .transition(.asymmetric(
                     insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -410,7 +414,8 @@ struct RecommendationResultsView: View {
     let onSelectProgram: (String) -> Void
     let onBack: () -> Void
     let onDismiss: () -> Void
-    
+    let onBrowseAll: () -> Void
+
     @State private var animateIn = false
     @State private var showingPaywall = false
     
@@ -551,7 +556,7 @@ struct RecommendationResultsView: View {
                     
                     // Browse all button
                     Button {
-                        onDismiss()
+                        onBrowseAll()
                     } label: {
                         HStack {
                             Image(systemName: "list.bullet")

@@ -1,33 +1,5 @@
 import SwiftUI
 
-// MARK: - Onboarding Draft Persistence
-
-/// Lightweight UserDefaults-backed snapshot of onboarding progress. Persisted as
-/// the user advances so an app kill mid-flow restores their program pick, step,
-/// and entered training maxes instead of restarting from zero. Deliberately not a
-/// full state machine — just enough to avoid losing meaningful work.
-private struct OnboardingDraft: Codable {
-    var step: Int
-    var selectedProgram: String
-    var trainingMaxes: [String: Double]
-
-    private static let key = "onboarding.draft.v1"
-
-    static func load() -> OnboardingDraft? {
-        guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
-        return try? JSONDecoder().decode(OnboardingDraft.self, from: data)
-    }
-
-    func save() {
-        guard let data = try? JSONEncoder().encode(self) else { return }
-        UserDefaults.standard.set(data, forKey: Self.key)
-    }
-
-    static func clear() {
-        UserDefaults.standard.removeObject(forKey: key)
-    }
-}
-
 // MARK: - Cycle Builder View
 
 struct CycleBuilderView: View {
@@ -58,9 +30,12 @@ struct CycleBuilderView: View {
             _isLoadingProgram = State(initialValue: true)
         } else if let program = initialProgram {
             _selectedProgram = State(initialValue: program)
+        } else if !isOnboarding {
+            // Someone starting another cycle knows the app, so Welcome has nothing for them
+            _currentStep = State(initialValue: .program)
         }
     }
-    
+
     @State private var currentStep: BuilderStep = .welcome
     @State private var selectedProgram: String = "stronglifts_5x5_12week"
     @State private var trainingMaxes: [String: Double] = [:]
@@ -73,53 +48,35 @@ struct CycleBuilderView: View {
     @State private var showingProgramQuiz: Bool = false
     @State private var showingTemplateBuilder: Bool = false
     @State private var showingTemplatePaywall: Bool = false
-    
-    /// Get the actual configured lifts, taking into account any exercise customizations
-    /// This should be used instead of appState.allConfiguredLifts during cycle setup
-    private var actualConfiguredLifts: Set<String> {
-        var lifts = Set<String>()
-        for day in appState.allDays {
-            // Use customizations if available, otherwise fall back to appState
-            let items = exerciseCustomizations[day] ?? appState.dayItems(for: day)
-            for item in items {
-                if let lift = item.lift, item.type != .accessory {
-                    lifts.insert(lift)
-                }
-            }
-        }
-        return lifts
+    @State private var didSetUp: Bool = false
+    @State private var programLoadFailure: ProgramLoadFailure? = nil
+    /// The cycle being replaced, captured before any preview load can archive it. Comparing
+    /// against this tells a repeat of the same program from a switch, even after the user
+    /// has previewed another program and come back.
+    @State private var originalProgram: String? = nil
+    @State private var originalNextCycleMaxes: [String: Double] = [:]
+
+    private struct ProgramLoadFailure {
+        let message: String
+        let retry: () -> Void
     }
-    
-    enum BuilderStep: Int, CaseIterable {
-        case welcome = 0
-        case program = 1
-        case exercises = 2
-        case trainingMaxes = 3
-        case settings = 4
-        case summary = 5
-        
-        var title: String {
-            switch self {
-            case .welcome: return "Welcome"
-            case .program: return "Program"
-            case .exercises: return "Exercises"
-            case .trainingMaxes: return "Training Maxes"
-            case .settings: return "Settings"
-            case .summary: return "Review"
-            }
-        }
-        
-        var icon: String {
-            switch self {
-            case .welcome: return "hand.wave.fill"
-            case .program: return "doc.text.fill"
-            case .exercises: return "list.bullet.clipboard.fill"
-            case .trainingMaxes: return "scalemass.fill"
-            case .settings: return "gearshape.fill"
-            case .summary: return "checkmark.circle.fill"
-            }
-        }
+
+    /// Each day's items in day order, using customizations where the user has made them.
+    /// Use this instead of appState's lifts during cycle setup, so swapped lifts count.
+    private var configuredDays: [[DayItem]] {
+        appState.allDays.map { exerciseCustomizations[$0] ?? appState.dayItems(for: $0) }
     }
+
+    /// The main lifts being set up, in program order
+    private var configuredLifts: [String] {
+        ProgramLifts.ordered(days: configuredDays)
+    }
+
+    private var startingWeightKind: StartingWeightKind {
+        StartingWeightKind.classify(items: configuredDays.flatMap { $0 })
+    }
+
+    typealias BuilderStep = SetupStep
     
     var body: some View {
         ZStack {
@@ -140,24 +97,36 @@ struct CycleBuilderView: View {
                 if currentStep != .welcome {
                     StepProgressView(currentStep: currentStep)
                         .padding(.horizontal)
+                        // Clear the close button in the top corner
+                        .padding(.trailing, isOnboarding ? 0 : 28)
                         .padding(.top, 8)
-                }
+}
                 
                 // Content
                 TabView(selection: $currentStep) {
-                    WelcomeStepView(
-                        isOnboarding: isOnboarding,
-                        onContinue: { goToStep(.program) },
-                        onTakeQuiz: { showingProgramQuiz = true },
-                        onSkip: isOnboarding ? { skipOnboarding() } : nil
-                    )
-                    .tag(BuilderStep.welcome)
-                    
+                    if isOnboarding {
+                        WelcomeStepView(
+                            isOnboarding: isOnboarding,
+                            onContinue: { goToStep(.program) },
+                            onTakeQuiz: { showingProgramQuiz = true },
+                            onSkip: { skipOnboarding() }
+                        )
+                        .tag(BuilderStep.welcome)
+                    }
+
                     ProgramSelectionStepView(
                         appState: appState,
                         selectedProgram: $selectedProgram,
-                        onBack: { goToStep(.welcome) },
-                        onContinue: { loadSelectedProgramAndContinue() },
+                        // The first step outside onboarding, so going back means leaving
+                        backTitle: isOnboarding ? "Back" : "Cancel",
+                        onBack: {
+                            if isOnboarding {
+                                goToStep(.welcome)
+                            } else {
+                                cancelAndRestore()
+                            }
+                        },
+onContinue: { loadSelectedProgramAndContinue() },
                         onTakeQuiz: { showingProgramQuiz = true },
                         onBuildTemplate: {
                             // Same limit as the other template entry points
@@ -186,27 +155,27 @@ struct CycleBuilderView: View {
                         trainingMaxes: $trainingMaxes,
                         carryOverTMs: $carryOverTMs,
                         isOnboarding: isOnboarding,
-                        configuredLifts: actualConfiguredLifts,
+                        configuredLifts: configuredLifts,
+                        kind: startingWeightKind,
+                        targetReps: { ProgramLifts.targetReps(for: $0, days: configuredDays) },
+                        carriedMax: { carriedMax(for: $0, from: carriedMaxes()) },
+                        defaultMax: { defaultMax(for: $0) },
+                        onChangeUnits: { changeUnits(toMetric: $0) },
                         onBack: { goToStep(.exercises) },
-                        onContinue: { goToStep(.settings) }
-                    )
-                    .tag(BuilderStep.trainingMaxes)
-                    
-                    WorkoutSettingsStepView(
-                        appState: appState,
-                        onBack: { goToStep(.trainingMaxes) },
                         onContinue: { goToStep(.summary) }
                     )
-                    .tag(BuilderStep.settings)
-                    
-                    SummaryStepView(
+                    .tag(BuilderStep.trainingMaxes)
+
+SummaryStepView(
                         appState: appState,
                         selectedProgram: selectedProgram,
                         trainingMaxes: trainingMaxes,
+                        orderedLifts: configuredLifts,
+                        kind: startingWeightKind,
                         exerciseCustomizations: exerciseCustomizations,
                         isOnboarding: isOnboarding,
-                        onBack: { goToStep(.settings) },
-                        onComplete: completeCycleSetup
+                        onBack: { goToStep(.trainingMaxes) },
+onComplete: completeCycleSetup
                     )
                     .tag(BuilderStep.summary)
                 }
@@ -260,28 +229,24 @@ struct CycleBuilderView: View {
             withAnimation(.easeOut(duration: 0.4)) {
                 animateIn = true
             }
-            // Snapshot user data before any program preview so cancelling the
-            // builder can restore the cycle exactly as it was.
+            // Once only: covers presented from here can make this fire again
+            guard !didSetUp else { return }
+            didSetUp = true
+
             if !isOnboarding {
+                // Both before any load below can switch programs and archive the logs
+                originalProgram = appState.userData.selectedProgram
+                originalNextCycleMaxes = appState.nextCycleStartingMaxes()
+                // Snapshot user data before any program preview so cancelling the
+                // builder can restore the cycle exactly as it was.
                 appState.beginProgramPreview()
             }
             // If an initial program was provided (e.g., from ProgramsView), load it
             // The step was already set to .exercises in init
             if let initial = initialProgram, !isOnboarding {
-                Task {
-                    do {
-                        try await appState.loadProgram(initial)
-                        await MainActor.run {
-                            lastLoadedProgram = initial
-                            isLoadingProgram = false
-                        }
-                    } catch {
-                        await MainActor.run {
-                            isLoadingProgram = false
-                        }
-                    }
-                }
+                loadProgram(initial) {}
             } else if isOnboarding {
+                applyLocaleUnitsIfNewUser()
                 restoreOnboardingDraftIfNeeded()
             } else if let currentProgram = appState.userData.selectedProgram {
                 // Initialize with currently loaded program so we don't reload unnecessarily
@@ -301,8 +266,12 @@ struct CycleBuilderView: View {
                 onDismiss: {
                     showingProgramQuiz = false
                 },
+                onBrowseAll: {
+                    showingProgramQuiz = false
+                    goToStep(.program)
+                },
                 onProgramSelected: { programId in
-                    selectedProgram = programId
+selectedProgram = programId
                     showingProgramQuiz = false
                     // Go to program step if not already there
                     if currentStep == .welcome {
@@ -332,6 +301,19 @@ struct CycleBuilderView: View {
         .sheet(isPresented: $showingTemplatePaywall) {
             PaywallView(triggeredByFeature: .unlimitedTemplates)
         }
+        .alert(
+            "Couldn't Load Program",
+            isPresented: Binding(
+                get: { programLoadFailure != nil },
+                set: { if !$0 { programLoadFailure = nil } }
+            ),
+            presenting: programLoadFailure
+        ) { failure in
+            Button("Try Again") { failure.retry() }
+            Button("Choose Another", role: .cancel) {}
+        } message: { failure in
+            Text(failure.message)
+        }
     }
 
     private func goToStep(_ step: BuilderStep) {
@@ -340,69 +322,140 @@ struct CycleBuilderView: View {
         }
     }
     
+    /// Every builder load goes through here. `AppState.loadProgram` decodes before it changes
+    /// anything, so a failure leaves the current program in place: the user lands on the
+    /// program list, with an alert offering a retry, and can pick something else from there.
+    private func loadProgram(_ programId: String, onSuccess: @escaping () -> Void) {
+        isLoadingProgram = true
+        Task { @MainActor in
+            do {
+                try await appState.loadProgram(programId)
+                lastLoadedProgram = programId
+                isLoadingProgram = false
+                onSuccess()
+            } catch {
+                Logger.error("Failed to load program \(programId): \(error)", category: .program)
+                isLoadingProgram = false
+                goToStep(.program)
+                programLoadFailure = ProgramLoadFailure(
+                    message: "\(appState.displayName(forProgramId: programId)) couldn't be opened. Try again, or choose a different program.",
+                    retry: { loadProgram(programId, onSuccess: onSuccess) }
+                )
+            }
+        }
+    }
+
     /// Load the selected program into appState before going to exercises step
     private func loadSelectedProgramAndContinue() {
-        // Check if we need to load a different program
-        let needsLoad = lastLoadedProgram != selectedProgram
-        
-        if needsLoad {
-            isLoadingProgram = true
-            // Clear exercise customizations and entered maxes when switching programs
-            exerciseCustomizations = [:]
-            trainingMaxes = [:]
-            
-            Task {
-                do {
-                    try await appState.loadProgram(selectedProgram)
-                    await MainActor.run {
-                        lastLoadedProgram = selectedProgram
-                        isLoadingProgram = false
-                        goToStep(.exercises)
-                    }
-                } catch {
-                    await MainActor.run {
-                        isLoadingProgram = false
-                        // Still navigate even if load fails - will show current program
-                        goToStep(.exercises)
-                    }
-                }
+        let isNewSelection = lastLoadedProgram != selectedProgram
+        loadProgram(selectedProgram) {
+            // Customizations and entered maxes belong to the program they were made for.
+            // Cleared only now, so a failed load doesn't cost the user their edits.
+            if isNewSelection {
+                exerciseCustomizations = [:]
+                trainingMaxes = [:]
             }
-        } else {
             goToStep(.exercises)
         }
     }
-    
+
     private func initializeTrainingMaxes() {
-        // Use actualConfiguredLifts to get lifts from exerciseCustomizations (not appState)
+        // Use configuredLifts to get lifts from exerciseCustomizations (not appState)
         // This ensures we show the swapped-in lifts, not the original program lifts
-        let lifts = actualConfiguredLifts
+        let lifts = configuredLifts
         // Drop stale entries for lifts no longer configured (e.g., after a swap)
         trainingMaxes = trainingMaxes.filter { lifts.contains($0.key) }
+        let carried = (!isOnboarding && carryOverTMs) ? carriedMaxes() : nil
         // Keep values already here: coming back through this step must not discard what
         // the user entered, so only lifts without a value get a default.
         for lift in lifts where trainingMaxes[lift] == nil {
-            if !isOnboarding && carryOverTMs {
-                // For new cycles, use current TMs with multiple fallbacks
-                let lastWeek = appState.highestLoggedWeek()
-                let currentTMs = appState.finalTrainingMaxes(atWeek: lastWeek)
-                
-                // Priority: calculated TMs > custom initial maxes > universal TMs > program defaults
-                if let calculatedTM = currentTMs[lift], calculatedTM > 0 {
-                    trainingMaxes[lift] = calculatedTM
-                } else if let customMax = appState.userData.customInitialMaxes[lift], customMax > 0 {
-                    trainingMaxes[lift] = customMax
-                } else if let universalTM = appState.userData.trainingMaxes.canonicalLiftValue(for: lift), universalTM > 0 {
-                    trainingMaxes[lift] = universalTM
-                } else {
-                    trainingMaxes[lift] = appState.initialMax(for: lift)
-                }
+            if let carried {
+                trainingMaxes[lift] = carriedMax(for: lift, from: carried)
             } else {
-                // For onboarding, use defaults from config
-                trainingMaxes[lift] = appState.programData?.initialMaxes[lift] ?? 100
+                trainingMaxes[lift] = defaultMax(for: lift)
             }
         }
     }
-    
+
+    /// The maxes a new cycle carries over. Repeating the program uses the value captured
+    /// when the builder opened, which already includes any end-of-cycle increase. That
+    /// makes it an absolute number, so reapplying it can't add the increase twice. A
+    /// different program gets no increase.
+    private func carriedMaxes() -> [String: Double] {
+        if originalProgram != nil, selectedProgram == originalProgram {
+            return originalNextCycleMaxes
+        }
+        return appState.finalTrainingMaxes(atWeek: appState.highestLoggedWeek())
+    }
+
+    /// Priority: carried TMs > custom initial maxes > universal TMs > program defaults > starter
+    private func carriedMax(for lift: String, from carried: [String: Double]) -> Double {
+        let candidates = [
+            carried[lift],
+            appState.userData.customInitialMaxes[lift],
+            appState.userData.trainingMaxes.canonicalLiftValue(for: lift),
+            appState.initialMax(for: lift)
+        ]
+        return candidates.compactMap { $0 }.first { $0 > 0 } ?? starterMax(for: lift)
+    }
+
+    /// What a lift starts at when nothing is carried over. Programs ship no starting
+    /// weights, so this is normally the starter.
+    private func defaultMax(for lift: String) -> Double {
+        if let programDefault = appState.programData?.initialMaxes[lift], programDefault > 0 {
+            return programDefault
+        }
+        return starterMax(for: lift)
+    }
+
+    private func starterMax(for lift: String) -> Double {
+        StarterWeights.starter(
+            for: lift,
+            useMetric: appState.settings.useMetric,
+            barWeight: appState.settings.barWeight,
+            kind: startingWeightKind
+        )
+    }
+
+    /// Onboarding only: set which unit the user's numbers are in, moving rounding and the
+    /// bar onto that unit's grid as Settings does.
+    private func changeUnits(toMetric: Bool) {
+        let old = appState.settings
+        guard old.useMetric != toMetric else { return }
+        var updated = old
+        updated.useMetric = toMetric
+        BarWeightOptions.applyUnitDefaults(to: &updated, useMetric: toMetric)
+        appState.settings = updated
+
+        let kind = startingWeightKind
+        for (lift, value) in trainingMaxes {
+            trainingMaxes[lift] = StarterWeights.valueAfterUnitChange(
+                value,
+                lift: lift,
+                kind: kind,
+                fromMetric: old.useMetric,
+                fromBarWeight: old.barWeight,
+                toMetric: toMetric,
+                toBarWeight: updated.barWeight
+            )
+        }
+    }
+
+    /// A true first run starts in the unit the user's locale uses. Runs before draft restore
+    /// reads anything; a draft means this already had its chance.
+    private func applyLocaleUnitsIfNewUser() {
+        guard UnitDefaults.shouldApplyLocale(
+            settings: appState.settings,
+            userData: appState.userData,
+            hasOnboardingDraft: OnboardingDraft.load() != nil
+        ), UnitDefaults.prefersMetric(locale: .current) else { return }
+
+        var updated = appState.settings
+        updated.useMetric = true
+        BarWeightOptions.applyUnitDefaults(to: &updated, useMetric: true)
+        appState.settings = updated
+    }
+
     /// Persist onboarding progress (program pick, step, entered maxes). No-op
     /// outside onboarding.
     private func persistOnboardingDraftIfNeeded() {
@@ -416,10 +469,10 @@ struct CycleBuilderView: View {
 
     /// Restore a saved onboarding draft, if any. Steps past program selection need
     /// the chosen program loaded into appState, so those load asynchronously before
-    /// jumping to the restored step; a load failure falls back to program selection.
+    /// jumping to the restored step; a load failure lands on program selection with an error.
     private func restoreOnboardingDraftIfNeeded() {
-        guard let draft = OnboardingDraft.load(),
-              let restoredStep = BuilderStep(rawValue: draft.step) else { return }
+        guard let draft = OnboardingDraft.load() else { return }
+        let restoredStep = draft.restoredStep
 
         selectedProgram = draft.selectedProgram
         trainingMaxes = draft.trainingMaxes
@@ -429,21 +482,12 @@ struct CycleBuilderView: View {
             return
         }
 
-        isLoadingProgram = true
-        Task {
-            do {
-                try await appState.loadProgram(draft.selectedProgram)
-                await MainActor.run {
-                    lastLoadedProgram = draft.selectedProgram
-                    isLoadingProgram = false
-                    goToStep(restoredStep)
-                }
-            } catch {
-                await MainActor.run {
-                    isLoadingProgram = false
-                    goToStep(.program)
-                }
+        loadProgram(draft.selectedProgram) {
+            // The draft may have reached weights without a value for every lift
+            if restoredStep.rawValue >= BuilderStep.trainingMaxes.rawValue {
+                initializeTrainingMaxes()
             }
+            goToStep(restoredStep)
         }
     }
 
@@ -511,38 +555,54 @@ struct CycleBuilderView: View {
 
 struct StepProgressView: View {
     let currentStep: CycleBuilderView.BuilderStep
-    
-    private let steps: [CycleBuilderView.BuilderStep] = [.program, .exercises, .trainingMaxes, .summary]
-    
+
+    private let steps = CycleBuilderView.BuilderStep.indicatorSteps
+
+    private func isReached(_ step: CycleBuilderView.BuilderStep) -> Bool {
+        step.rawValue <= currentStep.rawValue
+    }
+
+    private func connector(isReached: Bool, isHidden: Bool) -> some View {
+        Rectangle()
+            .fill(isReached ? SBSColors.accentFallback : SBSColors.textTertiaryFallback.opacity(0.3))
+            .frame(height: 2)
+            .opacity(isHidden ? 0 : 1)
+    }
+
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 0) {
             ForEach(steps, id: \.rawValue) { step in
+                // Equal columns with the connector inside, so a label never gets squeezed
                 VStack(spacing: 4) {
-                    Circle()
-                        .fill(step.rawValue <= currentStep.rawValue 
-                              ? SBSColors.accentFallback 
-                              : SBSColors.textTertiaryFallback.opacity(0.3))
-                        .frame(width: 8, height: 8)
-                    
+                    HStack(spacing: 0) {
+                        connector(isReached: isReached(step), isHidden: step == steps.first)
+                        Circle()
+                            .fill(isReached(step)
+                                  ? SBSColors.accentFallback
+                                  : SBSColors.textTertiaryFallback.opacity(0.3))
+                            .frame(width: 8, height: 8)
+                        connector(isReached: step.rawValue < currentStep.rawValue, isHidden: step == steps.last)
+                    }
+
                     Text(step.title)
                         .font(SBSFonts.caption2())
-                        .foregroundStyle(step.rawValue <= currentStep.rawValue 
-                                        ? SBSColors.textPrimaryFallback 
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .foregroundStyle(isReached(step)
+                                        ? SBSColors.textPrimaryFallback
                                         : SBSColors.textTertiaryFallback)
                 }
                 .frame(maxWidth: .infinity)
-                
-                if step != steps.last {
-                    Rectangle()
-                        .fill(step.rawValue < currentStep.rawValue 
-                              ? SBSColors.accentFallback 
-                              : SBSColors.textTertiaryFallback.opacity(0.3))
-                        .frame(height: 2)
-                        .offset(y: -8)
-                }
             }
         }
         .padding(.vertical, 8)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilitySummary)
+    }
+
+    private var accessibilitySummary: String {
+        let position = (steps.firstIndex(of: currentStep) ?? 0) + 1
+        return "Step \(position) of \(steps.count), \(currentStep.title)"
     }
 }
 
@@ -605,7 +665,7 @@ struct WelcomeStepView: View {
                     VStack(spacing: SBSLayout.paddingSmall) {
                         FeatureRow(icon: "doc.text.fill", title: "Choose your program", description: "Select from available training templates")
                         FeatureRow(icon: "list.bullet.clipboard.fill", title: "Customize exercises", description: "Adjust lifts and accessories for each day")
-                        FeatureRow(icon: "scalemass.fill", title: "Set training maxes", description: "Enter your starting weights")
+                        FeatureRow(icon: "scalemass.fill", title: "Set your weights", description: "Enter yours, or start from our suggestions")
                         
                         if isOnboarding {
                             // Reassuring message
@@ -753,12 +813,12 @@ struct FeatureRow: View {
 struct ProgramSelectionStepView: View {
     @Bindable var appState: AppState
     @Binding var selectedProgram: String
+    let backTitle: String
     let onBack: () -> Void
     let onContinue: () -> Void
     let onTakeQuiz: () -> Void
     let onBuildTemplate: () -> Void
 
-    @State private var isLoading = false
     @State private var showingProgramPaywall = false
 
     var body: some View {
@@ -786,8 +846,8 @@ struct ProgramSelectionStepView: View {
             
             // Navigation buttons
             NavigationButtons(
-                backTitle: "Back",
-                continueTitle: isLoading ? "Loading..." : "Continue",
+                backTitle: backTitle,
+                continueTitle: "Continue",
                 onBack: onBack,
                 onContinue: {
                     // The selector blocks *tapping* locked programs, but the
@@ -798,24 +858,9 @@ struct ProgramSelectionStepView: View {
                         showingProgramPaywall = true
                         return
                     }
-                    isLoading = true
-                    Task {
-                        do {
-                            try await appState.loadProgram(selectedProgram)
-                            await MainActor.run {
-                                isLoading = false
-                                onContinue()
-                            }
-                        } catch {
-                            await MainActor.run {
-                                isLoading = false
-                            }
-                            Logger.error("Failed to load program: \(error)", category: .program)
-                        }
-                    }
+                    onContinue()
                 }
             )
-            .disabled(isLoading)
             .sheet(isPresented: $showingProgramPaywall) {
                 PaywallView(triggeredByFeature: .allPrograms)
             }
@@ -1304,25 +1349,61 @@ struct TrainingMaxesStepView: View {
     @Binding var trainingMaxes: [String: Double]
     @Binding var carryOverTMs: Bool
     let isOnboarding: Bool
-    /// The actual configured lifts (including any swapped-in exercises from cycle builder)
-    let configuredLifts: Set<String>
+    /// The actual configured lifts (including any swapped-in exercises from cycle builder), in program order
+    let configuredLifts: [String]
+    /// Whether the entered number is a first working weight or a training max
+    let kind: StartingWeightKind
+    let targetReps: (String) -> Int
+    /// A lift's value when carrying over from the last cycle
+    let carriedMax: (String) -> Double
+    /// A lift's value when not carrying over
+    let defaultMax: (String) -> Double
+    let onChangeUnits: (Bool) -> Void
     let onBack: () -> Void
     let onContinue: () -> Void
-    
+
     @FocusState private var focusedLift: String?
-    
-    private var headerSubtitle: String {
-        if isOnboarding {
-            return "Enter your starting weights for each lift"
-        } else if carryOverTMs && appState.hasLoggedData {
-            return "Review your training maxes and adjust if needed"
-        } else {
-            return "Enter your starting weights for each lift"
-        }
+    @State private var helpTarget: HelpTarget?
+
+    private struct HelpTarget: Identifiable {
+        let lift: String
+        var id: String { lift }
     }
-    
+
+    private var entersWorkingWeight: Bool { kind == .firstWorkingWeight }
+
+    private var heading: String {
+        entersWorkingWeight ? "Set Starting Weights" : "Set Training Maxes"
+    }
+
+    private var currentValuesName: String {
+        entersWorkingWeight ? "Current Weights" : "Current Training Maxes"
+    }
+
+    private var headerSubtitle: String {
+        if !isOnboarding && carryOverTMs && appState.hasLoggedData {
+            return entersWorkingWeight
+                ? "Review your weights and adjust if needed"
+                : "Review your training maxes and adjust if needed"
+        }
+        return entersWorkingWeight
+            ? "The weight for your first workout on each lift"
+            : "A training max for each lift. The program works from percentages of it."
+    }
+
+    private var infoTitle: String {
+        entersWorkingWeight ? "What Weight Should I Enter?" : "What is a Training Max?"
+    }
+
+    private var infoBody: String {
+        entersWorkingWeight
+            ? "Enter what you'll lift in your first workout: a weight you can finish every rep with, in good form. The program adds weight as you hit your reps."
+            : "Your training max (TM) should be about 85-90% of your true 1 rep max. This ensures you can hit all prescribed reps while leaving room for progression."
+    }
+
     var body: some View {
         VStack(spacing: 0) {
+            ScrollViewReader { proxy in
             ScrollView {
                 VStack(spacing: SBSLayout.sectionSpacing) {
                     // Header
@@ -1330,11 +1411,11 @@ struct TrainingMaxesStepView: View {
                         Image(systemName: "scalemass.fill")
                             .font(.system(size: 40))
                             .foregroundStyle(SBSColors.accentFallback)
-                        
-                        Text("Set Training Maxes")
+
+                        Text(heading)
                             .font(SBSFonts.title())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
-                        
+
                         Text(headerSubtitle)
                             .font(SBSFonts.body())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
@@ -1342,7 +1423,14 @@ struct TrainingMaxesStepView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.top, SBSLayout.paddingLarge)
-                    
+                    .padding(.horizontal)
+
+                    // Units come before any number is entered. Outside onboarding the
+                    // unit is already set, and Settings is the place to change it.
+                    if isOnboarding {
+                        unitsControl
+                    }
+
                     // Current TMs notice and option to customize (only for new cycles)
                     if !isOnboarding && appState.hasLoggedData {
                         VStack(spacing: SBSLayout.paddingSmall) {
@@ -1352,16 +1440,16 @@ struct TrainingMaxesStepView: View {
                                     Image(systemName: "checkmark.circle.fill")
                                         .font(.system(size: 20))
                                         .foregroundStyle(SBSColors.success)
-                                    
+
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text("Using Your Current Training Maxes")
+                                        Text("Using Your \(currentValuesName)")
                                             .font(SBSFonts.bodyBold())
                                             .foregroundStyle(SBSColors.textPrimaryFallback)
                                         Text("These are pre-filled based on your last cycle. Adjust below if needed.")
                                             .font(SBSFonts.caption())
                                             .foregroundStyle(SBSColors.textSecondaryFallback)
                                     }
-                                    
+
                                     Spacer()
                                 }
                                 .padding()
@@ -1374,28 +1462,18 @@ struct TrainingMaxesStepView: View {
                                         )
                                 )
                             }
-                            
+
                             // Button to reset or use current TMs
                             Button(action: {
                                 carryOverTMs.toggle()
-                                if carryOverTMs {
-                                    // Populate with current TMs
-                                    let lastWeek = appState.highestLoggedWeek()
-                                    let currentTMs = appState.finalTrainingMaxes(atWeek: lastWeek)
-                                    for (lift, tm) in currentTMs {
-                                        trainingMaxes[lift] = tm
-                                    }
-                                } else {
-                                    // Reset to the program's default initial maxes
-                                    for lift in configuredLifts {
-                                        trainingMaxes[lift] = appState.programData?.initialMaxes[lift] ?? 100
-                                    }
+                                for lift in configuredLifts {
+                                    trainingMaxes[lift] = carryOverTMs ? carriedMax(lift) : defaultMax(lift)
                                 }
                             }) {
                                 HStack {
                                     Image(systemName: carryOverTMs ? "arrow.counterclockwise" : "arrow.uturn.backward.circle.fill")
                                         .font(.system(size: 16))
-                                    Text(carryOverTMs ? "Reset to Default Values" : "Use Current Training Maxes")
+                                    Text(carryOverTMs ? "Reset to Default Values" : "Use \(currentValuesName)")
                                         .font(SBSFonts.caption())
                                 }
                                 .foregroundStyle(SBSColors.accentFallback)
@@ -1404,51 +1482,58 @@ struct TrainingMaxesStepView: View {
                         }
                         .padding(.horizontal)
                     }
-                    
+
                     // Info box
                     VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
-                        Label("What is a Training Max?", systemImage: "info.circle.fill")
+                        Label(infoTitle, systemImage: "info.circle.fill")
                             .font(SBSFonts.captionBold())
                             .foregroundStyle(SBSColors.accentSecondaryFallback)
-                        
-                        Text("Your training max (TM) should be about 85-90% of your true 1 rep max. This ensures you can hit all prescribed reps while leaving room for progression.")
+
+                        Text(infoBody)
                             .font(SBSFonts.body())
                             .foregroundStyle(SBSColors.textSecondaryFallback)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
                         RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
                             .fill(SBSColors.accentSecondaryFallback.opacity(0.1))
                     )
                     .padding(.horizontal)
-                    
+
                     // Reassuring message for onboarding
                     if isOnboarding {
                         HStack(spacing: SBSLayout.paddingSmall) {
                             Image(systemName: "checkmark.seal.fill")
                                 .font(.system(size: 16))
                                 .foregroundStyle(SBSColors.success)
-                            
-                            Text("Not sure? Just enter your best guess. You can adjust these anytime in Settings.")
+
+                            Text("We've filled in light starter weights. Change any you know, or tap \"Not sure?\" on a lift. You can adjust these anytime in Settings.")
                                 .font(SBSFonts.caption())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                         .padding(.horizontal)
                     }
-                    
-                    // Training max inputs
+
+                    // Weight inputs
                     VStack(spacing: SBSLayout.paddingSmall) {
-                        ForEach(Array(configuredLifts.sorted()), id: \.self) { lift in
+                        ForEach(configuredLifts, id: \.self) { lift in
                             TMInputRow(
                                 liftName: lift,
                                 value: Binding(
-                                    get: { trainingMaxes[lift] ?? 100 },
+                                    get: { trainingMaxes[lift] ?? 0 },
                                     set: { trainingMaxes[lift] = $0 }
                                 ),
                                 useMetric: appState.settings.useMetric,
-                                isFocused: focusedLift == lift,
-                                onFocus: { focusedLift = lift }
+                                focus: $focusedLift,
+                                onNotSure: {
+                                    focusedLift = nil
+                                    helpTarget = HelpTarget(lift: lift)
+                                }
                             )
+                            .id(lift)
                         }
                     }
                     .padding(.horizontal)
@@ -1456,7 +1541,16 @@ struct TrainingMaxesStepView: View {
                 .padding(.bottom, SBSLayout.paddingXLarge)
             }
             .scrollDismissesKeyboard(.interactively)
-            
+            .onChange(of: focusedLift) { _, lift in
+                guard let lift else { return }
+                // Once the keyboard has taken its space, or the row ends up behind the buttons
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(350))
+                    withAnimation { proxy.scrollTo(lift, anchor: .center) }
+                }
+            }
+            }
+
             // Navigation buttons
             NavigationButtons(
                 backTitle: "Back",
@@ -1466,10 +1560,50 @@ struct TrainingMaxesStepView: View {
                     focusedLift = nil  // Dismiss keyboard before advancing
                     onContinue()
                 },
-                // A training max of 0 would produce 0 lb working weights
-                continueDisabled: configuredLifts.contains { (trainingMaxes[$0] ?? 100) <= 0 }
+                // Each empty row says why. A weight of 0 would produce 0 lb working sets.
+                continueDisabled: configuredLifts.contains { (trainingMaxes[$0] ?? 0) <= 0 }
             )
         }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    focusedLift = nil
+                }
+            }
+        }
+        .sheet(item: $helpTarget) { target in
+            StartingWeightHelpSheet(
+                lift: target.lift,
+                kind: kind,
+                targetReps: targetReps(target.lift),
+                useMetric: appState.settings.useMetric,
+                barWeight: appState.settings.barWeight,
+                onUse: { trainingMaxes[target.lift] = $0 }
+            )
+        }
+    }
+
+    private var unitsControl: some View {
+        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+            Picker("Units", selection: Binding(
+                get: { appState.settings.useMetric },
+                set: { useMetric in
+                    focusedLift = nil
+                    onChangeUnits(useMetric)
+                }
+            )) {
+                Text("Pounds (lb)").tag(false)
+                Text("Kilograms (kg)").tag(true)
+            }
+            .pickerStyle(.segmented)
+
+            Text("Numbers you've typed stay the same. Only the unit changes.")
+                .font(SBSFonts.caption())
+                .foregroundStyle(SBSColors.textTertiaryFallback)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal)
     }
 }
 
@@ -1477,37 +1611,52 @@ struct TMInputRow: View {
     let liftName: String
     @Binding var value: Double
     let useMetric: Bool
-    let isFocused: Bool
-    let onFocus: () -> Void
-    
+    let focus: FocusState<String?>.Binding
+    let onNotSure: () -> Void
+
     @State private var inputText: String = ""
-    @FocusState private var isTextFieldFocused: Bool
-    
+
+    private var isFocused: Bool { focus.wrappedValue == liftName }
+    /// Cleared or zero. Holds the step's Continue, so the row has to say why.
+    private var needsValue: Bool { value <= 0 }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(liftName)
-                .font(SBSFonts.bodyBold())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
-            
+            HStack {
+                Text(liftName)
+                    .font(SBSFonts.bodyBold())
+                    .foregroundStyle(SBSColors.textPrimaryFallback)
+
+                Spacer()
+
+                Button("Not sure?", action: onNotSure)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(SBSColors.accentFallback)
+                    .accessibilityLabel("Not sure about \(liftName)?")
+            }
+
             HStack {
                 TextField("Weight", text: $inputText)
                     .keyboardType(.decimalPad)
                     .font(SBSFonts.number())
-                    .focused($isTextFieldFocused)
-                    .onChange(of: isTextFieldFocused) { _, focused in
-                        if focused { onFocus() }
+                    .focused(focus, equals: liftName)
+                    .accessibilityLabel("\(liftName) weight")
+                    .onChange(of: isFocused) { _, focused in
+                        // Tidy what was typed ("102.50") once the user moves on
+                        if !focused { inputText = formatValue(value) }
                     }
                     .onChange(of: inputText) { _, newValue in
                         // Only the user's own typing edits the value. Formatting it for
-                        // display must not write the rounded number back.
-                        guard isTextFieldFocused, let parsed = parseInput(newValue) else { return }
-                        value = parsed
+                        // display must not write the rounded number back. Text that isn't
+                        // a weight clears it rather than leaving the old number in force.
+                        guard isFocused else { return }
+                        value = parseInput(newValue) ?? 0
                     }
-                
+
                 Text(useMetric ? "kg" : "lb")
                     .font(SBSFonts.body())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
-                
+
                 // Quick adjust buttons
                 HStack(spacing: 8) {
                     Button {
@@ -1522,7 +1671,7 @@ struct TMInputRow: View {
                                     .fill(SBSColors.backgroundFallback)
                             )
                     }
-                    .accessibilityLabel("Decrease \(liftName) training max")
+                    .accessibilityLabel("Decrease \(liftName) weight")
 
                     Button {
                         adjustValue(by: useMetric ? 2.5 : 5)
@@ -1536,7 +1685,7 @@ struct TMInputRow: View {
                                     .fill(SBSColors.backgroundFallback)
                             )
                     }
-                    .accessibilityLabel("Increase \(liftName) training max")
+                    .accessibilityLabel("Increase \(liftName) weight")
                 }
             }
             .padding()
@@ -1545,9 +1694,15 @@ struct TMInputRow: View {
                     .fill(SBSColors.surfaceFallback)
                     .overlay(
                         RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                            .stroke(isFocused ? SBSColors.accentFallback : Color.clear, lineWidth: 2)
+                            .stroke(borderColor, lineWidth: 2)
                     )
             )
+
+            if needsValue {
+                Text("Enter a weight above 0 to continue")
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(SBSColors.warning)
+            }
         }
         .onAppear {
             inputText = formatValue(value)
@@ -1555,368 +1710,193 @@ struct TMInputRow: View {
         .onChange(of: value) { _, newValue in
             // Update inputText when value changes from outside (e.g., carry over toggle)
             let newText = formatValue(newValue)
-            if inputText != newText && !isTextFieldFocused {
+            if inputText != newText && !isFocused {
                 inputText = newText
             }
         }
+        .onChange(of: useMetric) { _, _ in
+            inputText = formatValue(value)
+        }
     }
-    
+
+    private var borderColor: Color {
+        if needsValue { return SBSColors.warning }
+        return isFocused ? SBSColors.accentFallback : Color.clear
+    }
+
+    /// An empty field rather than "0", so the placeholder and the message explain it
     private func formatValue(_ value: Double) -> String {
-        let displayValue = useMetric ? value * 0.453592 : value
+        guard value > 0 else { return "" }
+        let displayValue = ((useMetric ? value * lbToKg : value) * 10).rounded() / 10
         if displayValue.truncatingRemainder(dividingBy: 1) == 0 {
             return String(format: "%.0f", displayValue)
         }
         return String(format: "%.1f", displayValue)
     }
-    
+
     private func parseInput(_ text: String) -> Double? {
-        guard let parsed = parseDecimalInput(text) else { return nil }
-        return useMetric ? parsed / 0.453592 : parsed
+        guard let parsed = parseDecimalInput(text), parsed > 0 else { return nil }
+        return parsed.poundsFromInput(useMetric: useMetric)
     }
-    
+
     private func adjustValue(by amount: Double) {
-        let adjustment = useMetric ? amount / 0.453592 : amount
-        value = max(0, value + adjustment)
+        value = max(0, value + amount.poundsFromInput(useMetric: useMetric))
         inputText = formatValue(value)
     }
 }
 
-// MARK: - Workout Settings Step
+// MARK: - Starting Weight Help
 
-struct WorkoutSettingsStepView: View {
-    @Bindable var appState: AppState
-    let onBack: () -> Void
-    let onContinue: () -> Void
-    
-    /// The premium feature whose locked row was tapped. Drives an attributed
-    /// paywall via `.sheet(item:)` so each row opens a paywall for its own
-    /// feature rather than a single hard-coded one.
-    @State private var paywallFeature: PremiumFeature?
-    private let storeManager = StoreManager.shared
+/// For someone who doesn't know what to enter: a suggested starter, or an estimate from
+/// a set they've done. Uses the same units and meaning as the row that opened it.
+struct StartingWeightHelpSheet: View {
+    let lift: String
+    let kind: StartingWeightKind
+    let targetReps: Int
+    let useMetric: Bool
+    let barWeight: Double
+    let onUse: (Double) -> Void
 
-    // Same exact kg equivalents as Settings, so a value set in either place shows in both.
-    private var roundingChoices: [(value: Double, label: String)] {
-        if appState.settings.useMetric {
-            return [
-                (1 * BarWeightOptions.lbPerKg, "1 kg"),
-                (2.5 * BarWeightOptions.lbPerKg, "2.5 kg"),
-                (5 * BarWeightOptions.lbPerKg, "5 kg"),
-            ]
-        }
-        return [(2.5, "2.5 lb"), (5.0, "5 lb"), (10.0, "10 lb")]
+    @Environment(\.dismiss) private var dismiss
+    @State private var weightText = ""
+    @State private var repsText = ""
+    @FocusState private var isEditing: Bool
+
+    private var starter: Double {
+        StarterWeights.starter(for: lift, useMetric: useMetric, barWeight: barWeight, kind: kind)
     }
 
-    private var roundingBinding: Binding<Double> {
-        Binding(
-            get: {
-                let current = appState.settings.roundingIncrement
-                return roundingChoices.first { abs($0.value - current) <= 0.3 }?.value ?? current
-            },
-            set: { appState.settings.roundingIncrement = $0 }
+    private var reps: Int? {
+        Int(repsText.trimmingCharacters(in: .whitespaces))
+    }
+
+    private var estimate: Double? {
+        guard let weight = parseDecimalInput(weightText), let reps else { return nil }
+        return StarterWeights.estimate(
+            weightLifted: weight.poundsFromInput(useMetric: useMetric),
+            reps: reps,
+            kind: kind,
+            targetReps: targetReps,
+            useMetric: useMetric,
+            barWeight: barWeight
         )
     }
 
+    private var starterExplanation: String {
+        kind == .firstWorkingWeight
+            ? "A light first working weight for most people new to this lift."
+            : "A light training max for most people new to this lift."
+    }
+
+    private var estimateExplanation: String {
+        if let reps, reps > StarterWeights.maxEstimateReps {
+            return "Use a set of \(StarterWeights.maxEstimateReps) reps or fewer. Longer sets don't estimate well."
+        }
+        return kind == .firstWorkingWeight
+            ? "This gives a first working weight for sets of \(targetReps), a little under your limit."
+            : "This gives a training max: 90% of your estimated 1 rep max."
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
+        NavigationStack {
             ScrollView {
-                VStack(spacing: SBSLayout.sectionSpacing) {
-                    // Header
-                    VStack(spacing: SBSLayout.paddingSmall) {
-                        Image(systemName: "gearshape.fill")
-                            .font(.system(size: 40))
-                            .foregroundStyle(SBSColors.accentFallback)
-                        
-                        Text("Workout Settings")
-                            .font(SBSFonts.title())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
-                        
-                        Text("Configure your workout preferences")
-                            .font(SBSFonts.body())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
-                        
-                        // Reassuring message
-                        HStack(spacing: 4) {
-                            Image(systemName: "slider.horizontal.3")
-                                .font(.system(size: 12))
-                                .foregroundStyle(SBSColors.success)
-                            
-                            Text("These can be adjusted anytime in Settings")
-                                .font(SBSFonts.caption())
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
-                        }
-                        .padding(.top, 4)
-                    }
-                    .padding(.top, SBSLayout.paddingLarge)
-                    
-                    // Rest Timer
-                    SettingsCard(title: "Rest Timer", icon: "timer") {
-                        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Rest Duration")
-                                        .font(SBSFonts.body())
-                                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                                    Text("Time between sets")
-                                        .font(SBSFonts.caption())
-                                        .foregroundStyle(SBSColors.textSecondaryFallback)
-                                }
-                                
-                                Spacer()
-                                
-                                Picker("Rest Timer", selection: $appState.settings.restTimerDuration) {
-                                    Text("1 minute").tag(60)
-                                    Text("1:30").tag(90)
-                                    Text("2 minutes").tag(120)
-                                    Text("2:30").tag(150)
-                                    Text("3 minutes").tag(180)
-                                    Text("4 minutes").tag(240)
-                                    Text("5 minutes").tag(300)
-                                }
-                                .pickerStyle(.menu)
-                            }
+                VStack(spacing: SBSLayout.paddingMedium) {
+                    card(title: "Use a Suggestion", explanation: starterExplanation) {
+                        Button {
+                            use(starter)
+                        } label: {
+                            Text("Use \(starter.formattedWeight(useMetric: useMetric))")
+                                .font(SBSFonts.button())
+                                .foregroundStyle(SBSColors.accentFallback)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, SBSLayout.paddingMedium)
+                                .background(
+                                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                                        .strokeBorder(SBSColors.accentFallback, lineWidth: 2)
+                                )
                         }
                     }
-                    
-                    // Superset Accessories (Pro Feature)
-                    SettingsCard(title: "Superset Accessories", icon: "arrow.triangle.2.circlepath") {
-                        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-                            if storeManager.canAccess(.supersets) {
-                                Toggle(isOn: $appState.settings.supersetAccessories) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("Enable Supersets")
-                                            .font(SBSFonts.body())
-                                            .foregroundStyle(SBSColors.textPrimaryFallback)
-                                        Text("Show accessories during rest periods")
-                                            .font(SBSFonts.caption())
-                                            .foregroundStyle(SBSColors.textSecondaryFallback)
-                                    }
-                                }
-                            } else {
-                                // Non-premium: show disabled state with premium badge
-                                Button {
-                                    paywallFeature = .supersets
-                                } label: {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            HStack(spacing: SBSLayout.paddingSmall) {
-                                                Text("Enable Supersets")
-                                                    .font(SBSFonts.body())
-                                                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                                                PremiumBadge(isCompact: true)
-                                            }
-                                            Text("Show accessories during rest periods. Upgrade to enable.")
-                                                .font(SBSFonts.caption())
-                                                .foregroundStyle(SBSColors.textSecondaryFallback)
-                                        }
-                                        Spacer()
-                                    }
-                                }
-                            }
+
+                    card(title: "Estimate From a Recent Set", explanation: estimateExplanation) {
+                        HStack(spacing: SBSLayout.paddingSmall) {
+                            TextField("Weight", text: $weightText)
+                                .keyboardType(.decimalPad)
+                                .focused($isEditing)
+                                .textFieldStyle(.roundedBorder)
+                                .accessibilityLabel("Weight lifted")
+
+                            Text(useMetric ? "kg for" : "lb for")
+                                .font(SBSFonts.body())
+                                .foregroundStyle(SBSColors.textSecondaryFallback)
+
+                            TextField("Reps", text: $repsText)
+                                .keyboardType(.numberPad)
+                                .focused($isEditing)
+                                .textFieldStyle(.roundedBorder)
+                                .accessibilityLabel("Reps")
                         }
-                    }
-                    
-                    // Units
-                    SettingsCard(title: "Units", icon: "scalemass") {
-                        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-                            Toggle(isOn: $appState.settings.useMetric) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Use Metric (kg)")
-                                        .font(SBSFonts.body())
-                                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                                    Text("Display weights in kilograms")
-                                        .font(SBSFonts.caption())
-                                        .foregroundStyle(SBSColors.textSecondaryFallback)
-                                }
-                            }
-                            .onChange(of: appState.settings.useMetric) { _, useMetric in
-                                BarWeightOptions.applyUnitDefaults(to: &appState.settings, useMetric: useMetric)
-                            }
-                            
-                            Divider()
-                            
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Rounding Increment")
-                                        .font(SBSFonts.body())
-                                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                                    Text("Round weights to nearest")
-                                        .font(SBSFonts.caption())
-                                        .foregroundStyle(SBSColors.textSecondaryFallback)
-                                }
-                                
-                                Spacer()
-                                
-                                Picker("Rounding", selection: roundingBinding) {
-                                    ForEach(roundingChoices, id: \.value) { choice in
-                                        Text(choice.label).tag(choice.value)
-                                    }
-                                }
-                                .pickerStyle(.menu)
-                            }
+
+                        Button {
+                            if let estimate { use(estimate) }
+                        } label: {
+                            Text(estimate.map { "Use \($0.formattedWeight(useMetric: useMetric))" } ?? "Enter a Weight and Reps")
+                                .font(SBSFonts.button())
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, SBSLayout.paddingMedium)
+                                .background(
+                                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                                        .fill(SBSColors.accentFallback)
+                                )
                         }
-                    }
-                    
-                    // Plate Calculator (Pro Feature)
-                    SettingsCard(title: "Plate Calculator", icon: "circle.grid.2x2") {
-                        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-                            if storeManager.canAccess(.plateCalculator) {
-                                Toggle(isOn: $appState.settings.showPlateCalculator) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("Show Plate Calculator")
-                                            .font(SBSFonts.body())
-                                            .foregroundStyle(SBSColors.textPrimaryFallback)
-                                        Text("Visual plate breakdown during workouts")
-                                            .font(SBSFonts.caption())
-                                            .foregroundStyle(SBSColors.textSecondaryFallback)
-                                    }
-                                }
-                                
-                                if appState.settings.showPlateCalculator {
-                                    Divider()
-                                    
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text("Bar Weight")
-                                                .font(SBSFonts.body())
-                                                .foregroundStyle(SBSColors.textPrimaryFallback)
-                                        }
-                                        
-                                        Spacer()
-                                        
-                                        let barOptions = BarWeightOptions.options(useMetric: appState.settings.useMetric)
-                                        let snappedBar = BarWeightOptions.selection(for: appState.settings.barWeight, useMetric: appState.settings.useMetric)
-                                        Picker("Bar Weight", selection: Binding(
-                                            get: { snappedBar ?? appState.settings.barWeight },
-                                            set: { appState.settings.barWeight = $0 }
-                                        )) {
-                                            ForEach(barOptions) { option in
-                                                Text(option.label).tag(option.value)
-                                            }
-                                            if snappedBar == nil {
-                                                Text(appState.settings.barWeight.formattedWeight(useMetric: appState.settings.useMetric))
-                                                    .tag(appState.settings.barWeight)
-                                            }
-                                        }
-                                        .pickerStyle(.menu)
-                                    }
-                                }
-                            } else {
-                                // Non-premium: show disabled state with premium badge
-                                Button {
-                                    paywallFeature = .plateCalculator
-                                } label: {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            HStack(spacing: SBSLayout.paddingSmall) {
-                                                Text("Show Plate Calculator")
-                                                    .font(SBSFonts.body())
-                                                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                                                PremiumBadge(isCompact: true)
-                                            }
-                                            Text("Visual plate breakdown during workouts. Upgrade to enable.")
-                                                .font(SBSFonts.caption())
-                                                .foregroundStyle(SBSColors.textSecondaryFallback)
-                                        }
-                                        Spacer()
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Apple Fitness Integration (Pro Feature)
-                    SettingsCard(title: "Apple Fitness", icon: "heart.fill") {
-                        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-                            if storeManager.canAccess(.appleFitness) {
-                                Toggle(isOn: $appState.settings.healthKitEnabled) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("Sync to Apple Fitness")
-                                            .font(SBSFonts.body())
-                                            .foregroundStyle(SBSColors.textPrimaryFallback)
-                                        Text("Log workouts with duration, calories & heart rate")
-                                            .font(SBSFonts.caption())
-                                            .foregroundStyle(SBSColors.textSecondaryFallback)
-                                    }
-                                }
-                                .onChange(of: appState.settings.healthKitEnabled) { _, enabled in
-                                    if enabled {
-                                        Task {
-                                            do {
-                                                try await HealthKitManager.shared.requestAuthorization()
-                                                if !HealthKitManager.shared.isAuthorized {
-                                                    appState.settings.healthKitEnabled = false
-                                                }
-                                            } catch {
-                                                appState.settings.healthKitEnabled = false
-                                            }
-                                        }
-                                    }
-                                }
-                            } else {
-                                // Non-premium: show disabled state with premium badge
-                                Button {
-                                    paywallFeature = .appleFitness
-                                } label: {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            HStack(spacing: SBSLayout.paddingSmall) {
-                                                Text("Sync to Apple Fitness")
-                                                    .font(SBSFonts.body())
-                                                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                                                PremiumBadge(isCompact: true)
-                                            }
-                                            Text("Log workouts with duration, calories & heart rate. Upgrade to enable.")
-                                                .font(SBSFonts.caption())
-                                                .foregroundStyle(SBSColors.textSecondaryFallback)
-                                        }
-                                        Spacer()
-                                    }
-                                }
-                            }
-                        }
+                        .disabled(estimate == nil)
+                        .opacity(estimate == nil ? 0.5 : 1)
                     }
                 }
-                .padding(.horizontal)
-                .padding(.bottom, SBSLayout.paddingXLarge)
+                .padding()
             }
             .scrollDismissesKeyboard(.interactively)
-            
-            // Navigation buttons
-            NavigationButtons(
-                backTitle: "Back",
-                continueTitle: "Continue",
-                onBack: onBack,
-                onContinue: onContinue
-            )
-        }
-        .sheet(item: $paywallFeature) { feature in
-            PaywallView(triggeredByFeature: feature)
-        }
-    }
-}
-
-// MARK: - Settings Card
-
-struct SettingsCard<Content: View>: View {
-    let title: String
-    let icon: String
-    @ViewBuilder let content: Content
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-            HStack(spacing: SBSLayout.paddingSmall) {
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(SBSColors.accentFallback)
-                
-                Text(title)
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.textPrimaryFallback)
+            .sbsBackground()
+            .navigationTitle(lift)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { isEditing = false }
+                }
             }
-            
-            content
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func use(_ weight: Double) {
+        Haptics.light()
+        onUse(weight)
+        dismiss()
+    }
+
+    private func card<Content: View>(
+        title: String,
+        explanation: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+            Text(title)
+                .font(SBSFonts.bodyBold())
+                .foregroundStyle(SBSColors.textPrimaryFallback)
+
+            Text(explanation)
+                .font(SBSFonts.caption())
+                .foregroundStyle(SBSColors.textSecondaryFallback)
+                .fixedSize(horizontal: false, vertical: true)
+
+            content()
         }
         .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
                 .fill(SBSColors.surfaceFallback)
@@ -1930,8 +1910,10 @@ struct SummaryStepView: View {
     @Bindable var appState: AppState
     let selectedProgram: String
     let trainingMaxes: [String: Double]
+    let orderedLifts: [String]
+    let kind: StartingWeightKind
     let exerciseCustomizations: [Int: [DayItem]]
-    let isOnboarding: Bool
+let isOnboarding: Bool
     let onBack: () -> Void
     let onComplete: () -> Void
     
@@ -2043,9 +2025,9 @@ struct SummaryStepView: View {
                     }
                     
                     // Training maxes summary
-                    SummaryCard(title: "Starting Training Maxes") {
-                        ForEach(Array(trainingMaxes.keys.sorted()), id: \.self) { lift in
-                            if let value = trainingMaxes[lift] {
+                    SummaryCard(title: kind == .firstWorkingWeight ? "Starting Weights" : "Starting Training Maxes") {
+                        ForEach(orderedLifts, id: \.self) { lift in
+if let value = trainingMaxes[lift] {
                                 HStack {
                                     Text(lift)
                                         .font(SBSFonts.body())
@@ -2056,8 +2038,8 @@ struct SummaryStepView: View {
                                         .foregroundStyle(SBSColors.accentFallback)
                                 }
                                 
-                                if lift != trainingMaxes.keys.sorted().last {
-                                    Divider()
+                                if lift != orderedLifts.last {
+Divider()
                                 }
                             }
                         }
@@ -2086,7 +2068,7 @@ struct SummaryStepView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             TipItem(text: "Log your rep-outs honestly for accurate progression")
                             TipItem(text: "You can adjust weights mid-workout if needed")
-                            TipItem(text: "Review your training maxes in Settings anytime")
+                            TipItem(text: kind == .firstWorkingWeight ? "Review your weights in Settings anytime" : "Review your training maxes in Settings anytime")
                         }
                     }
                     .padding()

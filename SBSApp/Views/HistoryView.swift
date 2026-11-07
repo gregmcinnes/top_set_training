@@ -516,9 +516,16 @@ struct HistoryView: View {
                     // Current Cycle TM Progress Card
                     CurrentCycleTMProgressCard(
                         appState: appState,
+                        // With no history at all, the empty state below has the one prompt
+                        showsEmptyAction: !orderedLifts.isEmpty,
                         onTap: { showingTMProgress = true }
                     )
                     .padding(.horizontal)
+
+                    if hasAnySessionHistory {
+                        historyLinks
+                            .padding(.horizontal)
+                    }
 
                     // Volume by Body Part card (disabled — see showVolumeByBodyPart)
                     if showVolumeByBodyPart {
@@ -560,9 +567,11 @@ struct HistoryView: View {
                                 showStrengthBands: false,
                                 bodyweight: bodyweightInKg,
                                 isMale: appState.settings.isMale,
-                                ageCategory: ageCategory
+                                ageCategory: ageCategory,
+                                progressKind: appState.progressKind(for: lift),
+                                onGoToWorkout: { appState.goToWorkoutTab() }
                             )
-                            
+
                             // Strength score display and share button
                             HStack {
                                 if canAccessStrengthScores {
@@ -604,20 +613,30 @@ struct HistoryView: View {
                             logs: canAccessFullHistory ? allLogsForLift(lift) : currentCycleLogsOnly(lift),
                             useMetric: appState.settings.useMetric,
                             showPastCyclesLocked: !canAccessFullHistory && hasPastCycles,
-                            onUnlockTap: { showingPaywall = true }
+                            onUnlockTap: { showingPaywall = true },
+                            onGoToWorkout: { appState.goToWorkoutTab() }
                         )
-                        .padding(.horizontal)
+.padding(.horizontal)
+                    } else if orderedLifts.isEmpty {
+                        ContentUnavailableView {
+                            Label("No Lifts Yet", systemImage: "chart.line.uptrend.xyaxis")
+                        } description: {
+                            Text("Log your first workout and your progress will show up here.")
+                        } actions: {
+                            Button("Go to Workout") { appState.goToWorkoutTab() }
+                                .buttonStyle(.borderedProminent)
+                                .accessibilityIdentifier("historyGoToWorkoutButton")
+                        }
+                        .padding(.top, 60)
                     } else {
                         ContentUnavailableView(
-                            orderedLifts.isEmpty ? "No Lifts Yet" : "Select a Lift",
+                            "Select a Lift",
                             systemImage: "chart.line.uptrend.xyaxis",
-                            description: Text(orderedLifts.isEmpty
-                                ? "Log your first workout and your progress will show up here."
-                                : "Choose a lift above to see your progress.")
+                            description: Text("Choose a lift above to see your progress.")
                         )
                         .padding(.top, 60)
                     }
-                    
+
                     Spacer(minLength: 100)
                 }
                 .padding(.top)
@@ -650,7 +669,43 @@ struct HistoryView: View {
     private var hasPastCycles: Bool {
         !appState.userData.cycleHistory.isEmpty
     }
-    
+
+    private var hasAnySessionHistory: Bool {
+        !appState.userData.workoutRecords.isEmpty || hasPastCycles
+            || !appState.userData.accessoryHistory.isEmpty || appState.hasLoggedData
+    }
+
+    /// The ways into the per-workout and accessory screens
+    private var historyLinks: some View {
+        VStack(spacing: SBSLayout.paddingSmall) {
+            NavigationLink {
+                WorkoutSessionsView(appState: appState)
+            } label: {
+                HistoryLinkRow(
+                    systemImage: "list.bullet.rectangle",
+                    title: "Workouts",
+                    subtitle: "Every session, with its exercises and results"
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("historySessionsLink")
+
+            if !appState.userData.accessoryHistory.isEmpty {
+                NavigationLink {
+                    AccessoryHistoryView(appState: appState)
+                } label: {
+                    HistoryLinkRow(
+                        systemImage: "dumbbell",
+                        title: "Accessories",
+                        subtitle: "Your logged accessory work, by exercise"
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("historyAccessoriesLink")
+            }
+        }
+    }
+
     /// Generate shareable lift progress image for the currently selected lift
     @MainActor
     private func generateLiftProgressShareImage() {
@@ -696,9 +751,10 @@ struct HistoryView: View {
                 target: log.target,
                 weight: log.weight,
                 e1rm: log.e1rm,
-                date: appState.userData.currentCycleStartDate,
+                date: log.date,
                 note: log.note,
-                programName: appState.programData?.displayName ?? appState.programData?.name
+                programName: appState.programData?.displayName ?? appState.programData?.name,
+                missedTarget: log.missedTarget
             )
         }
     }
@@ -990,59 +1046,27 @@ struct HistoryView: View {
             
             // PRIORITY 1: Use WorkoutRecords (new self-contained system)
             if !cycle.workoutRecords.isEmpty {
-                // Group by week and get best AMRAP set per week for this lift
-                var weeklyBest: [Int: (reps: Int, target: Int, weight: Double, e1rm: Double, note: String?, date: Date)] = [:]
-                
-                for workout in cycle.workoutRecords {
-                    for exercise in workout.exercises where ExerciseLibrary.canonicalLiftName(exercise.lift) == ExerciseLibrary.canonicalLiftName(lift) {
-                        for set in exercise.sets where set.actualReps != nil {
-                            let reps = set.actualReps!
-                            let e1rm = set.weight * (1.0 + Double(reps) / 30.0)
-                            
-                            // Keep the entry with the highest E1RM for each week
-                            if let existing = weeklyBest[workout.week] {
-                                if e1rm > existing.e1rm {
-                                    weeklyBest[workout.week] = (
-                                        reps: reps,
-                                        target: set.targetReps,
-                                        weight: set.weight,
-                                        e1rm: e1rm,
-                                        note: exercise.note,
-                                        date: workout.date
-                                    )
-                                }
-                            } else {
-                                weeklyBest[workout.week] = (
-                                    reps: reps,
-                                    target: set.targetReps,
-                                    weight: set.weight,
-                                    e1rm: e1rm,
-                                    note: exercise.note,
-                                    date: workout.date
-                                )
-                            }
-                        }
-                    }
-                }
-                
+                // The best set per week for this lift
+                let weeklyBest = WeeklyBestSet.perWeek(records: cycle.workoutRecords, lift: lift)
                 if !weeklyBest.isEmpty {
                     foundData = true
-                    for (week, data) in weeklyBest.sorted(by: { $0.key < $1.key }) {
+                    for best in weeklyBest {
                         allLogs.append(HistoryLogEntry(
                             cycleNumber: cycle.cycleNumber,
-                            week: week,
-                            reps: data.reps,
-                            target: data.target,
-                            weight: data.weight,
-                            e1rm: data.e1rm,
-                            date: data.date,
-                            note: data.note,
-                            programName: programName
+                            week: best.week,
+                            reps: best.reps,
+                            target: best.target,
+                            weight: best.weight,
+                            e1rm: best.e1rm,
+                            date: best.date,
+                            note: best.note,
+                            programName: programName,
+                            missedTarget: best.missedTarget
                         ))
                     }
                 }
             }
-            
+
             // PRIORITY 2: Use liftData (pre-calculated, legacy)
             if !foundData, let liftDataForLift = cycle.liftData.canonicalLiftValue(for: lift), !liftDataForLift.isEmpty {
                 foundData = true
@@ -1056,7 +1080,7 @@ struct HistoryView: View {
                         target: weekData.targetReps,
                         weight: weekData.weight,
                         e1rm: weekData.e1rm,
-                        date: cycle.startDate,
+                        date: nil,
                         note: note?.isEmpty == false ? note : nil,
                         programName: programName
                     ))
@@ -1082,7 +1106,7 @@ struct HistoryView: View {
                             target: targetReps,
                             weight: weight,
                             e1rm: e1rm,
-                            date: cycle.startDate,
+                            date: nil,
                             note: note,
                             programName: programName
                         ))
@@ -1114,7 +1138,7 @@ struct HistoryView: View {
                             target: targetReps,
                             weight: weight,
                             e1rm: e1rm,
-                            date: cycle.startDate,
+                            date: nil,
                             note: nil,
                             programName: programName
                         ))
@@ -1139,9 +1163,10 @@ struct HistoryView: View {
                             target: 5,
                             weight: weight,
                             e1rm: e1rm,
-                            date: cycle.startDate,
+                            date: nil,
                             note: nil,
-                            programName: programName
+                            programName: programName,
+                            missedTarget: !entry.completed
                         ))
                         foundData = true
                     }
@@ -1162,38 +1187,24 @@ struct HistoryView: View {
                 e1rm: log.e1rm,
                 date: log.date,
                 note: log.note,
-                programName: currentProgramName
+                programName: currentProgramName,
+                missedTarget: log.missedTarget
             ))
         }
         
         return allLogs
     }
     
-    private func logsForCurrentCycle(_ lift: String) -> [(week: Int, reps: Int, target: Int, weight: Double, e1rm: Double, note: String?, date: Date)] {
+    private func logsForCurrentCycle(_ lift: String) -> [(week: Int, reps: Int, target: Int, weight: Double, e1rm: Double, note: String?, date: Date, missedTarget: Bool)] {
         let currentCycleStart = appState.userData.currentCycleStartDate
-        var weeklyLogs: [Int: (week: Int, reps: Int, target: Int, weight: Double, e1rm: Double, note: String?, date: Date)] = [:]
-        
+        var weeklyLogs: [Int: (week: Int, reps: Int, target: Int, weight: Double, e1rm: Double, note: String?, date: Date, missedTarget: Bool)] = [:]
+
         // PRIORITY 1: Use WorkoutRecords (new self-contained system)
         let currentCycleWorkouts = appState.userData.workoutRecords.filter { $0.date >= currentCycleStart }
-        
-        for workout in currentCycleWorkouts {
-            for exercise in workout.exercises where ExerciseLibrary.canonicalLiftName(exercise.lift) == ExerciseLibrary.canonicalLiftName(lift) {
-                for set in exercise.sets where set.actualReps != nil {
-                    let reps = set.actualReps!
-                    let e1rm = set.weight * (1.0 + Double(reps) / 30.0)
-                    
-                    // Keep the entry with the highest E1RM for each week
-                    if let existing = weeklyLogs[workout.week] {
-                        if e1rm > existing.e1rm {
-                            weeklyLogs[workout.week] = (workout.week, reps, set.targetReps, set.weight, e1rm, exercise.note, workout.date)
-                        }
-                    } else {
-                        weeklyLogs[workout.week] = (workout.week, reps, set.targetReps, set.weight, e1rm, exercise.note, workout.date)
-                    }
-                }
-            }
+        for best in WeeklyBestSet.perWeek(records: currentCycleWorkouts, lift: lift) {
+            weeklyLogs[best.week] = (best.week, best.reps, best.target, best.weight, best.e1rm, best.note, best.date, best.missedTarget)
         }
-        
+
         // FALLBACK: Use unified lift history (legacy)
         if weeklyLogs.isEmpty {
             let liftHistory = appState.liftHistory(for: lift)
@@ -1201,28 +1212,31 @@ struct HistoryView: View {
             
             for record in currentCycleRecords {
                 let week = record.week ?? 1
+                // A failed linear session saves an assumed rep count, marked in its set type
+                let missed = record.setType?.hasSuffix("(failed)") == true
                 // Parse target from setType (e.g., "5+" -> 5, "3×5" -> 5, "volume" -> 5)
                 var target = 5
-                if let setType = record.setType {
+if let setType = record.setType {
                     if setType.hasSuffix("+") {
                         target = Int(setType.dropLast()) ?? 5
                     } else if setType.contains("×") {
                         let parts = setType.components(separatedBy: "×")
-                        if parts.count == 2, let reps = Int(parts[1]) {
+                        // Tolerates the "(failed)" suffix on a linear set type
+                        if parts.count == 2, let reps = Int(parts[1].prefix { $0.isNumber }) {
                             target = reps
                         }
-                    }
+}
                 }
                 
                 // Keep the entry with the highest E1RM for each week
                 if let existing = weeklyLogs[week] {
                     if record.estimatedOneRM > existing.e1rm {
-                        weeklyLogs[week] = (week, record.reps, target, record.weight, record.estimatedOneRM, nil, record.date)
+                        weeklyLogs[week] = (week, missed ? target : record.reps, target, record.weight, record.estimatedOneRM, nil, record.date, missed)
                     }
                 } else {
-                    weeklyLogs[week] = (week, record.reps, target, record.weight, record.estimatedOneRM, nil, record.date)
+                    weeklyLogs[week] = (week, missed ? target : record.reps, target, record.weight, record.estimatedOneRM, nil, record.date, missed)
                 }
-            }
+}
         }
         
         // Sort by week and return
@@ -1239,9 +1253,12 @@ struct HistoryLogEntry: Identifiable {
     let target: Int
     let weight: Double
     let e1rm: Double
-    let date: Date
+    /// When this result happened. Nil for older cycles that didn't save per-session dates.
+    let date: Date?
     let note: String?
     let programName: String?  // Program name for this cycle
+    /// A missed linear session, whose saved rep count is assumed rather than measured
+    var missedTarget: Bool = false
 }
 
 // MARK: - Volume by Body Part
@@ -1465,9 +1482,11 @@ struct ProgressChart: View {
     var bodyweight: Double = 0
     var isMale: Bool = true
     var ageCategory: AgeCategory = .allAges
-    
+    var progressKind: LiftProgressKind = .autoregulatedTrainingMax
+    var onGoToWorkout: (() -> Void)?
+
     @State private var selectedIndex: Int?
-    
+
     /// Chart data values with index for even spacing
     private var chartDataPoints: [ChartDataPoint] {
         switch displayMode {
@@ -1512,11 +1531,11 @@ struct ProgressChart: View {
             VStack(spacing: SBSLayout.paddingSmall) {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(displayMode == .e1rm ? "Estimated 1RM Progress" : "Training Max Progress")
+                        Text(displayMode == .e1rm ? "Estimated 1RM Progress" : progressKind.chartTitle)
                             .font(SBSFonts.title3())
                             .foregroundStyle(SBSColors.textPrimaryFallback)
                         
-                        Text(displayMode == .e1rm ? "Based on completed sets" : "Autoregulated from performance")
+                        Text(displayMode == .e1rm ? "Based on completed sets" : progressKind.chartSubtitle)
                             .font(SBSFonts.caption())
                             .foregroundStyle(SBSColors.textTertiaryFallback)
                     }
@@ -1534,14 +1553,14 @@ struct ProgressChart: View {
                 if canAccessE1RM {
                     Picker("Display Mode", selection: $displayMode) {
                         ForEach(ChartDisplayMode.allCases, id: \.self) { mode in
-                            Text(mode.rawValue).tag(mode)
+                            Text(mode == .trainingMax ? progressKind.chartModeLabel : mode.rawValue).tag(mode)
                         }
                     }
                     .pickerStyle(.segmented)
                 } else {
                     // Show E1RM as locked option
                     HStack(spacing: SBSLayout.paddingSmall) {
-                        Text("Training Max")
+                        Text(progressKind.chartModeLabel)
                             .font(SBSFonts.captionBold())
                             .foregroundStyle(SBSColors.accentSecondaryFallback)
                             .padding(.horizontal, 12)
@@ -1676,7 +1695,7 @@ struct ProgressChart: View {
                                 .font(SBSFonts.body())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                         } else {
-                            Text("\(single.date, format: .dateTime.month(.abbreviated).day()): TM \(single.value.formattedWeight(useMetric: useMetric))")
+                            Text("\(single.date, format: .dateTime.month(.abbreviated).day()): \(progressKind == .workingWeight ? "" : "TM ")\(single.value.formattedWeight(useMetric: useMetric))")
                                 .font(SBSFonts.body())
                                 .foregroundStyle(SBSColors.textSecondaryFallback)
                         }
@@ -1685,23 +1704,31 @@ struct ProgressChart: View {
                 .frame(height: 200)
                 .frame(maxWidth: .infinity)
             } else {
-                Text("No completed workouts yet")
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
-                    .frame(height: 200)
-                    .frame(maxWidth: .infinity)
-            }
+                VStack(spacing: SBSLayout.paddingSmall) {
+                    Text(displayMode == .e1rm && !tmData.isEmpty ? "No rep results for this lift yet" : "No completed workouts yet")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(SBSColors.textTertiaryFallback)
+
+                    if let onGoToWorkout {
+                        Button("Go to Workout", action: onGoToWorkout)
+                            .font(SBSFonts.captionBold())
+                            .foregroundStyle(SBSColors.accentFallback)
+                    }
+                }
+                .frame(height: 200)
+                .frame(maxWidth: .infinity)
+}
             
             // Stats row
             if let first = firstValue, let last = latestValue, chartDataPoints.count > 1 {
                 HStack(spacing: SBSLayout.paddingLarge) {
                     StatBox(
-                        label: displayMode == .e1rm ? "First Est. 1RM" : "Start TM",
+                        label: displayMode == .e1rm ? "First Est. 1RM" : progressKind.chartStartLabel,
                         value: first.formattedWeight(useMetric: useMetric)
                     )
                     
                     StatBox(
-                        label: displayMode == .e1rm ? "Latest Est. 1RM" : "Current TM",
+                        label: displayMode == .e1rm ? "Latest Est. 1RM" : progressKind.chartLatestLabel,
                         value: last.formattedWeight(useMetric: useMetric)
                     )
                     
@@ -1722,11 +1749,11 @@ struct ProgressChart: View {
     
     private func gainString(from start: Double, to end: Double) -> String {
         let diff = end - start
+        guard start > 0, abs(diff) >= 0.01 else { return "No change" }
         let pct = (diff / start) * 100
-        let displayDiff = useMetric ? diff * 0.453592 : diff
-        let sign = diff >= 0 ? "+" : ""
-        return String(format: "%@%.0f (%@%.1f%%)", sign, displayDiff, sign, pct)
-    }
+        let sign = diff >= 0 ? "+" : "-"
+        return "\(sign)\(abs(diff).formattedWeightShort(useMetric: useMetric)) (\(sign)\(String(format: "%.1f", abs(pct)))%)"
+}
 }
 
 struct StatBox: View {
@@ -1755,7 +1782,8 @@ struct LogHistoryList: View {
     let useMetric: Bool
     var showPastCyclesLocked: Bool = false
     var onUnlockTap: (() -> Void)?
-    
+    var onGoToWorkout: (() -> Void)?
+
     /// Group logs by cycle number and include program name
     private var logsByCycle: [(cycleNumber: Int, programName: String?, logs: [HistoryLogEntry])] {
         let grouped = Dictionary(grouping: logs) { $0.cycleNumber }
@@ -1768,17 +1796,34 @@ struct LogHistoryList: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-            Text("Workout History")
-                .font(SBSFonts.title3())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
-            
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Best Sets")
+                    .font(SBSFonts.title3())
+                    .foregroundStyle(SBSColors.textPrimaryFallback)
+
+                if !logs.isEmpty {
+                    Text("Your top set each week, by estimated 1RM")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                }
+            }
+
             if logs.isEmpty {
-                Text("No workouts recorded yet")
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
-                    .padding()
+                VStack(spacing: SBSLayout.paddingSmall) {
+                    Text("No workouts recorded yet")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(SBSColors.textTertiaryFallback)
+
+                    if let onGoToWorkout {
+                        Button("Go to Workout", action: onGoToWorkout)
+                            .font(SBSFonts.captionBold())
+                            .foregroundStyle(SBSColors.accentFallback)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
             } else {
-                VStack(spacing: SBSLayout.paddingMedium) {
+                LazyVStack(spacing: SBSLayout.paddingMedium) {
                     ForEach(logsByCycle, id: \.cycleNumber) { cycleGroup in
                         VStack(alignment: .leading, spacing: 8) {
                             // Cycle header with program name
@@ -1809,7 +1854,9 @@ struct LogHistoryList: View {
                                     weight: log.weight,
                                     e1rm: log.e1rm,
                                     note: log.note,
-                                    useMetric: useMetric
+                                    useMetric: useMetric,
+                                    date: log.date,
+                                    missedTarget: log.missedTarget
                                 )
                             }
                         }
@@ -1873,9 +1920,12 @@ struct LogHistoryRow: View {
     let e1rm: Double
     let note: String?
     let useMetric: Bool
-    
+    /// The workout this set came from, when the saved data knows it
+    var date: Date? = nil
+    var missedTarget: Bool = false
+
     private var diff: Int { reps - target }
-    
+
     private var hasNote: Bool {
         guard let note = note else { return false }
         return !note.isEmpty
@@ -1886,19 +1936,27 @@ struct LogHistoryRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                HStack(spacing: SBSLayout.paddingSmall) {
-                    Text("Week \(week)")
-                        .font(SBSFonts.bodyBold())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                    
-                    // Note indicator
-                    if hasNote {
-                        Image(systemName: "note.text")
-                            .font(.system(size: 12))
-                            .foregroundStyle(SBSColors.accentSecondaryFallback)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: SBSLayout.paddingSmall) {
+                        Text("Week \(week)")
+                            .font(SBSFonts.bodyBold())
+                            .foregroundStyle(SBSColors.textPrimaryFallback)
+
+                        // Note indicator
+                        if hasNote {
+                            Image(systemName: "note.text")
+                                .font(.system(size: 12))
+                                .foregroundStyle(SBSColors.accentSecondaryFallback)
+                        }
+                    }
+
+                    if let date {
+                        Text(date.historyDateText)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(SBSColors.textTertiaryFallback)
                     }
                 }
-                
+
                 Spacer()
                 
                 Text(diffText)
@@ -1920,11 +1978,13 @@ struct LogHistoryRow: View {
                 
                 Spacer()
                 
-                // Estimated 1RM
-                Text("Est. 1RM: \(e1rm.formattedWeight(useMetric: useMetric))")
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(SBSColors.accentFallback)
-            }
+                // Estimated 1RM. Not for a missed session, whose rep count is assumed.
+                if !missedTarget {
+                    Text("Est. 1RM: \(e1rm.formattedWeight(useMetric: useMetric))")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(SBSColors.accentFallback)
+                }
+}
             
             // Note display (if present)
             if hasNote, let note = note {
@@ -1965,6 +2025,7 @@ struct LogHistoryRow: View {
     }
     
     private var diffText: String {
+        if missedTarget { return "Missed" }
         if diff > 0 {
             return "+\(diff) vs target"
         } else if diff < 0 {
@@ -1975,6 +2036,7 @@ struct LogHistoryRow: View {
     }
     
     private var resultColor: Color {
+        if missedTarget { return SBSColors.warning }
         if diff >= 0 {
             return SBSColors.success
         } else if diff == -1 {
@@ -1989,159 +2051,138 @@ struct LogHistoryRow: View {
 
 struct CurrentCycleTMProgressCard: View {
     let appState: AppState
+    var showsEmptyAction: Bool = true
     let onTap: () -> Void
-    
+
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 4)
+
     private var currentWeek: Int {
         appState.highestLoggedWeek()
     }
-    
-    private var startingMaxes: [String: Double] {
-        appState.currentCycleStartingMaxes()
-    }
-    
-    private var currentMaxes: [String: Double] {
-        appState.finalTrainingMaxes(atWeek: currentWeek)
-    }
-    
-    private var averageGain: Double {
-        var totalGain = 0.0
-        var count = 0
-        
-        for lift in startingMaxes.keys {
-            guard let start = startingMaxes[lift], start > 0,
-                  let current = currentMaxes[lift] else { continue }
-            let gain = ((current - start) / start) * 100
-            totalGain += gain
-            count += 1
-        }
-        
-        return count > 0 ? totalGain / Double(count) : 0
-    }
-    
-    private var totalWeightGained: Double {
-        var total = 0.0
-        let configured = appState.allConfiguredLifts
-        for lift in startingMaxes.keys where configured.contains(lift) {
-            guard let start = startingMaxes[lift], start > 0,
-                  let current = currentMaxes[lift] else { continue }
-            total += (current - start)
-        }
-        return total
-    }
-    
-    /// Returns the top 4 lifts sorted by biggest improvement (percentage gain)
-    private var topImprovingLifts: [String] {
-        var liftGains: [(lift: String, gain: Double)] = []
-        
-        for lift in appState.liftNames {
-            guard let start = startingMaxes[lift], start > 0,
-                  let current = currentMaxes[lift] else { continue }
-            let percentGain = ((current - start) / start) * 100
-            liftGains.append((lift: lift, gain: percentGain))
-        }
-        
-        // Sort by percentage gain descending and take top 4
-        return liftGains
-            .sorted { $0.gain > $1.gain }
-            .prefix(4)
-            .map { $0.lift }
-    }
-    
+
     var body: some View {
-        Button(action: onTap) {
-            VStack(spacing: SBSLayout.paddingMedium) {
-                // Header
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: SBSLayout.paddingSmall) {
-                            Image(systemName: "chart.line.uptrend.xyaxis")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(SBSColors.accentFallback)
-                            
-                            Text("Training Max Progress")
-                                .font(SBSFonts.title3())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
-                        }
-                        
-                        Text("Cycle \(appState.currentCycleNumber) • Week \(currentWeek)")
-                            .font(SBSFonts.caption())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
+        // Computed once per render: this replays the program's progression
+        let summary = appState.currentCycleProgress()
+
+        if appState.hasLoggedData {
+            Button(action: onTap) {
+                card(summary)
+            }
+            .buttonStyle(.plain)
+        } else {
+            card(summary)
+        }
+    }
+
+    private func card(_ summary: CycleProgressSummary) -> some View {
+        VStack(spacing: SBSLayout.paddingMedium) {
+            // Header
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: SBSLayout.paddingSmall) {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(SBSColors.accentFallback)
+
+                        Text(summary.cardTitle)
+                            .font(SBSFonts.title3())
+                            .foregroundStyle(SBSColors.textPrimaryFallback)
                     }
-                    
-                    Spacer()
-                    
-                    // Average gain badge
-                    if appState.hasLoggedData {
-                        HStack(spacing: 2) {
-                            Image(systemName: averageGain >= 0 ? "arrow.up.right" : "arrow.down.right")
-                                .font(.system(size: 12, weight: .bold))
-                            Text(String(format: "%.1f%%", averageGain))
-                                .font(SBSFonts.bodyBold())
-                        }
-                        .foregroundStyle(averageGain >= 0 ? SBSColors.success : SBSColors.error)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill((averageGain >= 0 ? SBSColors.success : SBSColors.error).opacity(0.15))
-                        )
-                    }
-                }
-                
-                if appState.hasLoggedData {
-                    Divider()
-                    
-                    // Quick summary of top improving lifts
-                    HStack(spacing: 0) {
-                        ForEach(topImprovingLifts, id: \.self) { lift in
-                            if let start = startingMaxes[lift], let current = currentMaxes[lift] {
-                                let gain = current - start
-                                
-                                VStack(spacing: 4) {
-                                    Text(ExerciseLibrary.shortName(for: lift))
-                                        .font(SBSFonts.caption())
-                                        .foregroundStyle(SBSColors.textTertiaryFallback)
-                                    
-                                    Text(current.formattedWeightShort(useMetric: appState.settings.useMetric))
-                                        .font(SBSFonts.number())
-                                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                                    
-                                    HStack(spacing: 1) {
-                                        Image(systemName: gain >= 0 ? "arrow.up" : "arrow.down")
-                                            .font(.system(size: 8, weight: .bold))
-                                        Text(abs(gain).formattedWeightShort(useMetric: appState.settings.useMetric))
-                                            .font(SBSFonts.caption())
-                                    }
-                                    .foregroundStyle(gain >= 0 ? SBSColors.success : SBSColors.error)
-                                }
-                                .frame(maxWidth: .infinity)
-                            }
-                        }
-                    }
-                    
-                    // Tap hint
-                    HStack {
-                        Spacer()
-                        Text("Tap for details")
-                            .font(SBSFonts.caption())
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(SBSColors.textTertiaryFallback)
-                    }
-                } else {
-                    // No data yet
-                    Text("Complete workouts to track your training max changes")
+
+                    Text("Cycle \(appState.currentCycleNumber) • Week \(currentWeek)")
                         .font(SBSFonts.caption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
-                        .multilineTextAlignment(.center)
-                        .padding(.vertical, SBSLayout.paddingSmall)
+                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                }
+
+                Spacer()
+
+                // Average gain badge
+                if appState.hasLoggedData && summary.showsAverageBadge {
+                    let isUp = summary.averagePercent >= 0
+                    HStack(spacing: 2) {
+                        Image(systemName: isUp ? "arrow.up.right" : "arrow.down.right")
+                            .font(.system(size: 12, weight: .bold))
+                        Text(String(format: "%.1f%%", abs(summary.averagePercent)))
+                            .font(SBSFonts.bodyBold())
+                    }
+                    .foregroundStyle(isUp ? SBSColors.success : SBSColors.error)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill((isUp ? SBSColors.success : SBSColors.error).opacity(0.15))
+                    )
                 }
             }
-            .padding()
-            .sbsCard()
+
+            if appState.hasLoggedData {
+                Divider()
+
+                // Every main lift, in program order
+                LazyVGrid(columns: columns, spacing: SBSLayout.paddingMedium) {
+                    ForEach(summary.lifts) { progress in
+                        VStack(spacing: 4) {
+                            Text(ExerciseLibrary.shortName(for: progress.lift))
+                                .font(SBSFonts.caption())
+                                .foregroundStyle(SBSColors.textTertiaryFallback)
+
+                            Text(progress.current.formattedWeightShort(useMetric: appState.settings.useMetric))
+                                .font(SBSFonts.number())
+                                .foregroundStyle(SBSColors.textPrimaryFallback)
+
+                            changeLabel(progress)
+                        }
+                    }
+                }
+
+                // Tap hint
+                HStack {
+                    Spacer()
+                    Text("Tap for details")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                }
+            } else {
+                // No data yet
+                Text(summary.emptyMessage)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(SBSColors.textTertiaryFallback)
+                    .multilineTextAlignment(.center)
+                    .padding(.vertical, SBSLayout.paddingSmall)
+
+                if showsEmptyAction {
+                    Button("Go to Workout") { appState.goToWorkoutTab() }
+                        .font(SBSFonts.captionBold())
+                        .foregroundStyle(SBSColors.accentFallback)
+                }
+            }
         }
-        .buttonStyle(.plain)
+        .padding()
+        .sbsCard()
+    }
+
+    @ViewBuilder
+    private func changeLabel(_ progress: LiftCycleProgress) -> some View {
+        if progress.kind == .fixedTrainingMax {
+            Text("Fixed")
+                .font(SBSFonts.caption())
+                .foregroundStyle(SBSColors.textTertiaryFallback)
+        } else if progress.hasChange {
+            HStack(spacing: 1) {
+                Image(systemName: progress.gain > 0 ? "arrow.up" : "arrow.down")
+                    .font(.system(size: 8, weight: .bold))
+                Text(abs(progress.gain).formattedWeightShort(useMetric: appState.settings.useMetric))
+                    .font(SBSFonts.caption())
+            }
+            .foregroundStyle(progress.gain > 0 ? SBSColors.success : SBSColors.error)
+        } else {
+            Text("No change")
+                .font(SBSFonts.caption())
+                .foregroundStyle(SBSColors.textTertiaryFallback)
+        }
     }
 }
 
@@ -2156,42 +2197,9 @@ struct TMProgressDetailView: View {
         appState.highestLoggedWeek()
     }
     
-    private var startingMaxes: [String: Double] {
-        appState.currentCycleStartingMaxes()
-    }
-    
-    private var currentMaxes: [String: Double] {
-        appState.finalTrainingMaxes(atWeek: currentWeek)
-    }
-    
-    private var totalGain: Double {
-        var total = 0.0
-        // Only lifts in the current program with a real starting max: a lift left over
-        // from an old program would otherwise count its whole TM as "gained".
-        let configured = appState.allConfiguredLifts
-        for lift in startingMaxes.keys where configured.contains(lift) {
-            guard let start = startingMaxes[lift], start > 0,
-                  let current = currentMaxes[lift] else { continue }
-            total += (current - start)
-        }
-        return total
-    }
-    
-    private var averageGainPercent: Double {
-        var totalGain = 0.0
-        var count = 0
-        
-        for lift in startingMaxes.keys {
-            guard let start = startingMaxes[lift], start > 0,
-                  let current = currentMaxes[lift] else { continue }
-            let gain = ((current - start) / start) * 100
-            totalGain += gain
-            count += 1
-        }
-        
-        return count > 0 ? totalGain / Double(count) : 0
-    }
-    
+    /// Computed once when the sheet opens: it replays the program's progression
+    @State private var summary = CycleProgressSummary(lifts: [])
+
     private var hasPRs: Bool {
         appState.liftNames.contains { appState.personalRecord(for: $0) != nil }
     }
@@ -2217,7 +2225,7 @@ struct TMProgressDetailView: View {
                 .padding()
             }
             .sbsBackground()
-            .navigationTitle("TM Progress")
+            .navigationTitle(summary.detailTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -2233,9 +2241,12 @@ struct TMProgressDetailView: View {
                     onDismiss: { showingShareSheet = false }
                 )
             }
+            .onAppear {
+                summary = appState.currentCycleProgress()
+            }
         }
     }
-    
+
     private var shareProgressButton: some View {
         Button {
             showingShareSheet = true
@@ -2262,20 +2273,15 @@ struct TMProgressDetailView: View {
     }
     
     private func buildProgressSummary() -> ProgressSummary {
-        let lifts: [ProgressSummary.LiftProgress] = appState.liftNames.compactMap { liftName in
-            guard let startTM = startingMaxes[liftName],
-                  let currentTM = currentMaxes[liftName] else { return nil }
-            
-            let pr = appState.personalRecord(for: liftName)
-            
-            return ProgressSummary.LiftProgress(
-                name: liftName,
-                startingTM: startTM,
-                currentTM: currentTM,
-                bestE1RM: pr?.estimatedOneRM
+        let lifts: [ProgressSummary.LiftProgress] = summary.lifts.map { progress in
+            ProgressSummary.LiftProgress(
+                name: progress.lift,
+                startingTM: progress.start,
+                currentTM: progress.current,
+                bestE1RM: appState.personalRecord(for: progress.lift)?.estimatedOneRM
             )
         }
-        
+
         let prs: [ProgressSummary.PRProgress] = appState.liftNames.compactMap { liftName in
             guard let pr = appState.personalRecord(for: liftName) else { return nil }
             
@@ -2330,62 +2336,90 @@ struct TMProgressDetailView: View {
             
             Divider()
             
-            HStack(spacing: SBSLayout.paddingLarge) {
-                // Average % gain
-                VStack(spacing: 4) {
-                    Image(systemName: averageGainPercent >= 0 ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(averageGainPercent >= 0 ? SBSColors.success : SBSColors.error)
-                    
-                    Text(String(format: "%.1f%%", averageGainPercent))
-                        .font(SBSFonts.title2())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                    
-                    Text("Avg TM Change")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
+            if summary.isFixedThroughCycle {
+                Text(summary.explanation)
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+            } else {
+                HStack(spacing: SBSLayout.paddingLarge) {
+                    // Average % gain
+                    VStack(spacing: 4) {
+                        changeIcon
+
+                        Text(String(format: "%.1f%%", abs(summary.averagePercent)))
+                            .font(SBSFonts.title2())
+                            .foregroundStyle(SBSColors.textPrimaryFallback)
+
+                        Text(summary.averageLabel)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    // Total weight gained
+                    VStack(spacing: 4) {
+                        Image(systemName: "scalemass.fill")
+                            .font(.system(size: 24))
+                            .foregroundStyle(SBSColors.accentFallback)
+
+                        Text("\(summary.totalGain < 0 ? "-" : "")\(abs(summary.totalGain).formattedWeightShort(useMetric: appState.settings.useMetric))")
+                            .font(SBSFonts.title2())
+                            .foregroundStyle(SBSColors.textPrimaryFallback)
+
+                        Text(summary.totalLabel)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(SBSColors.textTertiaryFallback)
+                    }
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
-                
-                // Total weight gained
-                VStack(spacing: 4) {
-                    Image(systemName: "scalemass.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(SBSColors.accentFallback)
-                    
-                    Text(totalGain.formattedWeightShort(useMetric: appState.settings.useMetric))
-                        .font(SBSFonts.title2())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                    
-                    Text("Total TM Gained")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(SBSColors.textTertiaryFallback)
-                }
-                .frame(maxWidth: .infinity)
             }
         }
         .padding()
         .sbsCard()
     }
-    
+
+    @ViewBuilder
+    private var changeIcon: some View {
+        if abs(summary.averagePercent) < 0.05 {
+            Image(systemName: "minus.circle.fill")
+                .font(.system(size: 24))
+                .foregroundStyle(SBSColors.textTertiaryFallback)
+        } else {
+            Image(systemName: summary.averagePercent > 0 ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
+                .font(.system(size: 24))
+                .foregroundStyle(summary.averagePercent > 0 ? SBSColors.success : SBSColors.error)
+        }
+    }
+
     private var allLiftsSection: some View {
         VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
-            Text("All Lifts")
-                .font(SBSFonts.title3())
-                .foregroundStyle(SBSColors.textPrimaryFallback)
-            
+            VStack(alignment: .leading, spacing: 2) {
+                Text("All Lifts")
+                    .font(SBSFonts.title3())
+                    .foregroundStyle(SBSColors.textPrimaryFallback)
+
+                if !summary.isFixedThroughCycle {
+                    Text(summary.explanation)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                }
+            }
+
             VStack(spacing: SBSLayout.paddingSmall) {
-                ForEach(appState.liftNames.filter { appState.allConfiguredLifts.contains($0) }, id: \.self) { lift in
+                ForEach(summary.lifts) { progress in
                     CurrentCycleTMRow(
-                        liftName: lift,
-                        startTM: startingMaxes[lift] ?? 0,
-                        currentTM: currentMaxes[lift] ?? 0,
-                        personalRecord: appState.personalRecord(for: lift),
-                        useMetric: appState.settings.useMetric
+                        liftName: progress.lift,
+                        startTM: progress.start,
+                        currentTM: progress.current,
+                        personalRecord: appState.personalRecord(for: progress.lift),
+                        useMetric: appState.settings.useMetric,
+                        kind: progress.kind
                     )
                 }
             }
-        }
+}
     }
     
     private var personalRecordsSection: some View {
@@ -2401,7 +2435,7 @@ struct TMProgressDetailView: View {
             let liftsWithPRs = appState.liftNames.filter { appState.personalRecord(for: $0) != nil }
             
             if liftsWithPRs.isEmpty {
-                Text("Complete AMRAP sets to track your personal records")
+                Text("Complete workouts to track your personal records")
                     .font(SBSFonts.caption())
                     .foregroundStyle(SBSColors.textTertiaryFallback)
                     .padding()
@@ -2428,7 +2462,9 @@ struct CurrentCycleTMRow: View {
     let currentTM: Double
     let personalRecord: PersonalRecord?
     let useMetric: Bool
-    
+    var kind: LiftProgressKind = .autoregulatedTrainingMax
+
+    private var hasChange: Bool { abs(gain) >= 0.01 }
     private var gain: Double { currentTM - startTM }
     private var gainPercent: Double {
         guard startTM > 0 else { return 0 }
@@ -2450,34 +2486,54 @@ struct CurrentCycleTMRow: View {
             
             Spacer()
             
-            // Start → Current
-            HStack(spacing: SBSLayout.paddingSmall) {
-                Text(startTM.formattedWeightShort(useMetric: useMetric))
-                    .font(SBSFonts.body())
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 10))
-                    .foregroundStyle(SBSColors.textTertiaryFallback)
-                
-                Text(currentTM.formattedWeightShort(useMetric: useMetric))
-                    .font(SBSFonts.bodyBold())
-                    .foregroundStyle(SBSColors.accentFallback)
-            }
-            
-            // Gain
-            HStack(spacing: 2) {
-                Image(systemName: gain >= 0 ? "arrow.up" : "arrow.down")
-                    .font(.system(size: 10, weight: .bold))
+            if kind == .fixedTrainingMax {
+                // Held through the cycle, so there's no start and end to compare
                 VStack(alignment: .trailing, spacing: 0) {
-                    Text(gain >= 0 ? "+\(abs(gain).formattedWeightShort(useMetric: useMetric))" : "-\(abs(gain).formattedWeightShort(useMetric: useMetric))")
-                        .font(SBSFonts.captionBold())
-                    Text(String(format: "%.1f%%", gainPercent))
+                    Text(currentTM.formattedWeightShort(useMetric: useMetric))
+                        .font(SBSFonts.bodyBold())
+                        .foregroundStyle(SBSColors.accentFallback)
+                    Text("Fixed")
                         .font(SBSFonts.caption2())
+                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                }
+            } else {
+                // Start → Current
+                HStack(spacing: SBSLayout.paddingSmall) {
+                    Text(startTM.formattedWeightShort(useMetric: useMetric))
+                        .font(SBSFonts.body())
+                        .foregroundStyle(SBSColors.textSecondaryFallback)
+
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 10))
+                        .foregroundStyle(SBSColors.textTertiaryFallback)
+
+                    Text(currentTM.formattedWeightShort(useMetric: useMetric))
+                        .font(SBSFonts.bodyBold())
+                        .foregroundStyle(SBSColors.accentFallback)
+                }
+
+                // Gain
+                if hasChange {
+                    HStack(spacing: 2) {
+                        Image(systemName: gain >= 0 ? "arrow.up" : "arrow.down")
+                            .font(.system(size: 10, weight: .bold))
+                        VStack(alignment: .trailing, spacing: 0) {
+                            Text(gain >= 0 ? "+\(abs(gain).formattedWeightShort(useMetric: useMetric))" : "-\(abs(gain).formattedWeightShort(useMetric: useMetric))")
+                                .font(SBSFonts.captionBold())
+                            Text(String(format: "%.1f%%", abs(gainPercent)))
+                                .font(SBSFonts.caption2())
+                        }
+                    }
+                    .foregroundStyle(gain >= 0 ? SBSColors.success : SBSColors.error)
+                    .frame(width: 55, alignment: .trailing)
+                } else {
+                    Text("—")
+                        .font(SBSFonts.captionBold())
+                        .foregroundStyle(SBSColors.textTertiaryFallback)
+                        .frame(width: 55, alignment: .trailing)
+                        .accessibilityLabel("No change")
                 }
             }
-            .foregroundStyle(gain >= 0 ? SBSColors.success : SBSColors.error)
-            .frame(width: 55, alignment: .trailing)
         }
         .padding()
         .sbsCard()

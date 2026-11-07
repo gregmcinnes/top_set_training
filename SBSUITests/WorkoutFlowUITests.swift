@@ -267,7 +267,12 @@ final class WorkoutFlowUITests: XCTestCase {
         XCTAssertEqual(setLabel(), "Set 5 of 5")
         finishWorkout()
         tap("Done")
-        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label ENDSWITH 'Done'")).count, 1)
+        // Counting while the summary was still closing could read 5, so wait until it's gone
+        XCTAssertTrue(app.otherElements["nextWorkoutCard"].firstMatch.waitForExistence(timeout: 8))
+        let closed = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.buttons["Undo Last Set"].firstMatch)
+        wait(for: [closed], timeout: 8)
+        let finishedDays = app.buttons.matching(NSPredicate(format: "label ENDSWITH 'Done'"))
+        XCTAssertEqual(finishedDays.count, 1, finishedDays.allElementsBoundByIndex.map(\.label).joined(separator: " | "))
     }
 
     // MARK: - Item 8

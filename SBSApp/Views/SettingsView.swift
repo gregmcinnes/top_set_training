@@ -21,7 +21,7 @@ struct SettingsView: View {
     @State private var showingNewCycleAlert = false
     @State private var showingNewCycleBuilder = false
     @State private var showingNewCycleOptions = false
-    @State private var showingNewCycleWarning = false
+    @State private var builderOpenedOnFinishedCycle = false
     @State private var showingWeightAdjustments = false
     @State private var showingTemplateList = false
     @State private var carryOverTMs = true
@@ -790,11 +790,7 @@ struct SettingsView: View {
                     
                     // Start new cycle
                     Button {
-                        if appState.hasLoggedData {
-                            showingNewCycleWarning = true
-                        } else {
-                            showingNewCycleOptions = true
-                        }
+                        showingNewCycleOptions = true
                     } label: {
                         HStack {
                             Image(systemName: "arrow.clockwise.circle.fill")
@@ -1014,6 +1010,7 @@ struct SettingsView: View {
                     isOnboarding: false,
                     onComplete: {
                         showingNewCycleBuilder = false
+                        appState.newCycleStarted(afterFinishedCycle: builderOpenedOnFinishedCycle)
                     },
                     onCancel: {
                         showingNewCycleBuilder = false
@@ -1063,25 +1060,20 @@ struct SettingsView: View {
                         showingPaywall = true
                     } else {
                         // Start new cycle with same program and carried-over TMs
+                        let finishedCycle = appState.isCycleComplete
                         appState.startNewCycle(carryOverTMs: true)
+                        appState.newCycleStarted(afterFinishedCycle: finishedCycle)
                     }
                 }
                 
                 Button("Customize New Cycle") {
+                    builderOpenedOnFinishedCycle = appState.isCycleComplete
                     showingNewCycleBuilder = true
                 }
                 
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Quick Repeat will start a new cycle with your current program and carry over your training maxes. Choose Customize to change program, exercises, or adjust maxes.")
-            }
-            .alert("Start New Cycle?", isPresented: $showingNewCycleWarning) {
-                Button("Cancel", role: .cancel) {}
-                Button("Continue") {
-                    showingNewCycleOptions = true
-                }
-            } message: {
-                Text("You have a cycle in progress. Starting a new cycle will clear your current cycle's workout data. Your workout history will still be available in Past Cycles.")
+                Text(appState.newCycleDialogMessage)
             }
             .sheet(isPresented: $showingPaywall) {
                 PaywallView()

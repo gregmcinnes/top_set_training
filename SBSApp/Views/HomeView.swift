@@ -6,7 +6,9 @@ struct HomeView: View {
     @State private var selectedSessionDay: Int = 1
     @State private var showingNewCycleOptions = false
     @State private var showingNewCycleBuilder = false
-    @State private var showingNewCycleWarning = false
+    /// Whether the cycle was finished when the builder opened. The builder's program
+    /// preview can clear logs, so this can't be read when it completes.
+    @State private var builderOpenedOnFinishedCycle = false
     @State private var showingPastCycles = false
     @State private var programInfoSheet: AppState.AvailableProgramInfo?
     @State private var showingProgramPaywall = false
@@ -19,18 +21,75 @@ struct HomeView: View {
         return StoreManager.shared.canAccessProgram(programId)
     }
 
-    /// Check if we should show the cycle completion prompt
-    private var shouldShowCompletionPrompt: Bool {
-        let totalWeeks = appState.weeks.count
-        let isOnFinalWeek = appState.selectedWeek == totalWeeks
-        let finalWeekComplete = appState.weekCompletionFraction(for: totalWeeks) == 1.0
-        return isOnFinalWeek && finalWeekComplete
+    private func quickRepeat() {
+        guard canRepeatCurrentProgram else {
+            showingProgramPaywall = true
+            return
+        }
+        // Starting clears the logs that say whether the cycle was finished
+        let finishedCycle = appState.isCycleComplete
+        appState.startNewCycle(carryOverTMs: true)
+        appState.newCycleStarted(afterFinishedCycle: finishedCycle)
     }
-    
+
+    private func openCycleBuilder() {
+        builderOpenedOnFinishedCycle = appState.isCycleComplete
+        showingNewCycleBuilder = true
+    }
+
+    private func startNextWorkout(week: Int, day: Int) {
+        appState.selectedWeek = week
+        appState.selectedDay = day
+        selectedSessionDay = day
+        appState.startWorkout(week: week, day: day)
+    }
+
+    /// The top of Home: the workout in progress, else what's next, else the end of the
+    /// cycle. Each hides the ones after it.
+    @ViewBuilder
+    private var topCard: some View {
+        if let session = appState.activeSession {
+            NextWorkoutCard(
+                heading: "In Progress: \(appState.dayTitle(day: session.day))",
+                week: session.week,
+                day: session.day,
+                lifts: appState.dayLifts(week: session.week, day: session.day),
+                actionTitle: "Resume Workout",
+                action: { appState.resumeWorkout() }
+            )
+            .padding(.horizontal)
+        } else if let next = appState.nextWorkoutInCycle {
+            NextWorkoutCard(
+                heading: "Next: \(appState.dayTitle(day: next.day))",
+                week: next.week,
+                day: next.day,
+                lifts: appState.dayLifts(week: next.week, day: next.day),
+                actionTitle: "Start Workout",
+                action: { startNextWorkout(week: next.week, day: next.day) }
+            )
+            .padding(.horizontal)
+        } else if appState.isCycleComplete {
+            CycleCompletionCard(
+                cycleNumber: appState.currentCycleNumber,
+                summary: appState.cycleCompletionSummary(),
+                useMetric: appState.settings.useMetric,
+                onQuickRepeat: quickRepeat,
+                onCustomize: openCycleBuilder
+            )
+            .padding(.horizontal)
+            .transition(.asymmetric(
+                insertion: .slide.combined(with: .opacity),
+                removal: .opacity
+            ))
+        }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: SBSLayout.sectionSpacing) {
+                    topCard
+
                     // Week selector strip
                     WeekStrip(
                         selectedWeek: $appState.selectedWeek,
@@ -42,46 +101,16 @@ struct HomeView: View {
                     .padding(.horizontal)
                     
                     // Progress indicator
-                    WeekProgressBar(
-                        week: appState.selectedWeek,
-                        totalWeeks: appState.weeks.count
-                    )
-                    .padding(.horizontal)
-                    
-                    // Cycle completion prompt (shows when final week is complete)
-                    if shouldShowCompletionPrompt {
-                        CycleCompletionCard(
-                            cycleNumber: appState.currentCycleNumber,
-                            onQuickRepeat: {
-                                guard canRepeatCurrentProgram else {
-                                    showingProgramPaywall = true
-                                    return
-                                }
-                                // Record cycle completion for review request
-                                ReviewRequestManager.shared.recordCycleCompleted()
-                                appState.startNewCycle(carryOverTMs: true)
-                                ReviewRequestManager.shared.presentPendingReviewRequestIfNeeded()
-                            },
-                            onCustomize: {
-                                // Record cycle completion for review request
-                                ReviewRequestManager.shared.recordCycleCompleted()
-                                showingNewCycleBuilder = true
-                            }
-                        )
+                    WeekProgressBar(progress: appState.cycleCompletionFraction)
                         .padding(.horizontal)
-                        .transition(.asymmetric(
-                            insertion: .slide.combined(with: .opacity),
-                            removal: .opacity
-                        ))
-                    }
-                    
+
                     // Day cards
                     VStack(spacing: SBSLayout.cardSpacing) {
                         ForEach(appState.days, id: \.self) { day in
                             DayCard(
                                 day: day,
                                 title: appState.dayTitle(day: day),
-                                lifts: appState.dayLifts(day: day),
+                                lifts: appState.dayLifts(week: appState.selectedWeek, day: day),
                                 logStatus: appState.dayLogStatus(week: appState.selectedWeek, day: day),
                                 isSelected: day == appState.selectedDay,
                                 onTap: {
@@ -118,11 +147,7 @@ struct HomeView: View {
                         }
 
                         Button {
-                            if appState.hasLoggedData {
-                                showingNewCycleWarning = true
-                            } else {
-                                showingNewCycleOptions = true
-                            }
+                            showingNewCycleOptions = true
                         } label: {
                             Label("Start New Cycle", systemImage: "arrow.clockwise.circle")
                         }
@@ -153,29 +178,13 @@ struct HomeView: View {
                 isPresented: $showingNewCycleOptions,
                 titleVisibility: .visible
             ) {
-                Button("Quick Repeat") {
-                    if canRepeatCurrentProgram {
-                        appState.startNewCycle(carryOverTMs: true)
-                    } else {
-                        showingProgramPaywall = true
-                    }
-                }
+                Button("Quick Repeat", action: quickRepeat)
 
-                Button("Customize New Cycle") {
-                    showingNewCycleBuilder = true
-                }
+                Button("Customize New Cycle", action: openCycleBuilder)
 
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Quick Repeat will start a new cycle with your current program and carry over your training maxes. Choose Customize to change program, exercises, or adjust maxes.")
-            }
-            .alert("Start New Cycle?", isPresented: $showingNewCycleWarning) {
-                Button("Cancel", role: .cancel) {}
-                Button("Continue") {
-                    showingNewCycleOptions = true
-                }
-            } message: {
-                Text("You have a cycle in progress. Starting a new cycle will clear your current cycle's workout data. Your workout history will still be available in Past Cycles.")
+                Text(appState.newCycleDialogMessage)
             }
             .fullScreenCover(isPresented: $showingNewCycleBuilder) {
                 CycleBuilderView(
@@ -185,11 +194,11 @@ struct HomeView: View {
                         showingNewCycleBuilder = false
                         // Reset navigation to ensure views are recreated with new week/day values
                         showingSession = false
-                        ReviewRequestManager.shared.presentPendingReviewRequestIfNeeded()
+                        appState.newCycleStarted(afterFinishedCycle: builderOpenedOnFinishedCycle)
                     },
                     onCancel: {
+                        // No cycle started, so nothing to record and no review prompt
                         showingNewCycleBuilder = false
-                        ReviewRequestManager.shared.presentPendingReviewRequestIfNeeded()
                     }
                 )
             }
@@ -255,105 +264,180 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Cycle Completion Notification Banner
+// MARK: - Next Workout Card
+
+struct NextWorkoutCard: View {
+    let heading: String
+    let week: Int
+    let day: Int
+    let lifts: [String]
+    let actionTitle: String
+    let action: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
+            VStack(alignment: .leading, spacing: 4) {
+                // Always named: the strip may be showing a different week
+                Text("WEEK \(week), DAY \(day)")
+                    .font(SBSFonts.captionBold())
+                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .tracking(1)
+
+                Text(heading)
+                    .font(SBSFonts.title3())
+                    .foregroundStyle(SBSColors.textPrimaryFallback)
+
+                Text(lifts.isEmpty ? "No exercises" : lifts.joined(separator: " • "))
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(SBSColors.textSecondaryFallback)
+                    .lineLimit(2)
+            }
+
+            Button(action: action) {
+                Text(actionTitle)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(SBSPrimaryButtonStyle())
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .sbsCard()
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("nextWorkoutCard")
+    }
+}
+
+// MARK: - Cycle Completion Card
 
 struct CycleCompletionCard: View {
     let cycleNumber: Int
+    let summary: CycleCompletionSummary
+    let useMetric: Bool
     let onQuickRepeat: () -> Void
     let onCustomize: () -> Void
-    
+
+    /// Enough for a program's main lifts without pushing the day list far down
+    private let maximumGainRows = 6
+
+    private var sessionsText: String {
+        summary.sessionsCompleted == 1 ? "1 session completed" : "\(summary.sessionsCompleted) sessions completed"
+    }
+
+    private var gainsHeading: String {
+        summary.usesTrainingMaxes ? "Training Max Gains" : "Working Weight Gains"
+    }
+
+    private var noGainsText: String {
+        let values = summary.usesTrainingMaxes ? "training maxes" : "working weights"
+        return "No increases this cycle. Your next cycle picks up from your latest \(values)."
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
-            // Header bar with icon and title
+        VStack(alignment: .leading, spacing: SBSLayout.paddingMedium) {
             HStack(spacing: 12) {
-                // Trophy icon in accent circle
                 ZStack {
                     Circle()
                         .fill(SBSColors.success)
-                        .frame(width: 36, height: 36)
-                    
+                        .frame(width: 44, height: 44)
+
                     Image(systemName: "trophy.fill")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 20, weight: .semibold))
                         .foregroundStyle(.white)
                 }
-                
+                .accessibilityHidden(true)
+
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Cycle \(cycleNumber) Complete!")
-                        .font(SBSFonts.bodyBold())
+                    Text("Cycle \(cycleNumber) Complete")
+                        .font(SBSFonts.title3())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
-                    
-                    Text("Ready to start your next cycle?")
+
+                    Text(sessionsText)
                         .font(SBSFonts.caption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
-                
+
                 Spacer()
             }
-            .padding(.horizontal, SBSLayout.paddingMedium)
-            .padding(.vertical, 14)
-            .background(SBSColors.surfaceFallback)
-            
-            // Divider
+
             Rectangle()
                 .fill(SBSColors.textTertiaryFallback.opacity(0.2))
                 .frame(height: 1)
-            
-            // Action buttons row
-            HStack(spacing: 0) {
-                // Quick Repeat button
-                Button {
-                    onQuickRepeat()
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 14, weight: .medium))
-                        Text("Quick Repeat")
-                            .font(SBSFonts.caption())
-                    }
-                    .foregroundStyle(SBSColors.accentFallback)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                }
-                
-                // Vertical divider
-                Rectangle()
-                    .fill(SBSColors.textTertiaryFallback.opacity(0.2))
-                    .frame(width: 1)
-                
-                // Customize button
-                Button {
-                    onCustomize()
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.system(size: 14, weight: .medium))
-                        Text("Customize")
-                            .font(SBSFonts.caption())
-                    }
+
+            if summary.gains.isEmpty {
+                Text(noGainsText)
+                    .font(SBSFonts.caption())
                     .foregroundStyle(SBSColors.textSecondaryFallback)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+            } else {
+                gainsList
+            }
+
+            VStack(spacing: SBSLayout.paddingSmall) {
+                Button(action: onQuickRepeat) {
+                    Text("Quick Repeat")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(SBSPrimaryButtonStyle())
+
+                Button(action: onCustomize) {
+                    Text("Customize")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, SBSLayout.paddingSmall)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .sbsCard()
+        .overlay(
+            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                .strokeBorder(SBSColors.success.opacity(0.4), lineWidth: 1)
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("cycleCompletionCard")
+    }
+
+    private var gainsList: some View {
+        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
+            Text(gainsHeading)
+                .font(SBSFonts.captionBold())
+                .foregroundStyle(SBSColors.textSecondaryFallback)
+
+            ForEach(summary.gains.prefix(maximumGainRows), id: \.lift) { gain in
+                HStack(spacing: SBSLayout.paddingSmall) {
+                    Text(gain.lift)
+                        .font(SBSFonts.body())
+                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .lineLimit(1)
+
+                    Spacer()
+
+                    Text(gain.to.formattedWeight(useMetric: useMetric))
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(SBSColors.textSecondaryFallback)
+
+                    Text("+\(gain.gain.formattedWeight(useMetric: useMetric))")
+                        .font(SBSFonts.captionBold())
+                        .foregroundStyle(SBSColors.success)
                 }
             }
-            .background(SBSColors.surfaceElevatedFallback.opacity(0.5))
+
+            if summary.gains.count > maximumGainRows {
+                Text("and \(summary.gains.count - maximumGainRows) more")
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(SBSColors.textTertiaryFallback)
+            }
         }
-        .clipShape(RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall))
-        .overlay(
-            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusSmall)
-                .stroke(SBSColors.success.opacity(0.4), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
     }
 }
 
 struct WeekProgressBar: View {
-    let week: Int
-    let totalWeeks: Int
-    
-    private var progress: Double {
-        Double(week) / Double(totalWeeks)
-    }
-    
+    /// Completed days across the cycle, 0 to 1
+    let progress: Double
+
     var body: some View {
         VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
             HStack {
@@ -370,9 +454,9 @@ struct WeekProgressBar: View {
             
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    // Background
+                    // Track, visible against the card at 0%
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(SBSColors.surfaceFallback)
+                        .fill(SBSColors.textTertiaryFallback.opacity(0.25))
                         .frame(height: 8)
                     
                     // Progress

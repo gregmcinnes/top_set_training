@@ -201,7 +201,9 @@ struct ProgramsView: View {
                     showingCycleBuilder = true
                 }
             } message: {
-                Text("You have a cycle in progress. Starting a new cycle will clear your current cycle's workout data. Your workout history will still be available in Past Cycles.")
+                Text(appState.isCycleComplete
+                     ? "Cycle \(appState.currentCycleNumber) is complete and will be saved to Past Cycles."
+                     : "You have a cycle in progress. Starting a new one ends it now: what you've logged moves to Past Cycles, and the workouts you haven't done are dropped.")
             }
             .alert("Reset Customizations?", isPresented: $showingResetCustomizationsAlert) {
                 Button("Cancel", role: .cancel) {

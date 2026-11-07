@@ -130,6 +130,17 @@ struct SupersetAccessoryData: Codable, Equatable {
     var lastWasEasy: Bool? = nil
 }
 
+// MARK: - Performed Accessory
+
+/// An accessory actually done in a session, as it gets logged when the session finishes
+struct PerformedAccessory: Equatable {
+    let name: String
+    let weight: Double
+    let sets: Int
+    let reps: Int
+    let wasEasy: Bool?
+}
+
 // MARK: - Workout PR Record
 
 /// Record of a PR achieved during a workout
@@ -242,9 +253,32 @@ final class WorkoutState {
     var timerEndDate: Date?  // When the timer should end (for resuming after navigation)
     var timerPausedRemaining: Int?  // Remaining seconds when paused (for accurate resume)
     
+    /// Which exercise's pair is showing. During a rest that's the exercise being rested
+    /// from: after its last set `currentExerciseIndex` has already moved on, and the
+    /// accessory's own last set still happens in that rest.
+    private var supersetExerciseIndex: Int {
+        if showingTimer, let restingExerciseId,
+           let index = exercises.firstIndex(where: { $0.id == restingExerciseId }) {
+            return index
+        }
+        return currentExerciseIndex
+    }
+
     /// Get the accessory to superset with the current exercise (if any)
     var currentSupersetAccessory: SupersetAccessoryData? {
-        supersetAccessories[currentExerciseIndex]
+        supersetAccessories[supersetExerciseIndex]
+    }
+
+    /// Change the showing pair's weight for this session
+    func setCurrentSupersetAccessoryWeight(_ weight: Double) {
+        guard let accessory = currentSupersetAccessory else { return }
+        supersetAccessories[supersetExerciseIndex] = SupersetAccessoryData(
+            name: accessory.name,
+            sets: accessory.sets,
+            reps: accessory.reps,
+            weight: weight,
+            lastWasEasy: accessory.lastWasEasy
+        )
     }
     
     var currentExercise: WorkoutExercise? {
@@ -281,6 +315,34 @@ final class WorkoutState {
         guard !finishedEarly, firstOpenExerciseIndex != nil else { return false }
         return !exercises.indices.contains { index in
             index >= currentExerciseIndex && firstIncompleteSet(of: exercises[index]) != nil
+        }
+    }
+
+    /// Accessories with at least one set done, in workout order, at the session's weight
+    /// and with the sets actually completed. A superset accessory has no sets of its own:
+    /// it rides along with its main lift, one for one, up to its own set count.
+    var performedAccessories: [PerformedAccessory] {
+        exercises.indices.compactMap { index in
+            let exercise = exercises[index]
+            let setsDone = completedSets[exercise.id]?.count ?? 0
+            guard setsDone > 0 else { return nil }
+            if exercise.isAccessory {
+                return PerformedAccessory(
+                    name: exercise.name,
+                    weight: exercise.weight,
+                    sets: setsDone,
+                    reps: exercise.repsPerSet,
+                    wasEasy: exercise.markedEasy ? true : nil
+                )
+            }
+            guard let paired = supersetAccessories[index] else { return nil }
+            return PerformedAccessory(
+                name: paired.name,
+                weight: paired.weight ?? 0,
+                sets: min(setsDone, paired.sets),
+                reps: paired.reps,
+                wasEasy: nil
+            )
         }
     }
 

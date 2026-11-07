@@ -39,8 +39,7 @@ struct NumberPad: View {
     let structuredContext: StructuredProgressionContext?  // nil = use percentage display
     var prRepsNeeded: Int? = nil  // reps that would set a new E1RM PR; nil = no hint
     let onConfirm: () -> Void
-    let onCancel: () -> Void
-    
+
     private let columns = [
         GridItem(.flexible()),
         GridItem(.flexible()),
@@ -174,6 +173,116 @@ struct NumberPad: View {
                 value = digit
             }
         }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+}
+
+// MARK: - Weight Pad
+
+/// The number pad for weights: a decimal key where the reps pad has delete, and ✓ in the
+/// same place. What counts as a valid weight is the caller's, because 0 is a real value
+/// for some inputs and means unset for others.
+struct WeightPad: View {
+    @Binding var text: String
+    let useMetric: Bool
+    let canConfirm: Bool
+    let onConfirm: () -> Void
+
+    /// Text this pad last typed. Anything else was prefilled or set by a quick button, and
+    /// the first key replaces it rather than adding digits to the end of "135.0".
+    @State private var typedText: String?
+
+    private let columns = [
+        GridItem(.flexible()),
+        GridItem(.flexible()),
+        GridItem(.flexible())
+    ]
+
+    private var editableText: String {
+        text == typedText ? text : ""
+    }
+
+    var body: some View {
+        VStack(spacing: SBSLayout.paddingMedium) {
+            HStack(spacing: SBSLayout.paddingMedium) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                        .fill(SBSColors.surfaceFallback)
+                        .frame(height: 64)
+
+                    HStack(spacing: SBSLayout.paddingSmall) {
+                        Text(text.isEmpty ? "—" : text)
+                            .font(.system(size: 36, weight: .bold, design: .rounded))
+                            .foregroundStyle(text.isEmpty ? SBSColors.textTertiaryFallback : SBSColors.textPrimaryFallback)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+
+                        Text(useMetric ? "kg" : "lb")
+                            .font(SBSFonts.body())
+                            .foregroundStyle(SBSColors.textSecondaryFallback)
+                    }
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Weight")
+                .accessibilityValue(text.isEmpty ? "Empty" : "\(text) \(useMetric ? "kilograms" : "pounds")")
+
+                Button {
+                    type(String(text.dropLast()))
+                } label: {
+                    Image(systemName: "delete.left")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                }
+                .buttonStyle(NumberPadKeyStyle())
+                .frame(width: 88)
+                .accessibilityLabel("Delete")
+            }
+
+            LazyVGrid(columns: columns, spacing: 8) {
+                ForEach(1...9, id: \.self) { digit in
+                    NumberPadKey(digit: digit) {
+                        type(WeightPadInput.appending(digit: digit, to: editableText))
+                    }
+                }
+
+                Button {
+                    type(WeightPadInput.appendingSeparator(decimalSeparator, to: editableText))
+                } label: {
+                    Text(decimalSeparator)
+                        .font(.system(size: 24, weight: .medium, design: .rounded))
+                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                }
+                .buttonStyle(NumberPadKeyStyle())
+                .accessibilityLabel("Decimal point")
+
+                NumberPadKey(digit: 0) {
+                    type(WeightPadInput.appending(digit: 0, to: editableText))
+                }
+
+                Button {
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    onConfirm()
+                } label: {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(canConfirm ? SBSColors.success : SBSColors.textTertiaryFallback)
+                }
+                .buttonStyle(NumberPadKeyStyle(isAccent: canConfirm))
+                .disabled(!canConfirm)
+                .accessibilityLabel("Save weight")
+            }
+        }
+        .padding(.horizontal, SBSLayout.paddingLarge)
+        .padding(.vertical, SBSLayout.paddingMedium)
+    }
+
+    private var decimalSeparator: String {
+        Locale.current.decimalSeparator ?? "."
+    }
+
+    private func type(_ newText: String) {
+        text = newText
+        typedText = newText
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 }
@@ -449,7 +558,6 @@ struct TMImpactPreview: View {
         target: 10,
         structuredContext: nil,  // nil = percentage display (SBS style)
         onConfirm: {},
-        onCancel: {}
     )
     .sbsBackground()
 }

@@ -561,7 +561,7 @@ struct AccessoryCard: View {
                         HStack(spacing: 4) {
                             Image(systemName: "clock.arrow.circlepath")
                                 .font(.system(size: 12))
-                            Text("Last: \(log.weight.formattedWeightShort(useMetric: useMetric))")
+                            Text(log.weight > 0 ? "Last: \(log.weight.formattedWeightShort(useMetric: useMetric))" : "Last: no added weight")
                                 .font(SBSFonts.caption())
                         }
                         .foregroundStyle(SBSColors.textTertiaryFallback)

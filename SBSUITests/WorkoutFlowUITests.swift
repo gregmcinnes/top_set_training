@@ -395,6 +395,8 @@ final class WorkoutFlowUITests: XCTestCase {
         XCTAssertFalse(button("Missed Reps").exists, "Only linear lifts have this")
         let setBeforeLog = setLabel()
         tap("Log Reps")
+        XCTAssertTrue(button("Confirm reps").waitForExistence(timeout: 5))
+        shot("531-rep-sheet")
         enterReps(8)
         XCTAssertTrue(button("Undo Last Set").waitForExistence(timeout: 5))
         shot("531-rest-after-amrap")

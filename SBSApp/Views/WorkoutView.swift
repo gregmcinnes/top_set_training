@@ -217,7 +217,7 @@ struct WorkoutView: View {
             }
         } message: {
             if session.hasWorkoutProgress {
-                Text("Finish Workout shows your summary and saves to Apple Fitness if it's on. Exit drops this session without either. Results already logged are kept.")
+                Text("Finish Workout shows your summary, logs your accessory sets and saves to Apple Fitness if it's on. Exit drops this session without any of that. Lift results already logged are kept.")
             } else {
                 Text("Nothing has been logged in this session.")
             }
@@ -233,9 +233,12 @@ struct WorkoutView: View {
             Text("You still have \(workoutState.remainingSetsCount) \(workoutState.remainingSetsCount == 1 ? "set" : "sets") left. Go back to them, or finish here? Lifts you don't finish log nothing and keep their weight.")
         }
         .sheet(isPresented: $session.showingRepInput) {
-            RepOutInputSheet(
+            RepLogSheet(
                 liftName: workoutState.currentExercise?.name ?? "",
                 target: session.currentRepTarget,
+                currentReps: session.pendingAMRAPLog.reps,
+                currentNote: session.pendingAMRAPLog.note,
+                setLabel: session.pendingStructuredSetIndex == nil ? nil : RepLogSheet.structuredSetLabel(target: session.currentRepTarget),
                 structuredContext: {
                     // Use structured progression context for Greyskull/GZCLP style programs
                     if let exercise = workoutState.currentExercise,
@@ -302,7 +305,7 @@ struct WorkoutView: View {
                     session.showingRepInput = false
                 }
             )
-            .presentationDetents([.height(420), .medium])
+            .presentationDetents([.height(session.pendingStructuredSetIndex == nil ? 420 : 500), .large])
             .presentationDragIndicator(.visible)
         }
         // item-driven: an isPresented cover reading separate optional state can render empty
@@ -337,18 +340,15 @@ struct WorkoutView: View {
                 AccessoryWeightSheet(
                     accessoryName: accessory.name,
                     currentWeight: accessory.weight,
-                    defaultSets: accessory.sets,
-                    defaultReps: accessory.reps,
                     useMetric: appState.settings.useMetric,
                     roundingIncrement: appState.settings.roundingIncrement,
-                    onSave: { weight, sets, reps in
-                        // Update the accessory weight in the workout state
-                        session.updateAccessoryWeight(weight: weight, sets: sets, reps: reps)
+                    onSave: { weight in
+                        workoutState.setCurrentSupersetAccessoryWeight(weight)
                         showingAccessoryWeightSheet = false
                     },
                     onCancel: { showingAccessoryWeightSheet = false }
                 )
-                .presentationDetents([.medium])
+                .presentationDetents([.height(600), .large])
                 .presentationDragIndicator(.visible)
             }
         }
@@ -357,17 +357,15 @@ struct WorkoutView: View {
                 AccessoryWeightSheet(
                     accessoryName: exercise.name,
                     currentWeight: exercise.weight > 0 ? exercise.weight : nil,
-                    defaultSets: exercise.totalSets,
-                    defaultReps: exercise.repsPerSet,
                     useMetric: appState.settings.useMetric,
                     roundingIncrement: appState.settings.roundingIncrement,
-                    onSave: { weight, sets, reps in
-                        session.updateStandaloneAccessoryWeight(weight: weight, sets: sets, reps: reps)
+                    onSave: { weight in
+                        session.updateStandaloneAccessoryWeight(weight)
                         showingStandaloneAccessoryWeight = false
                     },
                     onCancel: { showingStandaloneAccessoryWeight = false }
                 )
-                .presentationDetents([.medium])
+                .presentationDetents([.height(600), .large])
                 .presentationDragIndicator(.visible)
             }
         }
@@ -392,7 +390,7 @@ struct WorkoutView: View {
                     },
                     onCancel: { showingWeightOverride = false }
                 )
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
             }
         }
@@ -987,6 +985,7 @@ struct PrescriptionHero: View {
                         .foregroundStyle(SBSColors.textTertiaryFallback)
                 }
             }
+            .accessibilityLabel("Edit weight, \(weight)")
             .padding(.horizontal, SBSLayout.paddingLarge)
 
             HStack(alignment: .firstTextBaseline, spacing: SBSLayout.paddingSmall) {
@@ -1693,6 +1692,7 @@ struct WorkoutCompleteView: View {
                         statsRow
                         if !prs.isEmpty { prSection }
                         if !outlooks.isEmpty { outlookSection }
+                        if !workoutState.performedAccessories.isEmpty { accessorySection }
                     }
                     .padding(.horizontal)
                     .padding(.vertical, SBSLayout.paddingLarge)
@@ -1767,6 +1767,19 @@ struct WorkoutCompleteView: View {
                     outlook.name,
                     detail: outlook.nextWeight?.formattedWeight(useMetric: useMetric),
                     note: outlook.note
+                )
+            }
+        }
+    }
+
+    /// What Done will log
+    private var accessorySection: some View {
+        summarySection(title: "Accessories") {
+            ForEach(workoutState.performedAccessories, id: \.name) { accessory in
+                summaryRow(
+                    accessory.name,
+                    detail: accessory.weight > 0 ? accessory.weight.formattedWeight(useMetric: useMetric) : nil,
+                    note: "\(accessory.sets) × \(accessory.reps)"
                 )
             }
         }
@@ -2239,113 +2252,6 @@ struct ExercisePickerRow: View {
 }
 
 // MARK: - Rep Out Input Sheet
-
-struct RepOutInputSheet: View {
-    let liftName: String
-    let target: Int
-    let structuredContext: StructuredProgressionContext?  // nil = percentage display (SBS style)
-    var prRepsNeeded: Int? = nil
-    let onSave: (Int, String) -> Void
-    let onCancel: () -> Void
-    
-    @State private var reps: Int?
-    @State private var note: String = ""
-    @State private var showingNoteField: Bool = false
-    @FocusState private var isNoteFocused: Bool
-    
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // Header
-                VStack(spacing: 4) {
-                    Text(liftName)
-                        .font(SBSFonts.title())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                    
-                    Text("How many reps on your AMRAP set?")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
-                }
-                .padding(.top)
-                
-                // Note field (collapsible)
-                VStack(spacing: SBSLayout.paddingSmall) {
-                    if showingNoteField || !note.isEmpty {
-                        HStack {
-                            Image(systemName: "note.text")
-                                .font(SBSFonts.caption())
-                                .foregroundStyle(SBSColors.textTertiaryFallback)
-                            
-                            TextField("Add a note (optional)", text: $note, axis: .vertical)
-                                .font(SBSFonts.body())
-                                .foregroundStyle(SBSColors.textPrimaryFallback)
-                                .lineLimit(1...3)
-                                .focused($isNoteFocused)
-                            
-                            if !note.isEmpty {
-                                Button {
-                                    note = ""
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .font(SBSFonts.body())
-                                        .foregroundStyle(SBSColors.textTertiaryFallback)
-                                }
-                            }
-                        }
-                        .padding(SBSLayout.paddingMedium)
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                                .fill(SBSColors.surfaceFallback)
-                        )
-                        .padding(.horizontal)
-                        .padding(.top, SBSLayout.paddingSmall)
-                    } else {
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                showingNoteField = true
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                isNoteFocused = true
-                            }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "plus.circle")
-                                    .font(SBSFonts.caption())
-                                Text("Add note")
-                                    .font(SBSFonts.caption())
-                            }
-                            .foregroundStyle(SBSColors.accentFallback)
-                        }
-                        .padding(.top, SBSLayout.paddingSmall)
-                    }
-                }
-                
-                // Number pad
-                NumberPad(
-                    value: $reps,
-                    target: target,
-                    structuredContext: structuredContext,
-                    prRepsNeeded: prRepsNeeded,
-                    onConfirm: {
-                        if let r = reps {
-                            onSave(r, note)
-                        }
-                    },
-                    onCancel: onCancel
-                )
-            }
-            .sbsBackground()
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Cancel") {
-                        onCancel()
-                    }
-                }
-            }
-        }
-    }
-}
 
 #Preview {
     let appState = AppState()

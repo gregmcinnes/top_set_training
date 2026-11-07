@@ -269,6 +269,9 @@ public struct UserData: Codable, Equatable {
     // volume-by-body-part view. Populated going forward; pre-update data has
     // no per-date accessory entries (only the snapshot in accessoryLogs).
     public var accessoryHistory: [AccessoryRecord]
+    /// Accessory-only days finished this cycle (week -> days). They leave no lift log, so
+    /// this is what shows them as Done. It doesn't count toward next-workout or progress.
+    public var accessoryDaysDone: [Int: Set<Int>]
     
     // MARK: - Cycle management
     
@@ -305,6 +308,7 @@ public struct UserData: Codable, Equatable {
         personalRecords: [String: PersonalRecord] = [:],
         workoutRecords: [WorkoutRecord] = [],
         accessoryHistory: [AccessoryRecord] = [],
+        accessoryDaysDone: [Int: Set<Int>] = [:],
         currentCycleStartDate: Date = Date(),
         cycleHistory: [CompletedCycle] = [],
         customTemplates: [CustomTemplate] = [],
@@ -323,6 +327,7 @@ public struct UserData: Codable, Equatable {
         self.personalRecords = personalRecords
         self.workoutRecords = workoutRecords
         self.accessoryHistory = accessoryHistory
+        self.accessoryDaysDone = accessoryDaysDone
         self.currentCycleStartDate = currentCycleStartDate
         self.cycleHistory = cycleHistory
         self.customTemplates = customTemplates
@@ -345,6 +350,7 @@ public struct UserData: Codable, Equatable {
         personalRecords = try container.decodeIfPresent([String: PersonalRecord].self, forKey: .personalRecords) ?? [:]
         workoutRecords = try container.decodeIfPresent([WorkoutRecord].self, forKey: .workoutRecords) ?? []
         accessoryHistory = try container.decodeIfPresent([AccessoryRecord].self, forKey: .accessoryHistory) ?? []
+        accessoryDaysDone = try container.decodeIfPresent([Int: Set<Int>].self, forKey: .accessoryDaysDone) ?? [:]
         currentCycleStartDate = try container.decodeIfPresent(Date.self, forKey: .currentCycleStartDate) ?? Date()
         cycleHistory = try container.decodeIfPresent([CompletedCycle].self, forKey: .cycleHistory) ?? []
         customTemplates = try container.decodeIfPresent([CustomTemplate].self, forKey: .customTemplates) ?? []
@@ -356,11 +362,35 @@ public struct UserData: Codable, Equatable {
         case logs, structuredLogs, linearLogs
         case customInitialMaxes, customDays, accessoryLogs, selectedProgram
         case trainingMaxes, liftHistory, personalRecords, workoutRecords
-        case accessoryHistory
+        case accessoryHistory, accessoryDaysDone
         case currentCycleStartDate, cycleHistory, customTemplates
         case savedProgramCustomizations, hasCompletedOnboarding
     }
     
+    // MARK: - Accessory Logging
+
+    /// Record an accessory done in a finished session. The note on its last log stays:
+    /// it's the lifter's own and a session has nowhere to change it. The new history
+    /// entry gets none, since that note was written about an earlier session.
+    mutating func recordPerformedAccessory(_ accessory: PerformedAccessory, bodyPart: BodyPart?, date: Date) {
+        accessoryLogs[accessory.name] = AccessoryLog(
+            weight: accessory.weight,
+            sets: accessory.sets,
+            reps: accessory.reps,
+            note: accessoryLogs[accessory.name]?.note ?? "",
+            wasEasy: accessory.wasEasy
+        )
+        accessoryHistory.append(AccessoryRecord(
+            date: date,
+            name: accessory.name,
+            bodyPart: bodyPart,
+            weight: accessory.weight,
+            sets: accessory.sets,
+            reps: accessory.reps,
+            note: ""
+        ))
+    }
+
     // MARK: - Lift History Helpers
 
     /// Number of the cycle in progress. Not count + 1: past cycles can be deleted,

@@ -113,7 +113,7 @@ struct HomeView: View {
                                 day: day,
                                 title: appState.dayTitle(day: day),
                                 lifts: appState.dayLifts(week: appState.selectedWeek, day: day),
-                                logStatus: appState.dayLogStatus(week: appState.selectedWeek, day: day),
+                                logStatus: appState.dayDisplayStatus(week: appState.selectedWeek, day: day),
                                 isSelected: day == appState.selectedDay,
                                 onTap: {
                                     appState.selectedDay = day

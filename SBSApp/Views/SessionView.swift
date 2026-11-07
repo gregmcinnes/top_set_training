@@ -57,7 +57,7 @@ struct SessionView: View {
     /// What's waiting on the answer to "a workout is already in progress"
     private enum PendingStart {
         case workout
-        case accessoryWorkout
+        case accessoriesOnly
     }
 
     @Bindable var appState: AppState
@@ -71,7 +71,6 @@ struct SessionView: View {
     @State private var linearLogData: LinearLogData?
     @State private var showingRedoConfirm = false
     @State private var pendingStart: PendingStart?
-    @State private var showingAccessoryWorkout = false
     @State private var showingAccessoryEditor = false
     @State private var showingAccessoryPicker = false
     @State private var celebratingPR: AppState.LogRepsResult?  // Drives the PR cover; set after a short delay
@@ -84,7 +83,7 @@ struct SessionView: View {
                     week: week,
                     day: day,
                     dayTitle: appState.dayTitle(day: day),
-                    logStatus: appState.dayLogStatus(week: week, day: day),
+                    logStatus: appState.dayDisplayStatus(week: week, day: day),
                     workoutAction: workoutAction,
                     onStartWorkout: {
                         requestStart(.workout)
@@ -109,11 +108,11 @@ struct SessionView: View {
                             .padding(.horizontal)
                     }
                     
-                    // Accessory Workout / Timer button - always show
-                    AccessoryWorkoutCard(
+                    SessionAccessoryActions(
+                        canStartAccessoriesOnly: canStartAccessoriesOnly(in: plan),
                         hasAccessories: hasAccessories(in: plan),
-                        onStart: {
-                            requestStart(.accessoryWorkout)
+                        onStartAccessoriesOnly: {
+                            requestStart(.accessoriesOnly)
                         },
                         onEdit: {
                             showingAccessoryEditor = true
@@ -140,12 +139,6 @@ struct SessionView: View {
         .sbsBackground()
         .navigationTitle("Week \(week), Day \(day)")
         .navigationBarTitleDisplayMode(.inline)
-        // Full screen, so the tab bar can't pop this mid-workout
-        .fullScreenCover(isPresented: $showingAccessoryWorkout) {
-            NavigationStack {
-                AccessoryWorkoutView(appState: appState, week: week, day: day)
-            }
-        }
         .alert("Redo This Workout?", isPresented: $showingRedoConfirm) {
             Button("Cancel", role: .cancel) {}
             Button("Redo Workout") {
@@ -256,7 +249,7 @@ struct SessionView: View {
                     accessoryLogData = nil
                 }
             )
-            .presentationDetents([.medium, .large])
+            .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }
         .sheet(item: $weightOverrideData) { data in
@@ -279,27 +272,28 @@ struct SessionView: View {
                     weightOverrideData = nil
                 }
             )
-            .presentationDetents([.medium, .large])
+            .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }
         .sheet(item: $structuredLogData) { data in
-            StructuredRepLogSheet(
+            RepLogSheet(
                 liftName: data.lift,
-                setIndex: data.setIndex,
                 target: data.target,
                 currentReps: data.currentReps,
+                currentNote: appState.getStructuredLog(lift: data.lift, week: week, day: day)?.note,
+                setLabel: RepLogSheet.structuredSetLabel(target: data.target),
                 structuredContext: StructuredProgressionContext(
                     liftName: data.lift,
                     useMetric: appState.settings.useMetric,
                     manualProgression: appState.programState?.manualProgression ?? false
                 ),
                 prRepsNeeded: data.prRepsNeeded,
-                onSave: { reps in
+                onSave: { reps, note in
                     // Re-entrancy guard: block a duplicate save landing during
                     // the sheet's dismiss animation.
                     guard structuredLogData != nil else { return }
                     // Log reps and check for PR
-                    if let result = appState.logStructuredReps(lift: data.lift, week: week, day: day, setIndex: data.setIndex, reps: reps) {
+                    if let result = appState.logStructuredReps(lift: data.lift, week: week, day: day, setIndex: data.setIndex, reps: reps, note: note) {
                         if result.isNewPR {
                             let prResult = result
                             structuredLogData = nil
@@ -327,7 +321,7 @@ struct SessionView: View {
                     structuredLogData = nil
                 }
             )
-            .presentationDetents([.height(400), .medium])
+            .presentationDetents([.height(500), .large])
             .presentationDragIndicator(.visible)
         }
         .sheet(item: $linearLogData) { data in
@@ -530,11 +524,14 @@ struct SessionView: View {
         if let session = appState.activeSession, session.week == week, session.day == day {
             return .resume
         }
-        return appState.dayLogStatus(week: week, day: day) == .complete ? .done : .start
+        return appState.dayDisplayStatus(week: week, day: day) == .complete ? .done : .start
     }
 
     private var redoExplanation: String {
-        "Your logged results stay until you log new ones, which replace them lift by lift. Later workouts update to match. Any lift you don't finish keeps its current result."
+        guard appState.dayCanBeLogged(day: day) else {
+            return "Finishing it again adds new entries to your accessory history. The earlier ones stay."
+        }
+        return "Your logged results stay until you log new ones, which replace them lift by lift. Later workouts update to match. Any lift you don't finish keeps its current result."
     }
 
     private var inProgressExplanation: String {
@@ -542,8 +539,8 @@ struct SessionView: View {
         if let session = appState.activeSession {
             text += " (Week \(session.week), Day \(session.day))"
         }
-        text += ". Discarding it keeps results you've already logged, but your place in it will be lost."
-        if pendingStart == .workout, appState.dayLogStatus(week: week, day: day) == .complete {
+        text += ". Discarding it keeps lift results you've already logged, but its accessory sets won't be logged and your place in it will be lost."
+        if pendingStart == .workout, appState.dayDisplayStatus(week: week, day: day) == .complete {
             text += " " + redoExplanation
         }
         return text
@@ -559,12 +556,14 @@ struct SessionView: View {
     }
 
     private func beginStart(_ start: PendingStart) {
-        switch start {
-        case .workout:
-            appState.startWorkout(week: week, day: day)
-        case .accessoryWorkout:
-            showingAccessoryWorkout = true
-        }
+        appState.startWorkout(week: week, day: day, accessoriesOnly: start == .accessoriesOnly)
+    }
+
+    /// Worth offering when the day has lifts to leave out. On an accessory-only day Start
+    /// Workout is the same thing, and while this day's session runs the button resumes it.
+    private func canStartAccessoriesOnly(in plan: [PlanItem]) -> Bool {
+        guard hasAccessories(in: plan), appState.dayCanBeLogged(day: day) else { return false }
+        return workoutAction != .resume
     }
 
     private func hasAccessories(in plan: [PlanItem]) -> Bool {
@@ -575,94 +574,55 @@ struct SessionView: View {
     }
 }
 
-// MARK: - Accessory Workout Card
+// MARK: - Session Accessory Actions
 
-struct AccessoryWorkoutCard: View {
-    var hasAccessories: Bool = true
-    let onStart: () -> Void
-    var onEdit: (() -> Void)? = nil
-    var onAdd: (() -> Void)? = nil
+/// Below the day's exercises: change its accessories, or do only those
+struct SessionAccessoryActions: View {
+    let canStartAccessoriesOnly: Bool
+    let hasAccessories: Bool
+    let onStartAccessoriesOnly: () -> Void
+    let onEdit: () -> Void
+    let onAdd: () -> Void
 
     var body: some View {
-        VStack(spacing: SBSLayout.paddingMedium) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: SBSLayout.paddingSmall) {
-                        Image(systemName: "timer")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(SBSColors.accentSecondaryFallback)
-
-                        Text(hasAccessories ? "Accessory Workout" : "Rest Timer")
-                            .font(SBSFonts.bodyBold())
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
-                    }
-
-                    Text(hasAccessories ? "Use the timer to track your accessory sets" : "Track rest between sets")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
-                }
-
-                Spacer()
-
-                // Edit button
-                if let onEdit = onEdit {
-                    Button(action: onEdit) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "pencil.circle.fill")
-                                .font(.system(size: 20))
-                            Text("Edit")
-                                .font(SBSFonts.caption())
-                        }
-                        .foregroundStyle(SBSColors.accentSecondaryFallback)
-                    }
+        VStack(spacing: SBSLayout.paddingSmall) {
+            if canStartAccessoriesOnly {
+                Button(action: onStartAccessoriesOnly) {
+                    label("Start Accessories Only", systemImage: "play.fill")
                 }
             }
 
-            // Add Accessory button
-            if let onAdd = onAdd {
+            HStack(spacing: SBSLayout.paddingSmall) {
                 Button(action: onAdd) {
-                    HStack(spacing: SBSLayout.paddingSmall) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 16, weight: .semibold))
+                    label("Add Accessory", systemImage: "plus.circle.fill")
+                }
 
-                        Text("Add Accessory")
-                            .font(SBSFonts.button())
+                if hasAccessories {
+                    Button(action: onEdit) {
+                        label("Edit", systemImage: "pencil")
                     }
-                    .foregroundStyle(SBSColors.accentFallback)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, SBSLayout.paddingMedium)
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                            .strokeBorder(SBSColors.accentFallback, lineWidth: 1.5)
-                    )
+                    .accessibilityLabel("Edit accessories")
+                    .frame(maxWidth: 110)
                 }
-            }
-
-            Button(action: onStart) {
-                HStack(spacing: SBSLayout.paddingSmall) {
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 12, weight: .semibold))
-
-                    Text("Start Timer")
-                        .font(SBSFonts.button())
-                }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, SBSLayout.paddingMedium)
-                .background(
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                        .fill(SBSColors.accentSecondaryFallback)
-                )
             }
         }
-        .padding()
+    }
+
+    private func label(_ title: String, systemImage: String) -> some View {
+        HStack(spacing: SBSLayout.paddingSmall) {
+            Image(systemName: systemImage)
+                .font(.system(size: 14, weight: .semibold))
+            Text(title)
+                .font(SBSFonts.button())
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .foregroundStyle(SBSColors.accentSecondaryFallback)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, SBSLayout.paddingMedium)
         .background(
             RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                .fill(SBSColors.accentSecondaryFallback.opacity(0.08))
-                .overlay(
-                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                        .strokeBorder(SBSColors.accentSecondaryFallback.opacity(0.2), lineWidth: 1)
-                )
+                .strokeBorder(SBSColors.accentSecondaryFallback, lineWidth: 1.5)
         )
     }
 }
@@ -803,11 +763,17 @@ struct RepLogSheet: View {
     let target: Int
     let currentReps: Int?
     let currentNote: String?
+    var setLabel: String? = nil  // A structured program's set, e.g. "3+ Set"
+    var structuredContext: StructuredProgressionContext? = nil  // nil = percentage display
     var prRepsNeeded: Int? = nil
     let onSave: (Int, String) -> Void
-    let onClear: () -> Void
+    var onClear: (() -> Void)? = nil  // Nil where undo does this instead, as in a workout
     let onCancel: () -> Void
-    
+
+    static func structuredSetLabel(target: Int) -> String {
+        target == 1 ? "1+ Set (Heavy Single)" : "\(target)+ Set"
+    }
+
     @State private var reps: Int?
     @State private var note: String = ""
     @State private var showingNoteField: Bool = false
@@ -822,7 +788,19 @@ struct RepLogSheet: View {
                         .font(SBSFonts.title())
                         .foregroundStyle(SBSColors.textPrimaryFallback)
                     
-                    Text("How many reps on your last set?")
+                    if let setLabel {
+                        Text(setLabel)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(SBSColors.warning)
+                            .padding(.horizontal, SBSLayout.paddingMedium)
+                            .padding(.vertical, SBSLayout.paddingSmall)
+                            .background(
+                                Capsule()
+                                    .fill(SBSColors.warning.opacity(0.15))
+                            )
+                    }
+
+                    Text("How many reps on your AMRAP set?")
                         .font(SBSFonts.caption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
                 }
@@ -881,25 +859,23 @@ struct RepLogSheet: View {
                     }
                 }
                 
-                // Number pad (nil = percentage display for volume-based programs)
                 NumberPad(
                     value: $reps,
                     target: target,
-                    structuredContext: nil,
+                    structuredContext: structuredContext,
                     prRepsNeeded: prRepsNeeded,
                     onConfirm: {
                         if let r = reps {
                             onSave(r, note)
                         }
-                    },
-                    onCancel: onCancel
+                    }
                 )
             }
             .sbsBackground()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    if currentReps != nil {
+                    if currentReps != nil, let onClear {
                         Button("Clear", role: .destructive) {
                             onClear()
                         }
@@ -947,7 +923,8 @@ struct AccessoryLogSheet: View {
     }
     
     private var canSave: Bool {
-        weight != nil && weight! > 0
+        // 0 is a real weight for an accessory: a bodyweight one has no load to enter
+        (weight ?? -1) >= 0
     }
     
     var body: some View {
@@ -967,97 +944,45 @@ struct AccessoryLogSheet: View {
                 
                 ScrollView {
                     VStack(spacing: SBSLayout.paddingLarge) {
-                        // Weight input
-                        VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
-                            Text("Weight")
-                                .font(SBSFonts.caption())
-                                .foregroundStyle(SBSColors.textSecondaryFallback)
-                            
-                            HStack {
-                                TextField("0", text: $weightText)
-                                    .keyboardType(.decimalPad)
-                                    .font(.system(size: 32, weight: .bold, design: .rounded))
-                                    .foregroundStyle(SBSColors.textPrimaryFallback)
-                                    .multilineTextAlignment(.center)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(
-                                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                                            .fill(SBSColors.surfaceFallback)
-                                    )
-                                
-                                Text(useMetric ? "kg" : "lb")
-                                    .font(SBSFonts.title2())
-                                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                                    .frame(width: 50)
-                            }
-                            
-                            // Quick weight buttons
-                            if let lastWeight = currentLog?.weight {
-                                HStack(spacing: SBSLayout.paddingSmall) {
-                                    QuickWeightButton(
-                                        label: "-\(roundingIncrement.formattedWeightShort(useMetric: useMetric))",
-                                        weight: lastWeight - roundingIncrement,
-                                        useMetric: useMetric,
-                                        onTap: { weightText = (lastWeight - roundingIncrement).weightInputText(useMetric: useMetric) }
-                                    )
-                                    QuickWeightButton(
-                                        label: "Same",
-                                        weight: lastWeight,
-                                        useMetric: useMetric,
-                                        onTap: { weightText = (lastWeight).weightInputText(useMetric: useMetric) }
-                                    )
-                                    QuickWeightButton(
-                                        label: "+\(roundingIncrement.formattedWeightShort(useMetric: useMetric))",
-                                        weight: lastWeight + roundingIncrement,
-                                        useMetric: useMetric,
-                                        onTap: { weightText = (lastWeight + roundingIncrement).weightInputText(useMetric: useMetric) }
-                                    )
-                                }
-                            }
-                        }
-                        .padding(.horizontal)
-                        
-                        // Sets and Reps pickers
-                        HStack(spacing: SBSLayout.paddingLarge) {
-                            VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
-                                Text("Sets")
-                                    .font(SBSFonts.caption())
-                                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                                
-                                Picker("Sets", selection: $sets) {
-                                    ForEach(1...10, id: \.self) { num in
-                                        Text("\(num)").tag(num)
-                                    }
-                                }
-                                .pickerStyle(.wheel)
-                                .frame(height: 100)
-                                .background(
-                                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                                        .fill(SBSColors.surfaceFallback)
+                        // Quick weight buttons
+                        if let lastWeight = currentLog?.weight, lastWeight > 0 {
+                            HStack(spacing: SBSLayout.paddingSmall) {
+                                QuickWeightButton(
+                                    label: "-\(roundingIncrement.formattedWeightShort(useMetric: useMetric))",
+                                    weight: max(0, lastWeight - roundingIncrement),
+                                    useMetric: useMetric,
+                                    onTap: { weightText = (max(0, lastWeight - roundingIncrement)).weightInputText(useMetric: useMetric) }
+                                )
+                                QuickWeightButton(
+                                    label: "Same",
+                                    weight: lastWeight,
+                                    useMetric: useMetric,
+                                    onTap: { weightText = (lastWeight).weightInputText(useMetric: useMetric) }
+                                )
+                                QuickWeightButton(
+                                    label: "+\(roundingIncrement.formattedWeightShort(useMetric: useMetric))",
+                                    weight: lastWeight + roundingIncrement,
+                                    useMetric: useMetric,
+                                    onTap: { weightText = (lastWeight + roundingIncrement).weightInputText(useMetric: useMetric) }
                                 )
                             }
-                            
-                            VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
-                                Text("Reps")
-                                    .font(SBSFonts.caption())
-                                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                                
-                                Picker("Reps", selection: $reps) {
-                                    ForEach(1...30, id: \.self) { num in
-                                        Text("\(num)").tag(num)
-                                    }
-                                }
-                                .pickerStyle(.wheel)
-                                .frame(height: 100)
-                                .background(
-                                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                                        .fill(SBSColors.surfaceFallback)
-                                )
-                            }
+                            .padding(.horizontal)
                         }
+
+                        // Sets and reps
+                        VStack(spacing: SBSLayout.paddingSmall) {
+                            Stepper("Sets: \(sets)", value: $sets, in: 1...10)
+                            Stepper("Reps: \(reps)", value: $reps, in: 1...30)
+                        }
+                        .font(SBSFonts.bodyBold())
+                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .padding(SBSLayout.paddingMedium)
+                        .background(
+                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                                .fill(SBSColors.surfaceFallback)
+                        )
                         .padding(.horizontal)
-                        
+
                         // Easy toggle - hint shown next time
                         Toggle(isOn: $wasEasy) {
                             HStack(spacing: SBSLayout.paddingSmall) {
@@ -1131,31 +1056,21 @@ struct AccessoryLogSheet: View {
                             }
                         }
                         .padding(.horizontal)
-                        
-                        Spacer(minLength: 20)
-                        
-                        // Save button
-                        Button(action: {
-                            if let w = weight {
-                                onSave(w, sets, reps, note, wasEasy ? true : nil)
-                            }
-                        }) {
-                            Text("Save")
-                                .font(SBSFonts.button())
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, SBSLayout.paddingMedium + 4)
-                                .background(
-                                    RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusLarge)
-                                        .fill(canSave ? SBSColors.accentFallback : SBSColors.surfaceFallback)
-                                )
-                        }
-                        .disabled(!canSave)
-                        .padding(.horizontal)
                     }
                     .padding(.top, SBSLayout.paddingLarge)
                 }
                 .scrollDismissesKeyboard(.interactively)
+
+                WeightPad(
+                    text: $weightText,
+                    useMetric: useMetric,
+                    canConfirm: canSave,
+                    onConfirm: {
+                        if let w = weight {
+                            onSave(w, sets, reps, note, wasEasy ? true : nil)
+                        }
+                    }
+                )
             }
             .sbsBackground()
             .navigationBarTitleDisplayMode(.inline)
@@ -1190,6 +1105,94 @@ struct AccessoryLogSheet: View {
             } else {
                 sets = defaultSets
                 reps = defaultReps
+            }
+        }
+    }
+}
+
+// MARK: - Accessory Weight Sheet
+
+/// Sets an accessory's weight for the workout in progress
+struct AccessoryWeightSheet: View {
+    let accessoryName: String
+    let currentWeight: Double?
+    let useMetric: Bool
+    let roundingIncrement: Double
+    let onSave: (Double) -> Void
+    let onCancel: () -> Void
+
+    @State private var weightText: String = ""
+
+    private var weight: Double? {
+        parseDecimalInput(weightText)?.poundsFromInput(useMetric: useMetric)
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: SBSLayout.paddingLarge) {
+                VStack(spacing: 4) {
+                    Text(accessoryName)
+                        .font(SBSFonts.title())
+                        .foregroundStyle(SBSColors.textPrimaryFallback)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.75)
+                        .multilineTextAlignment(.center)
+
+                    Text("Set your weight for this accessory")
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(SBSColors.textSecondaryFallback)
+                }
+                .padding(.top)
+
+                if let lastWeight = currentWeight, lastWeight > 0 {
+                    HStack(spacing: SBSLayout.paddingSmall) {
+                        QuickWeightButton(
+                            label: "-\(roundingIncrement.formattedWeightShort(useMetric: useMetric))",
+                            weight: max(0, lastWeight - roundingIncrement),
+                            useMetric: useMetric,
+                            onTap: { weightText = (max(0, lastWeight - roundingIncrement)).weightInputText(useMetric: useMetric) }
+                        )
+                        QuickWeightButton(
+                            label: "Same",
+                            weight: lastWeight,
+                            useMetric: useMetric,
+                            onTap: { weightText = (lastWeight).weightInputText(useMetric: useMetric) }
+                        )
+                        QuickWeightButton(
+                            label: "+\(roundingIncrement.formattedWeightShort(useMetric: useMetric))",
+                            weight: lastWeight + roundingIncrement,
+                            useMetric: useMetric,
+                            onTap: { weightText = (lastWeight + roundingIncrement).weightInputText(useMetric: useMetric) }
+                        )
+                    }
+                    .padding(.horizontal)
+                }
+
+                Spacer(minLength: 0)
+
+                WeightPad(
+                    text: $weightText,
+                    useMetric: useMetric,
+                    // 0 is a real weight for an accessory: a bodyweight one has no load to enter
+                    canConfirm: (weight ?? -1) >= 0,
+                    onConfirm: {
+                        if let weight { onSave(weight) }
+                    }
+                )
+            }
+            .sbsBackground()
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Cancel") {
+                        onCancel()
+                    }
+                }
+            }
+        }
+        .onAppear {
+            if let currentWeight, currentWeight > 0 {
+                weightText = currentWeight.weightInputText(useMetric: useMetric)
             }
         }
     }
@@ -1334,33 +1337,6 @@ struct WeightOverrideSheet: View {
 
                 // Weight input
                 VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
-                    Text("Your Weight")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
-
-                    HStack {
-                        TextField("0", text: $weightText)
-                            .keyboardType(.decimalPad)
-                            .font(.system(size: 32, weight: .bold, design: .rounded))
-                            .foregroundStyle(SBSColors.textPrimaryFallback)
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                                    .fill(SBSColors.surfaceFallback)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                                            .strokeBorder(SBSColors.accentFallback, lineWidth: 2)
-                                    )
-                            )
-
-                        Text(useMetric ? "kg" : "lb")
-                            .font(SBSFonts.title2())
-                            .foregroundStyle(SBSColors.textSecondaryFallback)
-                            .frame(width: 50)
-                    }
-
                     // Quick adjust buttons
                     HStack(spacing: SBSLayout.paddingSmall) {
                         QuickAdjustButton(
@@ -1400,30 +1376,20 @@ struct WeightOverrideSheet: View {
                 .foregroundStyle(SBSColors.textTertiaryFallback)
                 .padding(.top, SBSLayout.paddingMedium)
 
-                Spacer()
+                Spacer(minLength: 0)
 
-                // Save button pinned to bottom
-                Button(action: {
-                    if let w = weight {
-                        onSave(w)
+                WeightPad(
+                    text: $weightText,
+                    useMetric: useMetric,
+                    canConfirm: canSave,
+                    onConfirm: {
+                        if let w = weight {
+                            onSave(w)
+                        }
                     }
-                }) {
-                    Text("Save Override")
-                        .font(SBSFonts.button())
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, SBSLayout.paddingMedium + 4)
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusLarge)
-                                .fill(canSave ? SBSColors.accentFallback : SBSColors.surfaceFallback)
-                        )
-                }
-                .disabled(!canSave)
-                .padding(.horizontal)
-                .padding(.bottom, SBSLayout.paddingLarge)
+                )
             }
             .sbsBackground()
-            .scrollDismissesKeyboard(.interactively)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -1472,96 +1438,6 @@ struct QuickAdjustButton: View {
                 )
         }
         .buttonStyle(.plain)
-    }
-}
-
-// MARK: - nSuns Rep Log Sheet
-
-struct StructuredRepLogSheet: View {
-    let liftName: String
-    let setIndex: Int
-    let target: Int
-    let currentReps: Int?
-    let structuredContext: StructuredProgressionContext?  // Pass context for weight-based display
-    var prRepsNeeded: Int? = nil
-    let onSave: (Int) -> Void
-    let onClear: () -> Void
-    let onCancel: () -> Void
-    
-    @State private var reps: Int?
-    
-    private var setLabel: String {
-        if target == 1 {
-            return "1+ Set (Heavy Single)"
-        } else {
-            return "\(target)+ Set"
-        }
-    }
-    
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // Header
-                VStack(spacing: 4) {
-                    Text(liftName)
-                        .font(SBSFonts.title())
-                        .foregroundStyle(SBSColors.textPrimaryFallback)
-                    
-                    HStack(spacing: SBSLayout.paddingSmall) {
-                        Text(setLabel)
-                            .font(SBSFonts.caption())
-                            .foregroundStyle(SBSColors.warning)
-                    }
-                    .padding(.horizontal, SBSLayout.paddingMedium)
-                    .padding(.vertical, SBSLayout.paddingSmall)
-                    .background(
-                        Capsule()
-                            .fill(SBSColors.warning.opacity(0.15))
-                    )
-                    
-                    Text("How many reps did you get?")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(SBSColors.textSecondaryFallback)
-                        .padding(.top, SBSLayout.paddingSmall)
-                }
-                .padding(.top)
-                
-                // Number pad (structured context for weight-based display)
-                NumberPad(
-                    value: $reps,
-                    target: target,
-                    structuredContext: structuredContext,
-                    prRepsNeeded: prRepsNeeded,
-                    onConfirm: {
-                        if let r = reps {
-                            onSave(r)
-                        }
-                    },
-                    onCancel: onCancel
-                )
-            }
-            .sbsBackground()
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    if currentReps != nil {
-                        Button("Clear", role: .destructive) {
-                            onClear()
-                        }
-                        .foregroundStyle(SBSColors.error)
-                    }
-                }
-                
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Cancel") {
-                        onCancel()
-                    }
-                }
-            }
-        }
-        .onAppear {
-            reps = currentReps
-        }
     }
 }
 
@@ -1829,24 +1705,41 @@ struct AccessoryEditorSheet: View {
                     .listStyle(.insetGrouped)
                 }
                 
-                // Add button
-                Button {
-                    showingAddAccessory = true
-                } label: {
-                    HStack(spacing: SBSLayout.paddingSmall) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 20))
-                        
-                        Text("Add Accessory")
-                            .font(SBSFonts.button())
+                VStack(spacing: SBSLayout.paddingSmall) {
+                    Button {
+                        showingAddAccessory = true
+                    } label: {
+                        HStack(spacing: SBSLayout.paddingSmall) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 20))
+
+                            Text("Add Accessory")
+                                .font(SBSFonts.button())
+                        }
+                        .foregroundStyle(SBSColors.accentSecondaryFallback)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, SBSLayout.paddingMedium)
+                        .background(
+                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                                .strokeBorder(SBSColors.accentSecondaryFallback, lineWidth: 1.5)
+                        )
                     }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, SBSLayout.paddingMedium)
-                    .background(
-                        RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                            .fill(SBSColors.accentSecondaryFallback)
-                    )
+
+                    Button {
+                        saveChanges()
+                        onDismiss()
+                    } label: {
+                        Text("Save")
+                            .font(SBSFonts.button())
+                            .foregroundStyle(hasChanges ? .white : SBSColors.textTertiaryFallback)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, SBSLayout.paddingMedium)
+                            .background(
+                                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
+                                    .fill(hasChanges ? SBSColors.accentFallback : SBSColors.surfaceFallback)
+                            )
+                    }
+                    .disabled(!hasChanges)
                 }
                 .padding()
             }
@@ -1855,26 +1748,15 @@ struct AccessoryEditorSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") {
-                        onDismiss()
-                    }
-                    .foregroundStyle(SBSColors.textSecondaryFallback)
-                }
-                
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") {
-                        saveChanges()
-                        onDismiss()
-                    }
-                    .font(.body.bold())
-                    .foregroundStyle(hasChanges ? SBSColors.accentFallback : SBSColors.textTertiaryFallback)
-                    .disabled(!hasChanges)
-                }
-                
-                if !accessories.isEmpty {
-                    ToolbarItem(placement: .topBarTrailing) {
+                    if !accessories.isEmpty {
                         EditButton()
                             .foregroundStyle(SBSColors.accentFallback)
+                    }
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Cancel") {
+                        onDismiss()
                     }
                 }
             }
@@ -1969,12 +1851,14 @@ struct AccessoryEditRow: View {
                 .font(SBSFonts.bodyBold())
                 .foregroundStyle(SBSColors.textPrimaryFallback)
             
-            HStack(spacing: SBSLayout.paddingLarge) {
+            // Stacked: side by side the two steppers squeeze their labels to one letter a line
+            VStack(alignment: .leading, spacing: SBSLayout.paddingSmall) {
                 // Sets stepper
                 HStack(spacing: SBSLayout.paddingSmall) {
                     Text("Sets:")
                         .font(SBSFonts.caption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .frame(width: 40, alignment: .leading)
                     
                     Stepper("\(accessory.sets)", value: Binding(
                         get: { accessory.sets },
@@ -1993,6 +1877,7 @@ struct AccessoryEditRow: View {
                     Text("Reps:")
                         .font(SBSFonts.caption())
                         .foregroundStyle(SBSColors.textSecondaryFallback)
+                        .frame(width: 40, alignment: .leading)
                     
                     Stepper("\(accessory.reps)", value: Binding(
                         get: { accessory.reps },

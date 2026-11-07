@@ -417,8 +417,9 @@ enum HistorySessionBuilder {
         return result.sorted { $0.date > $1.date }
     }
 
-    /// Each edit of an accessory's weight appends a record, so several in one session are
-    /// usually one piece of work. Keep the last, in the order first logged.
+    /// Older builds appended a record for each weight edit, and a log sheet save can sit
+    /// beside a finished session, so several in one session are usually one piece of work.
+    /// Keep the last, in the order first logged.
     private static func latestPerName(_ accessories: [AccessoryRecord]) -> [HistorySessionAccessory] {
         var order: [String] = []
         var latest: [String: AccessoryRecord] = [:]

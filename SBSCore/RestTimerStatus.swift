@@ -24,7 +24,7 @@ public final class RestTimerStatus {
     /// Remaining seconds captured at pause time.
     public private(set) var pausedRemaining: Int?
 
-    /// True while WorkoutView or AccessoryWorkoutView is on screen, and false while
+    /// True while WorkoutView is on screen, and false while
     /// minimized or restored. Foreground notifications are suppressed when set.
     public var isWorkoutScreenVisible = false
 

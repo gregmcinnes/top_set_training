@@ -176,21 +176,6 @@ final class WorkoutSessionUITests: XCTestCase {
         exitWorkout()
     }
 
-    func testAccessoryWorkoutCannotBePoppedByTheTabBar() {
-        goHome()
-        openDay(1)
-        let start = button("Start Timer")
-        for _ in 0..<4 where !start.isHittable { app.swipeUp() }
-        start.tap()
-
-        let close = button("Close")
-        XCTAssertTrue(close.waitForExistence(timeout: 5))
-        XCTAssertFalse(app.tabBars.firstMatch.isHittable, "The tab bar must be out of reach here too")
-        shot("accessory-open")
-        close.tap()
-        XCTAssertTrue(button("Start Timer").waitForExistence(timeout: 5))
-    }
-
     // MARK: - Minimizing
 
     func testMinimizeBrowseAndResumeKeepsSetAndTimer() {

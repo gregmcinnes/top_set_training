@@ -170,7 +170,6 @@ public final class AppState {
     /// Discover all available program JSON files in the bundle
     /// Set while the accessory workout screen is open, to clean up if it closes from
     /// outside. Not persisted or observed: it only bridges to that live view.
-    @ObservationIgnored var activeWorkoutTeardown: (() -> Void)?
 
     // MARK: - Active Workout
 
@@ -284,14 +283,14 @@ public final class AppState {
 
     /// Start a workout, assuming the caller has settled any session already active
     @MainActor
-    func startWorkout(week: Int, day: Int) {
+    func startWorkout(week: Int, day: Int, accessoriesOnly: Bool = false) {
         if let activeSession, activeSession.week == week, activeSession.day == day {
             presentedSession = activeSession
             return
         }
         activeSession?.exitWorkoutWithoutSaving()
 
-        let session = ActiveWorkoutSession(appState: self, week: week, day: day)
+        let session = ActiveWorkoutSession(appState: self, week: week, day: day, accessoriesOnly: accessoriesOnly)
         guard !session.workoutState.exercises.isEmpty else {
             session.markEnded()
             Logger.error("Week \(week), day \(day) has no exercises to start", category: .general)
@@ -383,8 +382,6 @@ public final class AppState {
     /// A cycle or program change makes the session meaningless: end it with no save
     @MainActor
     func endWorkoutForCycleChange() {
-        activeWorkoutTeardown?()
-        activeWorkoutTeardown = nil
         activeSession?.exitWorkoutWithoutSaving()
     }
 
@@ -543,6 +540,7 @@ public final class AppState {
             userData.logs = [:]
             userData.structuredLogs = [:]
             userData.linearLogs = [:]
+            userData.accessoryDaysDone = [:]
             // Capture date before removeAll to avoid exclusivity violation
             let cycleStartDate = userData.currentCycleStartDate
             userData.workoutRecords.removeAll { $0.date >= cycleStartDate }
@@ -1254,7 +1252,22 @@ public final class AppState {
     }
     
     // MARK: - Accessory Logging
-    
+
+    /// Log what a finished session's accessories did, dated when the work ended. An
+    /// accessory-only day has no lift log to say it's finished, so it's noted here.
+    func logPerformedAccessories(_ performed: [PerformedAccessory], date: Date, week: Int, day: Int) {
+        for accessory in performed {
+            userData.recordPerformedAccessory(
+                accessory,
+                bodyPart: ExerciseLibrary.shared.bodyPart(for: accessory.name),
+                date: date
+            )
+        }
+        if !performed.isEmpty, !dayCanBeLogged(day: day) {
+            userData.accessoryDaysDone[week, default: []].insert(day)
+        }
+    }
+
     func logAccessory(name: String, weight: Double, sets: Int, reps: Int, note: String = "", wasEasy: Bool? = nil) {
         userData.accessoryLogs[name] = AccessoryLog(weight: weight, sets: sets, reps: reps, note: note, wasEasy: wasEasy)
 
@@ -1877,6 +1890,16 @@ public final class AppState {
         }
     }
     
+    /// What a day shows the lifter. Same as `dayLogStatus`, except an accessory-only day
+    /// reads Done once finished. Next-workout, cycle completion and progress keep using
+    /// `dayLogStatus` and `dayCanBeLogged`, so skipping such a day can't hold up a cycle.
+    func dayDisplayStatus(week: Int, day: Int) -> DayLogStatus {
+        if !dayCanBeLogged(day: day), userData.accessoryDaysDone[week]?.contains(day) == true {
+            return .complete
+        }
+        return dayLogStatus(week: week, day: day)
+    }
+
     /// Returns the fraction of workouts completed for a given week (0.0 to 1.0)
     /// Based on how many days have all their volume lifts logged
     func weekCompletionFraction(for week: Int) -> Double {
@@ -2232,6 +2255,7 @@ public final class AppState {
         userData.logs = [:]
         userData.structuredLogs = [:]
         userData.linearLogs = [:]
+        userData.accessoryDaysDone = [:]
         userData.accessoryLogs = [:]
         userData.currentCycleStartDate = Date()
         settings.currentWeek = 1
@@ -2594,6 +2618,7 @@ public final class AppState {
         userData.logs = [:]
         userData.structuredLogs = [:]
         userData.linearLogs = [:]
+        userData.accessoryDaysDone = [:]
         // Clear workout records from this cycle (they're archived in cycleHistory now)
         // Capture date before removeAll to avoid exclusivity violation
         let cycleStartDate = userData.currentCycleStartDate
@@ -2892,6 +2917,7 @@ userData.customInitialMaxes[lift] = starter
         userData.logs = [:]
         userData.structuredLogs = [:]
         userData.linearLogs = [:]
+        userData.accessoryDaysDone = [:]
 
         // Existing customDays stay: the builder's review step showed them, and only
         // days the user edited there arrive in exerciseCustomizations (applied below).

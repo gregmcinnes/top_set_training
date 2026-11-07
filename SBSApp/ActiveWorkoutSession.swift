@@ -56,7 +56,7 @@ final class ActiveWorkoutSession: Identifiable {
     // MARK: - Lifecycle
 
     /// Start a new session on a day of the current program
-    init(appState: AppState, week: Int, day: Int) {
+    init(appState: AppState, week: Int, day: Int, accessoriesOnly: Bool = false) {
         let now = Date()
         self.id = UUID()
         self.appState = appState
@@ -68,7 +68,7 @@ final class ActiveWorkoutSession: Identifiable {
         self.lastUpdatedAt = now
         self.workoutState = WorkoutState()
         self.wasRestoredAfterKill = false
-        setupWorkout()
+        setupWorkout(accessoriesOnly: accessoriesOnly)
         observeChangesToSave()
     }
 
@@ -217,10 +217,14 @@ final class ActiveWorkoutSession: Identifiable {
     }
 
     /// Build the exercise list from the day's plan. Its weights are the session's
-    /// snapshot from here on.
-    private func setupWorkout() {
-        guard let plan = appState.dayPlan(week: week, day: day) else { return }
-        
+    /// snapshot from here on. Accessories-only leaves out the main lifts, so there's
+    /// nothing to pair with and every accessory is its own exercise.
+    private func setupWorkout(accessoriesOnly: Bool) {
+        guard var plan = appState.dayPlan(week: week, day: day) else { return }
+        if accessoriesOnly {
+            plan = plan.filter { if case .accessory = $0 { return true } else { return false } }
+        }
+
         var exercises: [WorkoutExercise] = []
         var accessories: [SupersetAccessoryData] = []
         var accessoryExercises: [WorkoutExercise] = []
@@ -310,7 +314,9 @@ final class ActiveWorkoutSession: Identifiable {
         guard storeManager.canAccess(.appleFitness) else { return }
         guard appState.settings.healthKitEnabled else { return }
         
-        let workoutName = "Week \(week), Day \(day) - \(appState.dayTitle(day: day))"
+        let workoutName = workoutState.exercises.allSatisfy(\.isAccessory)
+            ? "Accessory Workout - Day \(day)"
+            : "Week \(week), Day \(day) - \(appState.dayTitle(day: day))"
         Task {
             do {
                 try await HealthKitManager.shared.startWorkout(name: workoutName, startDate: startDate)
@@ -630,13 +636,16 @@ final class ActiveWorkoutSession: Identifiable {
     }
 
     func finishAndDismiss() {
+        guard !isEnded else { return }  // A second tap on Done must not log twice
         stopTimer()
         RestTimerStatus.shared.timerCleared()
         NotificationManager.shared.cancelRestTimerNotification()
 
-        // The easy nudge has now been seen for any accessory trained this
-        // session — clear stale flags so it only shows once.
-        consumeAccessoryEasyFlags()
+        // Accessories log here, not set by set, so undo has nothing to take back and only
+        // work that was done gets recorded. Dated at the last activity, so a summary left
+        // open overnight still lands on the day of the workout. Each log also replaces
+        // the easy flag, which is how the "last time was easy" nudge shows only once.
+        appState.logPerformedAccessories(workoutState.performedAccessories, date: lastUpdatedAt, week: week, day: day)
 
         // Capture whether the Watch owns the HealthKit workout BEFORE
         // syncWorkoutEndedToWatch() clears the flag (sendWorkoutEnded resets it).
@@ -1196,89 +1205,21 @@ final class ActiveWorkoutSession: Identifiable {
         }
     }
     
-    /// Update accessory weight from the sheet
-    func updateAccessoryWeight(weight: Double, sets: Int, reps: Int) {
-        guard let accessory = workoutState.currentSupersetAccessory else { return }
-
-        // Update the accessory in the workout state (for current session display)
-        let updatedAccessory = SupersetAccessoryData(
-            name: accessory.name,
-            sets: sets,
-            reps: reps,
-            weight: weight
-        )
-        workoutState.supersetAccessories[workoutState.currentExerciseIndex] = updatedAccessory
-
-        // Persist to appState so it shows in future workouts
-        appState.logAccessory(name: accessory.name, weight: weight, sets: sets, reps: reps)
-    }
-
-    /// Toggle the "that was easy" flag on the current standalone accessory and
-    /// persist it to the accessory log so the nudge shows up next session.
+    /// Mark the current standalone accessory as easy. It's logged at finish, for the
+    /// "try heavier" nudge next time.
     func toggleCurrentAccessoryEasy() {
         let idx = workoutState.currentExerciseIndex
-        guard idx < workoutState.exercises.count else { return }
-        var exercise = workoutState.exercises[idx]
-        guard exercise.isAccessory else { return }
-        exercise.markedEasy.toggle()
-        workoutState.exercises[idx] = exercise
-
-        if appState.getAccessoryLog(name: exercise.name) != nil {
-            // Flip just the flag — logAccessory would clobber the note and
-            // append a spurious accessoryHistory record on every toggle.
-            appState.setAccessoryWasEasy(name: exercise.name, wasEasy: exercise.markedEasy ? true : nil)
-        } else {
-            appState.logAccessory(
-                name: exercise.name,
-                weight: exercise.weight,
-                sets: exercise.totalSets,
-                reps: exercise.repsPerSet,
-                wasEasy: exercise.markedEasy ? true : nil
-            )
-        }
+        guard idx < workoutState.exercises.count, workoutState.exercises[idx].isAccessory else { return }
+        workoutState.exercises[idx].markedEasy.toggle()
     }
 
-    /// The "last time was easy" nudge is one-shot: once the user has trained
-    /// the accessory again, clear the stored flag unless they re-marked it
-    /// easy this session. Called when the workout is finished.
-    func consumeAccessoryEasyFlags() {
-        for exercise in workoutState.exercises where exercise.isAccessory {
-            let performed = !(workoutState.completedSets[exercise.id]?.isEmpty ?? true)
-            if performed && !exercise.markedEasy {
-                appState.setAccessoryWasEasy(name: exercise.name, wasEasy: nil)
-            }
-        }
-        // Superset accessories ride along with their paired main lift and have
-        // no re-mark control, so performing the pair consumes the flag.
-        for (index, accessory) in workoutState.supersetAccessories {
-            guard index < workoutState.exercises.count else { continue }
-            let mainLift = workoutState.exercises[index]
-            if !(workoutState.completedSets[mainLift.id]?.isEmpty ?? true) {
-                appState.setAccessoryWasEasy(name: accessory.name, wasEasy: nil)
-            }
-        }
-    }
-
-    /// Update the weight of the current standalone accessory exercise (not a superset).
-    func updateStandaloneAccessoryWeight(weight: Double, sets: Int, reps: Int) {
+    /// Change the current standalone accessory's weight for this session. It's logged at finish.
+    func updateStandaloneAccessoryWeight(_ weight: Double) {
         let idx = workoutState.currentExerciseIndex
-        guard idx < workoutState.exercises.count else { return }
-        var exercise = workoutState.exercises[idx]
-        guard exercise.isAccessory else { return }
-        exercise.weight = weight
-        workoutState.exercises[idx] = exercise
-
-        // Persist as the new last-log so it pre-fills next time. Keep the easy
-        // flag if the user marked this session easy before adjusting weight.
-        appState.logAccessory(
-            name: exercise.name,
-            weight: weight,
-            sets: sets,
-            reps: reps,
-            wasEasy: exercise.markedEasy ? true : nil
-        )
+        guard idx < workoutState.exercises.count, workoutState.exercises[idx].isAccessory else { return }
+        workoutState.exercises[idx].weight = weight
     }
-    
+
     /// Build a human-readable prescribed-reps line for the weight override sheet
     /// (e.g. "5 × 5+", "3 × 5", "3+ AMRAP at 95% TM").
     func prescribedRepsDescription(for exercise: WorkoutExercise) -> String? {
@@ -1453,6 +1394,18 @@ final class ActiveWorkoutSession: Identifiable {
             duration: workoutDuration,
             prs: prs
         )
+    }
+
+    /// What's already logged for the AMRAP set being entered. Only a redo has anything,
+    /// and the sheet starts from it.
+    var pendingAMRAPLog: (reps: Int?, note: String?) {
+        guard let lift = workoutState.currentExercise?.lift else { return (nil, nil) }
+        if let setIndex = pendingStructuredSetIndex {
+            let log = appState.getStructuredLog(lift: lift, week: week, day: day)
+            return (log?.amrapReps[setIndex], log?.note)
+        }
+        let log = appState.getLog(lift: lift, week: week, day: day)
+        return (log?.repsLastSet, log?.note)
     }
 
     /// Get the target reps for the current AMRAP set (for the input sheet)

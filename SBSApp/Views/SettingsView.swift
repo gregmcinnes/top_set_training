@@ -273,7 +273,7 @@ struct SettingsView: View {
                         Text("Bodyweight")
                         Spacer()
                         TextField(
-                            appState.settings.useMetric ? "kg" : "lb",
+                            "Not set",
                             value: Binding(
                                 get: { 
                                     if let bw = appState.settings.bodyweight {

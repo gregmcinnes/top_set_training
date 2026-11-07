@@ -474,7 +474,7 @@ struct SettingsView: View {
                         }
                     ))
                     
-                    Toggle("PR Celebrations", isOn: $appState.settings.showPRCelebrations)
+                    Toggle("Celebrate PRs with confetti", isOn: $appState.settings.prConfetti)
                     
                     // Superset Accessories - Premium feature
                     if storeManager.canAccess(.supersets) {

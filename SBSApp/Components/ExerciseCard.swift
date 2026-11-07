@@ -62,18 +62,26 @@ struct LiveSetCard: View {
         .padding(SBSLayout.space4)
         .frame(maxWidth: .infinity, alignment: .leading)
         .overlay {
-            // The PR flash: orange across the whole card for 600ms, then it settles
-            Color.orangeFill
-                .opacity(flashOpacity)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
+            // The PR flash: orange across the whole card, the word on it, then it settles
+            ZStack {
+                Color.orangeFill
+                Text("PR")
+                    .font(SBSFonts.titleLarge())
+                    .foregroundStyle(Color.orangeInk)
+            }
+            .opacity(flashOpacity)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
         }
         .signatureCard()
         .task(id: flashToken) {
             guard flashToken != nil else { return }
-            flashOpacity = 1
-            withAnimation(.easeOut(duration: 0.6)) { flashOpacity = 0 }
-            try? await Task.sleep(for: .milliseconds(600))
+            // 600ms in all. Up and down in two steps: setting 1 then animating to 0 in
+            // the same update would never draw the orange.
+            withAnimation(.easeOut(duration: 0.1)) { flashOpacity = 1 }
+            try? await Task.sleep(for: .milliseconds(100))
+            withAnimation(.easeOut(duration: 0.5)) { flashOpacity = 0 }
+            try? await Task.sleep(for: .milliseconds(500))
             onFlashDone?()
         }
     }

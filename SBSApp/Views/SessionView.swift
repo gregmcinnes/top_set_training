@@ -189,7 +189,7 @@ struct SessionView: View {
                             // (queued; presented later, never on the celebration).
                             ReviewRequestManager.shared.recordPRAchieved()
                             // Show PR celebration if enabled in settings
-                            if appState.settings.showPRCelebrations {
+                            if appState.settings.prConfetti {
                                 // Small delay before showing celebration
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                     celebratingPR = prResult
@@ -301,7 +301,7 @@ struct SessionView: View {
                             // (queued; presented later, never on the celebration).
                             ReviewRequestManager.shared.recordPRAchieved()
                             // Show PR celebration if enabled in settings
-                            if appState.settings.showPRCelebrations {
+                            if appState.settings.prConfetti {
                                 // Small delay before showing celebration
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                     celebratingPR = prResult
@@ -347,7 +347,7 @@ struct SessionView: View {
                             // (queued; presented later, never on the celebration).
                             ReviewRequestManager.shared.recordPRAchieved()
                             // Show PR celebration if enabled in settings
-                            if appState.settings.showPRCelebrations {
+                            if appState.settings.prConfetti {
                                 // Small delay before showing celebration
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                     celebratingPR = prResult

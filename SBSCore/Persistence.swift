@@ -138,7 +138,11 @@ public struct UserSettings: Codable, Equatable {
     public var appearanceMode: AppearanceMode  // light/dark/system appearance setting
     public var bodyweight: Double?  // user's bodyweight in lbs (nil if not set)
     public var isMale: Bool  // for strength standards calculations
-    public var showPRCelebrations: Bool  // show PR celebration animation when new PR is achieved
+    /// Retired: the PR flash on the live set card always runs, and confetti has its own
+    /// setting below. Kept so saved settings round-trip.
+    public var showPRCelebrations: Bool
+    /// Optional so settings saved before this existed still decode; nil means off
+    public var celebratePRsWithConfetti: Bool?
     public var healthKitEnabled: Bool  // sync workouts to Apple Fitness
     public var pushNotificationsEnabled: Bool  // send push notification when rest timer ends (background only)
     
@@ -179,6 +183,13 @@ public struct UserSettings: Codable, Equatable {
     }
     
     public static let defaultAccessoryRestSeconds = 90
+
+    /// "Celebrate PRs with confetti": the full-screen PR cover on top of the flash. Off
+    /// unless the lifter turns it on.
+    public var prConfetti: Bool {
+        get { celebratePRsWithConfetti ?? false }
+        set { celebratePRsWithConfetti = newValue }
+    }
 
     /// Rest between accessory sets
     public var accessoryRestSeconds: Int {

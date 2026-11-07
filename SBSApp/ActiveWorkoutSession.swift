@@ -25,7 +25,9 @@ final class ActiveWorkoutSession: Identifiable {
     var pendingRepEntry: (exerciseIndex: Int, setNumber: Int)?  // Identity of the set the rep-input sheet was opened for
     var showingRepInput = false
     var showingOpenExercisesPrompt = false  // Finished the end of the list with earlier lifts open
-    var celebratingPR: AppState.LogRepsResult?  // Drives the PR cover; set after a short delay
+    var celebratingPR: AppState.LogRepsResult?  // Drives the confetti PR cover; set after a short delay
+    /// The latest PR, flashed on the live set card. Set with every PR, confetti or not.
+    var prFlash: AppState.LogRepsResult?
     /// A rest ended while minimized and the workout hasn't reopened yet
     private(set) var restDoneWhileMinimized = false
     /// True when this session came back from a saved copy after an app kill
@@ -429,7 +431,7 @@ final class ActiveWorkoutSession: Identifiable {
 
         completeSetAndStartTimer()
 
-        if let celebration, celebration.isNewPR, appState.settings.showPRCelebrations {
+        if let celebration, celebration.isNewPR {
             presentPRCelebration(celebration)
         }
         
@@ -484,14 +486,18 @@ final class ActiveWorkoutSession: Identifiable {
         ReviewRequestManager.shared.recordPRAchieved()
     }
 
-    /// Show the PR celebration after the sheet underneath has had time to dismiss. A PR
-    /// on the last set is celebrated by the summary it lands on, so it appears only once.
+    /// Celebrate a PR after the sheet underneath has had time to dismiss: the flash on
+    /// the live set card always, the confetti cover when that setting is on. A PR on the
+    /// last set is celebrated by the summary it lands on, so it appears only once.
     func presentPRCelebration(_ result: AppState.LogRepsResult) {
         guard !workoutState.isFinished else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
             guard let self else { return }
             if self.isOnScreen {
-                self.celebratingPR = result
+                self.prFlash = result
+                if self.appState.settings.prConfetti {
+                    self.celebratingPR = result
+                }
             } else {
                 // A Watch set while minimized: celebrate when the workout reopens.
                 self.queuedCelebration = result
@@ -525,7 +531,7 @@ final class ActiveWorkoutSession: Identifiable {
         ) else { return }
 
         recordPRIfNew(result)
-        if result.isNewPR && appState.settings.showPRCelebrations {
+        if result.isNewPR {
             presentPRCelebration(result)
         }
     }
@@ -900,6 +906,7 @@ final class ActiveWorkoutSession: Identifiable {
         Haptics.light()
         cancelRestSurfacesIfResting()
         celebratingPR = nil
+        prFlash = nil
         queuedCelebration = nil
         showingOpenExercisesPrompt = false
 

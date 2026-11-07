@@ -17,8 +17,6 @@ struct PRCelebrationView: View {
 
     @State private var showContent = false
     @State private var showConfetti = false
-    @State private var trophyScale: CGFloat = 0.3
-    @State private var trophyRotation: Double = -30
     @State private var showingShareSheet = false
 
     /// A single-PR workout summary for the share card (reuses WorkoutShareCard's
@@ -68,180 +66,100 @@ struct PRCelebrationView: View {
     var body: some View {
         ZStack {
             // Solid, so nothing behind it can collide with this text
-            Color.black
+            Color.bg
                 .ignoresSafeArea()
                 .onTapGesture {
                     dismissWithAnimation()
                 }
             
-            // Confetti particles
             if showConfetti {
                 ConfettiView()
                     .ignoresSafeArea()
+                    .allowsHitTesting(false)
             }
             
-            // Main content card
-            VStack(spacing: SBSLayout.paddingLarge) {
-                // Trophy icon with animation
-                ZStack {
-                    // Glow effect
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [Color.yellow.opacity(0.4), Color.clear],
-                                center: .center,
-                                startRadius: 20,
-                                endRadius: 100
-                            )
-                        )
-                        .frame(width: 200, height: 200)
-                        .scaleEffect(showConfetti ? 1.2 : 0.8)
-                        .animation(.easeInOut(duration: 1).repeatForever(autoreverses: true), value: showConfetti)
-                    
-                    // Trophy
-                    Image(systemName: "trophy.fill")
-                        .font(.system(size: 80))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [Color.yellow, Color.orange],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .shadow(color: .orange.opacity(0.5), radius: 10, x: 0, y: 5)
-                        .scaleEffect(trophyScale)
-                        .rotationEffect(.degrees(trophyRotation))
-                }
-                
-                // Title
-                VStack(spacing: SBSLayout.paddingSmall) {
-                    Text("NEW PR!")
-                        .font(.system(size: 28, weight: .black, design: .rounded))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [Color.yellow, Color.orange],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                    
+            VStack(alignment: .leading, spacing: SBSLayout.space6) {
+                // The word does the celebrating: PR on an orange block
+                VStack(alignment: .leading, spacing: SBSLayout.space3) {
+                    Text("PR")
+                        .font(SBSFonts.titleLarge())
+                        .foregroundStyle(Color.orangeInk)
+                        .padding(.horizontal, SBSLayout.space4)
+                        .padding(.vertical, SBSLayout.space2)
+                        .background(Color.orangeFill)
+                        .accessibilityLabel("New PR")
+
                     Text(liftName)
-                        .font(SBSFonts.legacyTitle())
-                        .foregroundStyle(.white)
+                        .titleLargeText()
+                        .foregroundStyle(Color.ink)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.6)
                 }
                 .opacity(showContent ? 1 : 0)
-                .offset(y: showContent ? 0 : 20)
+                .offset(y: showContent ? 0 : 12)
                 
-                // Stats
-                VStack(spacing: SBSLayout.paddingMedium) {
+                VStack(alignment: .leading, spacing: SBSLayout.space4) {
                     // The set that was performed
-                    HStack(spacing: SBSLayout.paddingSmall) {
-                        Text(weight.formattedWeight(useMetric: useMetric))
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
-                        
-                        Text("×")
-                            .font(SBSFonts.title2())
-                            .foregroundStyle(.white.opacity(0.7))
-                        
-                        Text("\(reps) reps")
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
-                    }
+                    Text("\(weight.formattedWeight(useMetric: useMetric)) × \(reps)")
+                        .font(SBSFonts.number())
+                        .foregroundStyle(Color.ink)
                     
-                    // New E1RM
-                    VStack(spacing: 4) {
+                    VStack(alignment: .leading, spacing: SBSLayout.space1) {
                         Text("Estimated 1RM")
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(.white.opacity(0.7))
+                            .eyebrowText()
+                            .foregroundStyle(Color.inkSecondary)
                         
                         Text(newE1RM.formattedWeight(useMetric: useMetric))
-                            .font(.system(size: 36, weight: .black, design: .rounded))
-                            .foregroundStyle(Color.green)
+                            .font(SBSFonts.numberLarge())
+                            .tracking(-0.84)
+                            .foregroundStyle(Color.ink)
                     }
                     
-                    // Improvement (if not first PR)
                     if let improvement = improvement, let percent = improvementPercent {
-                        HStack(spacing: SBSLayout.paddingSmall) {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .foregroundStyle(Color.green)
-                            
-                            Text("+\(improvement.formattedWeight(useMetric: useMetric))")
-                                .font(SBSFonts.bodyBold())
-                                .foregroundStyle(Color.green)
-                            
-                            Text("(+\(String(format: "%.1f", percent))%)")
-                                .font(SBSFonts.legacyBody())
-                                .foregroundStyle(.white.opacity(0.7))
+                        Label {
+                            Text("+\(improvement.formattedWeight(useMetric: useMetric)) (+\(String(format: "%.1f", percent))%)")
+                        } icon: {
+                            Image(systemName: "arrow.up")
                         }
-                        .padding(.horizontal, SBSLayout.paddingMedium)
-                        .padding(.vertical, SBSLayout.paddingSmall)
-                        .background(
-                            Capsule()
-                                .fill(Color.green.opacity(0.2))
-                        )
+                        .font(SBSFonts.numberSmall())
+                        .foregroundStyle(Color.success)
                     } else {
-                        Text("First recorded PR!")
-                            .font(SBSFonts.legacyCaption())
-                            .foregroundStyle(.white.opacity(0.7))
-                            .padding(.horizontal, SBSLayout.paddingMedium)
-                            .padding(.vertical, SBSLayout.paddingSmall)
-                            .background(
-                                Capsule()
-                                    .fill(Color.yellow.opacity(0.2))
-                            )
+                        Text("First recorded PR")
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
                     }
                 }
                 .opacity(showContent ? 1 : 0)
-                .offset(y: showContent ? 0 : 30)
+                .offset(y: showContent ? 0 : 12)
                 
-                Spacer().frame(height: SBSLayout.paddingMedium)
-                
-                // Continue button
-                VStack(spacing: SBSLayout.paddingSmall) {
+                VStack(spacing: SBSLayout.space3) {
                     Button(action: dismissWithAnimation) {
-                        Text("Continue")
-                            .font(SBSFonts.legacyButton())
-                            .foregroundStyle(.black)
+                        SBSButtonTitle("Back to it")
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, SBSLayout.paddingMedium)
-                            .background(
-                                RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [Color.yellow, Color.orange],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-                            )
                     }
+                    .buttonStyle(SBSPrimaryButtonStyle())
 
-                    // Secondary share CTA — renders the PR as a share card.
+                    // Renders the PR as a share card
                     Button {
                         let impact = UIImpactFeedbackGenerator(style: .light)
                         impact.impactOccurred()
                         showingShareSheet = true
                     } label: {
-                        HStack(spacing: SBSLayout.paddingSmall) {
+                        Label {
+                            SBSButtonTitle("Share this PR")
+                        } icon: {
                             Image(systemName: "square.and.arrow.up")
-                            Text("Share this PR")
                         }
-                        .font(SBSFonts.legacyButton())
-                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, SBSLayout.paddingMedium)
-                        .background(
-                            RoundedRectangle(cornerRadius: SBSLayout.cornerRadiusMedium)
-                                .strokeBorder(Color.white.opacity(0.3), lineWidth: 1)
-                        )
                     }
+                    .buttonStyle(SBSSecondaryButtonStyle())
                 }
+                // Room for the primary button's hard shadow
+                .padding(.trailing, SBSLayout.hardShadowOffset)
                 .opacity(showContent ? 1 : 0)
-                .padding(.horizontal, SBSLayout.paddingLarge)
             }
-            .padding(SBSLayout.paddingLarge)
-            .frame(maxWidth: 340)
+            .padding(SBSLayout.space6)
+            .frame(maxWidth: 420)
         }
         .sheet(isPresented: $showingShareSheet) {
             WorkoutShareSheet(
@@ -251,32 +169,18 @@ struct PRCelebrationView: View {
             )
         }
         .onAppear {
-            // Play haptics
-            let generator = UINotificationFeedbackGenerator()
-            generator.notificationOccurred(.success)
-            
-            // Animate in
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.6)) {
-                trophyScale = 1.0
-                trophyRotation = 0
-            }
-            
-            withAnimation(.easeOut(duration: 0.4).delay(0.2)) {
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+
+            // Fast and physical: ease out, nothing bounces or loops
+            withAnimation(.easeOut(duration: 0.25)) {
                 showContent = true
             }
-            
-            withAnimation(.easeIn(duration: 0.3).delay(0.3)) {
+            withAnimation(.easeOut(duration: 0.25).delay(0.15)) {
                 showConfetti = true
             }
-            
-            // Extra haptic bursts
+
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                let impact = UIImpactFeedbackGenerator(style: .heavy)
-                impact.impactOccurred()
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                let impact = UIImpactFeedbackGenerator(style: .medium)
-                impact.impactOccurred()
+                UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
             }
         }
     }
@@ -285,7 +189,6 @@ struct PRCelebrationView: View {
         withAnimation(.easeIn(duration: 0.2)) {
             showContent = false
             showConfetti = false
-            trophyScale = 0.5
         }
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
@@ -297,6 +200,10 @@ struct PRCelebrationView: View {
 // MARK: - Confetti View
 
 struct ConfettiView: View {
+    /// The brand's own objects: orange and the plate colours, which are the same in
+    /// both themes
+    private static let colors: [Color] = [.orangeFill, .plateRed, .plateBlue, .plateYellow, .plateGreen, .plateSilver]
+
     @State private var confettiPieces: [ConfettiPiece] = []
     
     var body: some View {
@@ -313,7 +220,7 @@ struct ConfettiView: View {
                         x: CGFloat.random(in: 0...geo.size.width),
                         y: -20,
                         targetY: geo.size.height + 50,
-                        color: [Color.yellow, Color.orange, Color.red, Color.green, Color.blue, Color.purple].randomElement()!,
+                        color: Self.colors.randomElement()!,
                         size: CGFloat.random(in: 6...12),
                         rotation: Double.random(in: 0...360),
                         delay: Double.random(in: 0...0.5)
@@ -344,7 +251,7 @@ struct ConfettiPieceView: View {
     @State private var opacity: Double = 1
     
     var body: some View {
-        RoundedRectangle(cornerRadius: 2)
+        Rectangle()
             .fill(piece.color)
             .frame(width: piece.size, height: piece.size * 1.5)
             .rotationEffect(.degrees(currentRotation))
@@ -372,32 +279,13 @@ struct ConfettiPieceView: View {
 
 // MARK: - PR Badge (for showing in history/cards)
 
+/// The one filled badge: "PR" on orange with orange-ink
 struct PRBadge: View {
     var small: Bool = false
     
     var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "trophy.fill")
-                .font(.system(size: small ? 10 : 12))
-            
-            if !small {
-                Text("PR")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-            }
-        }
-        .foregroundStyle(
-            LinearGradient(
-                colors: [Color.yellow, Color.orange],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        )
-        .padding(.horizontal, small ? 6 : 8)
-        .padding(.vertical, small ? 3 : 4)
-        .background(
-            Capsule()
-                .fill(Color.orange.opacity(0.15))
-        )
+        SBSBadge(text: "PR", variant: .pr)
+            .scaleEffect(small ? 0.9 : 1)
     }
 }
 
@@ -433,7 +321,7 @@ struct PRBadge: View {
         PRBadge(small: true)
     }
     .padding()
-    .background(Color.black)
+    .sbsBackground()
 }
 
 

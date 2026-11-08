@@ -403,7 +403,89 @@ final class ProgramModelsTests: XCTestCase {
             )
         }
     }
+
+    // MARK: - Accessory sets/reps key spelling
+
+    private func bundledProgram(_ filename: String) throws -> ProgramData {
+        let url = try XCTUnwrap(Bundle.main.url(forResource: filename, withExtension: "json"),
+                                "\(filename).json missing from app bundle")
+        return try JSONDecoder().decode(ProgramData.self, from: Data(contentsOf: url))
+    }
+
+    /// Most bundled programs spell accessory volume `default_sets` / `default_reps`.
+    /// Those used to be ignored, so every accessory fell back to 4x10.
+    func testSnakeCaseBundledProgramDecodesAccessorySetsAndReps() throws {
+        let program = try bundledProgram("531_bbb_12week")
+        let item = try XCTUnwrap(program.days.values.joined().first { $0.name == "Hanging Leg Raise" })
+        XCTAssertEqual(item.defaultSets, 5)
+        XCTAssertEqual(item.defaultReps, 15)
+    }
+
+    /// Every accessory in every bundled program must decode the sets/reps its JSON
+    /// declares, whichever spelling the file uses.
+    func testEveryBundledAccessoryDecodesDeclaredSetsAndReps() throws {
+        let files = ["531_bbb_12week", "531_fsl_12week", "531_triumvirate_12week",
+                     "greyskull_lp_12week", "gzclp_12week", "gzclp_3day_12week",
+                     "nsuns_4day_12week", "phul_12week", "reddit_ppl_12week",
+                     "basic_ppl_12week", "back_friendly_hypertrophy_12week"]
+        for file in files {
+            let url = try XCTUnwrap(Bundle.main.url(forResource: file, withExtension: "json"))
+            let raw = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+            let rawDays = try XCTUnwrap(raw["days"] as? [String: [[String: Any]]])
+            let program = try bundledProgram(file)
+            for (day, rawItems) in rawDays {
+                let items = try XCTUnwrap(program.days[day])
+                XCTAssertEqual(items.count, rawItems.count)
+                for (rawItem, item) in zip(rawItems, items) where item.type == .accessory {
+                    let sets = (rawItem["default_sets"] ?? rawItem["defaultSets"]) as? Int
+                    let reps = (rawItem["default_reps"] ?? rawItem["defaultReps"]) as? Int
+                    XCTAssertNotNil(sets, "\(file) day \(day) \(item.name) declares no sets")
+                    XCTAssertEqual(item.defaultSets, sets, "\(file) day \(day) \(item.name)")
+                    XCTAssertEqual(item.defaultReps, reps, "\(file) day \(day) \(item.name)")
+                }
+            }
+        }
+    }
+
+    /// Saved data (customDays, custom templates, saved customizations) was written
+    /// with camelCase keys and must keep decoding.
+    func testCamelCaseDayItemStillDecodes() throws {
+        let json = #"{"type":"accessory","name":"Curl","defaultSets":2,"defaultReps":12}"#
+        let item = try JSONDecoder().decode(DayItem.self, from: Data(json.utf8))
+        XCTAssertEqual(item.defaultSets, 2)
+        XCTAssertEqual(item.defaultReps, 12)
+    }
+
+    func testDayItemEncodesCamelCaseAndRoundTrips() throws {
+        let item = DayItem(type: .accessory, lift: nil, name: "Dips", defaultSets: 3, defaultReps: 8,
+                           setsDetail: [SetDetail(intensity: 0.5, reps: 8)], progressionSetIndex: 0)
+        let data = try JSONEncoder().encode(item)
+        let keys = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any]).keys
+        XCTAssertTrue(keys.contains("defaultSets"))
+        XCTAssertTrue(keys.contains("defaultReps"))
+        XCTAssertFalse(keys.contains("default_sets"))
+        XCTAssertFalse(keys.contains("default_reps"))
+        XCTAssertEqual(try JSONDecoder().decode(DayItem.self, from: data), item)
+
+        let unset = DayItem(type: .accessory, lift: nil, name: "Dips")
+        let unsetData = try JSONEncoder().encode(unset)
+        XCTAssertEqual(try JSONDecoder().decode(DayItem.self, from: unsetData), unset)
+    }
+
+    func testMissingSetsAndRepsStayNilAndFallBackToFourByTen() throws {
+        let json = #"{"type":"accessory","name":"Shrug"}"#
+        let item = try JSONDecoder().decode(DayItem.self, from: Data(json.utf8))
+        XCTAssertNil(item.defaultSets)
+        XCTAssertNil(item.defaultReps)
+
+        let program = ProgramData(
+            name: "t", rounding: 5, singleAt8Percent: [:], initialMaxes: [:], lifts: [:],
+            days: ["1": [item]], weeks: [1])
+        let plan = try ProgramEngine().weekPlan(state: ProgramState.fromProgramData(program), week: 1)
+        guard case let .accessory(_, sets, reps, _)? = plan[1]?.first else {
+            return XCTFail("expected an accessory, got \(plan)")
+        }
+        XCTAssertEqual(sets, 4)
+        XCTAssertEqual(reps, 10)
+    }
 }
-
-
-

@@ -438,6 +438,32 @@ public struct DayItem: Codable, Equatable {
         case reps
         case progressionSetIndex = "progression_set_index"
     }
+
+    /// Most bundled program files spell accessory volume `default_sets` / `default_reps`;
+    /// saved user data (customDays, templates, saved customizations) uses camelCase.
+    /// Read either. Encoding stays camelCase (synthesized `encode(to:)`) so saved data
+    /// round-trips unchanged.
+    private enum SnakeCaseKeys: String, CodingKey {
+        case defaultSets = "default_sets"
+        case defaultReps = "default_reps"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let snake = try decoder.container(keyedBy: SnakeCaseKeys.self)
+        type = try container.decode(ItemType.self, forKey: .type)
+        lift = try container.decodeIfPresent(String.self, forKey: .lift)
+        name = try container.decode(String.self, forKey: .name)
+        defaultSets = try snake.decodeIfPresent(Int.self, forKey: .defaultSets)
+            ?? container.decodeIfPresent(Int.self, forKey: .defaultSets)
+        defaultReps = try snake.decodeIfPresent(Int.self, forKey: .defaultReps)
+            ?? container.decodeIfPresent(Int.self, forKey: .defaultReps)
+        setsDetail = try container.decodeIfPresent([SetDetail].self, forKey: .setsDetail)
+        setsDetailByWeek = try container.decodeIfPresent([String: [SetDetail]].self, forKey: .setsDetailByWeek)
+        sets = try container.decodeIfPresent(Int.self, forKey: .sets)
+        reps = try container.decodeIfPresent(Int.self, forKey: .reps)
+        progressionSetIndex = try container.decodeIfPresent(Int.self, forKey: .progressionSetIndex)
+    }
 }
 
 public struct WeekData: Codable, Equatable {

@@ -25,24 +25,28 @@ struct ContentView: View {
 
 struct IdleView: View {
     @EnvironmentObject var sessionManager: WatchSessionManager
-    
+
     var body: some View {
         ScrollView {
-            VStack(spacing: 12) {
-                Image(systemName: "figure.strengthtraining.traditional")
-                    .font(.system(size: 36))
-                    .foregroundStyle(.orange)
-                
+            VStack(spacing: WatchLayout.space3) {
+                Image("TopSetMark")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 48)
+                    .foregroundStyle(Color.ink)
+                    .accessibilityHidden(true)
+
                 Text("Top Set")
                     .font(.headline)
-                    .fontWeight(.semibold)
-                
+                    .foregroundStyle(Color.ink)
+
                 Text("Start a workout on your iPhone")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.footnote)
+                    .foregroundStyle(Color.inkSecondary)
                     .multilineTextAlignment(.center)
             }
-            .padding()
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, WatchLayout.space2)
         }
     }
 }
@@ -54,27 +58,28 @@ struct WorkoutConnectingView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 12) {
+            VStack(spacing: WatchLayout.space3) {
                 ProgressView()
-                    .scaleEffect(1.5)
-                    .padding(.bottom, 8)
-                
-                Text("Starting Workout")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                
-                Text("Connecting to iPhone...")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .tint(Color.ink)
+
+                WatchEyebrow("Starting workout")
+                    .foregroundStyle(Color.ink)
+
+                Text("Connecting to iPhone…")
+                    .font(.footnote)
+                    .foregroundStyle(Color.inkSecondary)
                     .multilineTextAlignment(.center)
 
                 // Way out if the start never completes (phone gone, session failed).
-                Button("Cancel", role: .cancel) {
+                Button {
                     sessionManager.endWorkoutFromWatch(save: false)
+                } label: {
+                    WatchButtonLabel("Cancel")
                 }
-                .padding(.top, 4)
+                .buttonStyle(WatchSecondaryButtonStyle())
+                .padding(.top, WatchLayout.space1)
             }
-            .padding()
+            .padding(.vertical, WatchLayout.space2)
         }
     }
 }
@@ -84,37 +89,41 @@ struct WorkoutConnectingView: View {
 struct WorkoutActiveView: View {
     @EnvironmentObject var workoutManager: WatchWorkoutManager
     @EnvironmentObject var sessionManager: WatchSessionManager
-    
+
     private var state: WatchWorkoutStateData {
         sessionManager.workoutState
     }
-    
+
     private var hasWorkoutData: Bool {
         !state.exerciseName.isEmpty && state.totalSets > 0
     }
-    
+
     var body: some View {
         ScrollView {
-            VStack(spacing: 8) {
+            VStack(spacing: WatchLayout.space2) {
                 if workoutManager.healthKitError {
                     // HealthKit auth failed — workout still tracks, just no HR / save.
-                    HStack(spacing: 4) {
+                    HStack(spacing: WatchLayout.space1) {
                         Image(systemName: "heart.slash")
-                            .font(.caption2)
+                            .accessibilityHidden(true)
                         Text("Allow Health access on your watch")
-                            .font(.caption2)
                             .multilineTextAlignment(.leading)
                     }
-                    .foregroundStyle(.yellow)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 4)
+                    .font(.caption2)
+                    .foregroundStyle(Color.ink)
+                    .padding(.horizontal, WatchLayout.space2)
+                    .padding(.vertical, WatchLayout.space1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: WatchLayout.radiusSm)
+                            .strokeBorder(Color.hairline, lineWidth: WatchLayout.hairline)
+                    )
+                    .accessibilityElement(children: .combine)
                 }
 
                 if state.isRestTimerActive {
-                    // Rest Timer View
                     RestTimerView(state: state)
                 } else if hasWorkoutData {
-                    // Current Exercise View
                     CurrentExerciseView(state: state, heartRate: workoutManager.currentHeartRate)
                 } else {
                     // Fallback - basic workout tracking (no state from iPhone yet)
@@ -122,9 +131,8 @@ struct WorkoutActiveView: View {
                 }
 
                 EndWorkoutButton()
-                    .padding(.top, 8)
+                    .padding(.top, WatchLayout.space2)
             }
-            .padding(.horizontal, 4)
         }
     }
 }
@@ -139,9 +147,14 @@ struct EndWorkoutButton: View {
     @State private var showingConfirmation = false
 
     var body: some View {
-        Button("End Workout", role: .destructive) {
+        // Secondary, not red: the Watch is ink, orange and chalk only. The
+        // confirmation dialog carries the destructive role.
+        Button {
             showingConfirmation = true
+        } label: {
+            WatchButtonLabel("End workout")
         }
+        .buttonStyle(WatchSecondaryButtonStyle())
         .confirmationDialog("End workout on Watch?", isPresented: $showingConfirmation) {
             if workoutManager.isSavingToHealthKit {
                 Button("Save Workout") {
@@ -179,52 +192,36 @@ struct RestTimerView: View {
 
     @ViewBuilder
     private func content(at now: Date) -> some View {
-        let progress = state.timerProgress(at: now)
-        VStack(spacing: 8) {
-            // Rest label (with paused indicator)
-            HStack(spacing: 4) {
-                if state.isPaused {
-                    Image(systemName: "pause.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.orange)
-                }
-                Text(state.isPaused ? "PAUSED" : "REST")
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.orange)
-            }
+        VStack(spacing: WatchLayout.space2) {
+            // Status: glyph plus word. Orange as text is orange-text.
+            WatchEyebrow(state.isPaused ? "Paused" : "Rest",
+                         systemImage: state.isPaused ? "pause.fill" : "timer")
+                .foregroundStyle(state.isPaused ? Color.inkSecondary : Color.orangeText)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Timer countdown (computed locally from the end date)
-            Text(state.formattedTimerRemaining(at: now))
-                .font(.system(size: 52, weight: .medium, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(state.isPaused ? Color.secondary : Color.orange)
+            VStack(alignment: .leading, spacing: 2) {
+                WatchHeroNumber(
+                    value: state.formattedTimerRemaining(at: now),
+                    color: state.isPaused ? .inkSecondary : .ink,
+                    baseSize: 56
+                )
+                .accessibilityLabel("\(state.remaining(at: now)) seconds of rest left")
 
-            // Progress ring
-            ZStack {
-                Circle()
-                    .stroke(.gray.opacity(0.3), lineWidth: 4)
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(.orange, style: StrokeStyle(lineWidth: 4, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
+                Text("of \(state.formattedTimerDuration)")
+                    .font(WatchFonts.numberSmall())
+                    .foregroundStyle(Color.inkSecondary)
             }
-            .frame(width: 60, height: 60)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Next set info
-            if let nextInfo = state.nextSetInfo {
-                Text(nextInfo)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            } else {
-                Text("\(state.exerciseName)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
+            WatchProgressBar(progress: state.timerProgress(at: now))
+
+            Text(state.nextSetInfo ?? state.exerciseName)
+                .font(.footnote)
+                .foregroundStyle(Color.inkSecondary)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.top, 8)
+        .padding(.top, WatchLayout.space1)
     }
 }
 
@@ -235,124 +232,57 @@ struct CurrentExerciseView: View {
     let heartRate: Double?
     @EnvironmentObject var sessionManager: WatchSessionManager
     @State private var showingRepPicker = false
-    
+
+    private var setLabel: String {
+        let base = "Set \(state.currentSet) of \(state.totalSets)"
+        return state.isAMRAPSet ? "\(base) · AMRAP" : base
+    }
+
     var body: some View {
-        VStack(spacing: 6) {
-            // Exercise name
+        VStack(alignment: .leading, spacing: WatchLayout.space1) {
+            WatchEyebrow(setLabel)
+                .foregroundStyle(Color.inkSecondary)
+
             Text(state.exerciseName)
                 .font(.headline)
-                .fontWeight(.semibold)
+                .foregroundStyle(Color.ink)
                 .lineLimit(2)
-                .multilineTextAlignment(.center)
-            
-            // Set info
-            HStack(spacing: 4) {
-                Text("Set \(state.currentSet)")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                Text("of \(state.totalSets)")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-            
-            // Weight and reps
-            VStack(spacing: 2) {
-                Text(state.formattedWeight)
-                    .font(.system(size: 28, weight: .medium, design: .rounded))
-                    .monospacedDigit()
-                
-                HStack(spacing: 2) {
-                    if state.isAMRAPSet {
-                        Text("\(state.targetReps)+")
-                            .font(.callout)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.green)
-                        Text("reps")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text("\(state.targetReps)")
-                            .font(.callout)
-                            .fontWeight(.semibold)
-                        Text("reps")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-            
-            // Complete Set Button - different behavior for AMRAP vs normal sets
+
+            // The working weight is the hero.
+            WatchHeroNumber(value: state.weightNumber, unit: state.weightUnit)
+                .accessibilityLabel(state.formattedWeight)
+
+            Text(state.isAMRAPSet ? "× \(state.targetReps)+" : "× \(state.targetReps)")
+                .font(WatchFonts.number())
+                .foregroundStyle(Color.ink)
+                .accessibilityLabel(state.isAMRAPSet
+                                    ? "\(state.targetReps) or more reps"
+                                    : "\(state.targetReps) reps")
+
             if state.isAMRAPSet {
-                // AMRAP set - show rep picker
-                Button(action: {
+                Button {
                     showingRepPicker = true
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "number.circle.fill")
-                            .font(.caption)
-                        Text("Log Reps")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                    }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.green)
-                    )
+                } label: {
+                    WatchButtonLabel("Log reps", systemImage: "number")
                 }
-                .buttonStyle(.plain)
-                .padding(.top, 4)
+                .buttonStyle(WatchPrimaryButtonStyle())
+                .padding(.top, WatchLayout.space1)
             } else {
-                // Normal set - complete directly
-                Button(action: {
+                Button {
                     sessionManager.sendSetCompleted(reps: nil)
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.caption)
-                        Text("Done")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                    }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.orange)
-                    )
+                } label: {
+                    WatchButtonLabel("Log set", systemImage: "checkmark")
                 }
-                .buttonStyle(.plain)
-                .padding(.top, 4)
+                .buttonStyle(WatchPrimaryButtonStyle())
+                .padding(.top, WatchLayout.space1)
             }
-            
-            Divider()
-                .padding(.vertical, 2)
-            
-            // Heart rate
-            HStack(spacing: 4) {
-                Image(systemName: "heart.fill")
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                if let hr = heartRate {
-                    Text("\(Int(hr))")
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                        .monospacedDigit()
-                } else {
-                    Text("--")
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.secondary)
-                }
-                Text("BPM")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
+
+            WatchHairline()
+                .padding(.vertical, WatchLayout.space1)
+
+            HeartRateRow(heartRate: heartRate)
         }
-        .padding(.top, 4)
+        .padding(.top, WatchLayout.space1)
         .sheet(isPresented: $showingRepPicker) {
             RepPickerView(
                 targetReps: state.targetReps,
@@ -365,20 +295,44 @@ struct CurrentExerciseView: View {
     }
 }
 
+// MARK: - Heart Rate Row
+
+/// Glyph, number, unit. The heart is ink-secondary: no red on the Watch.
+struct HeartRateRow: View {
+    let heartRate: Double?
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: WatchLayout.space1) {
+            Image(systemName: "heart.fill")
+                .font(.caption)
+                .foregroundStyle(Color.inkSecondary)
+                .accessibilityHidden(true)
+            Text(heartRate.map { "\(Int($0))" } ?? "--")
+                .font(WatchFonts.number())
+                .foregroundStyle(heartRate == nil ? Color.inkSecondary : Color.ink)
+            Text("BPM")
+                .font(WatchFonts.eyebrow())
+                .foregroundStyle(Color.inkSecondary)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(heartRate.map { "Heart rate \(Int($0)) beats per minute" } ?? "Heart rate not available")
+    }
+}
+
 // MARK: - Rep Picker View
 
 struct RepPickerView: View {
     let targetReps: Int
     let exerciseName: String
     let onComplete: (Int) -> Void
-    
+
     @State private var selectedRepsDouble: Double
     @FocusState private var isFocused: Bool
-    
+
     private var selectedReps: Int {
         Int(selectedRepsDouble.rounded())
     }
-    
+
     init(targetReps: Int, exerciseName: String, onComplete: @escaping (Int) -> Void) {
         self.targetReps = targetReps
         self.exerciseName = exerciseName
@@ -386,83 +340,71 @@ struct RepPickerView: View {
         // Start with target reps as default
         _selectedRepsDouble = State(initialValue: Double(targetReps))
     }
-    
+
     var body: some View {
-        VStack(spacing: 8) {
-            Text("Reps Completed")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            
-            // Rep counter with Digital Crown support
-            Text("\(selectedReps)")
-                .font(.system(size: 56, weight: .bold, design: .rounded))
-                .foregroundStyle(.green)
-                .focusable()
-                .focused($isFocused)
-                .digitalCrownRotation(
-                    $selectedRepsDouble,
-                    from: 1.0,
-                    through: 30.0,
-                    by: 1.0,
-                    sensitivity: .medium,
-                    isContinuous: false,
-                    isHapticFeedbackEnabled: true
-                )
-            
-            // +/- buttons for manual adjustment
-            HStack(spacing: 20) {
-                Button(action: {
-                    if selectedRepsDouble > 1 {
-                        selectedRepsDouble -= 1
+        ScrollView {
+            VStack(spacing: WatchLayout.space2) {
+                WatchEyebrow("Reps done")
+                    .foregroundStyle(Color.inkSecondary)
+
+                HStack(spacing: WatchLayout.space2) {
+                    stepButton(systemImage: "minus", label: "One fewer rep") {
+                        if selectedRepsDouble > 1 { selectedRepsDouble -= 1 }
                     }
-                }) {
-                    Image(systemName: "minus.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                
-                Button(action: {
-                    if selectedRepsDouble < 30 {
-                        selectedRepsDouble += 1
+
+                    // Rep counter with Digital Crown support
+                    WatchHeroNumber(value: "\(selectedReps)", baseSize: 56)
+                        .frame(maxWidth: .infinity)
+                        .focusable()
+                        .focused($isFocused)
+                        .digitalCrownRotation(
+                            $selectedRepsDouble,
+                            from: 1.0,
+                            through: 30.0,
+                            by: 1.0,
+                            sensitivity: .medium,
+                            isContinuous: false,
+                            isHapticFeedbackEnabled: true
+                        )
+                        .accessibilityLabel("\(selectedReps) reps")
+
+                    stepButton(systemImage: "plus", label: "One more rep") {
+                        if selectedRepsDouble < 30 { selectedRepsDouble += 1 }
                     }
-                }) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.green)
                 }
-                .buttonStyle(.plain)
-            }
-            
-            Text("Use crown to adjust")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            
-            // Confirm button
-            Button(action: {
-                onComplete(selectedReps)
-            }) {
-                HStack(spacing: 4) {
-                    Image(systemName: "checkmark")
-                        .font(.caption)
-                    Text("Log \(selectedReps) reps")
-                        .font(.caption)
-                        .fontWeight(.semibold)
+
+                Text("Turn the crown to adjust")
+                    .font(.caption2)
+                    .foregroundStyle(Color.inkSecondary)
+
+                Button {
+                    onComplete(selectedReps)
+                } label: {
+                    WatchButtonLabel("Log \(selectedReps) reps", systemImage: "checkmark")
                 }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.green)
-                )
+                .buttonStyle(WatchPrimaryButtonStyle())
             }
-            .buttonStyle(.plain)
         }
-        .padding()
         .onAppear {
             isFocused = true
         }
+    }
+
+    /// Square −/+ key: surface, hairline edge, ink glyph.
+    private func stepButton(systemImage: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(Color.ink)
+                .frame(width: 36, height: 36)
+                .background(Color.surface, in: RoundedRectangle(cornerRadius: WatchLayout.radiusSm))
+                .overlay(
+                    RoundedRectangle(cornerRadius: WatchLayout.radiusSm)
+                        .strokeBorder(Color.hairline, lineWidth: WatchLayout.hairline)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 }
 
@@ -470,57 +412,22 @@ struct RepPickerView: View {
 
 struct BasicWorkoutView: View {
     @ObservedObject var workoutManager: WatchWorkoutManager
-    
+
     var body: some View {
-            VStack(spacing: 12) {
-                // Workout indicator
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(.green)
-                        .frame(width: 8, height: 8)
-                    Text("Workout Active")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                
-                // Duration
-                Text(workoutManager.formattedDuration)
-                    .font(.system(size: 40, weight: .medium, design: .rounded))
-                    .monospacedDigit()
-                
-                // Heart rate
-                if let heartRate = workoutManager.currentHeartRate {
-                    HStack(spacing: 4) {
-                        Image(systemName: "heart.fill")
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                        Text("\(Int(heartRate))")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                        Text("BPM")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                } else {
-                    HStack(spacing: 4) {
-                        Image(systemName: "heart.fill")
-                            .font(.caption)
-                            .foregroundStyle(.red.opacity(0.5))
-                        Text("--")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.secondary)
-                        Text("BPM")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                
-                Text("Tracking on iPhone")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .padding()
+        VStack(alignment: .leading, spacing: WatchLayout.space2) {
+            WatchEyebrow("Workout active", systemImage: "figure.strengthtraining.traditional")
+                .foregroundStyle(Color.ink)
+
+            WatchHeroNumber(value: workoutManager.formattedDuration, baseSize: 44)
+
+            HeartRateRow(heartRate: workoutManager.currentHeartRate)
+
+            Text("Tracking on iPhone")
+                .font(.footnote)
+                .foregroundStyle(Color.inkSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, WatchLayout.space1)
     }
 }
 

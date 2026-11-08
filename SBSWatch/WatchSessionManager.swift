@@ -77,6 +77,21 @@ struct WatchWorkoutStateData {
         }
     }
     
+    /// The weight without its unit ("185", "62.5"), for the hero numeral.
+    var weightNumber: String {
+        formattedWeight.components(separatedBy: " ").first ?? formattedWeight
+    }
+
+    /// The unit on its own ("lb" or "kg").
+    var weightUnit: String {
+        useMetric ? "kg" : "lb"
+    }
+
+    /// The configured rest as M:SS ("2:00"), for "of 2:00" under the countdown.
+    var formattedTimerDuration: String {
+        String(format: "%d:%02d", restTimerDuration / 60, restTimerDuration % 60)
+    }
+
     /// Live remaining seconds at a given instant. When an `restTimerEndDate` is
     /// present and the timer isn't paused, this is computed locally from the end
     /// date so the countdown advances even while the phone is asleep; otherwise it

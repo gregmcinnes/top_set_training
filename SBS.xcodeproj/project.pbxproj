@@ -136,6 +136,7 @@
 		D83D2573F566B233B5491B68 /* RestTimerActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E53C666BFF136063AFC58CC /* RestTimerActivity.swift */; };
 		DEA400565A94D04DC5BE9A63 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED4971D69459FEF06379959 /* NotificationManager.swift */; };
 		DFE49684F2FE46DFB663C4E8 /* ProgramEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 254602AE106A03E05E294353 /* ProgramEngineTests.swift */; };
+		DFE8F70054CF15A90633F9DB /* WatchTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBEA21D97C1659D4E8E3851A /* WatchTheme.swift */; };
 		E0170959DF45737F2B75754A /* RestTimerWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55EA33C473A5D6F5F89AB96 /* RestTimerWidgetBundle.swift */; };
 		E493E607C61E197989924BEE /* CSVExporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 507743FA10DCA341DE3131E9 /* CSVExporterTests.swift */; };
 		E564AA86163D72798D3B79E5 /* RestTimerStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6164D08BDA7D8EFB704186B3 /* RestTimerStatus.swift */; };
@@ -354,6 +355,7 @@
 		E7F3C994C725013B14E2B28C /* StructuredProgressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StructuredProgressionTests.swift; sourceTree = "<group>"; };
 		E83767D47A7FD3C765C51216 /* sbs_program_config.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = sbs_program_config.json; sourceTree = "<group>"; };
 		E8995E84D765FB3DB9A59630 /* SBSWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SBSWatchApp.swift; sourceTree = "<group>"; };
+		EBEA21D97C1659D4E8E3851A /* WatchTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchTheme.swift; sourceTree = "<group>"; };
 		EC34FF9CAACB0ED1054B5116 /* UpgradePrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpgradePrompt.swift; sourceTree = "<group>"; };
 		F27484E54F040295C32F771D /* CycleProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CycleProgress.swift; sourceTree = "<group>"; };
 		F46C7C52EFEA53288A58CA9F /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreManager.swift; sourceTree = "<group>"; };
@@ -469,6 +471,7 @@
 				77FC36F1043AB9AA554A7A45 /* SBSWatch.entitlements */,
 				E8995E84D765FB3DB9A59630 /* SBSWatchApp.swift */,
 				69588B822D822F985FF35908 /* WatchSessionManager.swift */,
+				EBEA21D97C1659D4E8E3851A /* WatchTheme.swift */,
 				AE872BE33DE733AD05E0B0EE /* WatchTokens.xcassets */,
 				838AAFCF4CB288F3795E5FF8 /* WatchWorkoutManager.swift */,
 			);
@@ -830,6 +833,7 @@
 				E84F8781C4AA008399C33DD1 /* Logger.swift in Sources */,
 				732F612F98679DD0352EB64D /* SBSWatchApp.swift in Sources */,
 				4A6A0C6E75998DD14E19FC27 /* WatchSessionManager.swift in Sources */,
+				DFE8F70054CF15A90633F9DB /* WatchTheme.swift in Sources */,
 				F5A53541151C1ECE978E2C70 /* WatchWorkoutManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

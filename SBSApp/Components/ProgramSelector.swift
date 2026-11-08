@@ -8,7 +8,12 @@ struct ProgramSelector: View {
     @Binding var selectedProgram: String
     let onTakeQuiz: () -> Void
     let onBuildTemplate: () -> Void
+    /// The step title, drawn above the filters; it scrolls with the list at
+    /// the accessibility sizes so the list keeps most of the screen
+    var title: String? = nil
+    var subtitle: String? = nil
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var selectedDaysFilter: Int? = nil
     @State private var selectedLevelFilter: ProgramLevel? = nil
     @State private var expandedFamilies: Set<String> = []
@@ -62,134 +67,174 @@ struct ProgramSelector: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Filter bar
-            VStack(spacing: SBSLayout.space2) {
-                // Days filter
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: SBSLayout.space2) {
-                        SBSChip(title: "All Days", isSelected: selectedDaysFilter == nil) {
-                            selectedDaysFilter = nil
-                        }
-
-                        ForEach(availableDays, id: \.self) { days in
-                            SBSChip(title: "\(days) Days", isSelected: selectedDaysFilter == days) {
-                                selectedDaysFilter = days
-                            }
-                        }
+            if dynamicTypeSize.isAccessibilitySize {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        header
+                        filterBar
+                        programList
                     }
-                    .padding(.horizontal)
-                    .padding(.vertical, 1)
                 }
-
-                // Level filter
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: SBSLayout.space2) {
-                        SBSChip(title: "All Levels", isSelected: selectedLevelFilter == nil) {
-                            selectedLevelFilter = nil
-                        }
-
-                        ForEach(ProgramLevel.allCases, id: \.self) { level in
-                            SBSChip(title: level.rawValue, systemImage: level.icon, isSelected: selectedLevelFilter == level) {
-                                selectedLevelFilter = level
-                            }
-                        }
-                    }
-                    .padding(.horizontal)
-                    .padding(.vertical, 1)
-                }
-            }
-            .padding(.vertical, SBSLayout.space3)
-            .background(Color.bg)
-            .overlay(alignment: .bottom) { SBSRowDivider() }
-
-            // Program list
-            ScrollView {
-                LazyVStack(spacing: SBSLayout.space3) {
-                    // Quiz prompt: the same row as the Programs tab's
-                    Button(action: onTakeQuiz) {
-                        SBSListRow("Not sure which to pick?", showsChevron: true) {
-                            Text("Take the quiz to find the best program for you")
-                                .font(SBSFonts.caption())
-                                .foregroundStyle(Color.inkSecondary)
-                        }
-                        .card()
-                    }
-                    .buttonStyle(.plain)
-
-                    // Disclaimer note
-                    HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space2) {
-                        Image(systemName: "info.circle")
-                            .font(SBSFonts.caption())
-                            .accessibilityHidden(true)
-                        Text("All programs are based on popular training programs. Some names are changed.")
-                            .font(SBSFonts.caption())
-                    }
-                    .foregroundStyle(Color.inkSecondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    // Custom templates (if any)
-                    if !appState.userData.customTemplates.isEmpty {
-                        CustomTemplatesGroup(
-                            templates: appState.userData.customTemplates,
-                            selectedProgram: $selectedProgram,
-                            isExpanded: expandedFamilies.contains("__custom__"),
-                            hasCustomizations: { appState.userData.hasCustomizations(for: $0) },
-                            onToggle: { toggleFamily("__custom__") }
-                        )
-                    }
-
-                    // Program families
-                    ForEach(groupedPrograms, id: \.family) { group in
-                        ProgramFamilyGroup(
-                            family: group.family,
-                            programs: group.programs,
-                            selectedProgram: $selectedProgram,
-                            isExpanded: shouldExpandFamily(group.family, programs: group.programs),
-                            metadata: ProgramCatalog.metadata,
-                            isProgramLocked: isProgramLocked,
-                            isPremiumUser: storeManager.isPremium,
-                            hasCustomizations: { appState.userData.hasCustomizations(for: $0) },
-                            onToggle: { toggleFamily(group.family) },
-                            onLockedTap: { showingPaywall = true }
-                        )
-                    }
-
-                    // Empty state
-                    if filteredPrograms.isEmpty {
-                        VStack(spacing: SBSLayout.space4) {
-                            Image(systemName: "magnifyingglass")
-                                .font(SBSFonts.titleLarge())
-                                .foregroundStyle(Color.inkSecondary)
-                                .accessibilityHidden(true)
-
-                            Text("No programs matched your filters. More coming soon")
-                                .font(SBSFonts.body())
-                                .foregroundStyle(Color.inkSecondary)
-                                .multilineTextAlignment(.center)
-
-                            Button("Clear Filters") {
-                                selectedDaysFilter = nil
-                                selectedLevelFilter = nil
-                            }
-                            .font(SBSFonts.bodyStrong())
-                            .foregroundStyle(Color.orangeText)
-                            .frame(minHeight: 44)
-                        }
-                        .padding(.vertical, SBSLayout.space8)
-                    }
-
-                    // Template Builder prompt
-                    TemplateBuilderPromptCard(onBuildTemplate: onBuildTemplate)
-                        .padding(.top, SBSLayout.space2)
-                }
-                .padding(.horizontal)
-                .padding(.vertical, SBSLayout.space4)
+            } else {
+                header
+                filterBar
+                ScrollView { programList }
             }
         }
         .background(Color.bg)
         .sheet(isPresented: $showingPaywall) {
             PaywallView(triggeredByFeature: .allPrograms)
         }
+    }
+
+    @ViewBuilder
+    private var header: some View {
+        if let title {
+            VStack(spacing: SBSLayout.space2) {
+                Text(title)
+                    .font(SBSFonts.title())
+                    .foregroundStyle(Color.ink)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
+
+                if let subtitle {
+                    Text(subtitle)
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.inkSecondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.top, SBSLayout.space4)
+            .padding(.bottom, SBSLayout.space2)
+        }
+    }
+
+    private var filterBar: some View {
+        // Filter bar
+        VStack(spacing: SBSLayout.space2) {
+            // Days filter
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: SBSLayout.space2) {
+                    SBSChip(title: "All Days", isSelected: selectedDaysFilter == nil) {
+                        selectedDaysFilter = nil
+                    }
+
+                    ForEach(availableDays, id: \.self) { days in
+                        SBSChip(title: "\(days) Days", isSelected: selectedDaysFilter == days) {
+                            selectedDaysFilter = days
+                        }
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 1)
+            }
+
+            // Level filter
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: SBSLayout.space2) {
+                    SBSChip(title: "All Levels", isSelected: selectedLevelFilter == nil) {
+                        selectedLevelFilter = nil
+                    }
+
+                    ForEach(ProgramLevel.allCases, id: \.self) { level in
+                        SBSChip(title: level.rawValue, systemImage: level.icon, isSelected: selectedLevelFilter == level) {
+                            selectedLevelFilter = level
+                        }
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 1)
+            }
+        }
+        .padding(.vertical, SBSLayout.space3)
+        .background(Color.bg)
+        .overlay(alignment: .bottom) { SBSRowDivider() }
+    }
+
+    private var programList: some View {
+            LazyVStack(spacing: SBSLayout.space3) {
+                // Quiz prompt: the same row as the Programs tab's
+                Button(action: onTakeQuiz) {
+                    SBSListRow("Not sure which to pick?", showsChevron: true) {
+                        Text("Take the quiz to find the best program for you")
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
+                    }
+                    .card()
+                }
+                .buttonStyle(.plain)
+
+                // Disclaimer note
+                HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space2) {
+                    Image(systemName: "info.circle")
+                        .font(SBSFonts.caption())
+                        .accessibilityHidden(true)
+                    Text("All programs are based on popular training programs. Some names are changed.")
+                        .font(SBSFonts.caption())
+                }
+                .foregroundStyle(Color.inkSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Custom templates (if any)
+                if !appState.userData.customTemplates.isEmpty {
+                    CustomTemplatesGroup(
+                        templates: appState.userData.customTemplates,
+                        selectedProgram: $selectedProgram,
+                        isExpanded: expandedFamilies.contains("__custom__"),
+                        hasCustomizations: { appState.userData.hasCustomizations(for: $0) },
+                        onToggle: { toggleFamily("__custom__") }
+                    )
+                }
+
+                // Program families
+                ForEach(groupedPrograms, id: \.family) { group in
+                    ProgramFamilyGroup(
+                        family: group.family,
+                        programs: group.programs,
+                        selectedProgram: $selectedProgram,
+                        isExpanded: shouldExpandFamily(group.family, programs: group.programs),
+                        metadata: ProgramCatalog.metadata,
+                        isProgramLocked: isProgramLocked,
+                        isPremiumUser: storeManager.isPremium,
+                        hasCustomizations: { appState.userData.hasCustomizations(for: $0) },
+                        onToggle: { toggleFamily(group.family) },
+                        onLockedTap: { showingPaywall = true }
+                    )
+                }
+
+                // Empty state
+                if filteredPrograms.isEmpty {
+                    VStack(spacing: SBSLayout.space4) {
+                        Image(systemName: "magnifyingglass")
+                            .font(SBSFonts.titleLarge())
+                            .foregroundStyle(Color.inkSecondary)
+                            .accessibilityHidden(true)
+
+                        Text("No programs matched your filters. More coming soon")
+                            .font(SBSFonts.body())
+                            .foregroundStyle(Color.inkSecondary)
+                            .multilineTextAlignment(.center)
+
+                        Button("Clear Filters") {
+                            selectedDaysFilter = nil
+                            selectedLevelFilter = nil
+                        }
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.orangeText)
+                        .frame(minHeight: 44)
+                    }
+                    .padding(.vertical, SBSLayout.space8)
+                }
+
+                // Template Builder prompt
+                TemplateBuilderPromptCard(onBuildTemplate: onBuildTemplate)
+                    .padding(.top, SBSLayout.space2)
+            }
+            .padding(.horizontal)
+            .padding(.vertical, SBSLayout.space4)
     }
 
     private func shouldExpandFamily(_ family: String, programs: [AppState.AvailableProgramInfo]) -> Bool {

@@ -194,7 +194,15 @@ struct PaywallView: View {
 
             // If triggered by a specific feature, name it
             if let feature = triggeredByFeature {
-                SBSBadge(text: feature.displayName, systemImage: feature.iconName)
+                // A badge never wraps, so a long name at the accessibility
+                // sizes falls back to plain text rather than widening the page
+                ViewThatFits(in: .horizontal) {
+                    SBSBadge(text: feature.displayName, systemImage: feature.iconName)
+                    Text(feature.displayName)
+                        .font(SBSFonts.bodyStrong())
+                        .foregroundStyle(Color.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -435,36 +443,24 @@ private struct PlanOptionCard: View {
     let plan: PlanOption
     let product: Product?
     let isSelected: Bool
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         HStack(spacing: SBSLayout.space3) {
-            // Square radio: a hairline box, filled with ink when chosen
-            ZStack {
-                RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
-                    .strokeBorder(isSelected ? Color.ink : Color.inkTertiary, lineWidth: SBSLayout.strokeHairline)
-                    .frame(width: 22, height: 22)
-
-                if isSelected {
-                    Rectangle()
-                        .fill(Color.ink)
-                        .frame(width: 12, height: 12)
-                }
+            // Square radio: a hairline box, filled with ink when chosen. At the
+            // accessibility sizes the selection fill alone marks the plan
+            if !dynamicTypeSize.isAccessibilitySize {
+                radio
             }
-            .accessibilityHidden(true)
 
             SBSAdaptiveStack {
                 // Plan info
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: SBSLayout.space2) {
-                        Text(plan.label)
-                            .font(SBSFonts.bodyStrong())
-                            .foregroundStyle(Color.ink)
-                            // Never broken by the badge beside it ("Mon / thly")
-                            .fixedSize()
-
-                        if let badge = plan.badgeText {
-                            SBSBadge(text: badge)
-                        }
+                    // The badge goes under the name when both won't fit, so
+                    // neither is broken ("Mon / thly") nor widens the page
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: SBSLayout.space2) { planName; planBadge }
+                        VStack(alignment: .leading, spacing: SBSLayout.space1) { planName; planBadge }
                     }
 
                     Text(plan.subtitle)
@@ -500,6 +496,35 @@ private struct PlanOptionCard: View {
         .frame(minHeight: 64)
         .selectionCell(isSelected)
         .accessibilityElement(children: .combine)
+    }
+
+    private var radio: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
+                .strokeBorder(isSelected ? Color.ink : Color.inkTertiary, lineWidth: SBSLayout.strokeHairline)
+                .frame(width: 22, height: 22)
+
+            if isSelected {
+                Rectangle()
+                    .fill(Color.ink)
+                    .frame(width: 12, height: 12)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private var planName: some View {
+        Text(plan.label)
+            .font(SBSFonts.bodyStrong())
+            .foregroundStyle(Color.ink)
+            .fixedSize()
+    }
+
+    @ViewBuilder
+    private var planBadge: some View {
+        if let badge = plan.badgeText {
+            SBSBadge(text: badge)
+        }
     }
 }
 

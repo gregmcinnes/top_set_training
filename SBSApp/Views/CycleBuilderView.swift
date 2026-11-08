@@ -748,7 +748,10 @@ struct WelcomeStepView: View {
                 }
             }
             .padding(.horizontal, SBSLayout.space6)
+            .padding(.top, SBSLayout.space2)
             .padding(.bottom, SBSLayout.space6)
+            // The scrolled copy passes under the buttons, never through them
+            .background(Color.bg)
             .opacity(animateContent ? 1 : 0)
         }
         .onAppear {
@@ -824,34 +827,18 @@ struct ProgramSelectionStepView: View {
     let onBuildTemplate: () -> Void
 
     @State private var showingProgramPaywall = false
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            VStack(spacing: SBSLayout.space2) {
-                Text("Select Program")
-                    .font(SBSFonts.title())
-                    .foregroundStyle(Color.ink)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                // The fixed header gives the list room at the accessibility sizes
-                if !dynamicTypeSize.isAccessibilitySize {
-                    Text("Choose your training template")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(Color.inkSecondary)
-                }
-            }
-            .padding(.top, SBSLayout.space4)
-            .padding(.bottom, SBSLayout.space2)
-            
-            // Program selector (new clean design)
+            // The selector draws the header so it can scroll with the list
+            // at the accessibility sizes
             ProgramSelector(
                 appState: appState,
                 selectedProgram: $selectedProgram,
                 onTakeQuiz: onTakeQuiz,
-                onBuildTemplate: onBuildTemplate
+                onBuildTemplate: onBuildTemplate,
+                title: "Select Program",
+                subtitle: "Choose your training template"
             )
             
             // Navigation buttons
@@ -915,127 +902,23 @@ struct ExerciseReviewStepView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            VStack(spacing: SBSLayout.space2) {
-                Text("Review Exercises")
-                    .font(SBSFonts.title())
-                    .foregroundStyle(Color.ink)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityAddTraits(.isHeader)
-
-                // The fixed header gives the list room at the accessibility sizes
-                if !dynamicTypeSize.isAccessibilitySize {
-                    Text("Customize the lifts for each training day")
-                        .font(SBSFonts.body())
-                        .foregroundStyle(Color.inkSecondary)
-                        .multilineTextAlignment(.center)
-
-                    // Reassuring message
-                    Text("Exercises can be changed in Settings")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(Color.inkSecondary)
-                }
-            }
-            .padding(.top, SBSLayout.space6)
-            .padding(.horizontal)
-            .padding(.bottom, SBSLayout.space4)
-            
-            // Day selector
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: SBSLayout.space2) {
-                    ForEach(appState.days, id: \.self) { day in
-                        DayTab(
-                            day: day,
-                            title: "Day \(day)",
-                            subtitle: appState.dayTitle(day: day),
-                            isSelected: selectedDay == day,
-                            onTap: { selectedDay = day }
-                        )
+            // The header and day tabs scroll with the list at the
+            // accessibility sizes so the list keeps most of the screen
+            if dynamicTypeSize.isAccessibilitySize {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        header
+                        daySelector
+                        exerciseList
                     }
                 }
-                .padding(.horizontal)
+                .scrollDismissesKeyboard(.interactively)
+            } else {
+                header
+                daySelector
+                ScrollView { exerciseList }
+                    .scrollDismissesKeyboard(.interactively)
             }
-            .padding(.bottom, SBSLayout.space2)
-            
-            // Exercise list
-            ScrollView {
-                VStack(spacing: SBSLayout.space2) {
-                    let items = currentDayItems
-                    
-                    // Main lifts (includes tm, volume, structured, and linear types)
-                    let mainLifts = items.filter { $0.type == .tm || $0.type == .volume || $0.type == .structured || $0.type == .linear }
-                    if !mainLifts.isEmpty {
-                        SectionHeader(title: "Main Lifts")
-
-                        VStack(spacing: 0) {
-                            ForEach(Array(mainLifts.enumerated()), id: \.offset) { index, item in
-                                if let lift = item.lift {
-                                    if index > 0 { SBSRowDivider() }
-                                    ExerciseItemRow(
-                                        name: item.name,
-                                        subtitle: subtitleForDayItem(item),
-                                        icon: "figure.strengthtraining.traditional",
-                                        onEdit: {
-                                            editingLift = lift
-                                            showingLiftPicker = true
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                        .card()
-                        .padding(.horizontal)
-                    }
-
-                    // Accessories
-                    let accessoryIndices = items.indices.filter { items[$0].type == .accessory }
-                    SectionHeader(title: "Accessories")
-
-                    if !accessoryIndices.isEmpty {
-                        VStack(spacing: 0) {
-                            ForEach(accessoryIndices, id: \.self) { actualIndex in
-                                let item = items[actualIndex]
-                                if actualIndex != accessoryIndices.first { SBSRowDivider() }
-                                ExerciseItemRow(
-                                    name: item.name,
-                                    subtitle: "\(item.defaultSets ?? 4) × \(item.defaultReps ?? 10)",
-                                    subtitleIsNumber: true,
-                                    icon: "dumbbell",
-                                    onEdit: {
-                                        editingAccessoryIndex = actualIndex
-                                        editingAccessorySets = item.defaultSets ?? 4
-                                        editingAccessoryReps = item.defaultReps ?? 10
-                                        showingAccessoryEditor = true
-                                    },
-                                    onDelete: {
-                                        removeAccessory(at: actualIndex)
-                                    }
-                                )
-                            }
-                        }
-                        .card()
-                        .padding(.horizontal)
-                    }
-
-                    // Add accessory button
-                    Button {
-                        showingExercisePicker = true
-                    } label: {
-                        HStack(spacing: SBSLayout.space2) {
-                            Image(systemName: "plus")
-                                .accessibilityHidden(true)
-                            SBSButtonTitle("Add Accessory")
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(SBSSecondaryButtonStyle())
-                    .padding(.horizontal)
-                    .padding(.top, SBSLayout.space2)
-                }
-                .padding(.bottom, SBSLayout.space6)
-            }
-            .scrollDismissesKeyboard(.interactively)
             
             // Navigation buttons
             NavigationButtons(
@@ -1088,6 +971,131 @@ struct ExerciseReviewStepView: View {
             )
             .presentationDetents([.height(400)])
         }
+    }
+
+    private var header: some View {
+        // Header
+        VStack(spacing: SBSLayout.space2) {
+            Text("Review Exercises")
+                .font(SBSFonts.title())
+                .foregroundStyle(Color.ink)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+
+            Text("Customize the lifts for each training day")
+                .font(SBSFonts.body())
+                .foregroundStyle(Color.inkSecondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            // Reassuring message
+            Text("Exercises can be changed in Settings")
+                .font(SBSFonts.caption())
+                .foregroundStyle(Color.inkSecondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.top, SBSLayout.space6)
+        .padding(.horizontal)
+        .padding(.bottom, SBSLayout.space4)
+    }
+
+    private var daySelector: some View {
+        // Day selector
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: SBSLayout.space2) {
+                ForEach(appState.days, id: \.self) { day in
+                    DayTab(
+                        day: day,
+                        title: "Day \(day)",
+                        subtitle: appState.dayTitle(day: day),
+                        isSelected: selectedDay == day,
+                        onTap: { selectedDay = day }
+                    )
+                }
+            }
+            .padding(.horizontal)
+        }
+        .padding(.bottom, SBSLayout.space2)
+        
+    }
+
+    private var exerciseList: some View {
+        VStack(spacing: SBSLayout.space2) {
+            let items = currentDayItems
+            
+            // Main lifts (includes tm, volume, structured, and linear types)
+            let mainLifts = items.filter { $0.type == .tm || $0.type == .volume || $0.type == .structured || $0.type == .linear }
+            if !mainLifts.isEmpty {
+                SectionHeader(title: "Main Lifts")
+
+                VStack(spacing: 0) {
+                    ForEach(Array(mainLifts.enumerated()), id: \.offset) { index, item in
+                        if let lift = item.lift {
+                            if index > 0 { SBSRowDivider() }
+                            ExerciseItemRow(
+                                name: item.name,
+                                subtitle: subtitleForDayItem(item),
+                                icon: "figure.strengthtraining.traditional",
+                                onEdit: {
+                                    editingLift = lift
+                                    showingLiftPicker = true
+                                }
+                            )
+                        }
+                    }
+                }
+                .card()
+                .padding(.horizontal)
+            }
+
+            // Accessories
+            let accessoryIndices = items.indices.filter { items[$0].type == .accessory }
+            SectionHeader(title: "Accessories")
+
+            if !accessoryIndices.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach(accessoryIndices, id: \.self) { actualIndex in
+                        let item = items[actualIndex]
+                        if actualIndex != accessoryIndices.first { SBSRowDivider() }
+                        ExerciseItemRow(
+                            name: item.name,
+                            subtitle: "\(item.defaultSets ?? 4) × \(item.defaultReps ?? 10)",
+                            subtitleIsNumber: true,
+                            icon: "dumbbell",
+                            onEdit: {
+                                editingAccessoryIndex = actualIndex
+                                editingAccessorySets = item.defaultSets ?? 4
+                                editingAccessoryReps = item.defaultReps ?? 10
+                                showingAccessoryEditor = true
+                            },
+                            onDelete: {
+                                removeAccessory(at: actualIndex)
+                            }
+                        )
+                    }
+                }
+                .card()
+                .padding(.horizontal)
+            }
+
+            // Add accessory button
+            Button {
+                showingExercisePicker = true
+            } label: {
+                HStack(spacing: SBSLayout.space2) {
+                    Image(systemName: "plus")
+                        .accessibilityHidden(true)
+                    SBSButtonTitle("Add Accessory")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(SBSSecondaryButtonStyle())
+            .padding(.horizontal)
+            .padding(.top, SBSLayout.space2)
+        }
+        .padding(.bottom, SBSLayout.space6)
     }
     
     private var currentDayItems: [DayItem] {
@@ -1945,11 +1953,13 @@ let isOnboarding: Bool
                             .font(SBSFonts.title())
                             .foregroundStyle(Color.ink)
                             .accessibilityAddTraits(.isHeader)
-                        
+
                         Text("Here's a summary of your setup")
                             .font(SBSFonts.body())
                             .foregroundStyle(Color.inkSecondary)
                     }
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
                     .padding(.top, SBSLayout.space6)
                     
                     // Program summary

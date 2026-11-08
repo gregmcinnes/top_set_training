@@ -2021,11 +2021,13 @@ struct FlowLayout: Layout {
                 
                 positions.append(CGPoint(x: x, y: y))
                 rowHeight = max(rowHeight, size.height)
+                self.size.width = max(self.size.width, x + size.width)
                 x += size.width + spacing
-                
-                self.size.width = max(self.size.width, x)
             }
-            
+
+            // Never report wider than offered: an item wider than a line
+            // would otherwise widen every parent up to the screen
+            if maxWidth > 0 { self.size.width = min(self.size.width, maxWidth) }
             self.size.height = y + rowHeight
         }
     }

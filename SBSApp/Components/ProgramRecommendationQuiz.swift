@@ -90,8 +90,10 @@ struct ProgramRecommendationQuiz: View {
                             Text("Skip")
                                 .font(SBSFonts.caption().weight(.semibold))
                                 .foregroundStyle(Color.inkSecondary)
+                                // Never "…" at the accessibility sizes
+                                .fixedSize()
                         }
-                        .frame(width: 44, height: 44)
+                        .frame(minWidth: 44, minHeight: 44)
                     }
                     .padding(.horizontal)
                     
@@ -622,7 +624,8 @@ struct RecommendationCard: View {
     let onLockedTap: () -> Void
     
     @State private var showingDetail = false
-    
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     private var programLevel: ProgramLevel {
         // Determine level based on program ID
         switch recommendation.programId {
@@ -691,11 +694,20 @@ struct RecommendationCard: View {
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
-                    // Tags: neutral badges, the word does the work
-                    // Wraps rather than widening the card at the accessibility sizes
-                    FlowLayout(spacing: SBSLayout.space1) {
-                        ForEach(recommendation.tags.prefix(3), id: \.self) { tag in
-                            SBSBadge(text: tag)
+                    // Tags: neutral badges, the word does the work. A badge
+                    // can't wrap, so at the accessibility sizes they're one line
+                    // of text that can
+                    if dynamicTypeSize.isAccessibilitySize {
+                        Text(recommendation.tags.prefix(3).joined(separator: " · "))
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        FlowLayout(spacing: SBSLayout.space1) {
+                            ForEach(recommendation.tags.prefix(3), id: \.self) { tag in
+                                SBSBadge(text: tag)
+                            }
                         }
                     }
 

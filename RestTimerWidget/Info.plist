@@ -25,5 +25,11 @@
 	</dict>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
+	<key>UIAppFonts</key>
+	<array>
+		<string>BarlowCondensed-Bold.ttf</string>
+		<string>ArchivoSemiCondensed-Bold.ttf</string>
+		<string>Archivo-Bold.ttf</string>
+	</array>
 </dict>
 </plist>

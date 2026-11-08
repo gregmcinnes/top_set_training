@@ -91,6 +91,13 @@ targets:
       - path: RestTimerWidget
       - path: SBSCore/RestTimerActivity.swift
       - path: Shared/Tokens.xcassets
+      # The three faces the Live Activity uses (timer numeral, eyebrow, exercise name).
+      - path: Resources/Fonts/BarlowCondensed-Bold.ttf
+        buildPhase: resources
+      - path: Resources/Fonts/ArchivoSemiCondensed-Bold.ttf
+        buildPhase: resources
+      - path: Resources/Fonts/Archivo-Bold.ttf
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.gregorymcinnes.topsettraining.RestTimerWidget
@@ -108,6 +115,10 @@ targets:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
         NSSupportsLiveActivities: true
+        UIAppFonts:
+          - BarlowCondensed-Bold.ttf
+          - ArchivoSemiCondensed-Bold.ttf
+          - Archivo-Bold.ttf
 
   SBSWatch:
     type: application

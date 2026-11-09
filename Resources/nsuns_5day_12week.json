@@ -170,7 +170,8 @@
           {"intensity": 0.85, "reps": 3, "isAMRAP": false},
           {"intensity": 0.80, "reps": 3, "isAMRAP": false},
           {"intensity": 0.75, "reps": 3, "isAMRAP": false},
-          {"intensity": 0.70, "reps": 3, "isAMRAP": false}
+          {"intensity": 0.70, "reps": 3, "isAMRAP": false},
+          {"intensity": 0.65, "reps": 3, "isAMRAP": true}
         ]
       },
       {

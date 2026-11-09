@@ -60,7 +60,7 @@
         "sets_detail": [
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
-          {"intensity": 0.65, "reps": 10, "isAMRAP": true}
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false}
         ]
       },
       {"type": "accessory", "name": "Lat Pulldowns (T3)", "default_sets": 3, "default_reps": 15}
@@ -85,7 +85,7 @@
         "sets_detail": [
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
-          {"intensity": 0.65, "reps": 10, "isAMRAP": true}
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false}
         ]
       },
       {"type": "accessory", "name": "Dumbbell Rows (T3)", "default_sets": 3, "default_reps": 15}
@@ -110,7 +110,7 @@
         "sets_detail": [
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
-          {"intensity": 0.65, "reps": 10, "isAMRAP": true}
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false}
         ]
       },
       {"type": "accessory", "name": "Lat Pulldowns (T3)", "default_sets": 3, "default_reps": 15}
@@ -135,7 +135,7 @@
         "sets_detail": [
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
-          {"intensity": 0.65, "reps": 10, "isAMRAP": true}
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false}
         ]
       },
       {"type": "accessory", "name": "Dumbbell Rows (T3)", "default_sets": 3, "default_reps": 15}
@@ -160,7 +160,7 @@
         "sets_detail": [
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
-          {"intensity": 0.65, "reps": 10, "isAMRAP": true}
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false}
         ]
       },
       {"type": "accessory", "name": "Lat Pulldowns (T3)", "default_sets": 3, "default_reps": 15}
@@ -185,7 +185,7 @@
         "sets_detail": [
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
-          {"intensity": 0.65, "reps": 10, "isAMRAP": true}
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false}
         ]
       },
       {"type": "accessory", "name": "Dumbbell Rows (T3)", "default_sets": 3, "default_reps": 15}
@@ -210,7 +210,7 @@
         "sets_detail": [
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
-          {"intensity": 0.65, "reps": 10, "isAMRAP": true}
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false}
         ]
       },
       {"type": "accessory", "name": "Lat Pulldowns (T3)", "default_sets": 3, "default_reps": 15}
@@ -235,7 +235,7 @@
         "sets_detail": [
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
-          {"intensity": 0.65, "reps": 10, "isAMRAP": true}
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false}
         ]
       },
       {"type": "accessory", "name": "Dumbbell Rows (T3)", "default_sets": 3, "default_reps": 15}
@@ -260,7 +260,7 @@
         "sets_detail": [
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
-          {"intensity": 0.65, "reps": 10, "isAMRAP": true}
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false}
         ]
       },
       {"type": "accessory", "name": "Lat Pulldowns (T3)", "default_sets": 3, "default_reps": 15}
@@ -285,7 +285,7 @@
         "sets_detail": [
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
-          {"intensity": 0.65, "reps": 10, "isAMRAP": true}
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false}
         ]
       },
       {"type": "accessory", "name": "Dumbbell Rows (T3)", "default_sets": 3, "default_reps": 15}
@@ -310,7 +310,7 @@
         "sets_detail": [
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
-          {"intensity": 0.65, "reps": 10, "isAMRAP": true}
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false}
         ]
       },
       {"type": "accessory", "name": "Lat Pulldowns (T3)", "default_sets": 3, "default_reps": 15}
@@ -335,13 +335,13 @@
         "sets_detail": [
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
-          {"intensity": 0.65, "reps": 10, "isAMRAP": true}
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false}
         ]
       },
       {"type": "accessory", "name": "Dumbbell Rows (T3)", "default_sets": 3, "default_reps": 15}
     ]
   },
   "lifts": {},
-  "_note": "GZCLP 3-day variant. 4 workouts rotate through a 3-day week: Week 1 (1,2,3), Week 2 (4,1,2), Week 3 (3,4,1), Week 4 (2,3,4), then repeat. T1=5x3 heavy, T2=3x10 moderate with last set AMRAP, T3=3x15+ accessory. Fail protocol (5x3→6x2→10x1) not implemented - would require engine changes."
+  "_note": "GZCLP 3-day variant. 4 workouts rotate through a 3-day week: Week 1 (1,2,3), Week 2 (4,1,2), Week 3 (3,4,1), Week 4 (2,3,4), then repeat. T1=5x3 heavy, T2=3x10 moderate (no AMRAP, as in the original), T3=3x15+ accessory. Fail protocol (5x3→6x2→10x1) not implemented - would require engine changes."
 }
 

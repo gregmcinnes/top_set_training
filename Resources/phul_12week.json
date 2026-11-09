@@ -43,6 +43,7 @@
           {"intensity": 1.0, "reps": 5, "isAMRAP": true}
         ]
       },
+      {"type": "accessory", "name": "Incline Dumbbell Press", "default_sets": 3, "default_reps": 8},
       {"type": "accessory", "name": "Overhead Press", "default_sets": 3, "default_reps": 8},
       {"type": "accessory", "name": "Lat Pulldowns", "default_sets": 3, "default_reps": 8},
       {"type": "accessory", "name": "Barbell Curls", "default_sets": 3, "default_reps": 10},
@@ -99,6 +100,7 @@
         ]
       },
       {"type": "accessory", "name": "Dumbbell Flyes", "default_sets": 3, "default_reps": 12},
+      {"type": "accessory", "name": "Dumbbell Row", "default_sets": 3, "default_reps": 10},
       {"type": "accessory", "name": "Lateral Raises", "default_sets": 3, "default_reps": 12},
       {"type": "accessory", "name": "Incline Curls", "default_sets": 3, "default_reps": 12},
       {"type": "accessory", "name": "Tricep Pushdowns", "default_sets": 3, "default_reps": 12}

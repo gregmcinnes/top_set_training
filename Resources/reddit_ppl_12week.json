@@ -47,7 +47,8 @@
       {"type": "accessory", "name": "Incline Dumbbell Press", "default_sets": 3, "default_reps": 10},
       {"type": "accessory", "name": "Tricep Pushdowns", "default_sets": 3, "default_reps": 12},
       {"type": "accessory", "name": "Lateral Raises", "default_sets": 3, "default_reps": 12},
-      {"type": "accessory", "name": "Overhead Tricep Extension", "default_sets": 3, "default_reps": 12}
+      {"type": "accessory", "name": "Overhead Tricep Extension", "default_sets": 3, "default_reps": 12},
+      {"type": "accessory", "name": "Lateral Raises", "default_sets": 3, "default_reps": 12}
     ],
     "2": [
       {

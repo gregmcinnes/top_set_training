@@ -37,7 +37,7 @@
         "sets_detail": [
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
-          {"intensity": 0.65, "reps": 10, "isAMRAP": true}
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false}
         ]
       },
       {"type": "accessory", "name": "Lat Pulldowns (T3)", "default_sets": 3, "default_reps": 15}
@@ -62,7 +62,7 @@
         "sets_detail": [
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
-          {"intensity": 0.65, "reps": 10, "isAMRAP": true}
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false}
         ]
       },
       {"type": "accessory", "name": "Dumbbell Rows (T3)", "default_sets": 3, "default_reps": 15}
@@ -87,7 +87,7 @@
         "sets_detail": [
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
-          {"intensity": 0.65, "reps": 10, "isAMRAP": true}
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false}
         ]
       },
       {"type": "accessory", "name": "Lat Pulldowns (T3)", "default_sets": 3, "default_reps": 15}
@@ -112,13 +112,13 @@
         "sets_detail": [
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
           {"intensity": 0.65, "reps": 10, "isAMRAP": false},
-          {"intensity": 0.65, "reps": 10, "isAMRAP": true}
+          {"intensity": 0.65, "reps": 10, "isAMRAP": false}
         ]
       },
       {"type": "accessory", "name": "Dumbbell Rows (T3)", "default_sets": 3, "default_reps": 15}
     ]
   },
   "lifts": {},
-  "_note": "GZCLP 4-day variant. All 4 workouts done each week. T1=5x3 heavy with AMRAP last set, T2=3x10 moderate with AMRAP last set, T3=3x15+ accessory. Fail protocol (5x3→6x2→10x1) not implemented - would require engine changes. See gzclp_3day_12week.json for 3-day rotating variant."
+  "_note": "GZCLP 4-day variant. All 4 workouts done each week. T1=5x3 heavy with AMRAP last set, T2=3x10 moderate (no AMRAP, as in the original), T3=3x15+ accessory. Fail protocol (5x3→6x2→10x1) not implemented - would require engine changes. See gzclp_3day_12week.json for 3-day rotating variant."
 }
 

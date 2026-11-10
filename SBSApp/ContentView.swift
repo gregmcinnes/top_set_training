@@ -94,31 +94,15 @@ struct MainTabView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            HomeView(appState: appState)
-                .safeAreaInset(edge: .bottom, spacing: 0) { bottomBars(for: .home) }
-                .toolbar(.hidden, for: .tabBar)
-                .tag(ContentView.Tab.home)
-            
-            ProgramsView(appState: appState, selectedTab: $selectedTab)
-                .safeAreaInset(edge: .bottom, spacing: 0) { bottomBars(for: .programs) }
-                .toolbar(.hidden, for: .tabBar)
-                .tag(ContentView.Tab.programs)
-            
-            HistoryView(appState: appState)
-                .safeAreaInset(edge: .bottom, spacing: 0) { bottomBars(for: .history) }
-                .toolbar(.hidden, for: .tabBar)
-                .tag(ContentView.Tab.history)
-            
-            CalculatorsView(appState: appState)
-                .safeAreaInset(edge: .bottom, spacing: 0) { bottomBars(for: .calculators) }
-                .toolbar(.hidden, for: .tabBar)
-                .tag(ContentView.Tab.calculators)
-            
-            SettingsView(appState: appState)
-                .safeAreaInset(edge: .bottom, spacing: 0) { bottomBars(for: .settings) }
-                .toolbar(.hidden, for: .tabBar)
-                .tag(ContentView.Tab.settings)
+        // The bars sit under the TabView rather than in a safe-area inset on each tab:
+        // that inset never reached the scroll views inside a tab's NavigationStack, so
+        // the end of every list stayed under the tab bar. Stacked, each tab ends above
+        // the bars.
+        VStack(spacing: 0) {
+            TabView(selection: $selectedTab) {
+                tabs
+            }
+            bottomBars
         }
         // Orange as text and icons (links, toggles) is orange-text, never the fill
         .tint(Color.orangeText)
@@ -166,6 +150,29 @@ struct MainTabView: View {
         }
     }
 
+    @ViewBuilder
+    private var tabs: some View {
+        HomeView(appState: appState)
+            .toolbar(.hidden, for: .tabBar)
+            .tag(ContentView.Tab.home)
+
+        ProgramsView(appState: appState, selectedTab: $selectedTab)
+            .toolbar(.hidden, for: .tabBar)
+            .tag(ContentView.Tab.programs)
+
+        HistoryView(appState: appState)
+            .toolbar(.hidden, for: .tabBar)
+            .tag(ContentView.Tab.history)
+
+        CalculatorsView(appState: appState)
+            .toolbar(.hidden, for: .tabBar)
+            .tag(ContentView.Tab.calculators)
+
+        SettingsView(appState: appState)
+            .toolbar(.hidden, for: .tabBar)
+            .tag(ContentView.Tab.settings)
+    }
+
     static let tabItems: [SBSTabBar.Item] = [
         .init(tab: .home, title: "Workout", symbol: "dumbbell"),
         .init(tab: .programs, title: "Programs", symbol: "book.pages"),
@@ -174,13 +181,8 @@ struct MainTabView: View {
         .init(tab: .settings, title: "Settings", symbol: "gearshape"),
     ]
 
-    /// The resume bar above the tab bar. Inside each tab rather than around the TabView:
-    /// a tab's hosting controller doesn't see insets added outside it, so content and
-    /// the resume bar would slide under a bar placed there.
-    ///
-    /// Every tab carries its own copy, and tabs visited earlier stay in the hierarchy,
-    /// so only the selected tab's copy is visible to VoiceOver and UI tests.
-    private func bottomBars(for tab: ContentView.Tab) -> some View {
+    /// The resume bar above the tab bar
+    private var bottomBars: some View {
         VStack(spacing: 0) {
             resumeBar
             SBSTabBar(selection: $selectedTab, items: Self.tabItems) {
@@ -190,12 +192,9 @@ struct MainTabView: View {
                 ScrollToTop.reselectVisibleTab()
             }
         }
-        .accessibilityHidden(tab != selectedTab)
     }
 
-    /// Shows a workout is running whenever it's minimized. A per-tab safe-area inset
-    /// sits above the tab bar whatever its height and keeps the bar from covering the
-    /// end of a scrolled list.
+    /// Shows a workout is running whenever it's minimized
     @ViewBuilder
     private var resumeBar: some View {
         if let session = appState.activeSession {

@@ -142,6 +142,7 @@ final class ActiveWorkoutSession: Identifiable {
     /// The workout screen opened: anything that waited for it can show now
     func workoutScreenDidAppear() {
         restDoneWhileMinimized = false
+        reconcileSupersets()
         if workoutState.reachedEndWithOpenExercises {
             showingOpenExercisesPrompt = true
         }
@@ -149,6 +150,15 @@ final class ActiveWorkoutSession: Identifiable {
             self.queuedCelebration = nil
             presentPRCelebration(queuedCelebration)
         }
+    }
+
+    /// Pairs are made when the workout starts, but the setting (or the subscription
+    /// behind it) can change mid-workout. Turned off, the pairs not yet started become
+    /// their own exercises rather than staying attached to a card nobody sees.
+    func reconcileSupersets() {
+        guard !supersetsEnabled, workoutState.unpairUnstartedSupersets() else { return }
+        persist()
+        syncWorkoutStateToWatch()
     }
 
     /// Catch up after the app was in the background, where the tick loop doesn't run
@@ -286,8 +296,8 @@ final class ActiveWorkoutSession: Identifiable {
         
         let mainLiftCount = exercises.count
         
-        // Must match what the timer screen displays (supersetsEnabled), or a lapsed
-        // subscriber's accessories get paired but never shown.
+        // Pairs are made only while supersets are available; turning them off later
+        // unpairs what hasn't started (reconcileSupersets).
         if supersetsEnabled {
             // Superset mode: pair accessories with main lifts
             // Any "extra" accessories beyond the number of main lifts get added at the end

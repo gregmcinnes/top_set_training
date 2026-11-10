@@ -118,6 +118,28 @@ final class AccessoryLoggingTests: XCTestCase {
         XCTAssertNil(state.currentSupersetAccessory, "The rest is over")
     }
 
+    func testTurningSupersetsOffUnpairsOnlyTheLiftsNotYetStarted() {
+        let state = WorkoutState()
+        let started = linear("Bench", sets: 3)
+        let untouched = linear("Dips", sets: 3)
+        let pushdown = accessory("Pushdown")
+        state.exercises = [started, untouched, pushdown]
+        state.supersetAccessories[0] = SupersetAccessoryData(name: "Curl", sets: 3, reps: 10, weight: 30)
+        state.supersetAccessories[1] = SupersetAccessoryData(name: "Lateral Raise", sets: 4, reps: 15, weight: 15)
+        state.completedSets[started.id] = [1]
+
+        XCTAssertTrue(state.unpairUnstartedSupersets())
+
+        XCTAssertEqual(state.supersetAccessories.keys.sorted(), [0], "The pair under way stays")
+        XCTAssertEqual(state.exercises.map(\.name), ["Bench", "Dips", "Pushdown", "Lateral Raise"])
+        let moved = state.exercises.last
+        XCTAssertEqual(moved?.isAccessory, true)
+        XCTAssertEqual(moved?.totalSets, 4, "Its own set count, not its lift's")
+        XCTAssertEqual(moved?.repsPerSet, 15)
+        XCTAssertEqual(moved?.weight, 15)
+        XCTAssertFalse(state.unpairUnstartedSupersets(), "Nothing left to move")
+    }
+
     func testAccessoriesAreLoggedInWorkoutOrder() {
         let state = WorkoutState()
         let lift = linear()

@@ -281,6 +281,26 @@ final class WorkoutState {
         )
     }
     
+    /// Supersets turned off mid-workout: a pair whose lift hasn't started becomes its own
+    /// exercise at the end. Pairs already under way stay paired, so the sets done
+    /// alongside their lift still count. Returns whether anything moved.
+    @discardableResult
+    func unpairUnstartedSupersets() -> Bool {
+        guard !isFinished else { return false }
+        let unstarted = supersetAccessories.keys.sorted().filter { completedSetsForExercise(at: $0) == 0 }
+        for index in unstarted {
+            guard let pair = supersetAccessories.removeValue(forKey: index) else { continue }
+            exercises.append(.fromAccessory(
+                name: pair.name,
+                sets: pair.sets,
+                reps: pair.reps,
+                lastLogWeight: pair.weight,
+                lastWasEasy: pair.lastWasEasy
+            ))
+        }
+        return !unstarted.isEmpty
+    }
+
     var currentExercise: WorkoutExercise? {
         guard currentExerciseIndex < exercises.count else { return nil }
         return exercises[currentExerciseIndex]

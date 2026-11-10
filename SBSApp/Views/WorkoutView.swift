@@ -75,7 +75,6 @@ struct WorkoutView: View {
                     TimerView(
                         workoutState: workoutState,
                         useMetric: appState.settings.useMetric,
-                        showSuperset: session.supersetsEnabled,
                         barWeight: appState.settings.barWeight,
                         showPlateCalculator: appState.shouldShowPlateCalculator,
                         onSkip: { session.handleTimerSkip() },
@@ -424,6 +423,9 @@ struct WorkoutView: View {
         // The PR line belongs to the rest after the set
         .onChange(of: workoutState.showingTimer) { _, showing in
             if !showing { restPR = nil }
+        }
+        .onChange(of: session.supersetsEnabled) { _, _ in
+            session.reconcileSupersets()
         }
     }
 
@@ -988,7 +990,6 @@ struct SetIndicatorStrip: View {
 struct TimerView: View {
     @Bindable var workoutState: WorkoutState
     let useMetric: Bool
-    let showSuperset: Bool
     var barWeight: Double = 45
     var showPlateCalculator: Bool = true
     var onSkip: (() -> Void)?
@@ -1006,13 +1007,15 @@ struct TimerView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var hasSuperset: Bool {
-        showSuperset && workoutState.currentSupersetAccessory != nil
+        workoutState.currentSupersetAccessory != nil
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: SBSLayout.space4) {
-                if let accessory = workoutState.currentSupersetAccessory, showSuperset {
+                // Shown whenever a pair exists: pairs left over from before supersets
+                // were turned off are ones already under way
+                if let accessory = workoutState.currentSupersetAccessory {
                     SupersetAccessoryCard(
                         accessory: accessory,
                         useMetric: useMetric,
@@ -1635,9 +1638,9 @@ struct ExercisePickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showingFinishConfirm = false
 
-    /// Check if workout has any accessory exercises
+    /// Check if workout has any accessory exercises, standalone or paired with a lift
     private var hasAccessories: Bool {
-        workoutState.exercises.contains { $0.isAccessory }
+        workoutState.exercises.contains { $0.isAccessory } || !workoutState.supersetAccessories.isEmpty
     }
 
     private var totalSets: Int {
@@ -1675,6 +1678,7 @@ struct ExercisePickerSheet: View {
                             isCurrent: index == workoutState.currentExerciseIndex,
                             completedSets: workoutState.completedSetsForExercise(at: index),
                             amrapResult: workoutState.amrapResults[exercise.lift ?? exercise.name],
+                            superset: workoutState.supersetAccessories[index],
                             useMetric: useMetric,
                             onTap: {
                                 onSelect(index)
@@ -1821,6 +1825,8 @@ struct ExercisePickerRow: View {
     let isCurrent: Bool
     let completedSets: Int
     var amrapResult: WorkoutAMRAPResult? = nil
+    /// The accessory paired with this lift and done during its rests
+    var superset: SupersetAccessoryData? = nil
     let useMetric: Bool
     let onTap: () -> Void
 
@@ -1910,6 +1916,13 @@ struct ExercisePickerRow: View {
                             .font(SBSFonts.caption())
                             .foregroundStyle(Color.ink)
                     }
+
+                    if let superset {
+                        Label(supersetLabel(superset), systemImage: "arrow.triangle.2.circlepath")
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
+                            .lineLimit(2)
+                    }
                 }
 
                 Spacer()
@@ -1930,6 +1943,14 @@ struct ExercisePickerRow: View {
             .padding(.vertical, SBSLayout.space2)
         }
         .buttonStyle(.plain)
+    }
+
+    private func supersetLabel(_ accessory: SupersetAccessoryData) -> String {
+        var text = "Superset: \(accessory.name) · \(accessory.sets) × \(accessory.reps)"
+        if let weight = accessory.weight, weight > 0 {
+            text += " @ \(weight.formattedWeightShort(useMetric: useMetric))"
+        }
+        return text
     }
 }
 

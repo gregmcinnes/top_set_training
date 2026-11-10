@@ -151,7 +151,7 @@ enum PlateText {
 // MARK: - Compact Plate Strip
 
 /// One side of the bar as a strip of plate bars: no bar, no labels, heaviest first.
-/// The live set card and history rows show this; the full barbell is BarbellView.
+/// The share card, plate lists and history rows show this; the full barbell is BarbellView.
 struct PlateStrip: View {
     let plates: [Plate]
     /// Height of the tallest plate. History rows pass `rowHeight`.
@@ -190,35 +190,23 @@ struct PlateStrip: View {
     }
 }
 
-/// The strip with its per-side list beneath, and the remainder warning when the
-/// plates can't make the weight. What the live set card shows.
+/// The full labelled barbell with the per-side list and total beneath, and the
+/// remainder warning when the plates can't make the weight. What the live set card shows.
 struct PlateLoadSummary: View {
     let weight: Double
     let barWeight: Double
     let useMetric: Bool
 
-    private var result: PlateCalculatorResult {
-        PlateCalculator(barWeight: barWeight, useMetric: useMetric).calculate(totalWeight: weight)
-    }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: SBSLayout.space1) {
-            PlateStrip(plates: result.platesPerSide)
-                .padding(.top, SBSLayout.space2)
-
-            Text(PlateText.perSide(result, useMetric: useMetric))
-                .font(SBSFonts.numberSmall())
-                .foregroundStyle(Color.inkSecondary)
-                .lineLimit(2)
-
-            if let remainder = PlateText.remainder(result, useMetric: useMetric) {
-                Label(remainder, systemImage: "exclamationmark.triangle")
-                    .font(SBSFonts.caption())
-                    .foregroundStyle(Color.warning)
-            }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Plates: \(PlateText.perSide(result, useMetric: useMetric))")
+        BarbellView(
+            weight: weight,
+            useMetric: useMetric,
+            barWeight: barWeight,
+            showLabels: true,
+            compact: false
+        )
+        .padding(.top, SBSLayout.space3)
+        .frame(maxWidth: .infinity)
     }
 }
 

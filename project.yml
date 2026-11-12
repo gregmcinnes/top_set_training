@@ -1,6 +1,7 @@
 name: SBS
 options:
   minimumXcodeGenVersion: 2.36.0
+  createIntermediateGroups: true
   bundleIdPrefix: com.gregorymcinnes
 settings:
   base:

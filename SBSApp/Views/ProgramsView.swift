@@ -95,7 +95,6 @@ struct ProgramsView: View {
                     }
                 }
                 .padding(.horizontal, SBSLayout.space4)
-                .padding(.top, SBSLayout.space2)
 
                 // Section picker
                 SBSSegmentedControl(options: ProgramSection.allCases, selection: $selectedSection) { $0.rawValue }

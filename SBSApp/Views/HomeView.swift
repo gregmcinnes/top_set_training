@@ -185,7 +185,6 @@ struct HomeView: View {
                     Spacer(minLength: 100)
                 }
                 .padding(.horizontal, SBSLayout.space4)
-                .padding(.top, SBSLayout.space2)
             }
             .sbsBackground()
             .onChange(of: appState.returnToHomeCount) { _, _ in

@@ -33,7 +33,12 @@ struct SBSTabHeader<Trailing: View>: View {
                 .foregroundStyle(Color.orangeText)
                 .frame(minWidth: 44, minHeight: 44)
         }
+        // The gap under the status bar lives here so every tab matches;
+        // screens add no top padding of their own above the header.
+        .padding(.top, Self.topSpace)
     }
+
+    static var topSpace: CGFloat { SBSLayout.space4 }
 }
 
 extension View {

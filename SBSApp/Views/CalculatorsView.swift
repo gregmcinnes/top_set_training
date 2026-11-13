@@ -88,7 +88,6 @@ struct CalculatorsView: View {
 
                     Spacer(minLength: 100)
                 }
-                .padding(.top, SBSLayout.space2)
             }
             .sbsBackground()
             .sbsTabRoot("Calculators")

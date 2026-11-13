@@ -150,7 +150,6 @@ struct SettingsView: View {
                     SBSTabHeader("Settings")
                         .textCase(nil)
                         .padding(.horizontal, SBSLayout.space4)
-                        .padding(.top, SBSLayout.space2)
                         .listRowInsets(EdgeInsets())
                 }
 

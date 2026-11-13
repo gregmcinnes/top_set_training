@@ -535,7 +535,6 @@ struct HistoryView: View {
                     Spacer(minLength: 100)
                 }
                 .padding(.horizontal, SBSLayout.space4)
-                .padding(.top, SBSLayout.space2)
             }
             .sbsBackground()
             .sbsTabRoot("History")

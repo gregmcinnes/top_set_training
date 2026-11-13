@@ -98,10 +98,44 @@ struct HomeView: View {
         }
     }
 
+    /// Program info, new cycle, past cycles: the header's trailing menu
+    private var moreMenu: some View {
+        Menu {
+            if currentProgramInfo != nil {
+                Button {
+                    programInfoSheet = currentProgramInfo
+                } label: {
+                    Label("Program Info", systemImage: "info.circle")
+                }
+
+                Divider()
+            }
+
+            Button {
+                showingNewCycleOptions = true
+            } label: {
+                Label("Start New Cycle", systemImage: "arrow.clockwise.circle")
+            }
+            
+            if !appState.cycleHistory.isEmpty {
+                Button {
+                    showingPastCycles = true
+                } label: {
+                    Label("Past Cycles", systemImage: "clock.arrow.circlepath")
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+        }
+        .accessibilityLabel("More options")
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: SBSLayout.space6) {
+                    SBSTabHeader(appState.programDisplayName) { moreMenu }
+
                     topCard
 
                     // Week selector strip
@@ -151,47 +185,13 @@ struct HomeView: View {
                     Spacer(minLength: 100)
                 }
                 .padding(.horizontal, SBSLayout.space4)
-                .padding(.top, SBSLayout.space4)
+                .padding(.top, SBSLayout.space2)
             }
             .sbsBackground()
             .onChange(of: appState.returnToHomeCount) { _, _ in
                 showingSession = false
             }
-            .navigationTitle(appState.programDisplayName)
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        if currentProgramInfo != nil {
-                            Button {
-                                programInfoSheet = currentProgramInfo
-                            } label: {
-                                Label("Program Info", systemImage: "info.circle")
-                            }
-
-                            Divider()
-                        }
-
-                        Button {
-                            showingNewCycleOptions = true
-                        } label: {
-                            Label("Start New Cycle", systemImage: "arrow.clockwise.circle")
-                        }
-                        
-                        if !appState.cycleHistory.isEmpty {
-                            Button {
-                                showingPastCycles = true
-                            } label: {
-                                Label("Past Cycles", systemImage: "clock.arrow.circlepath")
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .font(.system(size: 17))
-                    }
-                    .accessibilityLabel("More options")
-                }
-            }
+            .sbsTabRoot(appState.programDisplayName)
             .navigationDestination(isPresented: $showingSession) {
                 SessionView(
                     appState: appState,

@@ -89,6 +89,14 @@ struct ProgramsView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                SBSTabHeader("Programs") {
+                    if selectedSection == .templates {
+                        createTemplateButton
+                    }
+                }
+                .padding(.horizontal, SBSLayout.space4)
+                .padding(.top, SBSLayout.space2)
+
                 // Section picker
                 SBSSegmentedControl(options: ProgramSection.allCases, selection: $selectedSection) { $0.rawValue }
                     .padding(.horizontal, SBSLayout.space4)
@@ -102,15 +110,7 @@ struct ProgramsView: View {
                 }
             }
             .sbsBackground()
-            .navigationTitle("Programs")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                if selectedSection == .templates {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        createTemplateButton
-                    }
-                }
-            }
+            .sbsTabRoot("Programs")
             .sheet(isPresented: $showingPaywall) {
                 PaywallView(triggeredByFeature: .allPrograms)
             }

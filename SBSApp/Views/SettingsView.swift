@@ -143,6 +143,17 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                // An empty section whose header is the title: as a plain row it sat under
+                // the grouped style's top gap, lower than the other tabs' titles.
+                Section {
+                } header: {
+                    SBSTabHeader("Settings")
+                        .textCase(nil)
+                        .padding(.horizontal, SBSLayout.space4)
+                        .padding(.top, SBSLayout.space2)
+                        .listRowInsets(EdgeInsets())
+                }
+
                 // Premium Section - only show for non-premium users
                 if !storeManager.isPremium {
                     Section {
@@ -822,9 +833,8 @@ struct SettingsView: View {
             }
             .sbsGroupedList()
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle("Settings")
+            .sbsTabRoot("Settings")
             .manageSubscriptionsSheet(isPresented: $showingManageSubscription)
-            .navigationBarTitleDisplayMode(.large)
             .sheet(isPresented: $showingTMEditor) {
                 TMEditorView(appState: appState)
             }

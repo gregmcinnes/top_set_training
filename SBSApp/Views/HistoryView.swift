@@ -404,6 +404,8 @@ struct HistoryView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: SBSLayout.space6) {
+                    SBSTabHeader("History")
+
                     // Current Cycle TM Progress Card
                     CurrentCycleTMProgressCard(
                         appState: appState,
@@ -533,11 +535,10 @@ struct HistoryView: View {
                     Spacer(minLength: 100)
                 }
                 .padding(.horizontal, SBSLayout.space4)
-                .padding(.top, SBSLayout.space4)
+                .padding(.top, SBSLayout.space2)
             }
             .sbsBackground()
-            .navigationTitle("History")
-            .navigationBarTitleDisplayMode(.large)
+            .sbsTabRoot("History")
             .sheet(isPresented: $showingTMProgress) {
                 TMProgressDetailView(appState: appState)
             }

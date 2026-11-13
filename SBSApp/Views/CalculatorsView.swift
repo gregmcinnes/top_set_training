@@ -9,6 +9,9 @@ struct CalculatorsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: SBSLayout.space6) {
+                    SBSTabHeader("Calculators")
+                        .padding(.horizontal)
+
                     // One hairline group of calculators
                     VStack(spacing: 0) {
                         NavigationLink {
@@ -85,11 +88,10 @@ struct CalculatorsView: View {
 
                     Spacer(minLength: 100)
                 }
-                .padding(.top)
+                .padding(.top, SBSLayout.space2)
             }
             .sbsBackground()
-            .navigationTitle("Calculators")
-            .navigationBarTitleDisplayMode(.large)
+            .sbsTabRoot("Calculators")
         }
     }
 }

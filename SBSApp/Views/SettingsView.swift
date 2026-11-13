@@ -486,7 +486,7 @@ struct SettingsView: View {
                 } header: {
                     SBSListHeader("Workout Timer")
                 } footer: {
-                    SBSListFooter("Sound notification plays a chime when the timer ends (respects silent mode). Push notifications alert you when the rest timer ends while the app is in the background. PR celebrations show a full-screen animation when you achieve a new personal record. When superset is enabled, accessories will be shown during rest periods.")
+                    SBSListFooter("Sound notification plays a chime when the timer ends (respects silent mode). Push notifications alert you when the rest timer ends while the app is in the background. PR celebrations show a full-screen animation when you achieve a new personal record. When superset is enabled, accessories are shown during rest periods. Choose which accessory goes with each lift on the day screen; choices are remembered for that day.")
                 }
                 .sbsListRows()
 

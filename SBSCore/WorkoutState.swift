@@ -133,6 +133,52 @@ struct SupersetAccessoryData: Codable, Equatable {
     var lastWasEasy: Bool? = nil
 }
 
+extension SupersetAccessoryData {
+    /// A standalone accessory becoming a pair
+    init(accessory exercise: WorkoutExercise) {
+        self.init(
+            name: exercise.name,
+            sets: exercise.totalSets,
+            reps: exercise.repsPerSet,
+            weight: exercise.weight > 0 ? exercise.weight : nil,
+            lastWasEasy: exercise.lastWasEasy
+        )
+    }
+}
+
+// MARK: - Superset Pairing
+
+/// Which accessory goes with which main lift. A day the lifter hasn't chosen for pairs
+/// in order; a chosen day pairs only what was chosen, by name.
+enum SupersetPairing {
+    /// Main-lift index -> accessory index. Names that no longer exist are skipped, and an
+    /// accessory pairs at most once (the first lift to claim it keeps it).
+    static func resolve(lifts: [String], accessories: [String], saved: [String: String]?) -> [Int: Int] {
+        guard let saved else {
+            return Dictionary(uniqueKeysWithValues: (0..<min(lifts.count, accessories.count)).map { ($0, $0) })
+        }
+        var result: [Int: Int] = [:]
+        var used = Set<Int>()
+        for (liftIndex, lift) in lifts.enumerated() {
+            guard let name = saved[lift],
+                  let accessoryIndex = accessories.indices.first(where: { accessories[$0] == name && !used.contains($0) })
+            else { continue }
+            result[liftIndex] = accessoryIndex
+            used.insert(accessoryIndex)
+        }
+        return result
+    }
+
+    /// The same pairs as names, the form they're remembered in
+    static func names(lifts: [String], accessories: [String], pairs: [Int: Int]) -> [String: String] {
+        var result: [String: String] = [:]
+        for (lift, accessory) in pairs where lifts.indices.contains(lift) && accessories.indices.contains(accessory) {
+            result[lifts[lift]] = accessories[accessory]
+        }
+        return result
+    }
+}
+
 // MARK: - Performed Accessory
 
 /// An accessory actually done in a session, as it gets logged when the session finishes
@@ -302,6 +348,101 @@ final class WorkoutState {
             ))
         }
         return !unstarted.isEmpty
+    }
+
+    /// A lift's pair can change until its first set: after that, sets have been done
+    /// alongside it and moving the accessory would lose them.
+    func canChangeSuperset(forExerciseAt index: Int) -> Bool {
+        guard !isFinished, exercises.indices.contains(index), !exercises[index].isAccessory else { return false }
+        return completedSetsForExercise(at: index) == 0
+    }
+
+    /// Accessories a lift could take: its own pair, unstarted standalone accessories, and
+    /// pairs of other lifts not yet started (choosing one moves it)
+    func availableSupersetAccessories(forExerciseAt index: Int) -> [SupersetAccessoryData] {
+        var result: [SupersetAccessoryData] = []
+        for key in supersetAccessories.keys.sorted() where key == index || canChangeSuperset(forExerciseAt: key) {
+            if let pair = supersetAccessories[key] { result.append(pair) }
+        }
+        for exercise in exercises where exercise.isAccessory && (completedSets[exercise.id]?.isEmpty ?? true) {
+            result.append(SupersetAccessoryData(accessory: exercise))
+        }
+        return result
+    }
+
+    /// This session's pairs by name (main-lift name -> accessory name), to remember them
+    var supersetPairNames: [String: String] {
+        var result: [String: String] = [:]
+        for (index, pair) in supersetAccessories where exercises.indices.contains(index) {
+            result[exercises[index].name] = pair.name
+        }
+        return result
+    }
+
+    /// The lift an accessory is paired with right now, if any
+    func supersetLiftIndex(forAccessory name: String) -> Int? {
+        supersetAccessories.first { $0.value.name == name }?.key
+    }
+
+    /// Pair a lift with an accessory, or with nil unpair it. The old pair goes to the end
+    /// as its own exercise; a standalone accessory taken leaves the list, and one taken
+    /// from another lift leaves that lift without a pair.
+    @discardableResult
+    func setSuperset(_ accessoryName: String?, forExerciseAt index: Int) -> Bool {
+        guard canChangeSuperset(forExerciseAt: index) else { return false }
+        guard accessoryName != supersetAccessories[index]?.name else { return false }
+
+        var incoming: SupersetAccessoryData?
+        if let accessoryName {
+            if let otherLift = supersetLiftIndex(forAccessory: accessoryName) {
+                guard canChangeSuperset(forExerciseAt: otherLift) else { return false }
+                incoming = supersetAccessories.removeValue(forKey: otherLift)
+            } else if let standalone = exercises.firstIndex(where: {
+                $0.isAccessory && $0.name == accessoryName && (completedSets[$0.id]?.isEmpty ?? true)
+            }) {
+                let exercise = exercises[standalone]
+                incoming = SupersetAccessoryData(accessory: exercise)
+                removeExercise(at: standalone)
+            } else {
+                return false
+            }
+        }
+
+        if let old = supersetAccessories.removeValue(forKey: index) {
+            exercises.append(.fromAccessory(
+                name: old.name,
+                sets: old.sets,
+                reps: old.reps,
+                lastLogWeight: old.weight,
+                lastWasEasy: old.lastWasEasy
+            ))
+        }
+        if let incoming {
+            supersetAccessories[index] = incoming
+        }
+        return true
+    }
+
+    /// Take an unstarted exercise out, keeping the current position and the pairs (which
+    /// are keyed by index) on the same exercises
+    private func removeExercise(at removed: Int) {
+        let currentId = currentExercise?.id
+        exercises.remove(at: removed)
+        var shifted: [Int: SupersetAccessoryData] = [:]
+        for (key, pair) in supersetAccessories {
+            shifted[key > removed ? key - 1 : key] = pair
+        }
+        supersetAccessories = shifted
+        if let currentId, let index = exercises.firstIndex(where: { $0.id == currentId }) {
+            currentExerciseIndex = index
+        } else {
+            currentExerciseIndex = min(currentExerciseIndex, max(0, exercises.count - 1))
+            if let exercise = currentExercise, let set = firstIncompleteSet(of: exercise) {
+                currentSetNumber = set
+            } else {
+                currentSetNumber = 1
+            }
+        }
     }
 
     var currentExercise: WorkoutExercise? {

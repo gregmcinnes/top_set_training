@@ -346,6 +346,10 @@ public struct UserData: Codable, Equatable {
     /// Accessory-only days finished this cycle (week -> days). They leave no lift log, so
     /// this is what shows them as Done. It doesn't count toward next-workout or progress.
     public var accessoryDaysDone: [Int: Set<Int>]
+    /// Chosen superset pairs: programId -> day -> main-lift name -> accessory name.
+    /// A day with an entry is the lifter's own choice, and a lift missing from it has no
+    /// superset. A day with no entry pairs in order. Kept across weeks and cycles.
+    public var supersetPairings: [String: [Int: [String: String]]]
     
     // MARK: - Cycle management
     
@@ -383,6 +387,7 @@ public struct UserData: Codable, Equatable {
         workoutRecords: [WorkoutRecord] = [],
         accessoryHistory: [AccessoryRecord] = [],
         accessoryDaysDone: [Int: Set<Int>] = [:],
+        supersetPairings: [String: [Int: [String: String]]] = [:],
         currentCycleStartDate: Date = Date(),
         cycleHistory: [CompletedCycle] = [],
         customTemplates: [CustomTemplate] = [],
@@ -402,6 +407,7 @@ public struct UserData: Codable, Equatable {
         self.workoutRecords = workoutRecords
         self.accessoryHistory = accessoryHistory
         self.accessoryDaysDone = accessoryDaysDone
+        self.supersetPairings = supersetPairings
         self.currentCycleStartDate = currentCycleStartDate
         self.cycleHistory = cycleHistory
         self.customTemplates = customTemplates
@@ -425,6 +431,7 @@ public struct UserData: Codable, Equatable {
         workoutRecords = try container.decodeIfPresent([WorkoutRecord].self, forKey: .workoutRecords) ?? []
         accessoryHistory = try container.decodeIfPresent([AccessoryRecord].self, forKey: .accessoryHistory) ?? []
         accessoryDaysDone = try container.decodeIfPresent([Int: Set<Int>].self, forKey: .accessoryDaysDone) ?? [:]
+        supersetPairings = try container.decodeIfPresent([String: [Int: [String: String]]].self, forKey: .supersetPairings) ?? [:]
         currentCycleStartDate = try container.decodeIfPresent(Date.self, forKey: .currentCycleStartDate) ?? Date()
         cycleHistory = try container.decodeIfPresent([CompletedCycle].self, forKey: .cycleHistory) ?? []
         customTemplates = try container.decodeIfPresent([CustomTemplate].self, forKey: .customTemplates) ?? []
@@ -436,7 +443,7 @@ public struct UserData: Codable, Equatable {
         case logs, structuredLogs, linearLogs
         case customInitialMaxes, customDays, accessoryLogs, selectedProgram
         case trainingMaxes, liftHistory, personalRecords, workoutRecords
-        case accessoryHistory, accessoryDaysDone
+        case accessoryHistory, accessoryDaysDone, supersetPairings
         case currentCycleStartDate, cycleHistory, customTemplates
         case savedProgramCustomizations, hasCompletedOnboarding
     }
@@ -599,6 +606,7 @@ public struct UserData: Codable, Equatable {
         // Clean up any saved customizations for this template
         let programId = UserData.programId(for: id)
         savedProgramCustomizations.removeValue(forKey: programId)
+        supersetPairings.removeValue(forKey: programId)
     }
     
     /// Get a template by ID

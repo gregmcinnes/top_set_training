@@ -684,6 +684,64 @@ public final class AppState {
         weekPlan(for: week)?[day]
     }
     
+    // MARK: - Superset Pairs
+
+    /// Supersets are a premium feature behind a setting
+    var supersetsEnabled: Bool {
+        StoreManager.shared.canAccess(.supersets) && settings.supersetAccessories
+    }
+
+    /// The day's main lifts (the items a workout makes exercises of) and accessories, by name
+    static func supersetCandidates(in plan: [PlanItem]) -> (lifts: [String], accessories: [String]) {
+        var lifts: [String] = []
+        var accessories: [String] = []
+        for item in plan {
+            switch item {
+            case let .volume(name, _, _, _, _, _, _, _, _, _, _),
+                 let .structured(name, _, _, _, _),
+                 let .linear(name, _):
+                lifts.append(name)
+            case let .accessory(name, _, _, _):
+                accessories.append(name)
+            default:
+                break
+            }
+        }
+        return (lifts, accessories)
+    }
+
+    /// The pairs a workout of this day would start with: main-lift name -> accessory name
+    func supersetPairs(week: Int, day: Int) -> [String: String] {
+        guard let plan = dayPlan(week: week, day: day) else { return [:] }
+        return supersetPairs(in: plan, day: day)
+    }
+
+    func supersetPairs(in plan: [PlanItem], day: Int) -> [String: String] {
+        let (lifts, accessories) = Self.supersetCandidates(in: plan)
+        let saved = userData.selectedProgram.flatMap { userData.supersetPairings[$0]?[day] }
+        let pairs = SupersetPairing.resolve(lifts: lifts, accessories: accessories, saved: saved)
+        return SupersetPairing.names(lifts: lifts, accessories: accessories, pairs: pairs)
+    }
+
+    /// Choose a lift's pair on the day screen, or with nil none. The whole day is saved
+    /// from what it shows now, so the other pairs stay as they were.
+    func setSuperset(lift: String, accessory: String?, week: Int, day: Int) {
+        guard let programId = userData.selectedProgram else { return }
+        var pairs = supersetPairs(week: week, day: day)
+        if let accessory {
+            pairs = pairs.filter { $0.value != accessory }
+            pairs[lift] = accessory
+        } else {
+            pairs[lift] = nil
+        }
+        saveSupersetPairs(pairs, programId: programId, day: day)
+    }
+
+    /// Remember a day's pairs for its next time, in this program
+    func saveSupersetPairs(_ pairs: [String: String], programId: String, day: Int) {
+        userData.supersetPairings[programId, default: [:]][day] = pairs
+    }
+
     func currentDayPlan() -> [PlanItem]? {
         dayPlan(week: selectedWeek, day: selectedDay)
     }

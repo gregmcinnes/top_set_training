@@ -452,6 +452,34 @@ final class PersistenceTests: XCTestCase {
         XCTAssertEqual(userData.customTemplates.first?.name, "Updated")
     }
     
+    func testSupersetPairingsSaveAndLoad() throws {
+        var userData = UserData()
+        userData.supersetPairings = ["sbs_program_config": [2: ["Bench Press": "Face Pull"]]]
+
+        try persistence.saveUserData(userData)
+
+        XCTAssertEqual(persistence.loadUserData().supersetPairings["sbs_program_config"]?[2], ["Bench Press": "Face Pull"])
+    }
+
+    func testUserDataSavedBeforeSupersetPairingsStillLoads() throws {
+        let old = try JSONSerialization.data(withJSONObject: ["selectedProgram": "sbs_program_config"])
+        let decoded = try JSONDecoder().decode(UserData.self, from: old)
+        XCTAssertEqual(decoded.selectedProgram, "sbs_program_config")
+        XCTAssertTrue(decoded.supersetPairings.isEmpty)
+    }
+
+    func testDeletingATemplateForgetsItsSupersetPairs() {
+        var userData = UserData()
+        let template = CustomTemplate(name: "Mine")
+        userData.addTemplate(template)
+        userData.supersetPairings[UserData.programId(for: template.id)] = [1: ["Squat": "Curl"]]
+        userData.supersetPairings["sbs_program_config"] = [1: ["Squat": "Curl"]]
+
+        userData.deleteTemplate(id: template.id)
+
+        XCTAssertEqual(Array(userData.supersetPairings.keys), ["sbs_program_config"])
+    }
+
     func testDeleteTemplate() {
         var userData = UserData()
         let template = CustomTemplate(name: "To Delete")

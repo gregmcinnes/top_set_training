@@ -226,6 +226,10 @@ struct WorkoutView: View {
                     // completion is dropped by the identity guard.
                     session.syncWorkoutStateToWatch()
                 },
+                supersetsEnabled: session.supersetsEnabled,
+                onChangeSuperset: { index, accessory in
+                    session.changeSuperset(accessory, forExerciseAt: index)
+                },
                 onFinish: {
                     session.finishEarly()
                     showingExercisePicker = false
@@ -1697,6 +1701,8 @@ struct ExercisePickerSheet: View {
     let workoutState: WorkoutState
     let useMetric: Bool
     let onSelect: (Int) -> Void
+    var supersetsEnabled = false
+    var onChangeSuperset: ((Int, String?) -> Void)?
     var onFinish: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
@@ -1709,6 +1715,22 @@ struct ExercisePickerSheet: View {
 
     private var totalSets: Int {
         workoutState.exercises.reduce(0) { $0 + $1.totalSets }
+    }
+
+    /// A menu for a lift whose pair can still change, when there's anything to pair it with
+    private func supersetPicker(forExerciseAt index: Int) -> SupersetPickerMenu? {
+        guard supersetsEnabled, let onChangeSuperset, workoutState.canChangeSuperset(forExerciseAt: index) else { return nil }
+        let available = workoutState.availableSupersetAccessories(forExerciseAt: index)
+        guard !available.isEmpty else { return nil }
+        let liftNames = workoutState.exercises.map(\.name)
+        return SupersetPickerMenu(
+            current: workoutState.supersetAccessories[index]?.name,
+            options: available.map { accessory in
+                let other = workoutState.supersetLiftIndex(forAccessory: accessory.name).flatMap { $0 == index ? nil : liftNames[$0] }
+                return (accessory.name, other)
+            },
+            onSelect: { onChangeSuperset(index, $0) }
+        )
     }
 
     private var completedExerciseCount: Int {
@@ -1743,6 +1765,7 @@ struct ExercisePickerSheet: View {
                             completedSets: workoutState.completedSetsForExercise(at: index),
                             amrapResult: workoutState.amrapResults[exercise.lift ?? exercise.name],
                             superset: workoutState.supersetAccessories[index],
+                            supersetPicker: supersetPicker(forExerciseAt: index),
                             useMetric: useMetric,
                             onTap: {
                                 onSelect(index)
@@ -1891,6 +1914,8 @@ struct ExercisePickerRow: View {
     var amrapResult: WorkoutAMRAPResult? = nil
     /// The accessory paired with this lift and done during its rests
     var superset: SupersetAccessoryData? = nil
+    /// Shown instead of the superset label while the pair can still change
+    var supersetPicker: SupersetPickerMenu? = nil
     let useMetric: Bool
     let onTap: () -> Void
 
@@ -1922,6 +1947,18 @@ struct ExercisePickerRow: View {
     }
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            rowButton
+            // Outside the row's button, so the menu gets its own taps; lined up with the name
+            if let supersetPicker {
+                supersetPicker
+                    .padding(.leading, 40 + SBSLayout.space3 - SBSLayout.space1)
+                    .padding(.bottom, SBSLayout.space2)
+            }
+        }
+    }
+
+    private var rowButton: some View {
         Button(action: onTap) {
             HStack(spacing: SBSLayout.space3) {
                 // Status cell: a check when done, otherwise the exercise's position
@@ -1981,7 +2018,7 @@ struct ExercisePickerRow: View {
                             .foregroundStyle(Color.ink)
                     }
 
-                    if let superset {
+                    if supersetPicker == nil, let superset {
                         Label(supersetLabel(superset), systemImage: "arrow.triangle.2.circlepath")
                             .font(SBSFonts.caption())
                             .foregroundStyle(Color.inkSecondary)
@@ -2015,6 +2052,62 @@ struct ExercisePickerRow: View {
             text += " @ \(weight.formattedWeightShort(useMetric: useMetric))"
         }
         return text
+    }
+}
+
+// MARK: - Superset Picker
+
+/// Choose which accessory a lift is supersetted with, or none. Used on the day screen
+/// and in the Workout Overview; the choice is remembered for that program day.
+struct SupersetPickerMenu: View {
+    /// The accessory paired now, if any
+    let current: String?
+    /// Accessories to offer, each with the other lift it's paired with now (choosing it moves it)
+    let options: [(name: String, pairedWith: String?)]
+    let onSelect: (String?) -> Void
+
+    var body: some View {
+        Menu {
+            Button {
+                onSelect(nil)
+            } label: {
+                if current == nil {
+                    Label("No superset", systemImage: "checkmark")
+                } else {
+                    Text("No superset")
+                }
+            }
+            Section("Superset with") {
+                ForEach(options, id: \.name) { option in
+                    Button {
+                        onSelect(option.name)
+                    } label: {
+                        let title = option.pairedWith.map { "\(option.name) (now with \($0))" } ?? option.name
+                        if option.name == current {
+                            Label(title, systemImage: "checkmark")
+                        } else {
+                            Text(title)
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: SBSLayout.space2) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                Text(current.map { "Superset: \($0)" } ?? "Add superset")
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(SBSFonts.caption().weight(.semibold))
+            }
+            .font(SBSFonts.caption())
+            .foregroundStyle(current == nil ? Color.inkSecondary : Color.orangeText)
+            .padding(.horizontal, SBSLayout.space1)
+            .padding(.vertical, SBSLayout.space1)
+            .contentShape(Rectangle())
+        }
+        .accessibilityLabel(current.map { "Superset: \($0)" } ?? "No superset")
+        .accessibilityHint("Choose an accessory to do during this lift's rests")
     }
 }
 

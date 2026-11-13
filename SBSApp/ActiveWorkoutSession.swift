@@ -52,7 +52,7 @@ final class ActiveWorkoutSession: Identifiable {
 
     /// Whether supersets are enabled (requires premium + user setting)
     var supersetsEnabled: Bool {
-        storeManager.canAccess(.supersets) && appState.settings.supersetAccessories
+        appState.supersetsEnabled
     }
 
     // MARK: - Lifecycle
@@ -159,6 +159,17 @@ final class ActiveWorkoutSession: Identifiable {
         guard !supersetsEnabled, workoutState.unpairUnstartedSupersets() else { return }
         persist()
         syncWorkoutStateToWatch()
+    }
+
+    /// Change a lift's pair from the workout. Remembered for this day, like a choice on
+    /// the day screen.
+    func changeSuperset(_ accessoryName: String?, forExerciseAt index: Int) {
+        guard supersetsEnabled, workoutState.setSuperset(accessoryName, forExerciseAt: index) else { return }
+        persist()
+        syncWorkoutStateToWatch()
+        if let programId {
+            appState.saveSupersetPairs(workoutState.supersetPairNames, programId: programId, day: day)
+        }
     }
 
     /// Catch up after the app was in the background, where the tick loop doesn't run
@@ -294,21 +305,22 @@ final class ActiveWorkoutSession: Identifiable {
             }
         }
         
-        let mainLiftCount = exercises.count
-        
         // Pairs are made only while supersets are available; turning them off later
-        // unpairs what hasn't started (reconcileSupersets).
+        // unpairs what hasn't started (reconcileSupersets). The lifter's choice for this
+        // day decides the pairs; a day never chosen pairs in order. Accessories left
+        // over run at the end.
         if supersetsEnabled {
-            // Superset mode: pair accessories with main lifts
-            // Any "extra" accessories beyond the number of main lifts get added at the end
-            for (index, accessory) in accessories.enumerated() {
-                if index < mainLiftCount {
-                    // Pair with corresponding main lift
-                    workoutState.supersetAccessories[index] = accessory
-                } else {
-                    // Extra accessory - add as standalone exercise at the end
-                    exercises.append(accessoryExercises[index])
-                }
+            let pairs = SupersetPairing.resolve(
+                lifts: exercises.map(\.name),
+                accessories: accessories.map(\.name),
+                saved: programId.flatMap { appState.userData.supersetPairings[$0]?[day] }
+            )
+            for (liftIndex, accessoryIndex) in pairs {
+                workoutState.supersetAccessories[liftIndex] = accessories[accessoryIndex]
+            }
+            let paired = Set(pairs.values)
+            for index in accessoryExercises.indices where !paired.contains(index) {
+                exercises.append(accessoryExercises[index])
             }
         } else {
             // Superset mode is OFF - add all accessories as exercises at the end

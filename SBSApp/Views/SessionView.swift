@@ -106,12 +106,13 @@ struct SessionView: View {
                     let indexed = Array(plan.enumerated())
                     let lifts = indexed.filter { !$0.element.isAccessory }
                     let accessories = indexed.filter { $0.element.isAccessory }
+                    let supersets = supersetContext(for: plan)
 
                     if !lifts.isEmpty {
-                        planGroup(lifts.count == 1 ? "Lift" : "Lifts", items: lifts)
+                        planGroup(lifts.count == 1 ? "Lift" : "Lifts", items: lifts, supersets: supersets)
                     }
                     if !accessories.isEmpty {
-                        planGroup(accessories.count == 1 ? "Accessory" : "Accessories", items: accessories)
+                        planGroup(accessories.count == 1 ? "Accessory" : "Accessories", items: accessories, supersets: supersets)
                     }
 
                     SessionAccessoryActions(
@@ -398,15 +399,67 @@ struct SessionView: View {
         }
     }
     
-    private func planGroup(_ title: String, items: [(offset: Int, element: PlanItem)]) -> some View {
+    private func planGroup(_ title: String, items: [(offset: Int, element: PlanItem)], supersets: SupersetContext?) -> some View {
         VStack(alignment: .leading, spacing: SBSLayout.space3) {
             SBSSectionEyebrow(title)
             ForEach(items, id: \.offset) { _, item in
-                planItemView(for: item)
+                VStack(alignment: .leading, spacing: SBSLayout.space2) {
+                    planItemView(for: item)
+                    if let supersets {
+                        supersetRow(for: item, supersets: supersets)
+                    }
+                }
             }
         }
         .padding(.horizontal)
         .padding(.top, SBSLayout.space2)
+    }
+
+    // MARK: - Supersets
+
+    /// What the day screen needs to show and change superset pairs
+    struct SupersetContext {
+        let lifts: [String]
+        let accessories: [String]
+        /// Main-lift name -> accessory name
+        let pairs: [String: String]
+
+        func lift(pairedWith accessory: String) -> String? {
+            pairs.first { $0.value == accessory }?.key
+        }
+    }
+
+    /// Nil when there's nothing to pair: supersets off, or no lifts or no accessories
+    private func supersetContext(for plan: [PlanItem]) -> SupersetContext? {
+        guard appState.supersetsEnabled else { return nil }
+        let (lifts, accessories) = AppState.supersetCandidates(in: plan)
+        guard !lifts.isEmpty, !accessories.isEmpty else { return nil }
+        return SupersetContext(lifts: lifts, accessories: accessories, pairs: appState.supersetPairs(in: plan, day: day))
+    }
+
+    @ViewBuilder
+    private func supersetRow(for item: PlanItem, supersets: SupersetContext) -> some View {
+        switch item {
+        case let .volume(name, _, _, _, _, _, _, _, _, _, _),
+             let .structured(name, _, _, _, _),
+             let .linear(name, _):
+            SupersetPickerMenu(
+                current: supersets.pairs[name],
+                options: supersets.accessories.map { ($0, supersets.lift(pairedWith: $0).flatMap { $0 == name ? nil : $0 }) },
+                onSelect: { accessory in
+                    appState.setSuperset(lift: name, accessory: accessory, week: week, day: day)
+                }
+            )
+        case let .accessory(name, _, _, _):
+            if let lift = supersets.lift(pairedWith: name) {
+                Label("Superset with \(lift)", systemImage: "arrow.triangle.2.circlepath")
+                    .font(SBSFonts.caption())
+                    .foregroundStyle(Color.inkSecondary)
+                    .padding(.horizontal, SBSLayout.space1)
+            }
+        default:
+            EmptyView()
+        }
     }
 
     @ViewBuilder

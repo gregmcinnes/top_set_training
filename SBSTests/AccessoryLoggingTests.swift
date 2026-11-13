@@ -152,6 +152,89 @@ final class AccessoryLoggingTests: XCTestCase {
         XCTAssertEqual(state.performedAccessories.map(\.name), ["Curl", "Face Pull"])
     }
 
+    // MARK: - Choosing pairs
+
+    func testADayNeverChosenPairsInOrder() {
+        let pairs = SupersetPairing.resolve(lifts: ["Squat", "Bench", "Row"], accessories: ["Curl", "Dip"], saved: nil)
+        XCTAssertEqual(pairs, [0: 0, 1: 1])
+    }
+
+    func testAChosenDayPairsOnlyWhatWasChosen() {
+        // No superset on the heavy opener, then the lifter's own pairs
+        let pairs = SupersetPairing.resolve(
+            lifts: ["Squat", "Bench", "Row"],
+            accessories: ["Curl", "Dip", "Face Pull"],
+            saved: ["Bench": "Face Pull", "Row": "Curl"]
+        )
+        XCTAssertEqual(pairs, [1: 2, 2: 0], "Dip isn't chosen, so it runs at the end")
+    }
+
+    func testAChosenDaySkipsNamesNoLongerThereAndPairsAnAccessoryOnce() {
+        let pairs = SupersetPairing.resolve(
+            lifts: ["Squat", "Bench"],
+            accessories: ["Curl"],
+            saved: ["Squat": "Curl", "Bench": "Curl", "Deadlift": "Curl", "Press": "Shrug"]
+        )
+        XCTAssertEqual(pairs, [0: 0])
+        XCTAssertEqual(SupersetPairing.names(lifts: ["Squat", "Bench"], accessories: ["Curl"], pairs: pairs), ["Squat": "Curl"])
+    }
+
+    func testUnpairingMidWorkoutMovesTheAccessoryToTheEnd() {
+        let state = WorkoutState()
+        state.exercises = [linear("Squat"), linear("Bench")]
+        state.supersetAccessories[1] = SupersetAccessoryData(name: "Curl", sets: 3, reps: 10, weight: 30)
+
+        XCTAssertTrue(state.setSuperset(nil, forExerciseAt: 1))
+
+        XCTAssertTrue(state.supersetAccessories.isEmpty)
+        XCTAssertEqual(state.exercises.map(\.name), ["Squat", "Bench", "Curl"])
+        XCTAssertEqual(state.exercises.last?.weight, 30)
+        XCTAssertEqual(state.supersetPairNames, [:])
+    }
+
+    func testPairingAStandaloneAccessoryTakesItOutOfTheList() {
+        let state = WorkoutState()
+        let squat = linear("Squat")
+        state.exercises = [squat, linear("Bench"), accessory("Face Pull", weight: 20), accessory("Curl")]
+        state.currentExerciseIndex = 3  // On Curl, which hasn't started
+
+        XCTAssertTrue(state.setSuperset("Face Pull", forExerciseAt: 1))
+
+        XCTAssertEqual(state.exercises.map(\.name), ["Squat", "Bench", "Curl"])
+        XCTAssertEqual(state.supersetAccessories[1]?.name, "Face Pull")
+        XCTAssertEqual(state.supersetAccessories[1]?.weight, 20)
+        XCTAssertEqual(state.currentExercise?.name, "Curl", "Still on the same exercise")
+        XCTAssertEqual(state.supersetPairNames, ["Bench": "Face Pull"])
+    }
+
+    func testChoosingAnotherLiftsAccessoryMovesIt() {
+        let state = WorkoutState()
+        state.exercises = [linear("Squat"), linear("Bench"), linear("Row")]
+        state.supersetAccessories[1] = SupersetAccessoryData(name: "Curl", sets: 3, reps: 10, weight: 30)
+        state.supersetAccessories[2] = SupersetAccessoryData(name: "Dip", sets: 3, reps: 10, weight: nil)
+
+        XCTAssertTrue(state.setSuperset("Curl", forExerciseAt: 2))
+
+        XCTAssertNil(state.supersetAccessories[1], "Bench lost its pair")
+        XCTAssertEqual(state.supersetAccessories[2]?.name, "Curl")
+        XCTAssertEqual(state.exercises.map(\.name), ["Squat", "Bench", "Row", "Dip"], "Row's old pair runs at the end")
+    }
+
+    func testAStartedLiftKeepsItsPair() {
+        let state = WorkoutState()
+        let squat = linear("Squat")
+        let bench = linear("Bench")
+        state.exercises = [squat, bench, accessory("Face Pull")]
+        state.supersetAccessories[0] = SupersetAccessoryData(name: "Curl", sets: 3, reps: 10, weight: 30)
+        state.completedSets[squat.id] = [1]
+
+        XCTAssertFalse(state.canChangeSuperset(forExerciseAt: 0))
+        XCTAssertFalse(state.setSuperset(nil, forExerciseAt: 0))
+        XCTAssertFalse(state.setSuperset("Curl", forExerciseAt: 1), "Can't take it from a lift under way")
+        XCTAssertFalse(state.canChangeSuperset(forExerciseAt: 2), "Accessories don't take pairs")
+        XCTAssertEqual(state.availableSupersetAccessories(forExerciseAt: 1).map(\.name), ["Face Pull"])
+    }
+
     // MARK: - Writing the log
 
     func testRecordingKeepsTheLastLogsNoteButDoesNotCopyItToTheNewEntry() {

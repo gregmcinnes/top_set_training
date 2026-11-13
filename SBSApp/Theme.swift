@@ -552,8 +552,10 @@ extension Double {
 
 /// Restyles every system navigation bar (tab roots, pushed screens, sheets) in the
 /// Top Set type and colours: large titles in title-large (Archivo SemiExpanded Black),
-/// inline titles in Archivo ExtraBold, a flat Color.bg bar with no shadow at rest and a
-/// 1px hairline once content scrolls under it. Titles stay sentence case: UIKit can't
+/// inline titles in Archivo ExtraBold, a transparent bar at rest (the screen's Color.bg
+/// shows through) and an opaque Color.bg bar with a 1px hairline once content scrolls
+/// under it. The at-rest bar must stay transparent: on iOS 26 an opaque scroll-edge
+/// background hides the large title on every scrolling screen. Titles stay sentence case: UIKit can't
 /// uppercase through attributes, and the strings double as back-button labels and
 /// UI-test identifiers. Call once at launch, before the first bar is made.
 enum SBSNavigationBarAppearance {
@@ -567,11 +569,15 @@ enum SBSNavigationBarAppearance {
         let inline = scaled(SBSFontName.archivoExtraBold, size: 17, style: .headline)
         let button = scaled(SBSFontName.archivoSemiBold, size: 17, style: .body)
 
-        func make(shadow: UIColor?) -> UINavigationBarAppearance {
+        func make(scrolled: Bool) -> UINavigationBarAppearance {
             let a = UINavigationBarAppearance()
-            a.configureWithOpaqueBackground()
-            a.backgroundColor = bg
-            a.shadowColor = shadow
+            if scrolled {
+                a.configureWithOpaqueBackground()
+                a.backgroundColor = bg
+                a.shadowColor = hairline
+            } else {
+                a.configureWithTransparentBackground()
+            }
             a.largeTitleTextAttributes = [.font: large, .foregroundColor: ink, .kern: -0.34]
             a.titleTextAttributes = [.font: inline, .foregroundColor: ink, .kern: 0.2]
 
@@ -586,10 +592,10 @@ enum SBSNavigationBarAppearance {
         }
 
         let bar = UINavigationBar.appearance()
-        bar.standardAppearance = make(shadow: hairline)
-        bar.compactAppearance = make(shadow: hairline)
-        bar.scrollEdgeAppearance = make(shadow: nil)
-        bar.compactScrollEdgeAppearance = make(shadow: nil)
+        bar.standardAppearance = make(scrolled: true)
+        bar.compactAppearance = make(scrolled: true)
+        bar.scrollEdgeAppearance = make(scrolled: false)
+        bar.compactScrollEdgeAppearance = make(scrolled: false)
     }
 
     private static func scaled(_ name: String, size: CGFloat, style: UIFont.TextStyle) -> UIFont {

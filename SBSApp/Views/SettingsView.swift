@@ -2,15 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct SettingsView: View {
-    @ViewBuilder private var restDurationOptions: some View {
-        Text("1 minute").tag(60)
-        Text("1:30").tag(90)
-        Text("2 minutes").tag(120)
-        Text("2:30").tag(150)
-        Text("3 minutes").tag(180)
-        Text("4 minutes").tag(240)
-        Text("5 minutes").tag(300)
-    }
+    private enum RestRow { case main, accessory }
 
     @Bindable var appState: AppState
     @State private var exportPayload: ExportPayload?
@@ -28,6 +20,7 @@ struct SettingsView: View {
     @State private var showingPaywall = false
     @State private var showingManageSubscription = false
     @State private var isRestoringPurchases = false
+    @State private var expandedRestRow: RestRow?
     @State private var programInfoSheet: AppState.AvailableProgramInfo?
     @State private var showingPlateCalculatorInfo = false
     @State private var showingImporter = false
@@ -447,15 +440,19 @@ struct SettingsView: View {
 
                 // Rest Timer
                 Section {
-                    Picker("Main Lift Rest", selection: $appState.settings.restTimerDuration) {
-                        restDurationOptions
-                    }
-                    .sbsValuePicker()
+                    SBSRestDurationRow(
+                        title: "Main Lift Rest",
+                        seconds: $appState.settings.restTimerDuration,
+                        id: RestRow.main,
+                        expanded: $expandedRestRow
+                    )
 
-                    Picker("Accessory Rest", selection: $appState.settings.accessoryRestSeconds) {
-                        restDurationOptions
-                    }
-                    .sbsValuePicker()
+                    SBSRestDurationRow(
+                        title: "Accessory Rest",
+                        seconds: $appState.settings.accessoryRestSeconds,
+                        id: RestRow.accessory,
+                        expanded: $expandedRestRow
+                    )
 
                     Toggle("Sound Notification", isOn: $appState.settings.playSoundNotifications)
 

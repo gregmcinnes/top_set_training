@@ -554,3 +554,81 @@ extension View {
     }
     .background(Color.bg)
 }
+
+// MARK: - Rest Duration Row
+
+/// A list row for a rest length: label and m:ss value, tap to open an inline wheel
+/// in 15-second steps (0:15 to 10:00). A menu would be 40 items long. Pass a shared
+/// `expanded` binding so opening one row closes its siblings.
+struct SBSRestDurationRow<ID: Hashable>: View {
+    let title: String
+    @Binding var seconds: Int
+    let id: ID
+    @Binding var expanded: ID?
+
+    static var step: Int { 15 }
+    static var range: ClosedRange<Int> { 15...600 }
+
+    private var isExpanded: Bool { expanded == id }
+
+    /// The 15-second grid, plus the saved value if an older build stored something off it.
+    private var options: [Int] {
+        var values = Array(stride(from: Self.range.lowerBound, through: Self.range.upperBound, by: Self.step))
+        if !values.contains(seconds) { values.append(seconds); values.sort() }
+        return values
+    }
+
+    static func format(_ seconds: Int) -> String {
+        String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+
+    /// "2 minutes 15 seconds" for VoiceOver.
+    static func spoken(_ seconds: Int) -> String {
+        let f = DateComponentsFormatter()
+        f.unitsStyle = .full
+        f.allowedUnits = [.minute, .second]
+        return f.string(from: TimeInterval(seconds)) ?? format(seconds)
+    }
+
+    var body: some View {
+        Button {
+            withAnimation(.snappy) { expanded = isExpanded ? nil : id }
+        } label: {
+            HStack {
+                Text(title)
+                    .foregroundStyle(Color.ink)
+                Spacer()
+                Text(Self.format(seconds))
+                    .monospacedDigit()
+                    .foregroundStyle(isExpanded ? Color.ink : Color.inkSecondary)
+                    .contentTransition(.numericText())
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityValue(Self.spoken(seconds))
+        .accessibilityHint(isExpanded ? "Hides the duration picker" : "Shows a picker in 15 second steps")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: seconds = min(Self.range.upperBound, seconds + Self.step)
+            case .decrement: seconds = max(Self.range.lowerBound, seconds - Self.step)
+            @unknown default: break
+            }
+        }
+
+        if isExpanded {
+            Picker(title, selection: $seconds) {
+                ForEach(options, id: \.self) { value in
+                    Text(Self.format(value))
+                        .monospacedDigit()
+                        .accessibilityLabel(Self.spoken(value))
+                        .tag(value)
+                }
+            }
+            .pickerStyle(.wheel)
+            .labelsHidden()
+            .frame(maxWidth: .infinity)
+        }
+    }
+}

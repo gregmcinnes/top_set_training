@@ -547,3 +547,55 @@ extension Double {
     }
 }
 
+
+// MARK: - Navigation bar
+
+/// Restyles every system navigation bar (tab roots, pushed screens, sheets) in the
+/// Top Set type and colours: large titles in title-large (Archivo SemiExpanded Black),
+/// inline titles in Archivo ExtraBold, a flat Color.bg bar with no shadow at rest and a
+/// 1px hairline once content scrolls under it. Titles stay sentence case: UIKit can't
+/// uppercase through attributes, and the strings double as back-button labels and
+/// UI-test identifiers. Call once at launch, before the first bar is made.
+enum SBSNavigationBarAppearance {
+    @MainActor
+    static func apply() {
+        let ink = UIColor(named: "ink") ?? .label
+        let bg = UIColor(named: "bg") ?? .systemBackground
+        let hairline = UIColor(named: "hairline") ?? .separator
+
+        let large = scaled(SBSFontName.archivoSemiExpandedBlack, size: 34, style: .largeTitle)
+        let inline = scaled(SBSFontName.archivoExtraBold, size: 17, style: .headline)
+        let button = scaled(SBSFontName.archivoSemiBold, size: 17, style: .body)
+
+        func make(shadow: UIColor?) -> UINavigationBarAppearance {
+            let a = UINavigationBarAppearance()
+            a.configureWithOpaqueBackground()
+            a.backgroundColor = bg
+            a.shadowColor = shadow
+            a.largeTitleTextAttributes = [.font: large, .foregroundColor: ink, .kern: -0.34]
+            a.titleTextAttributes = [.font: inline, .foregroundColor: ink, .kern: 0.2]
+
+            let item = UIBarButtonItemAppearance(style: .plain)
+            item.normal.titleTextAttributes = [.font: button]
+            a.buttonAppearance = item
+            a.backButtonAppearance = item
+            let done = UIBarButtonItemAppearance(style: .done)
+            done.normal.titleTextAttributes = [.font: scaled(SBSFontName.archivoBold, size: 17, style: .body)]
+            a.doneButtonAppearance = done
+            return a
+        }
+
+        let bar = UINavigationBar.appearance()
+        bar.standardAppearance = make(shadow: hairline)
+        bar.compactAppearance = make(shadow: hairline)
+        bar.scrollEdgeAppearance = make(shadow: nil)
+        bar.compactScrollEdgeAppearance = make(shadow: nil)
+    }
+
+    private static func scaled(_ name: String, size: CGFloat, style: UIFont.TextStyle) -> UIFont {
+        let base = UIFont(name: name, size: size) ?? .systemFont(ofSize: size, weight: .bold)
+        // Large titles cap at the same 1.5x iOS uses for its own; inline titles stay small.
+        let cap: CGFloat = style == .largeTitle ? size * 1.5 : size * 1.3
+        return UIFontMetrics(forTextStyle: style).scaledFont(for: base, maximumPointSize: cap)
+    }
+}

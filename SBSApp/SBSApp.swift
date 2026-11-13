@@ -5,6 +5,8 @@ struct SBSApp: App {
     @Environment(\.scenePhase) private var scenePhase
     
     init() {
+        SBSNavigationBarAppearance.apply()
+
         // Clean up any stale Live Activities on app launch
         // This handles the case where the app was force-closed while a timer was running
         Task { @MainActor in

@@ -23,6 +23,7 @@ struct WorkoutView: View {
     @State private var showingAccessoryWeightSheet = false  // For editing superset accessory weight
     @State private var showingStandaloneAccessoryWeight = false  // For editing the current standalone accessory's weight
     @State private var showingWeightOverride = false  // For overriding exercise weight mid-workout
+    @State private var showingBarPicker = false  // For choosing the current exercise's bar
     @ObservedObject private var watchConnectivity = WatchConnectivityManager.shared
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     /// A PR to flash on the live set card, cleared once it has flashed
@@ -33,6 +34,18 @@ struct WorkoutView: View {
     private let storeManager = StoreManager.shared
 
     private var workoutState: WorkoutState { session.workoutState }
+
+    /// The current exercise's bar key (`lift ?? name`)
+    private var currentBarKey: String? { workoutState.currentExercise?.barKeySource }
+
+    /// Caption under the plates; Pro only (the plates themselves are)
+    private var currentBarLabel: String? {
+        appState.shouldShowPlateCalculator ? appState.barLabel(for: currentBarKey) : nil
+    }
+
+    private var onCurrentBarTap: (() -> Void)? {
+        appState.shouldShowPlateCalculator ? { showingBarPicker = true } : nil
+    }
     private var week: Int { session.week }
     private var day: Int { session.day }
 
@@ -75,7 +88,10 @@ struct WorkoutView: View {
                     TimerView(
                         workoutState: workoutState,
                         useMetric: appState.settings.useMetric,
-                        barWeight: appState.settings.barWeight,
+                        barWeight: appState.barWeight(for: currentBarKey),
+                        currentHasBar: appState.hasAssignedBar(for: currentBarKey),
+                        barLabel: currentBarLabel,
+                        onBarTap: onCurrentBarTap,
                         showPlateCalculator: appState.shouldShowPlateCalculator,
                         onSkip: { session.handleTimerSkip() },
                         onUnlockTap: { showingPaywall = true },
@@ -112,7 +128,10 @@ struct WorkoutView: View {
                     CurrentSetView(
                         workoutState: workoutState,
                         useMetric: appState.settings.useMetric,
-                        barWeight: appState.settings.barWeight,
+                        barWeight: appState.barWeight(for: currentBarKey),
+                        currentHasBar: appState.hasAssignedBar(for: currentBarKey),
+                        barLabel: currentBarLabel,
+                        onBarTap: onCurrentBarTap,
                         showPlateCalculator: appState.shouldShowPlateCalculator,
                         onComplete: session.handleSetComplete,
                         onMissed: session.handleSetMissed,
@@ -343,6 +362,14 @@ struct WorkoutView: View {
         .sheet(isPresented: $showingPaywall) {
             PaywallView(triggeredByFeature: .plateCalculator)
         }
+        .sheet(isPresented: $showingBarPicker) {
+            if let key = currentBarKey {
+                BarPickerSheet(appState: appState, exercise: key)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+                    .workoutSheetStyle()
+            }
+        }
         .sheet(isPresented: $showingShareSheet) {
             WorkoutShareSheet(
                 summary: session.buildWorkoutSummary(),
@@ -375,6 +402,7 @@ struct WorkoutView: View {
                     currentWeight: exercise.weight > 0 ? exercise.weight : nil,
                     useMetric: appState.settings.useMetric,
                     roundingIncrement: appState.settings.roundingIncrement,
+                    barAppState: appState.shouldShowPlateCalculator ? appState : nil,
                     onSave: { weight in
                         session.updateStandaloneAccessoryWeight(weight)
                         showingStandaloneAccessoryWeight = false
@@ -473,17 +501,18 @@ struct WorkoutProgressHeader: View {
                 VStack(alignment: .leading, spacing: 2) {
                     if isAccessory {
                         Text("Accessory")
-                            .eyebrowText()
+                            .liveEyebrowText()
                             .foregroundStyle(Color.inkSecondary)
                     }
 
                     Text(exerciseName)
-                        .font(SBSFonts.heading())
+                        .font(SBSFonts.title())
                         .foregroundStyle(Color.ink)
                         .lineLimit(2)
+                        .minimumScaleFactor(0.8)
 
                     Text(setInfo)
-                        .font(SBSFonts.numberSmall())
+                        .font(SBSFonts.liveNumberSmall())
                         .foregroundStyle(Color.inkSecondary)
                 }
 
@@ -493,10 +522,10 @@ struct WorkoutProgressHeader: View {
                 if let hr = heartRate {
                     HStack(spacing: SBSLayout.space1) {
                         Image(systemName: "heart.fill")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.liveCaption())
                             .foregroundStyle(Color.danger)
                         Text("\(Int(hr))")
-                            .font(SBSFonts.numberSmall())
+                            .font(SBSFonts.liveNumberSmall())
                             .foregroundStyle(Color.ink)
                     }
                     .accessibilityElement(children: .combine)
@@ -504,7 +533,7 @@ struct WorkoutProgressHeader: View {
                 }
 
                 Text("\(Int(progress * 100))%")
-                    .font(SBSFonts.numberSmall())
+                    .font(SBSFonts.liveNumberSmall())
                     .foregroundStyle(Color.inkSecondary)
                     .accessibilityLabel("\(Int(progress * 100)) percent done")
             }
@@ -523,7 +552,12 @@ struct WorkoutProgressHeader: View {
 struct CurrentSetView: View {
     let workoutState: WorkoutState
     let useMetric: Bool
+    /// The current exercise's bar
     var barWeight: Double = 45
+    /// Accessories only show plates once they have a bar assigned
+    var currentHasBar: Bool = false
+    var barLabel: String? = nil
+    var onBarTap: (() -> Void)? = nil
     var showPlateCalculator: Bool = true
     let onComplete: () -> Void
     var onMissed: (() -> Void)?
@@ -646,32 +680,43 @@ struct CurrentSetView: View {
     var body: some View {
         Group {
             if let exercise = workoutState.currentExercise {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: SBSLayout.space4) {
-                        setGrid(for: exercise)
+                VStack(spacing: 0) {
+                    // The content is at least as tall as the space above the
+                    // buttons: the live set card takes whatever the rest leaves, so
+                    // the screen fills instead of ending in a blank half. When it
+                    // can't all fit (small phone, large text) it scrolls.
+                    GeometryReader { geo in
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: SBSLayout.space4) {
+                                setGrid(for: exercise)
 
-                        LiveSetCard(
-                            eyebrow: eyebrow(for: exercise),
-                            badge: exercise.isAccessory ? nil : intensityText,
-                            weight: displayWeight(for: exercise),
-                            useMetric: useMetric,
-                            scheme: scheme(for: exercise),
-                            showPlates: !exercise.isAccessory && showPlateCalculator && displayWeight(for: exercise) >= barWeight,
-                            barWeight: barWeight,
-                            onUnlockTap: onUnlockTap,
-                            onWeightTap: onWeightTap,
-                            flashToken: flashToken,
-                            onFlashDone: onFlashDone
-                        )
-                        // Room for the hard shadow inside the gutter
-                        .padding(.trailing, SBSLayout.hardShadowOffset)
+                                LiveSetCard(
+                                    eyebrow: eyebrow(for: exercise),
+                                    badge: exercise.isAccessory ? nil : intensityText,
+                                    weight: displayWeight(for: exercise),
+                                    useMetric: useMetric,
+                                    scheme: scheme(for: exercise),
+                                    showPlates: (!exercise.isAccessory || currentHasBar) && showPlateCalculator && displayWeight(for: exercise) >= barWeight,
+                                    barWeight: barWeight,
+                                    barLabel: barLabel,
+                                    onBarTap: onBarTap,
+                                    onUnlockTap: onUnlockTap,
+                                    onWeightTap: onWeightTap,
+                                    flashToken: flashToken,
+                                    onFlashDone: onFlashDone
+                                )
+                                // Room for the hard shadow inside the gutter
+                                .padding(.trailing, SBSLayout.hardShadowOffset)
 
-                        hints(for: exercise)
+                                hints(for: exercise)
+                            }
+                            .padding(SBSLayout.space4)
+                            .frame(minHeight: geo.size.height, alignment: .top)
+                        }
+                        .scrollBounceBehavior(.basedOnSize)
                     }
-                    .padding(SBSLayout.space4)
-                }
-                .scrollBounceBehavior(.basedOnSize)
-                .safeAreaInset(edge: .bottom, spacing: 0) {
+
+                    // The primary action, pinned above the home indicator
                     actions(for: exercise)
                 }
             }
@@ -723,14 +768,14 @@ struct CurrentSetView: View {
         VStack(alignment: .leading, spacing: SBSLayout.space2) {
             if let text = lastTime(exercise) {
                 Text(text)
-                    .font(SBSFonts.caption())
+                    .font(SBSFonts.liveCaption())
                     .foregroundStyle(Color.inkSecondary)
             }
 
             if exercise.isAccessory {
                 if exercise.lastWasEasy == true {
                     Label("Last time was easy, go heavier", systemImage: "hand.thumbsup")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.liveCaption())
                         .foregroundStyle(Color.success)
                 }
 
@@ -738,10 +783,10 @@ struct CurrentSetView: View {
                     Button(action: { onMarkEasy?() }) {
                         Label(exercise.markedEasy ? "Marked easy" : "That was easy?",
                               systemImage: exercise.markedEasy ? "hand.thumbsup.fill" : "hand.thumbsup")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.liveCaption())
                             .foregroundStyle(Color.ink)
                             .padding(.horizontal, SBSLayout.space3)
-                            .frame(minHeight: 36)
+                            .frame(minHeight: 44)
                             .selectionCell(exercise.markedEasy)
                     }
                     .buttonStyle(.plain)
@@ -751,7 +796,7 @@ struct CurrentSetView: View {
                 if isCurrentAMRAP {
                     // The AMRAP hint is the one place orange-soft sits behind text
                     Text(amrapHint)
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.liveCaption())
                         .foregroundStyle(Color.ink)
                         .padding(.horizontal, SBSLayout.space3)
                         .padding(.vertical, SBSLayout.space2)
@@ -760,13 +805,13 @@ struct CurrentSetView: View {
 
                 if let prReps = prHintReps {
                     Text("\(prReps) reps would be a new 1RM")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.liveCaption())
                         .foregroundStyle(Color.orangeText)
                 }
 
                 if exercise.isLinear, let info = exercise.linearInfo, info.isDeloadPending {
                     Label("Deload pending (\(info.consecutiveFailures) failures)", systemImage: "exclamationmark.triangle")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.liveCaption())
                         .foregroundStyle(Color.warning)
                 }
             }
@@ -832,11 +877,11 @@ struct SetGridCell: View {
                 .minimumScaleFactor(0.6)
 
             bottomLine
-                .font(SBSFonts.numberSmall())
+                .font(SBSFonts.liveNumberSmall())
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
         }
-        .frame(maxWidth: .infinity, minHeight: 52)
+        .frame(maxWidth: .infinity, minHeight: 60)
         .padding(.horizontal, SBSLayout.space1)
         .padding(.vertical, SBSLayout.space2)
         .background(background, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
@@ -990,7 +1035,11 @@ struct SetIndicatorStrip: View {
 struct TimerView: View {
     @Bindable var workoutState: WorkoutState
     let useMetric: Bool
+    /// The current exercise's bar
     var barWeight: Double = 45
+    var currentHasBar: Bool = false
+    var barLabel: String? = nil
+    var onBarTap: (() -> Void)? = nil
     var showPlateCalculator: Bool = true
     var onSkip: (() -> Void)?
     var onUnlockTap: (() -> Void)?
@@ -1011,38 +1060,44 @@ struct TimerView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: SBSLayout.space4) {
-                // Shown whenever a pair exists: pairs left over from before supersets
-                // were turned off are ones already under way
-                if let accessory = workoutState.currentSupersetAccessory {
-                    SupersetAccessoryCard(
-                        accessory: accessory,
-                        useMetric: useMetric,
-                        compact: true,
-                        onWeightTap: onAccessoryWeightTap
-                    )
-                }
+        VStack(spacing: 0) {
+            // As on the set screen: the next-set card fills the height the rest
+            // leaves, and the content scrolls only when it can't all fit
+            GeometryReader { geo in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: SBSLayout.space4) {
+                        // Shown whenever a pair exists: pairs left over from before supersets
+                        // were turned off are ones already under way
+                        if let accessory = workoutState.currentSupersetAccessory {
+                            SupersetAccessoryCard(
+                                accessory: accessory,
+                                useMetric: useMetric,
+                                compact: true,
+                                onWeightTap: onAccessoryWeightTap
+                            )
+                        }
 
-                restPanel
+                        restPanel
 
-                if let pr = recentPR {
-                    HStack(spacing: SBSLayout.space2) {
-                        SBSBadge(text: "PR", variant: .pr)
-                        Text("\(pr.liftName) · est. 1RM \(pr.newE1RM.formattedWeight(useMetric: useMetric))")
-                            .font(SBSFonts.caption())
-                            .foregroundStyle(Color.ink)
-                            .lineLimit(2)
+                        if let pr = recentPR {
+                            HStack(spacing: SBSLayout.space2) {
+                                SBSBadge(text: "PR", variant: .pr, large: true)
+                                Text("\(pr.liftName) · est. 1RM \(pr.newE1RM.formattedWeight(useMetric: useMetric))")
+                                    .font(SBSFonts.liveCaption())
+                                    .foregroundStyle(Color.ink)
+                                    .lineLimit(2)
+                            }
+                            .accessibilityElement(children: .combine)
+                        }
+
+                        nextSet
                     }
-                    .accessibilityElement(children: .combine)
+                    .padding(SBSLayout.space4)
+                    .frame(minHeight: geo.size.height, alignment: .top)
                 }
-
-                nextSet
+                .scrollBounceBehavior(.basedOnSize)
             }
-            .padding(SBSLayout.space4)
-        }
-        .scrollBounceBehavior(.basedOnSize)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+
             controls
         }
     }
@@ -1058,12 +1113,13 @@ struct TimerView: View {
 
                 VStack(spacing: 0) {
                     Text(restEyebrow)
-                        .eyebrowText()
+                        .liveEyebrowText()
                         .foregroundStyle(Color.inkSecondary)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.7)
 
                     Text(timerText)
-                        .font(SBSFonts.timer())
+                        .font(SBSFonts.liveTimer())
                         .foregroundStyle(Color.ink)
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
@@ -1072,7 +1128,7 @@ struct TimerView: View {
 
                     if workoutState.timerDuration > 0 {
                         Text("of \(formatDuration(workoutState.timerDuration))")
-                            .font(SBSFonts.numberSmall())
+                            .font(SBSFonts.liveNumberSmall())
                             .foregroundStyle(Color.inkSecondary)
                             .lineLimit(1)
                     }
@@ -1123,7 +1179,7 @@ struct TimerView: View {
                 .foregroundStyle(Color.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
-                .frame(width: 72, height: 48)
+                .frame(width: 72, height: 56)
                 .background(Color.surfaceRaised, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
                 .overlay(
                     RoundedRectangle(cornerRadius: SBSLayout.radiusSm)
@@ -1172,6 +1228,9 @@ struct TimerView: View {
                 totalSets: exercise.totalSets,
                 useMetric: useMetric,
                 barWeight: barWeight,
+                hasBar: currentHasBar,
+                barLabel: barLabel,
+                onBarTap: onBarTap,
                 showPlateCalculator: showPlateCalculator,
                 compact: hasSuperset,
                 onUnlockTap: onUnlockTap,
@@ -1233,7 +1292,7 @@ struct TimerView: View {
             if let onUndo {
                 Button(action: onUndo) {
                     Label("Undo Last Set", systemImage: "arrow.uturn.backward")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.liveCaption())
                         .foregroundStyle(Color.inkSecondary)
                         .frame(minHeight: 44)
                 }
@@ -1292,6 +1351,9 @@ struct NextSetPreview: View {
     let totalSets: Int
     let useMetric: Bool
     var barWeight: Double = 45
+    var hasBar: Bool = false
+    var barLabel: String? = nil
+    var onBarTap: (() -> Void)? = nil
     var showPlateCalculator: Bool = true
     var compact: Bool = false
     var onUnlockTap: (() -> Void)?
@@ -1312,8 +1374,10 @@ struct NextSetPreview: View {
             weight: weight,
             useMetric: useMetric,
             scheme: "× \(reps)",
-            showPlates: !isAccessory && !compact && showPlateCalculator && weight >= barWeight,
+            showPlates: (!isAccessory || hasBar) && !compact && showPlateCalculator && weight >= barWeight,
             barWeight: barWeight,
+            barLabel: barLabel,
+            onBarTap: onBarTap,
             onUnlockTap: onUnlockTap,
             flashToken: flashToken,
             onFlashDone: onFlashDone
@@ -1337,7 +1401,7 @@ struct SupersetAccessoryCard: View {
         HStack(alignment: .center, spacing: SBSLayout.space3) {
             VStack(alignment: .leading, spacing: SBSLayout.space1) {
                 Text("Superset · accessory")
-                    .eyebrowText()
+                    .liveEyebrowText()
                     .foregroundStyle(Color.inkSecondary)
 
                 Text(accessory.name)
@@ -1347,12 +1411,12 @@ struct SupersetAccessoryCard: View {
                     .minimumScaleFactor(0.75)
 
                 Text("\(accessory.sets) × \(accessory.reps)")
-                    .font(SBSFonts.numberSmall())
+                    .font(SBSFonts.liveNumberSmall())
                     .foregroundStyle(Color.inkSecondary)
 
                 if accessory.lastWasEasy == true {
                     Label("Last time was easy, go heavier", systemImage: "hand.thumbsup")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.liveCaption())
                         .foregroundStyle(Color.success)
                 }
             }
@@ -1368,15 +1432,15 @@ struct SupersetAccessoryCard: View {
                                 .font(SBSFonts.number())
                                 .foregroundStyle(Color.ink)
                             Text(useMetric ? "kg" : "lb")
-                                .font(SBSFonts.numberSmall())
+                                .font(SBSFonts.liveNumberSmall())
                                 .foregroundStyle(Color.inkSecondary)
                             Image(systemName: "chevron.right")
-                                .font(SBSFonts.caption())
+                                .font(SBSFonts.liveCaption())
                                 .foregroundStyle(Color.inkSecondary)
                         }
                     } else {
                         Label("Add weight", systemImage: "plus")
-                            .font(SBSFonts.caption())
+                            .font(SBSFonts.liveCaption())
                             .foregroundStyle(Color.ink)
                     }
                 }

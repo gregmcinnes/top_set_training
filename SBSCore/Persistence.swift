@@ -145,6 +145,10 @@ public struct UserSettings: Codable, Equatable {
     public var celebratePRsWithConfetti: Bool?
     public var healthKitEnabled: Bool  // sync workouts to Apple Fitness
     public var pushNotificationsEnabled: Bool  // send push notification when rest timer ends (background only)
+    /// The lifter's own bars (EZ, hex, ...). Optional so settings saved before this existed still decode.
+    public var customBars: [CustomBar]?
+    /// Canonical exercise name -> custom bar id. Unassigned exercises use `barWeight`.
+    public var barAssignments: [String: UUID]?
     
     public init(
         useMetric: Bool = false,
@@ -198,6 +202,65 @@ public struct UserSettings: Codable, Equatable {
     }
 
     public static let `default` = UserSettings()
+
+    // MARK: Custom bars
+
+    public var bars: [CustomBar] {
+        get { customBars ?? [] }
+        set { customBars = newValue }
+    }
+
+    /// Key used for bar assignments: aliases and casing collapse to one entry.
+    public static func barKey(_ exercise: String) -> String {
+        ExerciseLibrary.canonicalLiftName(exercise.trimmingCharacters(in: .whitespaces)).lowercased()
+    }
+
+    /// The custom bar assigned to an exercise, ignoring an assignment to a deleted bar.
+    public func assignedBar(for exercise: String?) -> CustomBar? {
+        guard let exercise, let id = barAssignments?[Self.barKey(exercise)] else { return nil }
+        return bars.first { $0.id == id }
+    }
+
+    /// Bar weight (lb) for an exercise: its assigned bar, else the standard bar.
+    public func barWeight(for exercise: String?) -> Double {
+        assignedBar(for: exercise)?.weight ?? barWeight
+    }
+
+    /// Assign a bar to an exercise; nil goes back to the standard bar.
+    public mutating func assignBar(_ id: UUID?, to exercise: String) {
+        var map = barAssignments ?? [:]
+        map[Self.barKey(exercise)] = id
+        barAssignments = map.isEmpty ? nil : map
+    }
+
+    /// Add or replace a bar (matched by id).
+    public mutating func upsertBar(_ bar: CustomBar) {
+        if let i = bars.firstIndex(where: { $0.id == bar.id }) {
+            bars[i] = bar
+        } else {
+            bars.append(bar)
+        }
+    }
+
+    /// Delete a bar and every assignment that pointed at it.
+    public mutating func removeBar(id: UUID) {
+        bars.removeAll { $0.id == id }
+        barAssignments = barAssignments?.filter { $0.value != id }
+        if barAssignments?.isEmpty == true { barAssignments = nil }
+    }
+}
+
+/// A bar the lifter owns, used by the plate calculator for the exercises it's assigned to.
+public struct CustomBar: Codable, Equatable, Identifiable, Hashable {
+    public var id: UUID
+    public var name: String
+    public var weight: Double  // lb, like UserSettings.barWeight
+
+    public init(id: UUID = UUID(), name: String, weight: Double) {
+        self.id = id
+        self.name = name
+        self.weight = weight
+    }
 }
 
 // MARK: - Personal Record

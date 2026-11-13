@@ -23,6 +23,9 @@ struct WorkoutExercise: Identifiable, Codable, Equatable {
     var lastWasEasy: Bool? = nil  // For accessories: did the user mark the previous session as easy?
     var markedEasy: Bool = false  // For accessories: did the user mark this current session as easy?
 
+    /// What custom bars are assigned against: the lift, or the name for accessories
+    var barKeySource: String { lift ?? name }
+
     /// Given a set number (1-indexed), is it a rep-out? Volume exercises finish on one,
     /// structured exercises say per set, and linear and accessory work has none.
     func isRepOutSet(_ setNumber: Int) -> Bool {

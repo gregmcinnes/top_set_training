@@ -494,7 +494,7 @@ struct HistoryView: View {
                             liftName: lift,
                             logs: canAccessFullHistory ? allLogsForLift(lift) : currentCycleLogsOnly(lift),
                             useMetric: appState.settings.useMetric,
-                            barWeight: appState.settings.barWeight,
+                            barWeight: appState.barWeight(for: lift),
                             showPastCyclesLocked: !canAccessFullHistory && hasPastCycles,
                             onUnlockTap: { showingPaywall = true },
                             onGoToWorkout: { appState.goToWorkoutTab() }

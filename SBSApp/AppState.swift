@@ -130,6 +130,55 @@ public final class AppState {
     var shouldShowPlateCalculator: Bool {
         settings.showPlateCalculator && StoreManager.shared.canAccess(.plateCalculator)
     }
+
+    /// Bar weight (lb) the plate calculator uses for an exercise. Custom bars are Pro;
+    /// without it everything uses the standard bar (saved bars are kept).
+    func barWeight(for exercise: String?) -> Double {
+        guard StoreManager.shared.canAccess(.plateCalculator) else { return settings.barWeight }
+        return settings.barWeight(for: exercise)
+    }
+
+    /// The custom bar assigned to an exercise, Pro only.
+    func assignedBar(for exercise: String?) -> CustomBar? {
+        guard StoreManager.shared.canAccess(.plateCalculator) else { return nil }
+        return settings.assignedBar(for: exercise)
+    }
+
+    /// Accessories only show plates once they have a bar assigned.
+    func hasAssignedBar(for exercise: String?) -> Bool {
+        assignedBar(for: exercise) != nil
+    }
+
+    /// Exercises a bar can be assigned to in Settings: the current program's main lifts,
+    /// then its accessories, then anything else that already has a bar.
+    var barAssignableExercises: [(name: String, isAccessory: Bool)] {
+        var seen = Set<String>()
+        var main: [String] = []
+        var accessories: [String] = []
+        let days = (programState?.days.keys).map { Array($0).sorted() } ?? []
+        for day in days {
+            for item in dayItems(for: day) {
+                // Same key the workout uses: accessories have no lift
+                let name = item.type == .accessory ? item.name : (item.lift ?? item.name)
+                guard !name.isEmpty, seen.insert(UserSettings.barKey(name)).inserted else { continue }
+                if item.type == .accessory { accessories.append(name) } else { main.append(name) }
+            }
+        }
+        let orphans = (settings.barAssignments ?? [:]).keys
+            .filter { !seen.contains($0) && settings.assignedBar(for: $0) != nil }
+            .map { $0.capitalized }
+            .sorted()
+        return main.map { ($0, false) } + accessories.sorted().map { ($0, true) } + orphans.map { ($0, true) }
+    }
+
+    /// "Hex Bar · 60 lb" or "Standard bar · 45 lb", for the bar caption under the plates.
+    func barLabel(for exercise: String?) -> String {
+        let useMetric = settings.useMetric
+        if let bar = assignedBar(for: exercise) {
+            return "\(bar.name) · \(bar.weight.formattedWeight(useMetric: useMetric))"
+        }
+        return "Standard bar · \(settings.barWeight.formattedWeight(useMetric: useMetric))"
+    }
     
     // MARK: - Dependencies
     

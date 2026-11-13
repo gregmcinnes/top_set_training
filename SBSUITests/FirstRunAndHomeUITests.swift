@@ -53,7 +53,7 @@ final class FirstRunAndHomeUITests: XCTestCase {
         app.launchArguments = ["-sbs_user_data", "<\(hex)>", "-sbs_active_workout_session", "<>"]
         if premium {
             // Repeating or customizing a Pro program checks access, as it should
-            app.launchArguments += ["-com.gregorymcinnes.topsettraining.reviewerUnlock", "YES"]
+            app.launchArguments += ["-uiTestPremium", "YES"]
         }
         addUIInterruptionMonitor(withDescription: "Notifications") { alert in
             let allow = alert.buttons["Allow"]

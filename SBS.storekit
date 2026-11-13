@@ -94,7 +94,12 @@
           "familyShareable" : false,
           "groupNumber" : 1,
           "internalID" : "B2C3D4E5-6F7A-8B9C-0D1E-2F3A4B5C6D7E",
-          "introductoryOffer" : null,
+          "introductoryOffer" : {
+            "internalID" : "B2C3D4E5-6F7A-8B9C-0D1E-2F3A4B5C7121",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
           "localizations" : [
             {
               "description" : "Full access to all premium features, billed weekly.",
@@ -119,7 +124,12 @@
           "familyShareable" : false,
           "groupNumber" : 1,
           "internalID" : "C3D4E5F6-7A8B-9C0D-1E2F-3A4B5C6D7E8F",
-          "introductoryOffer" : null,
+          "introductoryOffer" : {
+            "internalID" : "C3D4E5F6-7A8B-9C0D-1E2F-3A4B5C6D7121",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
           "localizations" : [
             {
               "description" : "Full access to all premium features, billed monthly.",

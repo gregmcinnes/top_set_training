@@ -113,6 +113,37 @@ extension SBSFonts {
     static func numberUnit() -> Font {
         .custom(SBSFontName.plexMonoSemiBold, size: 16, relativeTo: .callout).monospacedDigit()
     }
+
+    // Live workout: the phone is on the floor or a bench, an arm's length or more
+    // away, so this one screen runs a size up from the rest of the app.
+    static func liveWeight() -> Font {
+        .custom(SBSFontName.barlowCondensedBold, size: 88, relativeTo: .largeTitle).monospacedDigit()
+    }
+
+    /// "× 5" beside the working weight: the other half of the set
+    static func liveScheme() -> Font {
+        .custom(SBSFontName.barlowCondensedBold, size: 48, relativeTo: .largeTitle).monospacedDigit()
+    }
+
+    static func liveTimer() -> Font {
+        .custom(SBSFontName.barlowCondensedBold, size: 80, relativeTo: .largeTitle).monospacedDigit()
+    }
+
+    static func liveEyebrow() -> Font {
+        .custom(SBSFontName.archivoSemiCondensedBold, size: 14, relativeTo: .footnote)
+    }
+
+    static func liveCaption() -> Font {
+        .custom(SBSFontName.archivoMedium, size: 16, relativeTo: .callout)
+    }
+
+    static func liveNumberSmall() -> Font {
+        .custom(SBSFontName.plexMonoMedium, size: 16, relativeTo: .callout).monospacedDigit()
+    }
+
+    static func liveUnit() -> Font {
+        .custom(SBSFontName.plexMonoSemiBold, size: 20, relativeTo: .title3).monospacedDigit()
+    }
 }
 
 extension SBSLayout {
@@ -143,6 +174,11 @@ extension View {
 
     func eyebrowText() -> some View {
         font(SBSFonts.eyebrow()).tracking(1.1).textCase(.uppercase)
+    }
+
+    /// The eyebrow on the live workout screen, a size up
+    func liveEyebrowText() -> some View {
+        font(SBSFonts.liveEyebrow()).tracking(1.2).textCase(.uppercase)
     }
 
     func buttonText() -> some View {
@@ -345,20 +381,27 @@ struct SBSBadge: View {
     let text: String
     var variant: Variant = .standard
     var systemImage: String? = nil
+    /// The live workout screen's size
+    var large: Bool = false
 
     var body: some View {
         HStack(spacing: SBSLayout.space1) {
             if let systemImage {
                 Image(systemName: systemImage)
-                    .font(SBSFonts.eyebrow().weight(.bold))
+                    .font((large ? SBSFonts.liveEyebrow() : SBSFonts.eyebrow()).weight(.bold))
             }
-            Text(text)
-                .eyebrowText()
-                .lineLimit(1)
+            Group {
+                if large {
+                    Text(text).liveEyebrowText()
+                } else {
+                    Text(text).eyebrowText()
+                }
+            }
+            .lineLimit(1)
         }
         .foregroundStyle(foreground)
         .padding(.horizontal, SBSLayout.space2)
-        .padding(.vertical, 3)
+        .padding(.vertical, large ? 4 : 3)
         .background(background, in: RoundedRectangle(cornerRadius: SBSLayout.radiusSm))
         .overlay(
             RoundedRectangle(cornerRadius: SBSLayout.radiusSm)

@@ -241,6 +241,18 @@ final class WorkoutHistoryTests: XCTestCase {
         XCTAssertEqual(groups[0].entries.map(\.weight), [30])
     }
 
+    /// Reddit PPL's Push B does Lateral Raises twice. One finished workout records both
+    /// with the same date, so neither is an edit of the other and both must show.
+    func testAccessoryDoneTwiceInOneWorkoutKeepsBothEntries() {
+        let finished = date(21, hour: 9)
+        let groups = AccessoryHistoryBuilder.groups(
+            accessoryHistory: [accessory("Lateral Raises", finished, weight: 15), accessory("Lateral Raises", finished, weight: 20)],
+            currentCycleStart: date(20), archivedCycles: [], includeArchived: false, calendar: calendar
+        )
+        XCTAssertEqual(groups.count, 1)
+        XCTAssertEqual(groups[0].entries.map(\.weight).sorted(), [15, 20])
+    }
+
     // MARK: - Best set per week
 
     func testWeeklyBestDatesComeFromTheBestSetsWorkout() {

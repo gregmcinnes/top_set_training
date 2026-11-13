@@ -18,6 +18,9 @@ struct LiveSetCard: View {
     let scheme: String
     var showPlates: Bool = false
     var barWeight: Double = 45
+    /// "Hex Bar · 60 lb" under the plates; tapping it picks this lift's bar
+    var barLabel: String? = nil
+    var onBarTap: (() -> Void)? = nil
     var onUnlockTap: (() -> Void)? = nil
     var onWeightTap: (() -> Void)? = nil
     /// A new value flashes the card orange once (a PR was just logged)
@@ -29,26 +32,49 @@ struct LiveSetCard: View {
     private var weightText: String { weight.formattedWeightShort(useMetric: useMetric) }
     private var unit: String { useMetric ? "kg" : "lb" }
 
+    @ViewBuilder
+    private func barCaption(_ label: String) -> some View {
+        if let onBarTap {
+            Button(action: onBarTap) {
+                HStack(spacing: SBSLayout.space1) {
+                    Text(label)
+                    Image(systemName: "chevron.right")
+                }
+                .font(SBSFonts.liveCaption())
+                .foregroundStyle(Color.inkSecondary)
+                .frame(minHeight: 44, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Bar: \(label)")
+            .accessibilityHint("Choose the bar for this exercise")
+        } else {
+            Text(label)
+                .font(SBSFonts.liveCaption())
+                .foregroundStyle(Color.inkSecondary)
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: SBSLayout.space1) {
             HStack(alignment: .center, spacing: SBSLayout.space2) {
                 Text(eyebrow)
-                    .eyebrowText()
+                    .liveEyebrowText()
                     .foregroundStyle(Color.inkSecondary)
                     .lineLimit(2)
                 Spacer(minLength: SBSLayout.space2)
                 if let badge {
-                    SBSBadge(text: badge)
+                    SBSBadge(text: badge, large: true)
                 }
             }
 
-            weightRow
+            // Given more height than it needs, the card keeps the eyebrow at the
+            // top and the plates at the bottom and centres the set between them
+            Spacer(minLength: 0)
 
-            Text(scheme)
-                .font(SBSFonts.number())
-                .foregroundStyle(Color.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+            hero
+
+            Spacer(minLength: 0)
 
             if showPlates {
                 PremiumPlateLoadSummary(
@@ -57,10 +83,13 @@ struct LiveSetCard: View {
                     useMetric: useMetric,
                     onUnlockTap: onUnlockTap
                 )
+                if let barLabel {
+                    barCaption(barLabel)
+                }
             }
         }
         .padding(SBSLayout.space4)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .overlay {
             // The PR flash: orange across the whole card, the word on it, then it settles
             ZStack {
@@ -86,20 +115,46 @@ struct LiveSetCard: View {
         }
     }
 
+    /// The set: weight on the left, reps on the right, across the card's width.
+    /// When the two don't fit side by side (a long weight, large text) the reps
+    /// drop under the weight.
+    private var hero: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: SBSLayout.space3) {
+                weightRow(fillsWidth: false)
+                Spacer(minLength: 0)
+                schemeText
+            }
+
+            VStack(alignment: .leading, spacing: 0) {
+                weightRow(fillsWidth: true)
+                schemeText
+            }
+        }
+    }
+
+    private var schemeText: some View {
+        Text(scheme)
+            .font(SBSFonts.liveScheme())
+            .foregroundStyle(Color.ink)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+    }
+
     @ViewBuilder
-    private var weightRow: some View {
+    private func weightRow(fillsWidth: Bool) -> some View {
         let row = HStack(alignment: .firstTextBaseline, spacing: 6) {
             // The hero: may shrink at large text sizes, never wraps
             Text(weightText)
-                .font(SBSFonts.workingWeight())
-                .tracking(-0.68)
+                .font(SBSFonts.liveWeight())
+                .tracking(-0.88)
                 .foregroundStyle(Color.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.4)
                 .layoutPriority(1)
 
             Text(unit)
-                .font(SBSFonts.numberUnit())
+                .font(SBSFonts.liveUnit())
                 .foregroundStyle(Color.inkSecondary)
                 .fixedSize()
 
@@ -110,7 +165,9 @@ struct LiveSetCard: View {
                     .padding(.leading, SBSLayout.space1)
             }
 
-            Spacer(minLength: 0)
+            if fillsWidth {
+                Spacer(minLength: 0)
+            }
         }
 
         if let onWeightTap {

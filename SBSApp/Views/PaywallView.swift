@@ -32,6 +32,15 @@ enum PlanOption: String, CaseIterable {
         }
     }
 
+    /// "week" / "month", for "then $2.99/month"
+    var periodWord: String {
+        switch self {
+        case .weekly: return "week"
+        case .monthly: return "month"
+        case .lifetime: return ""
+        }
+    }
+
     var periodLabel: String {
         switch self {
         case .weekly: return "/wk"
@@ -232,6 +241,7 @@ struct PaywallView: View {
                     PlanOptionCard(
                         plan: plan,
                         product: plan.product(from: storeManager),
+                        trial: freeTrialText(for: plan),
                         isSelected: selectedPlan == plan
                     )
                     .contentShape(Rectangle())
@@ -296,7 +306,7 @@ struct PaywallView: View {
                     } else {
                         Image(systemName: "crown.fill")
                             .accessibilityHidden(true)
-                        SBSButtonTitle(selectedPlan == .lifetime ? "Unlock Forever" : "Subscribe Now")
+                        SBSButtonTitle(ctaTitle)
                     }
                 }
                 .frame(maxWidth: .infinity, minHeight: 56)
@@ -307,11 +317,12 @@ struct PaywallView: View {
             .padding(.trailing, SBSLayout.hardShadowOffset)
             .padding(.bottom, SBSLayout.space2)
 
-            if selectedPlan != .lifetime {
-                Text("Cancel anytime. Subscription auto-renews.")
+            if let terms = subscriptionTerms {
+                Text(terms)
                     .font(SBSFonts.caption())
                     .foregroundStyle(Color.inkSecondary)
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Text("By purchasing, you agree to our [Terms of Use](https://gregorymcinnes.com/terms) and [Privacy Policy](https://gregorymcinnes.com/apps/top-set-training/).")
@@ -320,6 +331,49 @@ struct PaywallView: View {
                 .multilineTextAlignment(.center)
                 .tint(Color.orangeText)
         }
+    }
+
+    private var ctaTitle: String {
+        if selectedPlan == .lifetime { return "Unlock Forever" }
+        return freeTrialText(for: selectedPlan) != nil ? "Start Free Trial" : "Subscribe Now"
+    }
+
+    /// The trial's length ("1 week") when the selected Apple ID can take it
+    private func freeTrialText(for plan: PlanOption) -> String? {
+        guard plan != .lifetime,
+              let offer = storeManager.freeTrial(for: plan.product(from: storeManager)) else { return nil }
+        return Self.durationText(offer.period, count: offer.periodCount)
+    }
+
+    /// What a subscription charges and when, under the button. Apple requires the
+    /// trial length and the price that follows it to be clear before purchase.
+    private var subscriptionTerms: String? {
+        guard selectedPlan != .lifetime else { return nil }
+        guard let product = selectedPlan.product(from: storeManager) else {
+            return "Cancel anytime. Subscription auto-renews."
+        }
+        let price = "\(product.displayPrice)/\(selectedPlan.periodWord)"
+        if let trial = freeTrialText(for: selectedPlan) {
+            return "Free for \(trial), then \(price). Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends to avoid being charged."
+        }
+        return "\(price), renews automatically until canceled. Cancel anytime in Settings at least 24 hours before renewal."
+    }
+
+    static func durationText(_ period: Product.SubscriptionPeriod, count: Int) -> String {
+        var value = period.value * max(count, 1)
+        let unit: String
+        switch period.unit {
+        case .day where value % 7 == 0:
+            // The App Store reports a one-week trial as 7 days
+            value /= 7
+            unit = "week"
+        case .day: unit = "day"
+        case .week: unit = "week"
+        case .month: unit = "month"
+        case .year: unit = "year"
+        @unknown default: unit = "day"
+        }
+        return "\(value) \(unit)\(value == 1 ? "" : "s")"
     }
 
     // MARK: - Restore Section
@@ -442,6 +496,8 @@ struct PaywallView: View {
 private struct PlanOptionCard: View {
     let plan: PlanOption
     let product: Product?
+    /// "1 week" when this plan starts with a free trial for this Apple ID
+    let trial: String?
     let isSelected: Bool
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -463,9 +519,15 @@ private struct PlanOptionCard: View {
                         VStack(alignment: .leading, spacing: SBSLayout.space1) { planName; planBadge }
                     }
 
-                    Text(plan.subtitle)
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(Color.inkSecondary)
+                    if let trial {
+                        Text("\(trial) free, then \(plan.subtitle.lowercased())")
+                            .font(SBSFonts.caption().weight(.semibold))
+                            .foregroundStyle(Color.orangeText)
+                    } else {
+                        Text(plan.subtitle)
+                            .font(SBSFonts.caption())
+                            .foregroundStyle(Color.inkSecondary)
+                    }
                 }
 
                 Spacer(minLength: SBSLayout.space2)

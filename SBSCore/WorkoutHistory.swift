@@ -478,11 +478,17 @@ enum AccessoryHistoryBuilder {
         for record in visible { byName[record.name, default: []].append(record) }
 
         return byName.map { name, records in
-            // One per day: repeat records are edits of the same work, and the last one stands
-            var seenDays = Set<Date>()
+            // One finish per day: a later save that day is an edit of the same work, so the
+            // last one stands. Records sharing that finish time are one workout doing the
+            // accessory more than once (Reddit PPL's Push B), so all of them stay.
+            var latestPerDay: [Date: Date] = [:]
+            for record in records {
+                let day = calendar.startOfDay(for: record.date)
+                latestPerDay[day] = max(latestPerDay[day] ?? record.date, record.date)
+            }
             let entries = records
+                .filter { $0.date == latestPerDay[calendar.startOfDay(for: $0.date)] }
                 .sorted { $0.date > $1.date }
-                .filter { seenDays.insert(calendar.startOfDay(for: $0.date)).inserted }
             return AccessoryHistoryGroup(name: name, entries: entries)
         }
         .sorted { a, b in

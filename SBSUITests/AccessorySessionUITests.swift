@@ -55,7 +55,7 @@ final class AccessorySessionUITests: XCTestCase {
         let settings = #"{"useMetric":false,"roundingIncrement":5,"currentWeek":1,"currentDay":1,"restTimerDuration":120,"supersetAccessories":\#(supersets),"weightAdjustments":\#(adjustments),"barWeight":45,"showPlateCalculator":true,"playSoundNotifications":false,"appearanceMode":"system","isMale":true,"showPRCelebrations":true,"healthKitEnabled":false,"pushNotificationsEnabled":false}"#
         app.launchArguments += ["-sbs_settings", "<\(hex(settings))>"]
         if premium {
-            app.launchArguments += ["-com.gregorymcinnes.topsettraining.reviewerUnlock", "YES"]
+            app.launchArguments += ["-uiTestPremium", "YES"]
         }
         app.launch()
         XCTAssertTrue(app.otherElements["tabBar"].children(matching: .button)["Workout"].waitForExistence(timeout: 15))

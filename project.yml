@@ -12,7 +12,7 @@ settings:
     # the pbxproj is regenerated from this file, so a version set only in
     # Xcode is silently reverted by the next `xcodegen generate`.
     CURRENT_PROJECT_VERSION: 15
-    MARKETING_VERSION: "1.5"
+    MARKETING_VERSION: "2.0"
 packages: {}
 targets:
   SBSApp:

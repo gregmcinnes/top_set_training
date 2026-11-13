@@ -32,22 +32,26 @@ public final class StoreManager {
         monthlyProductID
     ]
 
-    // MARK: - Reviewer Unlock
+    // MARK: - UI Test Unlock
 
-    /// UserDefaults key for reviewer unlock
-    private static let reviewerUnlockKey = "com.gregorymcinnes.topsettraining.reviewerUnlock"
-
-    /// Whether the app is unlocked for Apple reviewers
-    private(set) public var isReviewerUnlocked: Bool = false {
-        didSet {
-            UserDefaults.standard.set(isReviewerUnlocked, forKey: Self.reviewerUnlockKey)
-        }
-    }
+    /// Debug builds only: UI tests pass `-uiTestPremium YES` to get Premium without
+    /// StoreKit. Release builds have no way in except a purchase.
+    private let isUITestPremium: Bool = {
+        #if DEBUG
+        return UserDefaults.standard.bool(forKey: "uiTestPremium")
+        #else
+        return false
+        #endif
+    }()
 
     // MARK: - State
 
     /// Available products from the App Store
     private(set) public var products: [Product] = []
+
+    /// Whether this Apple ID can still take the subscriptions' introductory offer.
+    /// Apple allows one per subscription group, so it covers weekly and monthly alike.
+    private(set) public var isEligibleForIntroOffer = false
 
     /// Set of purchased product IDs (lifetime + active subscriptions)
     private(set) public var purchasedProductIDs: Set<String> = []
@@ -71,9 +75,9 @@ public final class StoreManager {
 
     // MARK: - Computed Properties
 
-    /// Whether the user has premium access (lifetime purchase, active subscription, or reviewer)
+    /// Whether the user has premium access (lifetime purchase or active subscription)
     public var isPremium: Bool {
-        isReviewerUnlocked || purchasedProductIDs.contains(where: { Self.allProductIDs.contains($0) })
+        isUITestPremium || purchasedProductIDs.contains(where: { Self.allProductIDs.contains($0) })
     }
 
     /// Whether premium access is via a subscription (not lifetime)
@@ -111,8 +115,8 @@ public final class StoreManager {
     // MARK: - Initialization
 
     private init() {
-        // Load reviewer unlock state
-        isReviewerUnlocked = UserDefaults.standard.bool(forKey: Self.reviewerUnlockKey)
+        // Reviewers in 1.x could unlock Premium with a hidden login; drop the saved flag
+        UserDefaults.standard.removeObject(forKey: "com.gregorymcinnes.topsettraining.reviewerUnlock")
 
         // Start listening for transactions immediately
         updateListenerTask = listenForTransactions()
@@ -141,11 +145,29 @@ public final class StoreManager {
         do {
             products = try await Product.products(for: Self.allProductIDs)
             loadState = .loaded
+            await refreshIntroOfferEligibility()
         } catch {
             lastError = error
             loadState = .failed
             Logger.error("Failed to load products: \(error)", category: .store)
         }
+    }
+
+    /// The free trial a subscription would start with for this Apple ID, if any
+    public func freeTrial(for product: Product?) -> Product.SubscriptionOffer? {
+        guard isEligibleForIntroOffer,
+              let offer = product?.subscription?.introductoryOffer,
+              offer.paymentMode == .freeTrial else { return nil }
+        return offer
+    }
+
+    @MainActor
+    private func refreshIntroOfferEligibility() async {
+        guard let subscription = (weeklyProduct ?? monthlyProduct)?.subscription else {
+            isEligibleForIntroOffer = false
+            return
+        }
+        isEligibleForIntroOffer = await subscription.isEligibleForIntroOffer
     }
 
     /// Purchase the lifetime premium product
@@ -210,6 +232,9 @@ public final class StoreManager {
         await updatePurchasedProducts()
         if products.isEmpty && !isLoading {
             await loadProducts()
+        } else {
+            // A lapsed subscriber can't take the trial again
+            await refreshIntroOfferEligibility()
         }
     }
 
@@ -230,13 +255,6 @@ public final class StoreManager {
             Logger.error("Failed to restore purchases: \(error)", category: .store)
             return .failed(error)
         }
-    }
-
-    /// Toggle reviewer unlock (for Apple reviewers to test premium features)
-    @MainActor
-    public func toggleReviewerUnlock() {
-        isReviewerUnlocked.toggle()
-        Logger.info("Reviewer unlock toggled: \(isReviewerUnlocked)", category: .store)
     }
 
     // MARK: - Private Methods

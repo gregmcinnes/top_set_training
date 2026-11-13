@@ -15,6 +15,12 @@ struct WorkoutSummary: Equatable {
     let prs: [PRSummary]  // PRs achieved during this workout
     /// For the plate strip under the top set
     var barWeight: Double = 45
+    /// Per-exercise bars (lb), keyed by `UserSettings.barKey`; missing means `barWeight`
+    var barWeights: [String: Double] = [:]
+
+    func barWeight(for exercise: String) -> Double {
+        barWeights[UserSettings.barKey(exercise)] ?? barWeight
+    }
     
     struct ExerciseSummary: Equatable, Identifiable {
         let id = UUID()
@@ -86,7 +92,7 @@ struct WorkoutShareCard: View {
                     name: topSet.name,
                     weight: topSet.weight,
                     reps: topSet.reps,
-                    barWeight: summary.barWeight,
+                    barWeight: summary.barWeight(for: topSet.name),
                     useMetric: useMetric,
                     isPR: hasPRs
                 )

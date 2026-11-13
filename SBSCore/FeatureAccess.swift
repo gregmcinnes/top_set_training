@@ -63,7 +63,7 @@ public enum PremiumFeature: String, CaseIterable, Identifiable {
         case .unlimitedTemplates:
             return "Save unlimited custom workout templates"
         case .plateCalculator:
-            return "Visual barbell display showing which plates to load"
+            return "See which plates to load, on your own EZ, hex and specialty bars too"
         case .e1rmChart:
             return "Track your estimated one-rep max progress over time"
         case .supersets:

@@ -412,13 +412,13 @@ struct SessionView: View {
     @ViewBuilder
     private func planItemView(for item: PlanItem) -> some View {
         switch item {
-        case let .tm(name, _, trainingMax, topSingleAt8):
+        case let .tm(name, lift, trainingMax, topSingleAt8):
             TMCard(
                 name: name,
                 trainingMax: trainingMax,
                 topSingleAt8: topSingleAt8,
                 useMetric: appState.settings.useMetric,
-                barWeight: appState.settings.barWeight,
+                barWeight: appState.barWeight(for: lift),
                 showPlateCalculator: appState.shouldShowPlateCalculator
             )
             
@@ -432,7 +432,7 @@ struct SessionView: View {
                 loggedReps: loggedReps,
                 tmDelta: tmDelta,
                 useMetric: appState.settings.useMetric,
-                barWeight: appState.settings.barWeight,
+                barWeight: appState.barWeight(for: lift),
                 showPlateCalculator: appState.shouldShowPlateCalculator,
                 isWeightOverridden: isOverridden,
                 calculatedWeight: calculatedWeight,
@@ -475,7 +475,7 @@ struct SessionView: View {
                 sets: sets,
                 logEntry: logEntry,
                 useMetric: appState.settings.useMetric,
-                barWeight: appState.settings.barWeight,
+                barWeight: appState.barWeight(for: lift),
                 showPlateCalculator: appState.shouldShowPlateCalculator,
                 onSetTap: { setIndex in
                     // Find the set info for this index
@@ -517,7 +517,7 @@ struct SessionView: View {
                 name: name,
                 info: info,
                 useMetric: appState.settings.useMetric,
-                barWeight: appState.settings.barWeight,
+                barWeight: appState.barWeight(for: info.lift),
                 showPlateCalculator: appState.shouldShowPlateCalculator,
                 onLogTap: {
                     linearLogData = LinearLogData(
@@ -1081,6 +1081,8 @@ struct AccessoryWeightSheet: View {
     let currentWeight: Double?
     let useMetric: Bool
     let roundingIncrement: Double
+    /// Set (Pro, plate calculator on) to offer a bar for this accessory
+    var barAppState: AppState? = nil
     let onSave: (Double) -> Void
     let onCancel: () -> Void
 
@@ -1106,6 +1108,23 @@ struct AccessoryWeightSheet: View {
                         .foregroundStyle(Color.inkSecondary)
                 }
                 .padding(.top)
+
+                if let barAppState {
+                    NavigationLink {
+                        BarPickerList(appState: barAppState, exercise: accessoryName)
+                    } label: {
+                        HStack(spacing: SBSLayout.space1) {
+                            Text(barAppState.hasAssignedBar(for: accessoryName)
+                                 ? barAppState.barLabel(for: accessoryName)
+                                 : "Using a bar? Show plates")
+                            Image(systemName: "chevron.right")
+                        }
+                        .font(SBSFonts.caption())
+                        .foregroundStyle(Color.orangeText)
+                        .frame(minHeight: 44)
+                    }
+                    .buttonStyle(.plain)
+                }
 
                 if let lastWeight = currentWeight, lastWeight > 0 {
                     HStack(spacing: SBSLayout.space2) {

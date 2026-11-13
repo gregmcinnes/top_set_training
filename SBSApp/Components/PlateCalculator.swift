@@ -203,7 +203,8 @@ struct PlateLoadSummary: View {
             useMetric: useMetric,
             barWeight: barWeight,
             showLabels: true,
-            compact: false
+            compact: false,
+            largeBreakdown: true
         )
         .padding(.top, SBSLayout.space3)
         .frame(maxWidth: .infinity)
@@ -227,10 +228,10 @@ struct PremiumPlateLoadSummary: View {
             } label: {
                 HStack(spacing: SBSLayout.space2) {
                     Image(systemName: "lock.fill")
-                        .font(SBSFonts.caption())
+                        .font(SBSFonts.liveCaption())
                     Text("Plate calculator")
-                        .font(SBSFonts.caption())
-                    SBSBadge(text: "Pro", variant: .pro)
+                        .font(SBSFonts.liveCaption())
+                    SBSBadge(text: "Pro", variant: .pro, large: true)
                 }
                 .foregroundStyle(Color.inkSecondary)
                 .padding(.top, SBSLayout.space2)
@@ -242,7 +243,7 @@ struct PremiumPlateLoadSummary: View {
 
 // MARK: - Barbell Visual View
 
-/// The full barbell: bar shaft and sleeves, ink collars, plates stacked outward from
+/// The full barbell: bar shaft, sleeves and collars all in the bar colour, plates stacked outward from
 /// each collar heaviest first, labelled, with the breakdown line beneath.
 struct BarbellView: View {
     let weight: Double
@@ -250,6 +251,8 @@ struct BarbellView: View {
     var barWeight: Double = 45
     var showLabels: Bool = true
     var compact: Bool = false
+    /// The live set card's breakdown line, a size up
+    var largeBreakdown: Bool = false
 
     @State private var animatedPlates: [Plate] = []
 
@@ -339,7 +342,7 @@ struct BarbellView: View {
 
     private var collar: some View {
         Rectangle()
-            .fill(Color.ink)
+            .fill(Color.bar)
             .frame(width: collarSize.width, height: collarSize.height)
     }
 
@@ -358,13 +361,13 @@ struct BarbellView: View {
         VStack(spacing: SBSLayout.space1) {
             (Text(PlateText.perSide(result, useMetric: useMetric)).foregroundStyle(Color.ink)
              + Text(" · \(PlateText.formatWeight(max(weight, barWeight), useMetric: useMetric)) total"))
-                .font(SBSFonts.numberSmall())
+                .font(largeBreakdown ? SBSFonts.liveNumberSmall() : SBSFonts.numberSmall())
                 .foregroundStyle(Color.inkSecondary)
                 .multilineTextAlignment(.center)
 
             if let remainder = PlateText.remainder(result, useMetric: useMetric) {
                 Label(remainder, systemImage: "exclamationmark.triangle")
-                    .font(SBSFonts.caption())
+                    .font(largeBreakdown ? SBSFonts.liveCaption() : SBSFonts.caption())
                     .foregroundStyle(Color.warning)
             }
         }

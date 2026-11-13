@@ -30,10 +30,6 @@ struct SettingsView: View {
     @State private var isRestoringPurchases = false
     @State private var programInfoSheet: AppState.AvailableProgramInfo?
     @State private var showingPlateCalculatorInfo = false
-    @State private var versionTapCount = 0
-    @State private var lastVersionTapTime: Date?
-    @State private var showingReviewerLogin = false
-    @State private var showingReviewerUnlockAlert = false
     @State private var showingImporter = false
     @State private var pendingImportData: Data?
     @State private var showingImportConfirm = false
@@ -351,6 +347,20 @@ struct SettingsView: View {
                             }
                             .padding(.vertical, SBSLayout.space1)
                         }
+
+                        NavigationLink {
+                            BarsSettingsView(appState: appState)
+                        } label: {
+                            HStack {
+                                Text("My Bars")
+                                Spacer()
+                                if !appState.settings.bars.isEmpty {
+                                    Text("\(appState.settings.bars.count)")
+                                        .font(SBSFonts.numberSmall())
+                                        .foregroundStyle(Color.inkSecondary)
+                                }
+                            }
+                        }
                     } else {
                         // Non-premium: show locked toggle with preview and info button
                         VStack(alignment: .leading, spacing: SBSLayout.space3) {
@@ -399,12 +409,26 @@ struct SettingsView: View {
                             .buttonStyle(.plain)
                         }
                         .padding(.vertical, SBSLayout.space1)
+
+                        Button {
+                            showingPaywall = true
+                        } label: {
+                            HStack {
+                                Text("My Bars")
+                                    .foregroundStyle(Color.ink)
+                                Spacer()
+                                SBSBadge(text: "Pro", variant: .pro)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("EZ, hex and specialty bars for the plate calculator. Opens the upgrade screen.")
                     }
                 } header: {
                     SBSListHeader("Plate Calculator")
                 } footer: {
                     if storeManager.canAccess(.plateCalculator) {
-                        SBSListFooter("Visual barbell display showing which plates to load during workouts.")
+                        SBSListFooter("Visual barbell display showing which plates to load during workouts. Add your EZ, hex or other bars under My Bars.")
                     } else {
                         SBSListFooter("Never calculate plates in your head again. Upgrade to Premium to enable.")
                     }
@@ -720,10 +744,6 @@ struct SettingsView: View {
                             .font(SBSFonts.numberSmall())
                             .foregroundStyle(Color.inkSecondary)
                     }
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        handleVersionTap()
-                    }
 
                     // Premium status
                     HStack {
@@ -909,28 +929,6 @@ struct SettingsView: View {
                     showingPaywall: $showingPaywall
                 )
             }
-            .sheet(isPresented: $showingReviewerLogin) {
-                ReviewerLoginView(
-                    onSuccess: {
-                        showingReviewerLogin = false
-                        storeManager.toggleReviewerUnlock()
-                        showingReviewerUnlockAlert = true
-                    },
-                    onCancel: {
-                        showingReviewerLogin = false
-                    }
-                )
-            }
-            .alert(
-                storeManager.isReviewerUnlocked ? "Reviewer Mode Enabled" : "Reviewer Mode Disabled",
-                isPresented: $showingReviewerUnlockAlert
-            ) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(storeManager.isReviewerUnlocked 
-                     ? "Premium features are now unlocked for review."
-                     : "Premium features have been locked.")
-            }
         }
     }
     
@@ -995,26 +993,6 @@ struct SettingsView: View {
         return "\(version) (\(build))"
     }
 
-    // MARK: - Secret Reviewer Unlock
-
-    private func handleVersionTap() {
-        let now = Date()
-        
-        // Reset counter if more than 1.5 seconds since last tap
-        if let lastTap = lastVersionTapTime, now.timeIntervalSince(lastTap) > 1.5 {
-            versionTapCount = 0
-        }
-        
-        lastVersionTapTime = now
-        versionTapCount += 1
-        
-        // Show login after 7 consecutive taps
-        if versionTapCount >= 7 {
-            versionTapCount = 0
-            showingReviewerLogin = true
-        }
-    }
-    
     // MARK: - HealthKit Body Weight
     
     private func fetchBodyWeightFromHealthKit() async {
@@ -1643,113 +1621,6 @@ class ExportFile: NSObject, UIActivityItemSource {
     
     func activityViewController(_ activityViewController: UIActivityViewController, dataTypeIdentifierForActivityType activityType: UIActivity.ActivityType?) -> String {
         UTType.json.identifier
-    }
-}
-
-// MARK: - Reviewer Login View
-
-struct ReviewerLoginView: View {
-    let onSuccess: () -> Void
-    let onCancel: () -> Void
-    
-    @State private var username = ""
-    @State private var password = ""
-    @State private var showError = false
-    @FocusState private var focusedField: Field?
-    
-    private enum Field {
-        case username, password
-    }
-    
-    // Credentials for Apple reviewers (provide these in App Store Connect review notes)
-    private let validUsername = "app_review"
-    private let validPassword = "TopSet2026!"
-    
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 24) {
-                Spacer()
-                
-                Image(systemName: "person.badge.shield.checkmark.fill")
-                    .font(.system(size: 60))
-                    .foregroundStyle(Color.orangeText)
-                
-                Text("Reviewer Access")
-                    .font(SBSFonts.title())
-                    .foregroundStyle(Color.ink)
-
-                Text("Enter your credentials to unlock premium features for review.")
-                    .font(SBSFonts.body())
-                    .foregroundStyle(Color.inkSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-                
-                VStack(spacing: 16) {
-                    TextField("Username", text: $username)
-                        .font(SBSFonts.body())
-                        .sbsFieldCell()
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .focused($focusedField, equals: .username)
-                        .submitLabel(.next)
-                        .onSubmit {
-                            focusedField = .password
-                        }
-                    
-                    SecureField("Password", text: $password)
-                        .font(SBSFonts.body())
-                        .sbsFieldCell()
-                        .focused($focusedField, equals: .password)
-                        .submitLabel(.done)
-                        .onSubmit {
-                            attemptLogin()
-                        }
-                }
-                .padding(.horizontal, 32)
-                
-                if showError {
-                    Label("Invalid credentials", systemImage: "xmark")
-                        .font(SBSFonts.caption())
-                        .foregroundStyle(Color.danger)
-                }
-                
-                Button {
-                    attemptLogin()
-                } label: {
-                    SBSButtonTitle("Sign In")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(SBSPrimaryButtonStyle())
-                .padding(.horizontal, 32)
-                .disabled(username.isEmpty || password.isEmpty)
-                
-                Spacer()
-                Spacer()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.bg.ignoresSafeArea())
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") {
-                        onCancel()
-                    }
-                }
-            }
-        }
-        .onAppear {
-            focusedField = .username
-        }
-    }
-    
-    private func attemptLogin() {
-        if username.lowercased() == validUsername.lowercased() && password == validPassword {
-            showError = false
-            onSuccess()
-        } else {
-            showError = true
-            password = ""
-        }
     }
 }
 

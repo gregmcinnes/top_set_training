@@ -1348,6 +1348,18 @@ final class ActiveWorkoutSession: Identifiable {
         return workoutState.hasFailedSets(for: exercise.id) ? "Missed reps, weight stays" : nil
     }
 
+    /// Each performed exercise's bar, under both its name and lift key (PRs use the lift)
+    private func summaryBarWeights(for exercises: [WorkoutExercise]) -> [String: Double] {
+        var map: [String: Double] = [:]
+        for exercise in exercises {
+            let weight = appState.barWeight(for: exercise.barKeySource)
+            for key in [exercise.name, exercise.lift].compactMap({ $0 }) {
+                map[UserSettings.barKey(key)] = weight
+            }
+        }
+        return map
+    }
+
     /// Build workout summary for sharing, covering what was actually done
     func buildWorkoutSummary() -> WorkoutSummary {
         let performed = workoutState.exercises.filter { (workoutState.completedSets[$0.id]?.count ?? 0) > 0 }
@@ -1410,7 +1422,8 @@ final class ActiveWorkoutSession: Identifiable {
             totalSets: workoutState.completedSetsCount,
             duration: workoutDuration,
             prs: prs,
-            barWeight: appState.settings.barWeight
+            barWeight: appState.settings.barWeight,
+            barWeights: summaryBarWeights(for: performed)
         )
     }
 
